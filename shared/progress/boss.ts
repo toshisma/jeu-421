@@ -35,5 +35,5 @@ export function bossOfWeek(day: string): BossDef {
   const weeks = Math.floor(Date.parse(`${weekKey(day)}T12:00:00Z`) / (7 * 86400_000));
   return BOSSES[((weeks % BOSSES.length) + BOSSES.length) % BOSSES.length];
 }
-export const BOSS_COINS = 100;
+export const BOSS_COINS = 25;
 

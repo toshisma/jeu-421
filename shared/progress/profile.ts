@@ -528,14 +528,14 @@ export function setTitle(p: Profile, id: string | null): Profile | null {
 // Album des combinaisons
 
 export const ALBUM = [
-  { id: 'grands', name: 'Les grands coups', keys: ['421', '111'], coins: 150 },
-  { id: 'as', name: 'Deux as', keys: ['611', '511', '411', '311', '211'], coins: 150 },
-  { id: 'brelans', name: 'Les brelans', keys: ['666', '555', '444', '333', '222'], coins: 200 },
-  { id: 'suites', name: 'Les suites', keys: ['654', '543', '432', '321'], coins: 150 },
-  { id: 'nenette', name: 'La nénette', keys: ['221'], coins: 50 },
+  { id: 'grands', name: 'Les grands coups', keys: ['421', '111'], coins: 30 },
+  { id: 'as', name: 'Deux as', keys: ['611', '511', '411', '311', '211'], coins: 30 },
+  { id: 'brelans', name: 'Les brelans', keys: ['666', '555', '444', '333', '222'], coins: 40 },
+  { id: 'suites', name: 'Les suites', keys: ['654', '543', '432', '321'], coins: 30 },
+  { id: 'nenette', name: 'La nénette', keys: ['221'], coins: 10 },
 ];
 export const ALBUM_KEYS = ALBUM.flatMap((a) => a.keys);
-export const ALBUM_FULL_COINS = 500;
+export const ALBUM_FULL_COINS = 100;
 /** Clé d'album d'une combinaison (dés triés), ou null si elle n'est pas dans l'album. */
 export const albumKey = (dice: number[]) => { const k = [...dice].sort((a, b) => b - a).join(''); return ALBUM_KEYS.includes(k) ? k : null; };
 
@@ -583,7 +583,7 @@ export function recordMonth(p: Profile, reward: Reward, ctx: RewardContext, day:
 // Prestige
 
 export const PRESTIGE_LEVEL = 30;
-export const PRESTIGE_COINS = 300;
+export const PRESTIGE_COINS = 60;
 export function doPrestige(p: Profile): Profile | null {
   if (levelInfo(p.xp).level < PRESTIGE_LEVEL) return null;
   return { ...p, xp: 0, prestige: (p.prestige ?? 0) + 1, coins: p.coins + PRESTIGE_COINS };

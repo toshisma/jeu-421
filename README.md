@@ -133,17 +133,17 @@ points de jeu.
 - **Phrases rapides** en partie (« Belle main ! », « Tu paies ta tournée ! »…) : liste fermée,
   vérifiée par le serveur, rien à modérer. Les ordinateurs répondent parfois.
 - **Album des combinaisons** : 17 combinaisons sur 5 pages, chaque page complétée rapporte des
-  pièces, l'album complet donne les dés « Collectionneur », un titre et 500 pièces.
+  pièces, l'album complet donne les dés « Collectionneur », un titre et 100 pièces (pages : 10 à 40 pièces).
 - **Patron de la semaine** : un adversaire difficile avec sa particularité (gros enjeu sur le 4-2-1,
   deux lancers par tour, le moins de lancers gagne, 10 secondes par décision, trois contre un, partie éclair), qui change chaque
-  lundi. Première victoire de la semaine : 100 pièces. Les patrons ne touchent jamais aux dés : seulement aux règles, un trophée, le titre « Tombeur de … ».
+  lundi. Première victoire de la semaine : 25 pièces, un trophée, le titre « Tombeur de … ». Les patrons ne touchent jamais aux dés : seulement aux règles.
 - **Clubs** (comptes) : 30 membres, fondation pour 100 pièces, coffre commun de la semaine
   (15 / 40 / 80 victoires du club : 15 / 40 / 80 pièces pour chaque membre qui a gagné au moins
   une partie), classement des clubs, discussion en phrases rapides.
 - **Récap du mois** : parties, victoires, 4-2-1, meilleur coup, adversaire préféré, heure de jeu
   préférée (mois en cours et précédent). Pour soi, rien n'est partagé.
 - **Prestige** au niveau 30 : le niveau repart à 1, on garde tout, étoile ★ visible des autres,
-  300 pièces, et la boutique n'a plus de niveau requis.
+  60 pièces, et la boutique n'a plus de niveau requis.
 
 ## 2 ter. Commandes
 

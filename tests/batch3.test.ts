@@ -16,7 +16,7 @@ describe('album des combinaisons', () => {
     let r = applyAlbum(p, ['421', '111', '999', '421']);
     expect(r.profile.album).toEqual(['421', '111']);
     expect(r.done.map((d) => d.id)).toEqual(['album-grands']);
-    expect(r.profile.coins).toBe(150);
+    expect(r.profile.coins).toBe(30);
     p = r.profile;
     r = applyAlbum(p, ALBUM_KEYS);
     expect(r.profile.albumPages?.length).toBe(ALBUM.length);
@@ -67,7 +67,7 @@ describe('récap et prestige', () => {
     const p = doPrestige(big)!;
     expect(p.xp).toBe(0);
     expect(p.prestige).toBe(1);
-    expect(p.coins).toBe(310);
+    expect(p.coins).toBe(70);
     expect(canBuy({ ...p, coins: 99999 }, getItem('dice-diamant')).ok).toBe(true);
     expect(canBuy({ ...newProfile(), coins: 99999 }, getItem('dice-diamant')).ok).toBe(false);
   });
