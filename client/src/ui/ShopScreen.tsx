@@ -119,7 +119,7 @@ export function ShopScreen({ profile, settings, onBuy, onEquip, onBack }: Props)
 
         <section className="shop-side">
           <nav className="tabs">
-            {CATS.map((c) => <button key={c} className={c === cat ? 'on' : ''} onClick={() => setCat(c)}>{CATEGORY_LABELS[c]}</button>)}
+            {CATS.map((c) => <button key={c} className={c === cat ? 'on' : ''} onClick={(e) => { setCat(c); e.currentTarget.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); }}>{CATEGORY_LABELS[c]}</button>)}
           </nav>
           <div className="items">
             {itemsOf(cat).filter(visible).map((it) => {

@@ -969,3 +969,35 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .bag-stage .die-cube { margin-bottom: calc(var(--s) * 0.3); }
 .coll-card.equipped::before { z-index: 2; top: 5px; left: 7px; padding: 1px 6px; border-radius: 6px; background: rgba(0,0,0,0.55); }
 .promo-dice .die-cube:not(.locked) { margin: calc(var(--s) * 0.12) calc(var(--s) * 0.04); }
+
+/* --- Mobile : rien ne doit dépasser l'écran (les colonnes de grille gardent la largeur de l'écran) --- */
+.shop-body { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+.shop-side, .shop-preview { min-width: 0; }
+.shop-head h2 { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shop-head > :last-child { flex: none; }
+@media (max-width: 760px) {
+  .shop-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: 34vh minmax(0, 1fr); }
+  .items { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .shop-note { display: none; }
+  .item-detail { padding: 10px 14px; }
+  .shop-head h2 { font-size: 1.375rem; }
+}
+.tabs { overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+.items { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.profile-chip { white-space: nowrap; min-width: 0; }
+@media (max-width: 760px) {
+  .profile-chip { gap: 6px; padding: 6px 10px; }
+  .profile-chip .xpbar, .profile-chip .xp { display: none; }
+}
+/* Joueurs en partie sur petit écran : les cartes se partagent la largeur, la rangée défile au doigt. */
+@media (max-width: 520px) {
+  .players { gap: 6px; scroll-snap-type: x proximity; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; touch-action: pan-x; }
+  .pcard { flex: 1 0 104px; width: auto; max-width: 168px; scroll-snap-align: start; }
+}
+/* Barres d'onglets qui défilent : un fondu à droite montre qu'il y a la suite. */
+@media (max-width: 760px) {
+  .tabs, .coll-filter { -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); padding-right: 28px; }
+  .tabs { touch-action: pan-x; }
+}
+.seg button { white-space: nowrap; }
+@media (max-width: 420px) { .seg button { padding: 0 12px; } }
