@@ -1,24 +1,25 @@
 # Mise en ligne
 
-## Solution recommandée : Railway (le plus simple, environ 5 $ par mois)
+## Solution retenue : Render (environ 7,25 $ par mois)
 
-Un seul service (le jeu et son serveur), un petit disque pour les comptes, une adresse web
-fournie gratuitement (`…up.railway.app`). Essai gratuit de 30 jours, sans carte bancaire.
+Coût : instance « Starter » 7 $ par mois + disque de 1 Go 0,25 $ par mois (l'espace de travail
+« Hobby » est gratuit). Bande passante comprise : 5 Go par mois, puis 0,15 $ par Go. Selon votre
+situation, la TVA belge peut s'ajouter à la facture.
 
 1. Mettre le projet sur GitHub (dépôt privé `jeu-421`).
-2. Sur [railway.com](https://railway.com) : se connecter avec GitHub → **New Project** →
-   **Deploy from GitHub repo** → choisir `jeu-421`. Railway lit `railway.json` et le `Dockerfile`.
-3. Dans le service : **Settings → Region** : choisir la région européenne (Amsterdam).
-4. **Ajouter un volume** (clic droit sur le service → *Attach volume*), point de montage `/data`.
-   Sans volume, les comptes sont effacés à chaque mise à jour.
-5. **Settings → Networking → Generate Domain** : l'adresse du jeu est créée.
-6. Passer à l'offre **Hobby** (5 $/mois, utilisation comprise jusqu'à 5 $) avant la fin de l'essai.
+2. Sur [render.com](https://render.com) : se connecter avec GitHub → **New** → **Blueprint** →
+   choisir `jeu-421`. Render lit `render.yaml` : service web Node, offre Starter, région
+   **Francfort** (Union européenne), disque de 1 Go monté sur `/var/data` pour les comptes.
+3. Valider (**Apply**) et ajouter une carte bancaire. Le premier déploiement prend quelques minutes.
+4. L'adresse du jeu s'affiche en haut du service (`https://jeu-421.onrender.com` ou proche).
+5. Sauvegardes : Render fait des instantanés quotidiens du disque (onglet **Disks**) ; vérifiez
+   qu'ils sont bien listés après le premier jour.
 
 Mises à jour : chaque envoi sur GitHub redéploie le jeu automatiquement. Les mises engagées dans
 une partie en cours à ce moment-là sont remboursées au redémarrage.
 
 Nom de domaine personnalisé (facultatif, environ 10 € par an chez un registraire) :
-**Settings → Networking → Custom Domain**, puis suivre les indications DNS affichées.
+**Settings → Custom Domains**, puis suivre les indications DNS affichées.
 
 ---
 
@@ -76,6 +77,12 @@ aussi (montez un volume sur le dossier de la base).
 | `PORT` | port d'écoute | 3001 |
 | `DATABASE_PATH` | fichier de la base de données | `data/421.sqlite` |
 | `MIN_SOLO_MS` | durée minimale d'une partie solo récompensée (ms) | 20000 |
+| `ADMIN_USERS` | pseudo(s) ayant accès au tableau de bord d'administration, séparés par des virgules | aucun |
+
+**Administration.** Le tableau de bord (Statistiques → « Tableau de bord ») n'apparaît que pour les
+comptes listés dans `ADMIN_USERS`, et le serveur vérifie ce droit à chaque appel. Créez votre compte
+avec ce pseudo dès la mise en ligne, avant que quelqu'un d'autre ne le prenne, et ne le supprimez
+pas (un nouveau compte du même pseudo hériterait de l'accès).
 
 ### Sauvegardes
 La base tient dans un seul fichier. Copiez-le régulièrement (une fois par jour suffit), par exemple

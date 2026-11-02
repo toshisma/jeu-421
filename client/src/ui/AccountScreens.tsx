@@ -58,8 +58,8 @@ export function QuestsPanel({ profile, onClaim }: { profile: Profile; onClaim: (
 // ---------------------------------------------------------------------------------------------
 // Compte
 
-export function AccountScreen({ pa, onBack, onPrivacy }: { pa: ProfileApi; onBack: () => void; onPrivacy?: () => void }) {
-  const [tab, setTab] = useState<'login' | 'register' | 'recover'>('register');
+export function AccountScreen({ pa, onBack, onPrivacy, initial = 'register' }: { pa: ProfileApi; onBack: () => void; onPrivacy?: () => void; initial?: 'login' | 'register' }) {
+  const [tab, setTab] = useState<'login' | 'register' | 'recover'>(initial);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');

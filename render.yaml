@@ -16,6 +16,10 @@ services:
         value: /var/data/421.sqlite
       - key: NODE_VERSION
         value: "22"
+      # Pseudo(s) du compte administrateur (tableau de bord des statistiques), séparés par des virgules.
+      # Créez ce compte dans le jeu juste après la mise en ligne.
+      - key: ADMIN_USERS
+        value: toshisma
     disk:
       name: donnees
       mountPath: /var/data

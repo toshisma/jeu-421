@@ -14,7 +14,7 @@ describe('série de connexions', () => {
     let coins = 0;
     for (const d of days) { const r = claimDaily(p, d)!; p = r.profile; coins += r.coins; }
     expect(p.daily).toEqual({ last: '2026-11-08', count: 7 });
-    expect(coins).toBe(10 + 15 + 20 + 25 + 30 + 40 + 120);
+    expect(coins).toBe(3 + 5 + 7 + 8 + 10 + 12 + 40);
     expect(claimDaily(p, '2026-11-08')).toBeNull();
     expect(dailyStatus(p, '2026-11-10')).toMatchObject({ count: 1, cycleDay: 1, canClaim: true });
     expect(dailyStatus(p, '2026-11-09')).toMatchObject({ count: 8, cycleDay: 1 });

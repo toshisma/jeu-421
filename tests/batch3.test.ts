@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   ALBUM, ALBUM_KEYS, applyAlbum, applyGameEnd, canBuy, doPrestige, newProfile, recordMonth, rewardFor, sanitizeProfile, titleLabel,
 } from '../shared/progress/profile';
-import { BOSSES, bossDie, bossOfWeek, weekKey } from '../shared/progress/boss';
+import { BOSSES, bossOfWeek, weekKey } from '../shared/progress/boss';
 import { getItem } from '../shared/progress/catalog';
 import { DEFAULT_CONFIG } from '../shared/config';
 import { createGame, currentPlayerId } from '../shared/engine';
@@ -45,14 +45,8 @@ describe('patron de la semaine', () => {
     const wrong = applyGameEnd(newProfile(), win, { ...ctx, boss: 'pas-le-bon' }, '2026-11-04');
     expect(wrong.profile.stats.bossWins).toBe(0);
   });
-  it('les coups de pouce restent des dés valides', () => {
-    let i = 0;
-    const seq = () => [3, 5, 6, 2][i++ % 4];
-    for (const b of BOSSES) for (let k = 0; k < 50; k++) {
-      const v = bossDie(b.luck, k % 3, seq, Math.random, [4, 4]);
-      expect(v).toBeGreaterThanOrEqual(1);
-      expect(v).toBeLessThanOrEqual(6);
-    }
+  it('aucun patron ne touche aux dés : seulement aux règles', () => {
+    for (const b of BOSSES) expect('luck' in b).toBe(false);
   });
 });
 

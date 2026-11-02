@@ -154,6 +154,28 @@ export class Store {
         phrase TEXT NOT NULL,
         created_at INTEGER NOT NULL
       );
+      -- Parties réellement terminées (statistiques). Une ligne par partie : l'identifiant unique
+      -- empêche de compter deux fois la même partie.
+      CREATE TABLE IF NOT EXISTS games_log (
+        id TEXT PRIMARY KEY,
+        mode TEXT NOT NULL,            -- 'online' ou 'solo'
+        humans INTEGER NOT NULL,       -- joueurs humains
+        bots INTEGER NOT NULL,         -- adversaires ordinateur
+        started_at INTEGER NOT NULL,
+        ended_at INTEGER NOT NULL,
+        duration_s INTEGER NOT NULL,
+        day TEXT NOT NULL              -- jour de fin, fuseau Europe/Brussels
+      );
+      CREATE INDEX IF NOT EXISTS idx_games_day ON games_log(day);
+      -- Participants humains : clé opaque (compte ou invité de la partie), victoire.
+      CREATE TABLE IF NOT EXISTS game_players (
+        game_id TEXT NOT NULL REFERENCES games_log(id) ON DELETE CASCADE,
+        player_key TEXT NOT NULL,
+        user_id TEXT,
+        won INTEGER NOT NULL,
+        PRIMARY KEY (game_id, player_key)
+      );
+      CREATE INDEX IF NOT EXISTS idx_gp_user ON game_players(user_id);
       CREATE INDEX IF NOT EXISTS idx_challenge_rank ON challenge(day, points DESC, throws ASC, created_at ASC);
     `);
     // Migrations douces : colonnes ajoutées après la première version.
@@ -194,6 +216,8 @@ export class Store {
   }
   deleteUser(id: string) {
     this.db.prepare('DELETE FROM users WHERE id = ?').run(id); // sessions et amis : ON DELETE CASCADE
+    // Statistiques : la partie reste comptée, mais plus aucun lien avec le compte supprimé.
+    this.db.prepare(`UPDATE game_players SET user_id = NULL, player_key = 'x:' || lower(hex(randomblob(8))) WHERE user_id = ?`).run(id);
   }
 
   createSession(tokenHash: string, userId: string) {
@@ -390,6 +414,57 @@ export class Store {
     return this.db.prepare('SELECT user_id, context, amount FROM escrow').all() as unknown as { user_id: string; context: string; amount: number }[];
   }
   escrowClear() { this.db.prepare('DELETE FROM escrow').run(); }
+
+  // --- Statistiques ---
+  /** Enregistre une partie terminée. Renvoie false si elle était déjà enregistrée. */
+  logGame(g: { id: string; mode: 'online' | 'solo'; humans: number; bots: number; startedAt: number; endedAt: number; day: string;
+    players: { key: string; userId: string | null; won: boolean }[] }): boolean {
+    const r = this.db.prepare('INSERT OR IGNORE INTO games_log (id, mode, humans, bots, started_at, ended_at, duration_s, day) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(g.id, g.mode, g.humans, g.bots, g.startedAt, g.endedAt, Math.max(0, Math.round((g.endedAt - g.startedAt) / 1000)), g.day);
+    if (!r.changes) return false;
+    const ins = this.db.prepare('INSERT OR IGNORE INTO game_players (game_id, player_key, user_id, won) VALUES (?, ?, ?, ?)');
+    for (const p of g.players) ins.run(g.id, p.key, p.userId, p.won ? 1 : 0);
+    return true;
+  }
+  statsDay(day: string) {
+    const g = this.db.prepare('SELECT COUNT(*) AS games FROM games_log WHERE day = ?').get(day) as { games: number };
+    const p = this.db.prepare(`SELECT COUNT(DISTINCT gp.player_key) AS players, COALESCE(SUM(gp.won), 0) AS wins
+      FROM game_players gp JOIN games_log g ON g.id = gp.game_id WHERE g.day = ?`).get(day) as { players: number; wins: number };
+    return { games: g.games, players: p.players, wins: p.wins };
+  }
+  statsDays(from: string, to: string) {
+    return this.db.prepare(`SELECT g.day AS day, COUNT(DISTINCT g.id) AS games, COUNT(DISTINCT gp.player_key) AS players
+      FROM games_log g LEFT JOIN game_players gp ON gp.game_id = g.id WHERE g.day BETWEEN ? AND ? GROUP BY g.day`).all(from, to) as unknown as { day: string; games: number; players: number }[];
+  }
+  statsTotals() {
+    const t = this.db.prepare(`SELECT COUNT(*) AS games, COALESCE(SUM(CASE WHEN humans >= 2 THEN 1 ELSE 0 END), 0) AS multi,
+      COALESCE(SUM(CASE WHEN humans < 2 THEN 1 ELSE 0 END), 0) AS vsAi, COALESCE(SUM(duration_s), 0) AS seconds, MIN(day) AS since FROM games_log`).get() as
+      { games: number; multi: number; vsAi: number; seconds: number; since: string | null };
+    const users = (this.db.prepare('SELECT COUNT(*) AS n FROM users').get() as { n: number }).n;
+    return { ...t, users };
+  }
+  usersCreatedBetween(from: number, to: number): number {
+    return (this.db.prepare('SELECT COUNT(*) AS n FROM users WHERE created_at >= ? AND created_at < ?').get(from, to) as { n: number }).n;
+  }
+  usersCreatedSince(from: number) {
+    return this.db.prepare('SELECT username, created_at FROM users WHERE created_at >= ? ORDER BY created_at DESC LIMIT 100').all(from) as unknown as { username: string; created_at: number }[];
+  }
+  /** Admin : comptes les plus actifs (parties terminées) depuis une date. */
+  mostActive(sinceDay: string, limit: number) {
+    return this.db.prepare(`SELECT u.username AS username, COUNT(*) AS games, SUM(gp.won) AS wins, MAX(g.ended_at) AS last
+      FROM game_players gp JOIN games_log g ON g.id = gp.game_id JOIN users u ON u.id = gp.user_id
+      WHERE g.day >= ? GROUP BY u.id ORDER BY games DESC, wins DESC LIMIT ?`).all(sinceDay, limit) as unknown as { username: string; games: number; wins: number; last: number }[];
+  }
+  activeAccounts(sinceDay: string): number {
+    return (this.db.prepare(`SELECT COUNT(DISTINCT gp.user_id) AS n FROM game_players gp JOIN games_log g ON g.id = gp.game_id
+      WHERE gp.user_id IS NOT NULL AND g.day >= ?`).get(sinceDay) as { n: number }).n;
+  }
+  longestGames(limit: number) {
+    const rows = this.db.prepare('SELECT id, mode, humans, bots, duration_s, ended_at FROM games_log ORDER BY duration_s DESC LIMIT ?').all(limit) as unknown as
+      { id: string; mode: string; humans: number; bots: number; duration_s: number; ended_at: number }[];
+    const names = this.db.prepare(`SELECT u.username AS username FROM game_players gp JOIN users u ON u.id = gp.user_id WHERE gp.game_id = ?`);
+    return rows.map((r) => ({ ...r, accounts: (names.all(r.id) as unknown as { username: string }[]).map((x) => x.username) }));
+  }
 
   close() { this.db.close(); }
 }

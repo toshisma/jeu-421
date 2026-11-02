@@ -21,7 +21,8 @@ import {
 } from '../shared/tournament';
 import { Store } from './db';
 import { clientDay, createAccounts, type AccountsOptions } from './accounts';
-import { albumKey, didWin } from '../shared/progress/profile';
+import { createStats, type StatsOptions } from './stats';
+import { albumKey, didWin, finalPlace } from '../shared/progress/profile';
 import type { ComboKind } from '../shared/combos';
 
 interface Member {
@@ -62,6 +63,8 @@ interface Room {
   stats: Map<string, TableStats>;
   lastSummarySeq: number;
   rewarded: boolean;
+  /** Début de la partie en cours (durée réelle : récompenses et statistiques). */
+  startedAt: number;
   /** Mises engagées pour la partie en cours (comptes débités au lancement). */
   pot: number;
   /** Tournoi auquel appartient cette table. */
@@ -113,6 +116,7 @@ export interface ServerOptions {
   /** Base de données des comptes (fichier SQLite, ':memory:' pour les tests). */
   dbPath?: string;
   accounts?: AccountsOptions;
+  stats?: StatsOptions;
 }
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -152,9 +156,25 @@ export async function startServer(opts: ServerOptions) {
   const app = express();
   app.set('trust proxy', 1); // adresse IP réelle derrière l'hébergeur (limite de tentatives)
   const store = new Store(opts.dbPath ?? (process.env.VITEST ? ':memory:' : process.env.DATABASE_PATH ?? 'data/421.sqlite'));
-  const accounts = createAccounts(store, opts.accounts);
+  // eslint-disable-next-line prefer-const
+  let stats: ReturnType<typeof createStats>;
+  const accounts = createAccounts(store, { ...opts.accounts, onSoloFinished: (g) => stats.recordSolo(g) });
   const rooms = new Map<string, Room>();
   const tournaments = new Map<string, Tournament>();
+  const humanConnected = (m: Member) => !m.bot && !m.left && m.socketId != null;
+  stats = createStats(store, {
+    minSoloMs: opts.accounts?.minSoloMs, ...opts.stats, userFromToken: accounts.userFromToken,
+    live: () => {
+      let onlineGames = 0, inRooms = 0;
+      for (const r of rooms.values()) {
+        const here = r.members.filter(humanConnected).length;
+        inRooms += here;
+        if (r.game && r.game.phase !== 'fini' && here > 0) onlineGames++;
+      }
+      return { onlineGames, inRooms };
+    },
+  });
+  app.use('/api', stats.router);
 
   // Listes publiques : salons en attente de joueurs et tournois ouverts aux inscriptions.
   app.get('/api/lobbies', (_req, res) => {
@@ -190,6 +210,7 @@ export async function startServer(opts: ServerOptions) {
   app.use('/api', accounts.router);
   const http = createServer(app);
   const io = new Server(http, { cors: { origin: true } });
+  stats.attach(io);
 
   app.get('/health', (_req, res) => res.json({ ok: true, rooms: rooms.size, tournaments: tournaments.size }));
   const here = dirname(fileURLToPath(import.meta.url));
@@ -216,7 +237,7 @@ export async function startServer(opts: ServerOptions) {
     const r: Room = {
       code: newCode(), title: o.title, hostId: o.host.id, members: o.members, config: o.config, table: o.table, status: 'lobby',
       game: null, turnTimer: null, turnDeadline: null, autoTurnOf: null, timeoutEnd: null, hostTimer: null, stats: new Map(),
-      rewarded: false, lastSummarySeq: -1, lastActivity: Date.now(), pot: 0, tournament: o.tournament ?? null, games: 0,
+      rewarded: false, startedAt: Date.now(), lastSummarySeq: -1, lastActivity: Date.now(), pot: 0, tournament: o.tournament ?? null, games: 0,
     };
     rooms.set(r.code, r);
     return r;
@@ -371,9 +392,18 @@ export async function startServer(opts: ServerOptions) {
         suddenDeath: isSuddenDeath(g.config),
         comboKeys: st.keys, best: st.best ?? undefined,
         opponentNames: r.members.filter((x) => x.id !== m.id && g.players.some((p) => p.id === x.id)).map((x) => x.name),
+        place: finalPlace(g, m.id),
+        minutes: (Date.now() - r.startedAt) / 60000,
       }, m.day, m.left);
       if (out && m.socketId) io.to(m.socketId).emit('profile:reward', out);
     }
+    // Statistiques : la partie est terminée, on l'enregistre une fois.
+    stats.recordOnline({
+      startedAt: r.startedAt,
+      bots: r.members.filter((m) => m.bot && g.players.some((p) => p.id === m.id)).length,
+      humans: r.members.filter((m) => !m.bot && g.players.some((p) => p.id === m.id))
+        .map((m) => ({ key: m.userId ? `u:${m.userId}` : `g:${m.id}`, userId: m.userId ?? null, won: didWin(g, m.id) })),
+    });
     // Rivalités entre comptes : qui a fini devant qui.
     const ranked = g.ranking.map((id) => r.members.find((m) => m.id === id)?.userId).filter((x): x is string => !!x);
     if (ranked.length > 1) accounts.recordRivalry(ranked);
@@ -404,6 +434,7 @@ export async function startServer(opts: ServerOptions) {
     }
     r.status = 'playing';
     r.game = createGame(r.config, players.map((x) => ({ id: x.id, name: x.name })), randomInt(players.length));
+    r.startedAt = Date.now();
     r.autoTurnOf = null;
     r.timeoutEnd = null;
     r.stats = new Map();

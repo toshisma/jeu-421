@@ -28,7 +28,8 @@ const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.
  *  - iPhone / iPad (Safari) : pas d'API d'installation, on explique le geste (Partager → Sur l'écran d'accueil) ;
  *  - déjà installée ou application native : rien.
  */
-export function InstallPrompt() {
+/** Bouton d'installation : `compact` dans la barre du haut de l'accueil, complet dans les Réglages. */
+export function InstallPrompt({ compact = false }: { compact?: boolean }) {
   const [, force] = useState(0);
   const [iosHelp, setIosHelp] = useState(false);
   useEffect(() => {
@@ -40,21 +41,21 @@ export function InstallPrompt() {
 
   if (deferred) {
     return (
-      <button className="btn" onClick={async () => {
+      <button className={compact ? 'install-chip' : 'btn'} onClick={async () => {
         const d = deferred!;
         await d.prompt();
         await d.userChoice.catch(() => null);
         deferred = null;
         force((n) => n + 1);
-      }}>📲 Installer l'application</button>
+      }}>📲 {compact ? 'Installer' : "Installer l'application"}</button>
     );
   }
   if (isIos()) {
     return (
-      <>
-        <button className="btn ghost" onClick={() => setIosHelp((v) => !v)}>📲 Installer sur l'iPhone</button>
-        {iosHelp && <p className="muted small center">Dans Safari, touchez <b>Partager</b> (le carré avec une flèche), puis <b>Sur l'écran d'accueil</b>.</p>}
-      </>
+      <span className={compact ? 'install-wrap' : undefined}>
+        <button className={compact ? 'install-chip' : 'btn ghost'} aria-expanded={iosHelp} onClick={() => setIosHelp((v) => !v)}>📲 {compact ? 'Installer' : "Installer sur l'iPhone"}</button>
+        {iosHelp && <p className={compact ? 'install-pop' : 'muted small center'}>Dans Safari, touchez <b>Partager</b> (le carré avec une flèche), puis <b>Sur l'écran d'accueil</b>.</p>}
+      </span>
     );
   }
   return null;

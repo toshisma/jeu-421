@@ -7,14 +7,10 @@ import { createGame, currentPlayerId, rollAction, stopAction, type GameState } f
 import { sanitizeGesture, type ThrowGesture } from '../../../shared/gesture';
 import { AVATARS } from '../../../shared/protocol';
 import type { GameController, GameEvent, MetaPlayer } from './controller';
+import { fairDie } from '../../../shared/random';
 
 const COLORS = ['#d9a441', '#c0583a', '#3d8fb5', '#8e5bb5', '#3f8f5a', '#c2366b'];
-const rollDie = () => {
-  const a = new Uint32Array(1);
-  let v: number;
-  do { crypto.getRandomValues(a); v = a[0]; } while (v >= 4294967292);
-  return 1 + (v % 6);
-};
+const rollDie = fairDie;
 const seed = () => crypto.getRandomValues(new Uint32Array(1))[0] >>> 1;
 
 export class PartyController implements GameController {

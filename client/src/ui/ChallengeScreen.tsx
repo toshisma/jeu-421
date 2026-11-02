@@ -47,8 +47,8 @@ export function ChallengeScreen({ pa, settings, appearance, onBack }: { pa: Prof
     await tray.current?.roll(next, k, crypto.getRandomValues(new Uint32Array(1))[0] >>> 1, undefined, evaluate(next, DEFAULT_CONFIG.values).kind === '421');
     setDice(next);
     setThrowIdx((n) => n + 1);
-    setKeep(NO_KEEP);
-    tray.current?.setKept(NO_KEEP);
+    // Les dés gardés restent gardés pour le lancer suivant (on peut les décocher).
+    tray.current?.setKept(throwIdx + 1 < CHALLENGE_THROWS ? k : NO_KEEP);
     setBusy(false);
   };
   const toggle = (i: number) => {
@@ -67,6 +67,8 @@ export function ChallengeScreen({ pa, settings, appearance, onBack }: { pa: Prof
     if (turn + 1 < CHALLENGE_TURNS) {
       setTurn(turn + 1);
       setThrowIdx(0);
+      setKeep(NO_KEEP);
+      tray.current?.setKept(NO_KEEP);
       setDice([0, 0, 0]);
       setDecisions((d) => [...d, []]);
       return;

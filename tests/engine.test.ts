@@ -12,7 +12,7 @@ const scripted = (vals: number[]) => { let i = 0; return () => vals[i++ % vals.l
 
 describe('combinaisons', () => {
   it('respecte l’ordre de priorité', () => {
-    const order = [[4, 2, 1], [1, 1, 1], [6, 1, 1], [2, 1, 1], [6, 6, 6], [2, 2, 2], [6, 5, 4], [3, 2, 1], [6, 6, 5], [6, 5, 2], [3, 2, 2], [2, 2, 1]];
+    const order = [[4, 2, 1], [1, 1, 1], [6, 1, 1], [6, 6, 6], [5, 1, 1], [5, 5, 5], [4, 1, 1], [4, 4, 4], [3, 1, 1], [3, 3, 3], [2, 1, 1], [2, 2, 2], [6, 5, 4], [3, 2, 1], [6, 6, 5], [6, 5, 2], [3, 2, 2], [2, 2, 1]];
     const ranks = order.map((d) => evaluate(d, V).rank);
     for (let i = 1; i < ranks.length; i++) expect(ranks[i - 1]).toBeGreaterThan(ranks[i]);
   });

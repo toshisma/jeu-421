@@ -31,17 +31,17 @@ export interface QuestDef {
 const c = (g: GameSummary, k: ComboKind) => g.combos[k] ?? 0;
 
 export const QUESTS: QuestDef[] = [
-  { id: 'gagner-2', text: 'Gagner 2 parties', target: 2, coins: 55, xp: 40, progress: (g) => (g.won ? 1 : 0) },
-  { id: 'jouer-3', text: 'Terminer 3 parties', target: 3, coins: 35, xp: 30, progress: () => 1 },
-  { id: 'faire-421', text: 'Faire un 4-2-1', target: 1, coins: 55, xp: 30, progress: (g) => c(g, '421') },
-  { id: 'brelans', text: 'Faire 3 brelans', target: 3, coins: 45, xp: 30, progress: (g) => c(g, 'brelan') },
-  { id: 'as', text: 'Faire 4 fois deux as ou plus', target: 4, coins: 45, xp: 30, progress: (g) => c(g, '11x') + c(g, '111') },
-  { id: 'suites', text: 'Faire 3 suites', target: 3, coins: 40, xp: 25, progress: (g) => c(g, 'suite') },
-  { id: 'difficile', text: "Gagner une partie contre l'IA difficile", target: 1, coins: 90, xp: 60, progress: (g) => (g.won && g.mode === 'solo' && g.difficulty === 'difficile' ? 1 : 0) },
-  { id: 'grande-table', text: 'Gagner contre 3 adversaires ou plus', target: 1, coins: 80, xp: 50, progress: (g) => (g.won && g.opponents >= 3 ? 1 : 0) },
-  { id: 'en-ligne', text: 'Jouer une partie en ligne', target: 1, coins: 70, xp: 40, progress: (g) => (g.mode === 'online' ? 1 : 0) },
-  { id: 'gagner-en-ligne', text: 'Gagner une partie en ligne', target: 1, coins: 110, xp: 75, progress: (g) => (g.won && g.mode === 'online' ? 1 : 0) },
-  { id: 'gestes', text: "Lancer 10 fois d'un geste (glisser ou secouer)", target: 10, coins: 35, xp: 25, progress: (g) => g.gestureThrows },
+  { id: 'gagner-2', text: 'Gagner 2 parties', target: 2, coins: 20, xp: 40, progress: (g) => (g.won ? 1 : 0) },
+  { id: 'jouer-3', text: 'Terminer 3 parties', target: 3, coins: 10, xp: 30, progress: () => 1 },
+  { id: 'faire-421', text: 'Faire un 4-2-1', target: 1, coins: 20, xp: 30, progress: (g) => c(g, '421') },
+  { id: 'brelans', text: 'Faire 3 brelans', target: 3, coins: 15, xp: 30, progress: (g) => c(g, 'brelan') },
+  { id: 'as', text: 'Faire 4 fois deux as ou plus', target: 4, coins: 15, xp: 30, progress: (g) => c(g, '11x') + c(g, '111') },
+  { id: 'suites', text: 'Faire 3 suites', target: 3, coins: 15, xp: 25, progress: (g) => c(g, 'suite') },
+  { id: 'difficile', text: "Gagner une partie contre l'IA difficile", target: 1, coins: 30, xp: 60, progress: (g) => (g.won && g.mode === 'solo' && g.difficulty === 'difficile' ? 1 : 0) },
+  { id: 'grande-table', text: 'Gagner contre 3 adversaires ou plus', target: 1, coins: 25, xp: 50, progress: (g) => (g.won && g.opponents >= 3 ? 1 : 0) },
+  { id: 'en-ligne', text: 'Jouer une partie en ligne', target: 1, coins: 25, xp: 40, progress: (g) => (g.mode === 'online' ? 1 : 0) },
+  { id: 'gagner-en-ligne', text: 'Gagner une partie en ligne', target: 1, coins: 35, xp: 75, progress: (g) => (g.won && g.mode === 'online' ? 1 : 0) },
+  { id: 'gestes', text: "Lancer 10 fois d'un geste (glisser ou secouer)", target: 10, coins: 10, xp: 25, progress: (g) => g.gestureThrows },
 ];
 
 export interface QuestState { day: string; progress: Record<string, number>; claimed: string[] }

@@ -32,6 +32,8 @@ export interface AccountsOptions {
   authAttempts?: number;
   /** Horloge (tests des ligues). */
   now?: () => number;
+  /** Partie solo d'un compte réellement terminée (statistiques). */
+  onSoloFinished?: (g: { id: string; userId: string; startedAt: number; opponents: number; won: boolean }) => void;
 }
 
 const USERNAME = /^[\p{L}\p{N}_.-]{3,20}$/u;
@@ -245,6 +247,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     if (!g || g.userId !== u.id) return fail(res, 400, 'Partie inconnue.');
     if (Date.now() - g.startedAt < MIN_SOLO) return fail(res, 400, 'Partie trop courte pour être récompensée.');
     soloGames.delete(b.gameToken);
+    // La partie est terminée : elle compte dans les statistiques, même au-delà du plafond de récompenses.
+    opts.onSoloFinished?.({ id: b.gameToken, userId: u.id, startedAt: g.startedAt, opponents: Math.min(5, Math.max(1, Math.floor(Number(b.opponents) || 1))), won: !!b.won });
     const day = clientDay(req.headers['x-day']);
     if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.');
     const int = (v: unknown, min: number, max: number) => Math.min(max, Math.max(min, Math.floor(Number(v) || 0)));
@@ -268,6 +272,9 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
       opponentNames: Array.isArray(b.opponentNames) ? b.opponentNames.filter((n: unknown) => typeof n === 'string').map((n: string) => n.slice(0, 20)).slice(0, 5) : [],
       hour: brusselsHour(),
       boss: typeof b.boss === 'string' ? b.boss.slice(0, 20) : undefined,
+      // Place annoncée (bornée) ; durée mesurée par le serveur, depuis le début de la partie.
+      place: b.won ? 1 : int(b.place, 2, int(b.opponents, 1, 5) + 1),
+      minutes: (Date.now() - g.startedAt) / 60000,
     };
     const reward = rewardFor(!!b.won, int(b.rounds, 1, 200), ctx);
     const applied = applyGameEnd(store.profileOf(u), reward, ctx, day);

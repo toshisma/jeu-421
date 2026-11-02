@@ -82,9 +82,13 @@ impacts forts (désactivable dans les Paramètres ; iOS ne permet pas la vibrati
 
 ## 2 bis. Personnalisation et progression
 
-- Chaque partie terminée rapporte de l'**XP** et des **pièces**, bien plus en cas de victoire, selon
-  la difficulté, le nombre d'adversaires et la longueur de la partie. La progression est volontairement
-  lente : environ 250 parties pour le niveau 10, environ 14 pièces par partie en moyenne.
+- Chaque partie terminée rapporte de l'**XP** et des **pièces**. Les pièces dépendent du **nombre
+  de joueurs** (le premier gagne au plus 6 pièces à 2 joueurs, 12 à 4, 18 à 6), de la **place finale**
+  (le premier prend tout, le dernier rien, les autres entre les deux) et de la **durée réelle** de la
+  partie (complète à partir de 15 minutes, proportionnelle en dessous), puis de la difficulté de
+  l'IA ou du bonus en ligne (× 1,25). Chaque 4-2-1 rapporte 1 pièce (3 au plus). En solo avec un
+  compte, la durée est mesurée par le serveur. Défis du jour, série de connexions, passe, ligues,
+  clubs et parrainage rapportent environ trois fois moins qu'avant.
 - La boutique propose 55 objets : 12 décors, 13 tapis (dont motifs), 11 rebords (dont marbre et or),
   6 **formes de plateau** (rectangle, octogone, hexagone, rond, ovale, stade) et 14 styles de dés.
 - **42 succès**, dont 20 difficiles (des semaines ou des mois de jeu) ; défis du jour.
@@ -108,8 +112,8 @@ points de jeu.
 - **Pass de saison** gratuit, mensuel : 20 paliers gagnés avec l'XP du mois (pièces, accessoire,
   tapis, dés et titre exclusifs).
 - **Ligues hebdomadaires** (comptes) : groupes de 20 joueurs ; les 3 premiers montent et gagnent
-  150 / 100 / 60 pièces, les 3 derniers descendent. Bronze → Argent → Or → Saphir → Rubis → Diamant.
-- **Parrainage** : lien `?parrain=Pseudo` ; 200 pièces pour chacun quand le filleul a joué 3 parties.
+  60 / 40 / 25 pièces, les 3 derniers descendent. Bronze → Argent → Or → Saphir → Rubis → Diamant.
+- **Parrainage** : lien `?parrain=Pseudo` ; 75 pièces pour chacun quand le filleul a joué 3 parties.
 - **Rivalités** : bilan contre chaque compte croisé en ligne, affiché sur son profil.
 - **Titres** sous le pseudo (succès, pass, ligues) et **accessoires d'avatar**.
 - **Événements liégeois** : Carnaval, 15 août en Outremeuse, Fêtes de Wallonie, Halloween,
@@ -130,11 +134,11 @@ points de jeu.
   vérifiée par le serveur, rien à modérer. Les ordinateurs répondent parfois.
 - **Album des combinaisons** : 17 combinaisons sur 5 pages, chaque page complétée rapporte des
   pièces, l'album complet donne les dés « Collectionneur », un titre et 500 pièces.
-- **Patron de la semaine** : un adversaire difficile avec sa particularité (main heureuse, as dans
-  la manche, brelans, 10 secondes par décision, trois contre un, partie éclair), qui change chaque
-  lundi. Première victoire de la semaine : 300 pièces, un trophée, le titre « Tombeur de … ».
+- **Patron de la semaine** : un adversaire difficile avec sa particularité (gros enjeu sur le 4-2-1,
+  deux lancers par tour, le moins de lancers gagne, 10 secondes par décision, trois contre un, partie éclair), qui change chaque
+  lundi. Première victoire de la semaine : 100 pièces. Les patrons ne touchent jamais aux dés : seulement aux règles, un trophée, le titre « Tombeur de … ».
 - **Clubs** (comptes) : 30 membres, fondation pour 100 pièces, coffre commun de la semaine
-  (15 / 40 / 80 victoires du club : 50 / 120 / 250 pièces pour chaque membre qui a gagné au moins
+  (15 / 40 / 80 victoires du club : 15 / 40 / 80 pièces pour chaque membre qui a gagné au moins
   une partie), classement des clubs, discussion en phrases rapides.
 - **Récap du mois** : parties, victoires, 4-2-1, meilleur coup, adversaire préféré, heure de jeu
   préférée (mois en cours et précédent). Pour soi, rien n'est partagé.
@@ -200,7 +204,9 @@ Choix techniques :
 ### Comment les dés physiques tombent exactement sur le résultat officiel
 
 1. Le résultat officiel est tiré par le moteur (le **serveur** en multijoueur, avec
-   `crypto.randomInt`) ; le navigateur ne décide jamais d'un résultat en ligne.
+   `crypto.randomInt`) ; le navigateur ne décide jamais d'un résultat en ligne. En solo, le navigateur
+   tire ses dés avec `crypto.getRandomValues` sans biais (`shared/random.ts`), vérifié par des tests
+   statistiques (`tests/dice-random.test.ts`). Aucun ordinateur ni patron ne touche aux dés.
 2. Le navigateur simule tout le lancer à l'avance : gravité, collisions avec le fond, les parois
    et les autres dés, friction, restitution, amortissement, jusqu'à l'immobilité complète.
 3. Il lit quelle face de chaque cube physique finit en haut, puis applique au **maillage** une
@@ -237,12 +243,29 @@ relancés rebondissent contre eux.
 | Le perdant commence la manche suivante | Oui | Oui / Non (rotation) |
 
 Valeurs des combinaisons, de la meilleure à la plus faible :
-**421** = 8 · **111** = 7 · **611 … 211** = valeur du 3e dé · **brelans** 666 … 222 = valeur du dé
-(brelan de 6 = 6, brelan de 2 = 2) · **suites** 654…321 = 2 · **autres** = 1 (comparées dé par dé)
+**421** = 8 · **111** = 7 · puis, par valeur : **611 > 666 > 511 > 555 > 411 > 444 > 311 > 333 > 211 > 222**
+(deux as + x et brelan de x valent x ; à valeur égale, les deux as passent devant) · **suites** 654…321 = 2 · **autres** = 1 (comparées dé par dé)
 · **nénette** 221 = la plus faible, et le perdant qui la fait prend au moins 2 jetons.
 Les valeurs du 421, des trois as, des suites, des autres et de la nénette sont modifiables.
 
 Temps écoulé : si le joueur n'a pas lancé, le jeu lance pour lui, puis valide son tour.
+
+## 5 bis. Statistiques du jeu
+
+Accueil → bandeau « joueurs en ligne » ou tuile **Statistiques**. Tout est calculé par le serveur
+(`server/stats.ts`, `GET /api/stats`), à partir de l'activité réelle, sans aucune donnée personnelle :
+
+- **En direct** (rafraîchi toutes les 12 s) : appareils avec le jeu ouvert et reliés au serveur
+  (connexion de présence, un appareil compte une fois même avec plusieurs onglets, retiré dès la
+  déconnexion), parties en cours (tables en ligne en jeu + parties solo en cours), joueurs aux tables.
+- **Aujourd'hui** (fuseau Europe/Brussels) : parties terminées, joueurs différents, nouveaux inscrits,
+  victoires de joueurs. **Depuis le début** : inscrits, parties, à plusieurs / contre l'ordinateur,
+  temps de jeu cumulé, record de joueurs en ligne. Graphiques sur 7 et 30 jours.
+- Une partie compte une seule fois (identifiant unique) et seulement terminée : en ligne, quand elle
+  arrive au bout ; en solo, quand l'appareil la déclare finie avec le jeton reçu au début et après une
+  durée minimale. Les soirées sur un seul téléphone et le mode arbitre ne passent pas par le serveur.
+- **Administration** (`GET /api/admin/stats`, comptes listés dans `ADMIN_USERS`) : inscriptions,
+  comptes actifs, joueurs les plus actifs, parties les plus longues.
 
 ## 6. Multijoueur
 

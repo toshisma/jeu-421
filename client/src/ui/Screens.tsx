@@ -15,6 +15,7 @@ import { levelInfo, type Profile } from '../../../shared/progress/profile';
 import type { Settings } from '../settings';
 import { ConfigEditor } from './ConfigEditor';
 import { InstallPrompt } from './InstallPrompt';
+import { LiveStrip } from './StatsScreen';
 import { Icon } from './Icon';
 import type { ProfileApi } from '../account/useProfile';
 import { QuestsPanel } from './AccountScreens';
@@ -60,7 +61,7 @@ export function ProfileChip({ profile, onClick, photo, emoji }: { profile: Profi
 
 export function Home(props: {
   profile: Profile; pa: ProfileApi; avatar: string; displayName: string; onShop: () => void; onAccount: () => void; onLeaderboard: () => void;
-  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onParty: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void;
+  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onParty: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void; onLogin: () => void;
   resume: { code: string; tournament?: boolean } | null; onResume: () => void;
 }) {
   const [online, setOnline] = useState(navigator.onLine);
@@ -83,6 +84,8 @@ export function Home(props: {
             <span>Niveau {li.level}{titleLabelFn(props.profile.title) ? `, ${titleLabelFn(props.profile.title)}` : ''}</span>
           </span>
         </button>
+        {!STANDALONE && !props.pa.isAccount && <button className="install-chip login-chip" onClick={props.onLogin}>Connexion</button>}
+        <InstallPrompt compact />
         <div className="wallet" aria-label="Mon solde">
           <span className="wallet-xp" title={`${li.into} sur ${li.need} XP pour le niveau suivant`}>
             <i style={{ width: `${(100 * li.into) / li.need}%` }} />{props.profile.xp.toLocaleString('fr-BE')} XP
@@ -95,6 +98,7 @@ export function Home(props: {
         <h1 className="plaque logo-plaque"><span>421</span></h1>
         <p className="tagline">Trois dés, un bac, et le dernier paie la tournée.</p>
 
+        {!STANDALONE && <LiveStrip onOpen={props.onStats} />}
         <nav className="home-actions">
           {props.resume && !STANDALONE && (
             <button className="btn secondary wide" onClick={props.onResume}><Icon name="resume" /> {props.resume.tournament ? 'Reprendre le tournoi' : 'Reprendre la partie'} {props.resume.code}</button>
@@ -112,6 +116,15 @@ export function Home(props: {
           {!online && !STANDALONE && <p className="note">Hors connexion : le jeu entre amis reviendra avec le réseau.</p>}
         </nav>
 
+        {!STANDALONE && !props.pa.isAccount && (
+          <section className="account-card">
+            <div><b>Gardez votre progression</b><span>Un compte gratuit sauvegarde vos pièces et vos objets, et ouvre les classements, clubs et tables avec mise.</span></div>
+            <div className="account-actions">
+              <button className="btn primary" onClick={props.onAccount}>Créer un compte</button>
+              <button className="btn secondary" onClick={props.onLogin}>Se connecter</button>
+            </div>
+          </section>
+        )}
         {!props.profile.tutorial && (
           <section className="tuto-card">
             <div><b>Nouveau au 421 ?</b><span>Une partie guidée de quelques minutes pour apprendre les règles en jouant. 50 pièces à la clé.</span></div>
@@ -132,6 +145,7 @@ export function Home(props: {
           {!STANDALONE && <button onClick={props.onLeaderboard}><Icon name="trophy" /><span>Classement</span></button>}
           {!STANDALONE && <button onClick={props.onClub}><Icon name="club" /><span>Club</span></button>}
           <button onClick={props.onRecap}><Icon name="chart" /><span>Récap</span></button>
+          {!STANDALONE && <button onClick={props.onStats}><Icon name="stats" /><span>Statistiques</span></button>}
           <button onClick={props.onRules}><Icon name="rules" /><span>Règles</span></button>
           <button onClick={props.onSettings}><Icon name="settings" /><span>Réglages</span></button>
           <button onClick={props.onSandbox}><Icon name="target" /><span>Bac d'essai</span></button>
@@ -139,11 +153,10 @@ export function Home(props: {
 
         <div className="home-foot">
           {!STANDALONE && (
-            <button className="link" onClick={props.onAccount}>
-              {props.pa.isAccount ? `Connecté en tant que ${props.pa.session!.username}` : 'Créer un compte pour garder votre progression partout'}
-            </button>
+            props.pa.isAccount
+              ? <button className="link" onClick={props.onAccount}>Connecté en tant que {props.pa.session!.username} (gérer le compte)</button>
+              : <button className="link" onClick={props.onLogin}>Déjà un compte ? Se connecter</button>
           )}
-          <InstallPrompt />
           <div className="foot-links">
             <a className="link small-link" href={reportUrl()}>Signaler un problème</a>
             <button className="link small-link" onClick={props.onLegal}>Confidentialité et mentions légales</button>
@@ -288,6 +301,7 @@ export function SettingsScreen({ settings, onChange, onBack }: { settings: Setti
           onChange={async (e) => { const on = e.target.checked; if (on && needsMotionPermission() && !(await requestMotionPermission())) return; set({ shake: on }); }} />
           <span>Secouer le téléphone pour lancer</span></label>
         <label className="field check"><input type="checkbox" checked={settings.cup} onChange={(e) => set({ cup: e.target.checked })} /><span>Lancer au gobelet</span></label>
+        <InstallPrompt />
         <a className="btn ghost small" href={reportUrl()}>Signaler un problème</a>
         <button className="btn ghost small" onClick={() => { sound.unlock(); sound.impact('paroi', 10); setTimeout(() => sound.impact('feutre', 9), 120); setTimeout(() => sound.impact('de', 8), 220); }}>Tester le son</button>
       </div>

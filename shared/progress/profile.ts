@@ -62,21 +62,43 @@ export interface MonthRecap {
   hours: number[];
 }
 
+/**
+ * Gains d'une partie. Les pièces dépendent de trois choses :
+ * - le nombre de joueurs : plus la table est grande, plus il y a à gagner
+ *   (2 joueurs : 6 pièces au plus ; 4 joueurs : 12 ; 6 joueurs : 18) ;
+ * - la place finale : le premier prend tout, le dernier rien, les autres entre les deux ;
+ * - la durée réelle : une partie de 15 minutes ou plus compte pleinement, en dessous c'est
+ *   proportionnel (au moins un cinquième).
+ * Puis la difficulté de l'IA (solo) ou le bonus en ligne.
+ */
 export const REWARDS = {
-  winXp: 60,
-  winCoins: 25,
+  /** Pièces au plus pour le premier : base + parJoueur × (joueurs − 1). */
+  coinsBase: 3,
+  coinsPerPlayer: 3,
+  /** XP : une part pour avoir joué, une part selon la place. */
   playXp: 15,
-  playCoins: 4,
-  bonus421Coins: 5,
+  placeXp: 45,
+  bonus421Coins: 1,
   bonus421Max: 3,
-  difficulty: { facile: 0.5, normal: 1, difficile: 1.6 } as Record<Difficulty, number>,
-  online: 1.5,
-  perExtraOpponent: 0.25,
-  /** Une partie de 10 manches ou plus compte pleinement ; en dessous, la récompense est réduite. */
+  difficulty: { facile: 0.5, normal: 1, difficile: 1.4 } as Record<Difficulty, number>,
+  online: 1.25,
+  /** Durée (minutes) pour une récompense complète, et part minimale. */
+  fullMinutes: 15,
+  minDurationFactor: 0.2,
+  /** Repli si la durée n'est pas connue : 10 manches = partie complète. */
   fullLengthRounds: 10,
-  minLengthFactor: 0.25,
-  levelBonus: (level: number) => 10 + 5 * level,
+  levelBonus: (level: number) => 5 + 2 * level,
 };
+
+/** Place finale d'un joueur (1 = premier ; ex æquo aux points : même place). */
+export function finalPlace(state: GameState, meId: string): number {
+  if (state.config.variant === 'manches') {
+    const me = state.players.find((p) => p.id === meId);
+    return me ? 1 + state.players.filter((p) => p.score > me.score).length : state.players.length;
+  }
+  const i = state.ranking.indexOf(meId);
+  return i < 0 ? state.players.length : i + 1;
+}
 /**
  * XP nécessaire pour passer du niveau L au niveau L+1 : de plus en plus long.
  * Niveau 2 : 120 XP · niveau 5 : ~1 650 XP cumulés · niveau 10 : ~9 200 · niveau 20 : ~48 000.
@@ -179,6 +201,10 @@ export interface RewardContext {
   hour?: number;
   /** Partie contre le patron de la semaine. */
   boss?: string;
+  /** Place finale (1 = premier). Par défaut : 1 si victoire, dernier sinon. */
+  place?: number;
+  /** Durée réelle de la partie en minutes. */
+  minutes?: number;
 }
 
 export interface Reward {
@@ -198,7 +224,7 @@ export function didWin(state: GameState, meId: string): boolean {
 
 export function computeReward(state: GameState, meId: string, ctx: RewardContext): Reward {
   if (!state.players.some((p) => p.id === meId) || state.phase !== 'fini') return { won: false, xp: 0, coins: 0, lines: [] };
-  return rewardFor(didWin(state, meId), state.round, ctx);
+  return rewardFor(didWin(state, meId), state.round, { ...ctx, place: ctx.place ?? finalPlace(state, meId) });
 }
 
 /** Calcul de la récompense à partir du résultat (utilisé aussi par le serveur pour les comptes). */
@@ -206,23 +232,24 @@ export const SUDDEN_DEATH_FACTOR = 0.1;
 
 export function rewardFor(won: boolean, rounds: number, ctx: RewardContext): Reward {
   if (ctx.suddenDeath) {
-    const full = rewardFor(won, REWARDS.fullLengthRounds, { ...ctx, suddenDeath: false, count421: 0, day: '2000-01-03' });
+    const full = rewardFor(won, REWARDS.fullLengthRounds, { ...ctx, minutes: undefined, suddenDeath: false, count421: 0, day: '2000-01-03' });
     const xp = Math.round(full.xp * SUDDEN_DEATH_FACTOR), coins = Math.round(full.coins * SUDDEN_DEATH_FACTOR);
     return { won, xp, coins, lines: [{ label: 'Mort subite (récompense réduite)', xp, coins }] };
   }
-  const lengthF = Math.min(1, Math.max(REWARDS.minLengthFactor, rounds / REWARDS.fullLengthRounds));
+  const players = Math.max(2, Math.floor(ctx.opponents) + 1);
+  const place = Math.min(players, Math.max(1, Math.floor(ctx.place ?? (won ? 1 : players))));
+  const placeF = (players - place) / (players - 1); // 1 pour le premier, 0 pour le dernier
+  const durationF = ctx.minutes !== undefined
+    ? Math.min(1, Math.max(REWARDS.minDurationFactor, ctx.minutes / REWARDS.fullMinutes))
+    : Math.min(1, Math.max(REWARDS.minDurationFactor, rounds / REWARDS.fullLengthRounds));
   const mult = ctx.mode === 'online' ? REWARDS.online : REWARDS.difficulty[ctx.difficulty ?? 'normal'];
-  const oppF = 1 + REWARDS.perExtraOpponent * Math.max(0, ctx.opponents - 1);
-  const lines: Reward['lines'] = [];
-  if (won) {
-    lines.push({
-      label: 'Victoire',
-      xp: Math.round(REWARDS.winXp * mult * oppF * lengthF),
-      coins: Math.round(REWARDS.winCoins * mult * oppF * lengthF),
-    });
-  } else {
-    lines.push({ label: 'Partie terminée', xp: Math.round(REWARDS.playXp * lengthF), coins: Math.round(REWARDS.playCoins * lengthF) });
-  }
+  const maxCoins = REWARDS.coinsBase + REWARDS.coinsPerPlayer * (players - 1);
+  const coins = Math.round(maxCoins * placeF * durationF * mult);
+  const xp = Math.round((REWARDS.playXp + REWARDS.placeXp * placeF) * durationF * mult * (1 + 0.15 * (players - 2)));
+  const lines: Reward['lines'] = [{
+    label: won ? 'Victoire' : `${place}${place === 1 ? 're' : 'e'} place sur ${players}`,
+    xp, coins: won ? Math.max(1, coins) : coins,
+  }];
   const n421 = Math.min(REWARDS.bonus421Max, Math.max(0, Math.floor(ctx.count421)));
   if (n421 > 0) lines.push({ label: `4-2-1 × ${n421}`, xp: 0, coins: n421 * REWARDS.bonus421Coins });
   // Événement ou premier week-end du mois : pièces boostées.
@@ -409,8 +436,8 @@ export function equip(p: Profile, id: string): Profile | null {
 
 /** Récompenses de la série : jour 1 à 7, le 7e jour est un coffre. */
 export const DAILY_REWARDS = [
-  { coins: 10, xp: 0 }, { coins: 15, xp: 0 }, { coins: 20, xp: 5 }, { coins: 25, xp: 5 },
-  { coins: 30, xp: 10 }, { coins: 40, xp: 10 }, { coins: 120, xp: 50 },
+  { coins: 3, xp: 0 }, { coins: 5, xp: 0 }, { coins: 7, xp: 5 }, { coins: 8, xp: 5 },
+  { coins: 10, xp: 10 }, { coins: 12, xp: 10 }, { coins: 40, xp: 50 },
 ];
 const prevDay = (day: string) => new Date(Date.parse(`${day}T12:00:00Z`) - 86400_000).toISOString().slice(0, 10);
 
@@ -440,10 +467,10 @@ export type PassReward = { coins: number; item?: string; title?: string };
 export function passReward(tier: number, season: string): PassReward {
   const items = passItems(season);
   if (tier === 5) return { coins: 0, item: items.accessoire };
-  if (tier === 10) return { coins: 150 };
+  if (tier === 10) return { coins: 50 };
   if (tier === 15) return { coins: 0, item: items.felt };
-  if (tier === 20) return { coins: 100, item: items.dice, title: `pass:${season}` };
-  return { coins: 15 + tier * 2 };
+  if (tier === 20) return { coins: 30, item: items.dice, title: `pass:${season}` };
+  return { coins: 5 + Math.floor(tier / 2) };
 }
 /** Saison en cours (remise à zéro au changement de mois). */
 export function seasonOf(p: Profile, day = today()) {
@@ -471,15 +498,15 @@ export const LEAGUES = ['Bronze', 'Argent', 'Or', 'Saphir', 'Rubis', 'Diamant'];
 export const LEAGUE_SIZE = 20;
 export const LEAGUE_PROMOTE = 3;
 export const LEAGUE_DEMOTE = 3;
-export const LEAGUE_PRIZES = [150, 100, 60];
+export const LEAGUE_PRIZES = [60, 40, 25];
 /** Parrainage : bonus pour le parrain et le filleul après 3 parties du filleul. */
-export const REFERRAL_BONUS = 200;
+export const REFERRAL_BONUS = 75;
 export const REFERRAL_GAMES = 3;
 /** Clubs : 30 membres, création payante (contre le spam), coffre commun de la semaine. */
 export const CLUB_MAX = 30;
 export const CLUB_COST = 100;
 export const CLUB_EMBLEMS = ['🍺', '🎲', '🦁', '🐓', '⚓', '🌹', '🎩', '🔥', '🍀', '👑', '🦊', '🐻'];
-export const CLUB_CHEST = [{ wins: 15, coins: 50 }, { wins: 40, coins: 120 }, { wins: 80, coins: 250 }];
+export const CLUB_CHEST = [{ wins: 15, coins: 15 }, { wins: 40, coins: 40 }, { wins: 80, coins: 80 }];
 
 /** Titres disponibles : succès débloqués, pass de saison complétés, ligues atteintes. */
 export function availableTitles(p: Profile): string[] {

@@ -4,16 +4,11 @@ import { decide, type Difficulty } from '../../../shared/ai';
 import type { GameController, GameEvent, MetaPlayer } from './controller';
 import { sanitizeGesture, type ThrowGesture } from '../../../shared/gesture';
 import type { Persona } from './personas';
+import { fairDie } from '../../../shared/random';
 
 export interface Opponent { persona: Persona; difficulty: Difficulty }
 
-const rollDie = () => {
-  // Hasard cryptographique du navigateur pour les résultats en solo.
-  const a = new Uint32Array(1);
-  let v: number;
-  do { crypto.getRandomValues(a); v = a[0]; } while (v >= 4294967292); // rejet : distribution uniforme
-  return 1 + (v % 6);
-};
+const rollDie = fairDie;
 const randomSeed = () => crypto.getRandomValues(new Uint32Array(1))[0] >>> 1;
 
 /** Partie solo : le moteur tourne dans le navigateur, les IA jouent à leur tour. */

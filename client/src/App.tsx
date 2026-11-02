@@ -28,6 +28,8 @@ import { accessoryEmoji } from '../../shared/progress/catalog';
 import { ShopScreen } from './ui/ShopScreen';
 import { AccountScreen, LeaderboardScreen } from './ui/AccountScreens';
 import { Home, RulesScreen, Sandbox, SettingsScreen, SoloSetup, STANDALONE } from './ui/Screens';
+import { AdminScreen, StatsScreen } from './ui/StatsScreen';
+import { setPresence, startPresence } from './presence';
 
 type Screen =
   | { name: 'home' }
@@ -40,7 +42,7 @@ type Screen =
   | { name: 'settings' }
   | { name: 'sandbox' }
   | { name: 'shop' }
-  | { name: 'account' }
+  | { name: 'account'; tab?: 'login' | 'register' }
   | { name: 'leaderboard' }
   | { name: 'legal'; back: Screen }
   | { name: 'pass' }
@@ -52,7 +54,9 @@ type Screen =
   | { name: 'club' }
   | { name: 'album' }
   | { name: 'recap' }
-  | { name: 'tutorial'; controller: TutorialController };
+  | { name: 'tutorial'; controller: TutorialController }
+  | { name: 'stats' }
+  | { name: 'admin' };
 
 /**
  * Nettoie l'adresse (lien d'invitation, page de confidentialité) sans recharger la page.
@@ -86,6 +90,11 @@ export function App() {
   const setSettings = (s: Settings) => { setSettingsState(s); saveSettings(s); };
   useEffect(() => { sound.configure({ volume: settings.volume, muted: settings.muted }); }, [settings.volume, settings.muted]);
   useEffect(() => { setHaptics(settings.vibrate); }, [settings.vibrate]);
+  // Présence (statistiques publiques) : seulement avec un serveur.
+  useEffect(() => { if (!STANDALONE) startPresence(); }, []);
+  useEffect(() => {
+    setPresence(screen.name === 'solo' || screen.name === 'boss' ? 'solo' : screen.name === 'online' || screen.name === 'tournament' ? 'online' : 'menu');
+  }, [screen.name]);
 
   const home = () => {
     if (invite || tInvite || location.pathname.startsWith('/confidentialite')) cleanUrl();
@@ -116,7 +125,7 @@ export function App() {
     case 'home':
       return <Home
         profile={profile} pa={pa} avatar={settings.avatar} displayName={settings.name} onShop={() => setScreen({ name: 'shop' })}
-        onAccount={() => setScreen({ name: 'account' })} onLeaderboard={() => setScreen({ name: 'leaderboard' })}
+        onAccount={() => setScreen({ name: 'account' })} onLogin={() => setScreen({ name: 'account', tab: 'login' })} onLeaderboard={() => setScreen({ name: 'leaderboard' })}
         onSolo={() => setScreen({ name: 'solo-setup' })}
         onOnline={() => setScreen({ name: 'hub', tab: 'tables' })}
         onTournaments={() => setScreen({ name: 'hub', tab: 'tournois' })}
@@ -132,6 +141,7 @@ export function App() {
         onAlbum={() => setScreen({ name: 'album' })}
         onRecap={() => setScreen({ name: 'recap' })}
         onTutorial={startTutorial}
+        onStats={() => setScreen({ name: 'stats' })}
         resume={resume} onResume={() => setScreen(resume?.tournament ? { name: 'tournament', mode: { kind: 'resume' } } : { name: 'online', mode: { kind: 'resume' } })} />;
     case 'hub':
       return <OnlineHub tab={screen.tab} settings={settings} onSettings={setSettings} pa={pa} onBack={home}
@@ -161,7 +171,7 @@ export function App() {
     case 'shop':
       return <ShopScreen profile={profile} settings={settings} onBuy={pa.buyItem} onEquip={pa.equipItem} onBack={home} />;
     case 'account':
-      return <AccountScreen pa={pa} onBack={home} onPrivacy={() => setScreen({ name: 'legal', back: { name: 'account' } })} />;
+      return <AccountScreen key={screen.tab ?? 'register'} initial={screen.tab} pa={pa} onBack={home} onPrivacy={() => setScreen({ name: 'legal', back: { name: 'account' } })} />;
     case 'tutorial':
       return <TutorialScreen controller={screen.controller} settings={settings} onSettings={setSettings} onExit={home} appearance={profile.equipped} pa={pa} />;
     case 'boss': {
@@ -188,6 +198,10 @@ export function App() {
       return <ChallengeScreen pa={pa} settings={settings} appearance={profile.equipped} onBack={home} />;
     case 'pass':
       return <PassScreen pa={pa} onBack={home} />;
+    case 'stats':
+      return <StatsScreen pa={pa} onBack={home} onAdmin={() => setScreen({ name: 'admin' })} />;
+    case 'admin':
+      return <AdminScreen pa={pa} onBack={() => setScreen({ name: 'stats' })} />;
     case 'legal':
       return <LegalScreen onBack={() => (screen.back.name === 'home' ? home() : setScreen(screen.back))} />;
     case 'leaderboard':

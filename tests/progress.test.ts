@@ -46,7 +46,7 @@ describe('récompenses', () => {
     expect(computeReward(s, winner, { ...ctx, difficulty: 'facile' }).coins).toBeLessThan(w.coins);
     expect(computeReward(s, winner, { ...ctx, opponents: 1 }).coins).toBeLessThan(w.coins);
     // Bonus 421 plafonné
-    expect(computeReward(s, loser, { ...ctx, count421: 50 }).coins).toBe(l.coins + 15); // plafonné à 3 × 5
+    expect(computeReward(s, loser, { ...ctx, count421: 50 }).coins).toBe(l.coins + 3); // plafonné à 3 × 1
   });
 
   it('pas de récompense pour une partie non terminée', () => {

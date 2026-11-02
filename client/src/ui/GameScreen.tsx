@@ -3,7 +3,8 @@ import { askConfirm } from './confirm';
 import { Icon } from './Icon';
 import { flyTokens } from './flyTokens';
 import { isSuddenDeath } from '../../../shared/config';
-import { albumKey } from '../../../shared/progress/profile';
+import { albumKey, finalPlace } from '../../../shared/progress/profile';
+import { setPresence } from '../presence';
 import { currentPlayerId, standings, type GameState } from '../../../shared/engine';
 import { evaluate } from '../../../shared/combos';
 import type { GameController, GameEvent, MetaPlayer } from '../game/controller';
@@ -86,6 +87,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   const [now, setNow] = useState(Date.now());
   const [endReward, setEndReward] = useState<EndReward | null>(null);
   const count421 = useRef(0);
+  const startedAt = useRef(Date.now());
   const albumKeys = useRef<string[]>([]);
   const bestRoll = useRef<{ label: string; rank: number } | null>(null);
   // Statistiques de la partie pour les défis du jour.
@@ -125,6 +127,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
       // Nouvelle partie (revanche) : on remet les compteurs à zéro.
       if (prev && (ev.state.version < prev.version || (prev.phase === 'fini' && ev.state.phase !== 'fini'))) {
         count421.current = 0;
+        startedAt.current = Date.now();
         combos.current = {};
         gestureThrows.current = 0;
         albumKeys.current = [];
@@ -184,6 +187,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
       }
       if (prev && prev.phase !== 'fini' && ev.state.phase === 'fini') {
         const me = controller.meId;
+        if (onGameStartRef.current) setPresence('menu'); // partie solo terminée : plus « en cours »
         if (ev.state.ranking[0] === me) sound.win();
         else if (ev.state.loserId === me || ev.state.ranking[ev.state.ranking.length - 1] === me) sound.lose();
         else sound.win();
@@ -204,6 +208,8 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
           opponentNames: controller.getMeta().filter((m) => m.id !== controller.meId).map((m) => m.name),
           hour: new Date().getHours(),
           boss: bossId,
+          place: finalPlace(ev.state, me),
+          minutes: (Date.now() - startedAt.current) / 60000,
         })).then((r) => setEndReward(r ?? null));
       }
     }
@@ -252,8 +258,9 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   const myTurn = !!s && currentId === controller.meId && !animating;
   const canKeepNow = myTurn && !!s && s.throwsUsed > 0 && s.throwsUsed < s.throwLimit;
 
-  // Remise à zéro de la sélection à chaque changement de tour ou de lancer.
-  const turnKey = s ? `${s.round}|${currentId}|${s.throwsUsed}|${s.isRolloff}` : '';
+  // La sélection reste d'un lancer à l'autre (on peut toujours décocher) ;
+  // elle repart à zéro seulement quand le tour change.
+  const turnKey = s ? `${s.round}|${currentId}|${s.isRolloff}|${s.throwsUsed === 0 ? 'new' : 'on'}` : '';
   useEffect(() => { setKeep(NO_KEEP); }, [turnKey]);
   useEffect(() => {
     if (animating) return;

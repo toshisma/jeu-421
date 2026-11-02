@@ -1,6 +1,7 @@
 /** Ligues hebdomadaires, parrainage et rivalités (vrai serveur, base en mémoire). */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { io as connect } from 'socket.io-client';
+import { LEAGUE_PRIZES, REFERRAL_BONUS } from '../shared/progress/profile';
 import { startServer } from '../server/app';
 
 let clock = Date.parse('2026-11-04T12:00:00Z'); // un mercredi
@@ -39,7 +40,7 @@ describe('ligues', () => {
     expect(l2.name).toBe('Argent');
     expect(l2.group).toEqual([]);
     const me = (await call('/me', undefined, users[0].token)).profile;
-    expect(me.coins).toBe(coinsBefore + 150);
+    expect(me.coins).toBe(coinsBefore + LEAGUE_PRIZES[0]);
     expect(me.titles).toContain('ligue:Argent');
     expect((await call('/league', undefined, users[5].token)).name).toBe('Bronze');
     // Profil public : la ligue s'affiche.
@@ -54,12 +55,12 @@ describe('parrainage', () => {
     expect((await call('/referral', undefined, p.token))).toMatchObject({ code: 'Parrain', invited: 1, paid: 0 });
     const before = (await call('/me', undefined, p.token)).profile.coins;
     for (let i = 0; i < 3; i++) await solo(f.token, false);
-    expect((await call('/me', undefined, p.token)).profile.coins).toBe(before + 200);
+    expect((await call('/me', undefined, p.token)).profile.coins).toBe(before + REFERRAL_BONUS);
     expect((await call('/referral', undefined, p.token)).paid).toBe(1);
     const fc = (await call('/me', undefined, f.token)).profile.coins;
     await solo(f.token, false);
-    expect((await call('/me', undefined, p.token)).profile.coins).toBe(before + 200); // une seule fois
-    expect((await call('/me', undefined, f.token)).profile.coins).toBeLessThan(fc + 200);
+    expect((await call('/me', undefined, p.token)).profile.coins).toBe(before + REFERRAL_BONUS); // une seule fois
+    expect((await call('/me', undefined, f.token)).profile.coins).toBeLessThan(fc + REFERRAL_BONUS);
   });
 });
 

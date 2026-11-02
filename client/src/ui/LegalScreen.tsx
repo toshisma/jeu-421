@@ -14,7 +14,7 @@ export function LegalScreen({ onBack }: { onBack: () => void }) {
 
         <h3>En bref</h3>
         <ul>
-          <li>On peut jouer <b>sans compte</b> : rien n'est alors conservé sur le serveur.</li>
+          <li>On peut jouer <b>sans compte</b> : le serveur ne garde alors qu'un relevé anonyme des parties terminées, pour les statistiques publiques.</li>
           <li>Le compte est facultatif et ne demande <b>ni e-mail, ni nom réel</b> : un pseudo et un mot de passe.</li>
           <li><b>Aucune publicité, aucune mesure d'audience, aucun cookie</b>, aucune donnée vendue ni partagée.</li>
           <li>Vous pouvez <b>télécharger vos données</b> et <b>supprimer votre compte</b> à tout moment depuis « Mon compte ».</li>
@@ -24,6 +24,10 @@ export function LegalScreen({ onBack }: { onBack: () => void }) {
         <p>Vos réglages, votre progression d'invité et votre photo restent <b>sur votre appareil</b> (stockage du navigateur) et ne sont jamais envoyés.
           En ligne, le nom et l'avatar que vous choisissez ainsi que vos actions de jeu sont transmis aux autres joueurs de la table
           et gardés en mémoire par le serveur le temps de la partie, puis effacés.</p>
+        <p><b>Statistiques du jeu.</b> Pour afficher le nombre de joueurs en ligne et de parties jouées, l'application tire au hasard un
+          identifiant d'appareil (gardé sur votre appareil, sans lien avec votre identité) et le serveur enregistre, pour chaque partie
+          terminée : la date, la durée, le type de partie, le nombre de joueurs, qui a gagné (identifiant d'appareil ou de compte).
+          Seuls des totaux sont affichés publiquement. Quand un compte est supprimé, ses parties restent comptées mais ne lui sont plus rattachées.</p>
 
         <h3>Avec un compte</h3>
         <p>Le serveur enregistre :</p>
@@ -44,6 +48,7 @@ export function LegalScreen({ onBack }: { onBack: () => void }) {
         <ul>
           <li>Faire fonctionner le compte et le jeu en ligne : exécution du service que vous demandez (article 6.1.b du RGPD).</li>
           <li>Sécurité, prévention des abus et modération des photos : intérêt légitime (article 6.1.f).</li>
+          <li>Statistiques anonymes du jeu : intérêt légitime (article 6.1.f).</li>
         </ul>
 
         <h3>Durée de conservation</h3>

@@ -5,13 +5,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GameState } from '../../../shared/engine';
 import {
-  applyGameEnd, buy, claimDaily, claimPassTier, claimQuest, completeTutorial, computeReward, equip, loadProfile, saveProfile, sanitizeProfile, setTitle, addSeasonPoints, doPrestige,
+  applyGameEnd, buy, claimDaily, claimPassTier, claimQuest, completeTutorial, computeReward, didWin, equip, loadProfile, saveProfile, sanitizeProfile, setTitle, addSeasonPoints, doPrestige,
   type Applied, type Profile, type Reward, type RewardContext,
 } from '../../../shared/progress/profile';
 import { api, ApiError, loadSession, saveAccountSession, type Session } from './api';
 import { challengeReward, playChallenge, type ChallengeResult } from '../../../shared/challenge';
 import { today } from '../../../shared/progress/quests';
 import { loadGuestPhoto, photoToDataUrl, saveGuestPhoto } from './photo';
+import { deviceId, setPresence } from '../presence';
 
 export interface EndReward { reward: Reward; applied: Applied }
 
@@ -188,11 +189,17 @@ export function useProfile(enabled: boolean) {
   // --- Fin de partie ---------------------------------------------------------------------------
   const soloToken = useRef<string | null>(null);
   /** Début d'une partie solo : avec un compte, le serveur délivre un jeton de partie. */
+  // Invités : un jeton de partie pour les statistiques publiques (aucune donnée personnelle).
+  const statToken = useRef<string | null>(null);
   const onSoloStart = useCallback(() => {
     soloToken.current = null;
+    statToken.current = null;
+    if (!enabled) return;
+    setPresence('solo');
     const s = ref.current.session;
     if (s) api<{ gameToken: string }>('/solo/start', { body: {}, token: s.token }).then((r) => { soloToken.current = r.gameToken; }).catch(() => {});
-  }, []);
+    else api<{ token: string }>('/stats/solo/start', { body: {} }).then((r) => { statToken.current = r.token; }).catch(() => {});
+  }, [enabled]);
 
   /** Récompenses en ligne envoyées par le serveur (comptes) : on les attend un court instant. */
   const pendingOnline = useRef<EndReward | null>(null);
@@ -212,6 +219,11 @@ export function useProfile(enabled: boolean) {
   const onGameEnd = useCallback(async (state: GameState, meId: string, ctx: RewardContext): Promise<EndReward | null> => {
     const s = ref.current.session;
     if (!s) {
+      const st = statToken.current;
+      statToken.current = null;
+      if (st && ctx.mode === 'solo') {
+        api('/stats/solo/end', { body: { token: st, won: didWin(state, meId), opponents: ctx.opponents, device: deviceId() } }).catch(() => {});
+      }
       const reward = computeReward(state, meId, ctx);
       if (!reward.xp && !reward.coins) return null;
       const applied = applyGameEnd(ref.current.profile, reward, ctx);
@@ -233,7 +245,7 @@ export function useProfile(enabled: boolean) {
     try {
       const r = await api<EndReward>('/solo/end', {
         token: s.token,
-        body: { gameToken: token, won, rounds: state.round, opponents: ctx.opponents, difficulty: ctx.difficulty, count421: ctx.count421, combos: ctx.combos, gestureThrows: ctx.gestureThrows, roundsLost: ctx.roundsLost, maxTokens: ctx.maxTokens, suddenDeath: ctx.suddenDeath, comboKeys: ctx.comboKeys, best: ctx.best, opponentNames: ctx.opponentNames, boss: ctx.boss },
+        body: { gameToken: token, won, rounds: state.round, opponents: ctx.opponents, difficulty: ctx.difficulty, count421: ctx.count421, combos: ctx.combos, gestureThrows: ctx.gestureThrows, roundsLost: ctx.roundsLost, maxTokens: ctx.maxTokens, suddenDeath: ctx.suddenDeath, comboKeys: ctx.comboKeys, best: ctx.best, opponentNames: ctx.opponentNames, boss: ctx.boss, place: ctx.place },
       });
       setProfile(sanitizeProfile(r.applied.profile));
       return r;

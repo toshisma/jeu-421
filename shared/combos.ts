@@ -14,17 +14,18 @@ export interface Combo {
 }
 
 /**
- * Ordre (du meilleur au moins bon) :
- * 421 > 111 > 611 > 511 > 411 > 311 > 211 > brelans 666…222 > suites 654…321
+ * Ordre (du meilleur au moins bon), selon la valeur des combinaisons :
+ * 421 > 111 > 611 > 666 > 511 > 555 > 411 > 444 > 311 > 333 > 211 > 222 > suites 654…321
  * > autres combinaisons (comparées dé par dé, du plus fort au plus faible) > nénette 221.
+ * À valeur égale, « deux as + x » passe devant le brelan de x.
  */
 export function evaluate(dice: number[], v: ComboValues): Combo {
   const s = [...dice].sort((x, y) => y - x);
   const [a, b, c] = s;
   if (a === 4 && b === 2 && c === 1) return { kind: '421', dice: s, rank: 1000, value: v.v421, label: '421' };
   if (a === 1 && b === 1 && c === 1) return { kind: '111', dice: s, rank: 900, value: v.v111, label: 'Trois as' };
-  if (b === 1 && c === 1) return { kind: '11x', dice: s, rank: 800 + a, value: a, label: `${a}-1-1 (deux as)` };
-  if (a === b && b === c) return { kind: 'brelan', dice: s, rank: 700 + a, value: a, label: `Brelan de ${a}` };
+  if (b === 1 && c === 1) return { kind: '11x', dice: s, rank: 700 + 20 * a + 1, value: a, label: `${a}-1-1 (deux as)` };
+  if (a === b && b === c) return { kind: 'brelan', dice: s, rank: 700 + 20 * a, value: a, label: `Brelan de ${a}` };
   if (a - b === 1 && b - c === 1) return { kind: 'suite', dice: s, rank: 600 + a, value: v.suite, label: `Suite ${a}-${b}-${c}` };
   if (a === 2 && b === 2 && c === 1) return { kind: 'nenette', dice: s, rank: 0, value: v.autre, label: 'Nénette' };
   return { kind: 'autre', dice: s, rank: 100 + a * 36 + b * 6 + c, value: v.autre, label: `${a}-${b}-${c}` };
@@ -67,8 +68,7 @@ export function comboTable(v: ComboValues): { name: string; example: number[]; v
   return [
     { name: '4-2-1', example: [4, 2, 1], value: `${v.v421}` },
     { name: 'Trois as', example: [1, 1, 1], value: `${v.v111}` },
-    { name: 'Deux as + x (611 … 211)', example: [6, 1, 1], value: 'valeur du 3e dé (6 à 2)' },
-    { name: 'Brelan (666 … 222)', example: [5, 5, 5], value: 'valeur du dé (6 à 2)' },
+    { name: 'Deux as + x, puis brelan de x : 611, 666, 511, 555 … 211, 222', example: [6, 1, 1], value: 'x (de 6 à 2)' },
     { name: 'Suite (654 … 321)', example: [5, 4, 3], value: `${v.suite}` },
     { name: 'Autre combinaison', example: [6, 5, 2], value: `${v.autre}` },
     { name: 'Nénette 2-2-1 (la plus faible)', example: [2, 2, 1], value: `${v.autre} (perdant : au moins ${v.nenetteMin})` },
