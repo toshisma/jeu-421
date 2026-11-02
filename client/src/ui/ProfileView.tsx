@@ -52,6 +52,15 @@ function Achievements({ unlocked, progress }: { unlocked: Record<string, number>
         {ACHIEVEMENTS.map((a) => {
           const at = unlocked[a.id];
           const v = Math.min(a.target, progress?.(a.id) ?? 0);
+          if (a.secret && !at) {
+            return (
+              <li key={a.id} className="secret" title="Succès secret : à vous de le découvrir">
+                <span className="ach-icon">❔</span>
+                <span className="ach-name">Succès secret</span>
+                <span className="ach-desc">À découvrir en jouant… {a.coins} pièces</span>
+              </li>
+            );
+          }
           return (
             <li key={a.id} className={`${at ? 'on' : ''}${a.rare ? ' rare' : ''}`} title={at ? `Débloqué le ${date(at)}` : a.description}>
               <span className="ach-icon">{at ? a.icon : '🔒'}</span>
@@ -109,7 +118,10 @@ export function ProfileView({ pa, username, displayName, avatar, onClose }: {
         {pa.isAccount && (
           <div className="row">
             <button className="btn small" onClick={async () => {
-              try { await api('/friends', { body: { username: pub.username }, token: pa.token }); setMsg('Ajouté à vos amis.'); }
+              try {
+                const r = await api<{ result: string }>('/friends', { body: { username: pub.username }, token: pa.token });
+                setMsg(r.result === 'accepted' ? 'Vous êtes maintenant amis.' : 'Demande d’ami envoyée.');
+              }
               catch (e) { setMsg((e as Error).message); }
             }}><Icon name="plus" size={18} /> Ajouter en ami</button>
             <button className="btn ghost small danger" onClick={async () => {
@@ -134,7 +146,7 @@ export function ProfileView({ pa, username, displayName, avatar, onClose }: {
     const p = pa.profile;
     const li = levelInfo(p.xp);
     const s = { ...EMPTY_STATS, ...p.stats };
-    const input = { stats: s, level: li.level, purchases: purchases(p) };
+    const input = { stats: s, level: li.level, purchases: purchases(p), owned: p.owned };
     const progress = (id: string) => ACHIEVEMENTS.find((a) => a.id === id)!.value(input);
     const name = pa.session?.username ?? (displayName || 'Invité');
     body = (

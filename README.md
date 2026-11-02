@@ -273,6 +273,28 @@ Accueil → carte **« Collectionne des dés super rares ! »** ou tuile **Colle
   métalliques, arêtes ombrées pour se détacher du tapis ; un test vérifie le contraste des points de
   chaque dé (au moins 4:1).
 
+## 4 quater. Effets, séries, saisons, défis entre amis, notifications
+
+- **Effets de lancer** (dans les sacs, 1 sac sur 4) : 7 traînées de particules derrière les dés et
+  5 célébrations du 4-2-1 (confettis, ballons, éclair, pluie d'or, feu d'artifice). Visibles des
+  autres joueurs en ligne. Essayables au bac d'essai.
+- **Séries** : 5 séries de 5 dés ; une série complète donne un titre et un tapis exclusif.
+- **Saisons classées** (Classement → Saison) : chaque mois, les parties en ligne entre au moins deux
+  humains (sans mort subite) rapportent des points selon la place (premier +25, dernier −12).
+  Divisions Comptoir, Terrasse, Salle, Arrière-salle, Patron. Fin de saison : sacs, dé de saison
+  exclusif (à partir de Terrasse), titre (à partir de Salle). `shared/season.ts`.
+- **Demandes d'amis** à accepter ou refuser ; **cloche** sur l'accueil avec compteur rouge
+  (demandes, défis reçus, résultats). `server/social.ts`, `client/src/ui/Social.tsx`.
+- **Défis entre amis** à distance : mêmes dés pour les deux (suite tirée de l'identifiant du défi),
+  chacun joue quand il veut (72 h), mise facultative (0, 10, 25, 50), score adverse caché tant
+  qu'on n'a pas joué, partie rejouée par le serveur.
+- **Notifications push** (comptes, application installée ; iPhone : iOS 16.4+ et jeu installé) :
+  demande d'ami, défi reçu, résultat, happy hour, série de connexions en danger (vers 19 h).
+  Clés VAPID créées et gardées dans la base, ou fournies par `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY`.
+- **Happy hour** : environ 4 jours sur 7, une heure surprise entre 12 h et 22 h (Bruxelles), pièces ×2.
+- **6 succès secrets**, cachés jusqu'à leur déblocage.
+- **Les habitués se souviennent** : en début de partie solo, un adversaire rappelle le score entre vous.
+
 ## 5 bis. Statistiques du jeu
 
 Accueil → bandeau « joueurs en ligne » ou tuile **Statistiques**. Tout est calculé par le serveur

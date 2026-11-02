@@ -106,7 +106,13 @@ describe('comptes', () => {
     expect(lb.me.rank).toBeGreaterThanOrEqual(1);
     // Amis
     expect((await api('/friends', { username: 'inconnu' }, token)).status).toBe(404);
-    expect((await api('/friends', { username: 'léa' }, token)).ok).toBe(true);
+    expect((await api('/friends', { username: 'léa' }, token)).result).toBe('sent'); // demande envoyée
+    expect((await api('/friends', undefined, token)).friends.map((f: { username: string }) => f.username)).toEqual(['Sam']); // pas encore amis
+    const req = await api('/friends/requests', undefined, lea.token);
+    expect(req.incoming.map((r: { username: string }) => r.username)).toEqual(['Sam']);
+    expect((await api('/notifications', undefined, lea.token)).count).toBe(1);
+    expect((await api('/friends/accept', { username: 'Sam' }, lea.token)).ok).toBe(true);
+    expect((await api('/notifications', undefined, lea.token)).count).toBe(0);
     const fr = await api('/friends', undefined, token);
     expect(fr.friends.map((f: { username: string }) => f.username).sort()).toEqual(['Léa', 'Sam']);
     a.s.disconnect(); b.s.disconnect();

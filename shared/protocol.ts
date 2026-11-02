@@ -22,6 +22,9 @@ export interface PublicMember {
   prestige?: number;
   /** Dés du joueur (identifiant du catalogue), affichés quand il lance. */
   dice?: string;
+  /** Effets de lancer (comptes). */
+  trail?: string;
+  fete?: string;
   /** Joueur ordinateur : son niveau. */
   bot?: 'facile' | 'normal' | 'difficile';
 }

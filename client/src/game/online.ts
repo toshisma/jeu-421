@@ -222,6 +222,8 @@ export class OnlineSession {
         accessory: m?.accessory,
         prestige: m?.prestige,
         dice: m?.dice ?? 'dice-ivoire',
+        trail: m?.trail,
+        fete: m?.fete,
       };
     });
   }

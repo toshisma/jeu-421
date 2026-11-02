@@ -79,7 +79,10 @@ export const isShiny = (id: string) => id.endsWith(SHINY_SUFFIX);
 export const baseIdOf = (id: string) => (isShiny(id) ? id.slice(0, -SHINY_SUFFIX.length) : id);
 const byId = new Map(COLLECTION.map((c) => [c.id, c]));
 /** Dé de collection (ou sa version brillante). */
-export function collectionDie(id: string): CollectionDie | undefined { return byId.get(baseIdOf(id)); }
+export function collectionDie(id: string): CollectionDie | undefined {
+  const b = baseIdOf(id);
+  return byId.get(b) ?? (/^ds-\d{4}-\d{2}$/.test(b) && SEASONS.includes(b.slice(3)) && !isShiny(id) ? seasonDie(b.slice(3)) : undefined);
+}
 
 /** Luminance relative (WCAG) d'une couleur #rrggbb. */
 export function luminance(hex: string): number {
@@ -92,3 +95,70 @@ export function contrast(a: string, b: string): number {
   const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p);
   return (x + 0.05) / (y + 0.05);
 }
+
+// ---------------------------------------------------------------------------------------------
+// Effets de lancer : traînée derrière les dés, célébration du 4-2-1. Trouvés dans les sacs.
+
+export type FxKind = 'trainee' | 'fete';
+export interface FxDef { id: string; kind: FxKind; name: string; rarity: Rarity; colors: string[]; flavor: string }
+export const FX_KIND_LABEL: Record<FxKind, string> = { trainee: 'Traînée de lancer', fete: 'Célébration du 4-2-1' };
+export const FX: FxDef[] = [
+  { id: 'fx-poussiere', kind: 'trainee', name: 'Poussière de craie', rarity: 'commun', colors: ['#f1ede4', '#cfc8b8'], flavor: 'Les dés laissent un petit nuage blanc.' },
+  { id: 'fx-bulles', kind: 'trainee', name: 'Bulles', rarity: 'commun', colors: ['#bfe8ff', '#7fc8f0'], flavor: 'Comme dans une bière fraîche.' },
+  { id: 'fx-etincelles', kind: 'trainee', name: 'Étincelles', rarity: 'rare', colors: ['#ffe08a', '#ffb02e'], flavor: 'Ça frotte sur le feutre.' },
+  { id: 'fx-confettis', kind: 'trainee', name: 'Confettis', rarity: 'rare', colors: ['#ff5d73', '#ffd23f', '#3ec1d3', '#7bd389'], flavor: 'Le carnaval dans le bac.' },
+  { id: 'fx-flammes', kind: 'trainee', name: 'Flammes', rarity: 'epique', colors: ['#ffd166', '#ff7a1a', '#e2361b'], flavor: 'Des dés en feu.' },
+  { id: 'fx-etoiles', kind: 'trainee', name: 'Poussière d’étoiles', rarity: 'epique', colors: ['#ffffff', '#b7c8ff', '#8fe3ff'], flavor: 'Une comète à chaque lancer.' },
+  { id: 'fx-arc-en-ciel', kind: 'trainee', name: 'Arc-en-ciel', rarity: 'legendaire', colors: ['#ff4d4d', '#ffa64d', '#ffe14d', '#59d97a', '#4db8ff', '#9d6bff'], flavor: 'Toutes les couleurs, à chaque lancer.' },
+  { id: 'fx-bravo', kind: 'fete', name: 'Bravo !', rarity: 'commun', colors: ['#ffd23f', '#ffffff'], flavor: 'Une gerbe de confettis.' },
+  { id: 'fx-ballons', kind: 'fete', name: 'Ballons', rarity: 'rare', colors: ['#ff5d73', '#3ec1d3', '#ffd23f', '#9d6bff'], flavor: 'Les ballons montent au plafond.' },
+  { id: 'fx-eclair', kind: 'fete', name: 'Coup de tonnerre', rarity: 'epique', colors: ['#fff6b0', '#8fb4ff'], flavor: 'Un éclair traverse le bistrot.' },
+  { id: 'fx-pluie-or', kind: 'fete', name: 'Pluie d’or', rarity: 'epique', colors: ['#ffe08a', '#d4ad2f', '#b8892c'], flavor: 'Il pleut des pièces.' },
+  { id: 'fx-feu-artifice', kind: 'fete', name: 'Feu d’artifice', rarity: 'legendaire', colors: ['#ff4d4d', '#ffe14d', '#4db8ff', '#9d6bff', '#59d97a'], flavor: 'Comme le 15 août en Outremeuse.' },
+];
+/** Part des sacs qui contiennent un effet plutôt qu'un dé. */
+export const FX_SHARE = 0.25;
+/** Traînées lumineuses (mélange additif) ; les autres sont mates (poussière, bulles, confettis). */
+export const fxGlows = (id: string | undefined) => !!id && !['fx-poussiere', 'fx-bulles', 'fx-confettis'].includes(id);
+const fxById = new Map(FX.map((f) => [f.id, f]));
+export function fxDef(id: string | undefined): FxDef | undefined { return id ? fxById.get(id) : undefined; }
+
+// ---------------------------------------------------------------------------------------------
+// Séries : compléter une série donne un titre et un tapis exclusif.
+
+export interface SeriesDef { id: string; name: string; title: string; dice: string[]; felt: string }
+export const SERIES: SeriesDef[] = [
+  { id: 'comptoir', name: 'Au comptoir', title: 'Pilier de comptoir', dice: ['dc-craie', 'dc-ardoise', 'dc-brique', 'dc-sable', 'dc-moutarde'], felt: 'felt-serie-comptoir' },
+  { id: 'sucreries', name: 'Sucreries', title: 'Bec sucré', dice: ['dc-menthe', 'dc-lavande', 'dc-pistache', 'dc-corail', 'dc-cerise'], felt: 'felt-serie-sucreries' },
+  { id: 'atelier', name: 'L’atelier', title: 'Artisan du dé', dice: ['dc-chene', 'dc-transat', 'dc-tortue', 'dc-paillettes', 'dc-crepuscule'], felt: 'felt-serie-atelier' },
+  { id: 'pierres', name: 'Pierres précieuses', title: 'Joaillier', dice: ['dc-grenat', 'dc-marbre-vert', 'dc-malachite', 'dc-nacre', 'dc-givre'], felt: 'felt-serie-pierres' },
+  { id: 'legendes', name: 'Légendes', title: 'Légende du 421', dice: ['dc-galaxie', 'dc-lave', 'dc-perron', 'dc-dragon', 'dc-aurore'], felt: 'felt-serie-legendes' },
+];
+
+// ---------------------------------------------------------------------------------------------
+// Dé de saison : un dé épique par mois, donné en fin de saison classée, introuvable ensuite.
+
+const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const SEASON_LOOKS: [string, string, string, string, DicePattern][] = [
+  ['#e8f4ff', '#b6d4ef', '#0d2f57', '#ffffff', 'paillettes'], // janvier : givre
+  ['#5a1030', '#2e0617', '#ffd0e0', '#ff7aa8', 'nacre'],
+  ['#2f7a4a', '#174d2c', '#fff7d6', '#b8f0c8', 'marbre'],
+  ['#ffe6f0', '#f2b6cf', '#5a1030', '#ffffff', 'paillettes'],
+  ['#ffd75e', '#e0a91a', '#3a2300', '#fff4c0', 'filigrane'],
+  ['#c4451a', '#8a2a10', '#fff1e0', '#8a2a10', 'degrade'],
+  ['#1660a8', '#0a3566', '#ffffff', '#7fc8ff', 'rayures'],
+  ['#c22f2f', '#7a1414', '#ffe3b0', '#ffb347', 'craquele'],
+  ['#8a5a2e', '#5a3818', '#ffe9c8', '#c99560', 'bois'],
+  ['#3a1a5c', '#170a26', '#ffb347', '#ff7a1a', 'galaxie'],
+  ['#4a2c18', '#24140a', '#f2c75c', '#c98a3e', 'ecaille'],
+  ['#0e4a30', '#06261a', '#ffffff', '#e8343a', 'paillettes'],
+];
+export function seasonDie(season: string): CollectionDie {
+  const m = Number(season.slice(5, 7)) - 1;
+  const [body, body2, pip, accent, pattern] = SEASON_LOOKS[((m % 12) + 12) % 12];
+  return { id: `ds-${season}`, name: `Saison de ${MONTHS[m]} ${season.slice(0, 4)}`, rarity: 'epique', body, body2, pip, accent, pattern,
+    roughness: 0.2, metalness: 0.1, clearcoat: 1, flavor: 'Donné à la fin de la saison classée. Introuvable ensuite.' };
+}
+/** Saisons pour lesquelles un dé existe (de novembre 2026 à fin 2029). */
+export const SEASONS: string[] = (() => { const out: string[] = []; for (let y = 2026; y <= 2029; y++) for (let m = 1; m <= 12; m++) if (y > 2026 || m >= 11) out.push(`${y}-${String(m).padStart(2, '0')}`); return out; })();
+export const isSeasonDie = (id: string) => /^ds-\d{4}-\d{2}$/.test(id);

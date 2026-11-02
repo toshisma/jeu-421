@@ -1001,3 +1001,89 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 }
 .seg button { white-space: nowrap; }
 @media (max-width: 420px) { .seg button { padding: 0 12px; } }
+.ach-grid li.secret { opacity: 0.75; border-style: dashed; }
+
+/* --- Célébrations du 4-2-1 (effets de collection) --- */
+.celebration { position: fixed; inset: 0; z-index: 24; pointer-events: none; overflow: hidden; }
+.c-bravo .pc { position: absolute; left: 50%; top: 32%; width: 10px; height: 16px; border-radius: 2px; background: var(--c); animation: c-burst 1.6s cubic-bezier(.1,.7,.3,1) both; }
+@keyframes c-burst { from { transform: translate(0, 0) rotate(0); opacity: 1; } to { transform: translate(var(--x), calc(var(--y) + 220px)) rotate(var(--r)); opacity: 0; } }
+.c-ballons .pc { position: absolute; bottom: -90px; width: 44px; height: 54px; border-radius: 50% 50% 46% 46%; background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.7) 0 12%, var(--c) 30%); animation: c-rise var(--d) ease-in both; }
+.c-ballons .pc::after { content: ''; position: absolute; left: 50%; top: 100%; width: 1px; height: 46px; background: rgba(255,255,255,0.5); }
+@keyframes c-rise { from { transform: translate(0, 0); } to { transform: translate(var(--sw), -120vh); } }
+.c-pluie-or .pc { position: absolute; top: -40px; width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6c8, var(--c) 55%, #8a6a12); box-shadow: 0 1px 2px rgba(0,0,0,0.4); animation: c-fall var(--d) ease-in both; }
+@keyframes c-fall { from { transform: translateY(0) rotate(0); } to { transform: translateY(115vh) rotate(var(--r)); } }
+.c-feu-artifice .burst { position: absolute; width: 0; height: 0; }
+.c-feu-artifice .burst i { position: absolute; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); animation: c-spark 1.3s ease-out both; animation-delay: inherit; }
+@keyframes c-spark { 0% { transform: rotate(var(--a)) translateX(0); opacity: 1; } 80% { opacity: 1; } 100% { transform: rotate(var(--a)) translateX(130px) translateY(30px); opacity: 0; } }
+.c-eclair .flash { position: absolute; inset: 0; background: #fffbe0; animation: c-flash 0.9s ease-out both; }
+@keyframes c-flash { 0% { opacity: 0; } 8% { opacity: 0.85; } 16% { opacity: 0.1; } 24% { opacity: 0.6; } 100% { opacity: 0; } }
+.c-eclair .bolt { position: absolute; left: 50%; top: 0; width: 120px; height: 60vh; transform: translateX(-50%); animation: c-flash 0.9s ease-out both; }
+.c-eclair .bolt polyline { fill: #fff6b0; stroke: #8fb4ff; stroke-width: 4; filter: drop-shadow(0 0 12px #8fb4ff); }
+@media (prefers-reduced-motion: reduce) { .celebration { display: none; } }
+
+/* Effets de lancer, séries */
+.fx-badge { --s: 64px; position: relative; display: inline-grid; place-items: center; width: var(--s); height: var(--s); flex: none; border-radius: 22%;
+  background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--rc) 35%, #1a1f23), #101417 75%); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--rc) 60%, transparent), 0 0 calc(var(--s) * 0.2) color-mix(in srgb, var(--rc) 30%, transparent);
+  margin: calc(var(--s) * 0.08); overflow: hidden; }
+.fx-badge .fx-ico { font-size: calc(var(--s) * 0.55); line-height: 1; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5)); }
+.fx-badge.k-trainee i { position: absolute; left: calc(12% + var(--i) * 11%); top: calc(62% - var(--i) * 6%); width: calc(var(--s) * (0.07 + var(--i) * 0.018)); aspect-ratio: 1; border-radius: 50%;
+  background: var(--c); box-shadow: 0 0 calc(var(--s) * 0.1) var(--c); opacity: calc(0.35 + var(--i) * 0.1); }
+.fx-kind { margin: 0; font-weight: 700; color: var(--texte-2); }
+.bag-series { margin: 0; padding: 8px 14px; border-radius: 10px; background: rgba(242,182,50,0.18); color: #f6d36b; font-weight: 700; max-width: 36ch; }
+.coll-tabs { margin-bottom: 12px; }
+.coll-card.season { box-shadow: inset 0 0 0 2px #f2b632, var(--relief); }
+.series-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.series-list li { display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 12px; background: var(--ardoise); box-shadow: var(--relief); }
+.series-list li.done { box-shadow: inset 0 0 0 2px #f2b632, var(--relief); }
+.series-head { display: flex; justify-content: space-between; align-items: baseline; }
+.series-head b { font: 800 1.25rem var(--cond); }
+.series-dice { display: flex; gap: 2px; flex-wrap: wrap; }
+.series-dice .die-cube:not(.locked) { margin: 6px 5px; }
+.happy-hour { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 14px; color: #1b1404;
+  background: linear-gradient(135deg, #ffd166, #f2a93b); box-shadow: 0 0 0 2px rgba(255,255,255,0.25) inset, 0 8px 24px rgba(242,169,59,0.35); animation: hh-pulse 2.4s ease-in-out infinite; }
+.happy-hour div { display: flex; flex-direction: column; gap: 2px; }
+.happy-hour b { font: 800 1.5rem var(--cond); }
+.hh-ico { font-size: 36px; }
+@keyframes hh-pulse { 50% { box-shadow: 0 0 0 2px rgba(255,255,255,0.4) inset, 0 8px 34px rgba(242,169,59,0.6); } }
+@media (prefers-reduced-motion: reduce) { .happy-hour { animation: none; } }
+
+/* Saison classée */
+.season { display: flex; flex-direction: column; gap: 10px; }
+.season-card { padding: 16px; border-radius: 14px; background: radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--dc) 25%, transparent), transparent 60%), var(--ardoise-grad);
+  box-shadow: inset 4px 0 0 var(--dc), var(--relief); display: flex; flex-direction: column; gap: 12px; }
+.season-top { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.season-top > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.season-div { font: 800 2.25rem/1 var(--cond); color: var(--dc); }
+.season-die { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; flex: none; max-width: 110px; text-align: center; }
+.season-die figcaption { font-size: 0.75rem; color: var(--texte-2); }
+.season-bar { position: relative; height: 26px; border-radius: 8px; background: rgba(0,0,0,0.35); overflow: hidden; }
+.season-bar i { position: absolute; inset: 0 auto 0 0; background: var(--dc); opacity: 0.85; }
+.season-bar span { position: relative; display: block; padding: 4px 10px; font-size: 0.8125rem; font-weight: 700; }
+.season-card p { margin: 0; }
+.season-rewards { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.season-rewards li { display: grid; grid-template-columns: auto auto 1fr; gap: 4px 10px; align-items: baseline; padding: 10px 12px; border-radius: 10px; background: var(--ardoise); box-shadow: inset 3px 0 0 var(--dc); opacity: 0.75; }
+.season-rewards li.reached { opacity: 1; }
+.season-rewards li b { color: var(--dc); }
+.season-rewards li span { color: var(--texte-2); font-size: 0.875rem; }
+@media (max-width: 420px) { .season-rewards li { grid-template-columns: auto 1fr; } .season-rewards li span { grid-column: 1 / -1; } }
+
+/* Notifications dans le jeu */
+.bell { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: 12px; background: var(--ardoise); color: var(--blanc); cursor: pointer; box-shadow: var(--relief); flex: none; }
+.bell-badge { position: absolute; top: -5px; right: -5px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--tabac-hi); color: #fff;
+  font: 800 0.75rem/20px var(--font); font-style: normal; text-align: center; box-shadow: 0 0 0 2px var(--fond); animation: badge-pop 0.4s cubic-bezier(.2,1.6,.4,1); }
+@keyframes badge-pop { from { transform: scale(0.4); } to { transform: scale(1); } }
+.sheet.notif-sheet { width: min(520px, 100%); max-height: min(86vh, 760px); overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 18px; border-radius: 18px; background: var(--ardoise); box-shadow: 0 30px 80px rgba(0,0,0,0.7); text-align: left; }
+.notif-head { display: flex; justify-content: space-between; align-items: center; }
+.notif-head h2 { margin: 0; font: 800 1.75rem var(--cond); }
+.notif-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.notif-list li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 12px; background: var(--ardoise-2); }
+.notif-list li.won { box-shadow: inset 3px 0 0 var(--laiton); }
+.n-ico { font-size: 26px; line-height: 1; }
+.n-main { flex: 1 1 160px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.n-main small { color: var(--texte-2); }
+.n-actions { display: flex; gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { min-height: 40px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--ardoise-2); color: var(--blanc); font: inherit; font-weight: 600; cursor: pointer; }
+.chip.on { background: var(--blanc); color: var(--fond); }
+.coll-tabs { display: grid; grid-template-columns: repeat(3, 1fr); }
+.coll-tabs button { padding: 0 8px; }

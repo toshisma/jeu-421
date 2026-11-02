@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { getItem, type DiceItem } from '../../../shared/progress/catalog';
 import {
-  COLLECTION, CRAFT_COST, RARITIES, RARITY_COLOR, RARITY_LABEL, RARITY_ODDS, SHINY_ODDS, SHINY_SUFFIX, collectionDie, isShiny, type Rarity,
+  COLLECTION, CRAFT_COST, FX, FX_KIND_LABEL, FX_SHARE, RARITIES, RARITY_COLOR, RARITY_LABEL, RARITY_ODDS, SERIES, SHINY_ODDS, SHINY_SUFFIX,
+  collectionDie, fxDef, isSeasonDie, isShiny, type FxDef, type Rarity,
 } from '../../../shared/progress/dice-collection';
+import { titleLabel } from '../../../shared/progress/profile';
 import { BAG_PITY, collectionCount, type BagResult } from '../../../shared/progress/profile';
 import type { ProfileApi } from '../account/useProfile';
 import { faceImage } from '../three/dieArt';
@@ -34,6 +36,18 @@ export function RarityTag({ rarity, shiny }: { rarity: Rarity; shiny?: boolean }
   return <span className={`rarity-tag r-${rarity}`} style={{ '--rc': RARITY_COLOR[rarity] } as CSSProperties}>{RARITY_LABEL[rarity]}{shiny ? ' ✦ brillant' : ''}</span>;
 }
 
+const FETE_ICON: Record<string, string> = { 'fx-bravo': '🎉', 'fx-ballons': '🎈', 'fx-eclair': '⚡', 'fx-pluie-or': '🪙', 'fx-feu-artifice': '🎆' };
+/** Aperçu d'un effet de lancer : traînée (points de couleur) ou célébration (icône). */
+export function FxBadge({ fx, size = 64, locked = false }: { fx: FxDef; size?: number; locked?: boolean }) {
+  if (locked) return <span className="die-cube locked" style={{ '--s': `${size}px` } as CSSProperties} aria-hidden><span className="q">?</span></span>;
+  return (
+    <span className={`fx-badge k-${fx.kind}`} style={{ '--s': `${size}px`, '--rc': RARITY_COLOR[fx.rarity] } as CSSProperties} role="img" aria-label={fx.name}>
+      {fx.kind === 'fete' ? <span className="fx-ico">{FETE_ICON[fx.id] ?? '🎉'}</span>
+        : fx.colors.concat(fx.colors).slice(0, 7).map((c, i) => <i key={i} style={{ '--c': c, '--i': i } as CSSProperties} />)}
+    </span>
+  );
+}
+
 /** Ouverture d'un sac : le sac s'agite, s'ouvre, le dé apparaît dans la couleur de sa rareté. */
 function BagOpening({ pa, onClose }: { pa: ProfileApi; onClose: () => void }) {
   const [phase, setPhase] = useState<'shake' | 'reveal' | 'error'>('shake');
@@ -50,26 +64,30 @@ function BagOpening({ pa, onClose }: { pa: ProfileApi; onClose: () => void }) {
   const started = useRef(false);
   useEffect(() => { if (!started.current) { started.current = true; void go(); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const it = res ? diceItem(res.id) : undefined;
+  const fx = res ? fxDef(res.id) : undefined;
   const left = pa.profile.bags ?? 0;
+  const series = res?.series ? SERIES.find((x) => x.id === res.series) : undefined;
   return (
     <div className="bag-open" role="dialog" aria-label="Ouverture d'un sac de dés" style={res ? ({ '--rc': RARITY_COLOR[res.rarity] } as CSSProperties) : undefined}>
       <div className={`bag-stage ${phase}${res ? ` r-${res.rarity}` : ''}${res?.shiny ? ' is-shiny' : ''}`}>
         {phase === 'shake' && <div className="bag" aria-hidden>🎒</div>}
         {phase === 'error' && <p className="error">{err}</p>}
-        {phase === 'reveal' && res && it && (
+        {phase === 'reveal' && res && (it || fx) && (
           <>
             <div className="burst" aria-hidden />
-            <DieCube id={res.id} size={150} spin />
+            {fx ? <FxBadge fx={fx} size={150} /> : <DieCube id={res.id} size={150} spin />}
             <RarityTag rarity={res.rarity} shiny={res.shiny} />
-            <h2>{it.name}</h2>
-            <p className="muted">{collectionDie(res.id)?.flavor}</p>
+            <h2>{fx?.name ?? it!.name}</h2>
+            {fx && <p className="fx-kind">{FX_KIND_LABEL[fx.kind]}</p>}
+            <p className="muted">{fx?.flavor ?? collectionDie(res.id)?.flavor}</p>
             <p className="bag-note">{res.duplicate ? `Déjà dans votre collection : +${res.shards} éclats` : res.shiny ? 'Un dé brillant ! Seul 1 sac sur 150 en contient un.' : 'Nouveau dans votre collection !'}</p>
+            {series && <p className="bag-series">Série « {series.name} » complétée : titre « {series.title} » et tapis exclusif débloqués !</p>}
           </>
         )}
       </div>
       <div className="bag-actions">
         {phase === 'reveal' && res && !res.duplicate && (
-          <button className="btn secondary" onClick={() => { void pa.equipItem(res.id); onClose(); }}>Jouer avec</button>
+          <button className="btn secondary" onClick={() => { void (fx ? pa.equipFx(fx.kind, fx.id) : pa.equipItem(res.id)); onClose(); }}>{fx ? 'Utiliser' : 'Jouer avec'}</button>
         )}
         {phase !== 'shake' && left > 0 && <button className="btn primary" onClick={() => void go()}>Ouvrir le suivant ({left})</button>}
         {phase !== 'shake' && <button className="btn ghost" onClick={onClose}>Fermer</button>}
@@ -105,8 +123,8 @@ function DieSheet({ pa, id, onClose }: { pa: ProfileApi; id: string; onClose: ()
               {inShow ? 'Retirer de la vitrine' : show.length >= 3 ? 'Vitrine pleine (3)' : 'Mettre en vitrine'}
             </button>
           </div>
-        ) : isShiny(id) ? (
-          <p className="muted">Les dés brillants ne se fabriquent pas : on les trouve seulement dans les sacs.</p>
+        ) : isShiny(id) || isSeasonDie(id) ? (
+          <p className="muted">{isSeasonDie(id) ? 'Les dés de saison se gagnent seulement en fin de saison classée.' : 'Les dés brillants ne se fabriquent pas : on les trouve seulement dans les sacs.'}</p>
         ) : (
           <div className="row">
             <button className="btn primary" disabled={(p.shards ?? 0) < cost || !pa.isAccount} onClick={() => void run(() => pa.craft(id))}>Fabriquer pour {cost} éclats</button>
@@ -120,9 +138,44 @@ function DieSheet({ pa, id, onClose }: { pa: ProfileApi; id: string; onClose: ()
   );
 }
 
+/** Fiche d'un effet de lancer. */
+function FxSheet({ pa, fx, onClose }: { pa: ProfileApi; fx: FxDef; onClose: () => void }) {
+  const p = pa.profile;
+  const owned = p.owned.includes(fx.id);
+  const on = p.fx?.[fx.kind] === fx.id;
+  const cost = CRAFT_COST[fx.rarity];
+  const [err, setErr] = useState<string | null>(null);
+  const run = async (f: () => Promise<string | null>) => { setErr(await f()); };
+  return (
+    <div className="sheet-back" onClick={onClose}>
+      <div className="sheet die-sheet" role="dialog" aria-label={fx.name} onClick={(e) => e.stopPropagation()} style={{ '--rc': RARITY_COLOR[fx.rarity] } as CSSProperties}>
+        <FxBadge fx={fx} size={120} locked={!owned} />
+        <RarityTag rarity={fx.rarity} />
+        <h2>{owned ? fx.name : '???'}</h2>
+        <p className="fx-kind">{FX_KIND_LABEL[fx.kind]}</p>
+        {owned && <p className="muted">{fx.flavor}</p>}
+        <p className="muted small">{fx.kind === 'trainee' ? 'Laisse une traînée derrière vos dés quand ils roulent.' : 'Éclate à l’écran quand vous faites un 4-2-1 ou trois as.'} Les autres joueurs la voient en ligne.</p>
+        {owned ? (
+          <button className="btn primary" onClick={() => void run(() => pa.equipFx(fx.kind, on ? null : fx.id))}>{on ? 'Retirer' : 'Utiliser'}</button>
+        ) : (
+          <div className="row">
+            <button className="btn primary" disabled={(p.shards ?? 0) < cost || !pa.isAccount} onClick={() => void run(() => pa.craft(fx.id))}>Fabriquer pour {cost} éclats</button>
+            <span className="muted small">Vous avez {p.shards ?? 0} éclats.</span>
+          </div>
+        )}
+        {err && <p className="error">{err}</p>}
+        <button className="btn ghost" onClick={onClose}>Fermer</button>
+      </div>
+    </div>
+  );
+}
+
 export function CollectionScreen({ pa, onBack, onAccount }: { pa: ProfileApi; onBack: () => void; onAccount: () => void }) {
   const p = pa.profile;
   const [filter, setFilter] = useState<Rarity | 'tous'>('tous');
+  const [tab, setTab] = useState<'des' | 'effets' | 'series'>('des');
+  const [openFx, setOpenFx] = useState<FxDef | null>(null);
+  const seasonDice = p.owned.filter(isSeasonDie);
   const [open, setOpen] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
   const count = collectionCount(p);
@@ -149,17 +202,34 @@ export function CollectionScreen({ pa, onBack, onAccount }: { pa: ProfileApi; on
         <div className="coll-stats">
           <span><b>{count.owned}</b>/{count.total} dés</span>
           <span><b>{count.shiny}</b> brillant{count.shiny > 1 ? 's' : ''}</span>
+          <span><b>{count.fx}</b>/{count.fxTotal} effets</span>
           <span><b>{p.shards ?? 0}</b> éclats</span>
         </div>
         {!pa.isAccount && <p className="note">Vos sacs sont gardés. Avec un compte gratuit, vous les ouvrez, vos dés sont sauvegardés, et les autres joueurs les voient quand vous lancez.</p>}
       </section>
 
+      <div className="seg wide-seg coll-tabs">
+        <button className={tab === 'des' ? 'on' : ''} onClick={() => setTab('des')}>Dés</button>
+        <button className={tab === 'effets' ? 'on' : ''} onClick={() => setTab('effets')}>Effets</button>
+        <button className={tab === 'series' ? 'on' : ''} onClick={() => setTab('series')}>Séries</button>
+      </div>
+
+      {tab === 'des' && (<>
       <div className="seg wide-seg coll-filter">
         <button className={filter === 'tous' ? 'on' : ''} onClick={() => setFilter('tous')}>Tous</button>
         {RARITIES.map((r) => <button key={r} className={filter === r ? 'on' : ''} onClick={() => setFilter(r)} style={{ '--rc': RARITY_COLOR[r] } as CSSProperties}>{RARITY_LABEL[r]}</button>)}
       </div>
 
       <ul className="coll-grid">
+        {seasonDice.map((id) => (
+          <li key={id}>
+            <button className="coll-card r-epique season" style={{ '--rc': RARITY_COLOR.epique } as CSSProperties} onClick={() => setOpen(id)}>
+              <DieCube id={id} size={56} />
+              <b>{diceItem(id)?.name}</b>
+              <span className="rarity-tag" style={{ '--rc': '#f2b632' } as CSSProperties}>Saison</span>
+            </button>
+          </li>
+        ))}
         {list.map((c) => {
           const has = owns(c.id), shiny = owns(c.id + SHINY_SUFFIX);
           return (
@@ -176,13 +246,60 @@ export function CollectionScreen({ pa, onBack, onAccount }: { pa: ProfileApi; on
         })}
       </ul>
 
+      </>)}
+
+      {tab === 'effets' && (
+        <>
+          <p className="muted">Les effets s'ajoutent à vos lancers : une traînée derrière les dés, et une célébration quand vous faites un 4-2-1. Les autres joueurs les voient en ligne.</p>
+          {(['trainee', 'fete'] as const).map((k) => (
+            <section key={k}>
+              <h3>{k === 'trainee' ? 'Traînées derrière les dés' : 'Célébrations du 4-2-1'}</h3>
+              <ul className="coll-grid">
+                {FX.filter((f) => f.kind === k).map((f) => {
+                  const has = owns(f.id);
+                  return (
+                    <li key={f.id}>
+                      <button className={`coll-card r-${f.rarity}${has ? '' : ' missing'}${p.fx?.[k] === f.id ? ' equipped' : ''}`} style={{ '--rc': RARITY_COLOR[f.rarity] } as CSSProperties} onClick={() => setOpenFx(f)}>
+                        <FxBadge fx={f} size={56} locked={!has} />
+                        <b>{has ? f.name : '???'}</b>
+                        <RarityTag rarity={f.rarity} />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </>
+      )}
+
+      {tab === 'series' && (
+        <ul className="series-list">
+          {SERIES.map((se) => {
+            const got = se.dice.filter((d) => owns(d) || owns(d + SHINY_SUFFIX)).length;
+            const done = (p.titles ?? []).includes(`serie:${se.id}`);
+            return (
+              <li key={se.id} className={done ? 'done' : ''}>
+                <div className="series-head"><b>{se.name}</b><span>{got}/{se.dice.length}</span></div>
+                <div className="series-dice">
+                  {se.dice.map((d) => <DieCube key={d} id={d} size={40} locked={!(owns(d) || owns(d + SHINY_SUFFIX))} />)}
+                </div>
+                <small className="muted">{done ? `Complétée : titre « ${titleLabel(`serie:${se.id}`)} » et tapis exclusif débloqués.` : `Récompense : le titre « ${se.title} » et un tapis exclusif.`}</small>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
       <details className="odds">
         <summary>Chances dans un sac</summary>
-        <p>{RARITIES.map((r) => `${RARITY_LABEL[r]} : ${pct(RARITY_ODDS[r])}`).join(' ; ')}. Version brillante : 1 sur {Math.round(1 / SHINY_ODDS)}.</p>
+        <p>Un sac contient un dé {pct(1 - FX_SHARE)} du temps, un effet de lancer {pct(FX_SHARE)} du temps.</p>
+        <p>{RARITIES.map((r) => `${RARITY_LABEL[r]} : ${pct(RARITY_ODDS[r])}`).join(' ; ')}. Dé brillant : 1 sur {Math.round(1 / SHINY_ODDS)}.</p>
         <p>Un doublon se transforme en éclats, qui servent à fabriquer le dé de votre choix. Les sacs ne s'achètent pas : ils se gagnent seulement en jouant. Les dés de collection sont purement décoratifs, ils ne changent jamais le hasard des lancers.</p>
       </details>
 
       {open && <DieSheet pa={pa} id={open} onClose={() => setOpen(null)} />}
+      {openFx && <FxSheet pa={pa} fx={openFx} onClose={() => setOpenFx(null)} />}
       {opening && <BagOpening pa={pa} onClose={() => setOpening(false)} />}
     </Shell>
   );

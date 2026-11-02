@@ -17,11 +17,13 @@ import { PHRASES } from '../shared/protocol';
 import {
   adjustCoins, applyGameEnd, applyPot, applyTournament, buy, claimDaily, claimPassTier, completeTutorial, setTitle, titleLabel, addSeasonPoints, REWARDS,
   LEAGUES, LEAGUE_DEMOTE, LEAGUE_PRIZES, ALBUM_KEYS, CLUB_CHEST, CLUB_COST, CLUB_EMBLEMS, CLUB_MAX, doPrestige, PRESTIGE_LEVEL, LEAGUE_PROMOTE, LEAGUE_SIZE, REFERRAL_BONUS, REFERRAL_GAMES, claimQuest, equip, levelInfo, rewardFor, sanitizeProfile, newProfile,
-  openBag, craftDie, setShowcase, collectionCount,
+  openBag, craftDie, setShowcase, collectionCount, equipFx, BAGS_MAX,
   type Profile, type RewardContext,
 } from '../shared/progress/profile';
 import { DEFAULT_APPEARANCE } from '../shared/progress/catalog';
-import { collectionDie } from '../shared/progress/dice-collection';
+import { SEASONS, collectionDie } from '../shared/progress/dice-collection';
+import { createSocial } from './social';
+import { DIVISIONS, SEASON_DIE_FROM, SEASON_TITLE_FROM, divisionIndex, divisionOf, nextSeasonStart, seasonDelta, seasonOf } from '../shared/season';
 import { today } from '../shared/progress/quests';
 import type { ComboKind } from '../shared/combos';
 import type { Difficulty } from '../shared/ai';
@@ -186,8 +188,9 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   });
 
   router.get('/me', auth, (req, res) => {
-    const u = userOf(req);
-    res.json({ ok: true, ...publicProfile(store.userById(u.id)!, store.profileOf(u)), rank: store.rankOf(u) });
+    rollSeasons(); // fin de saison éventuelle : récompenses versées avant de renvoyer le profil
+    const u = store.userById(userOf(req).id)!;
+    res.json({ ok: true, ...publicProfile(u, store.profileOf(u)), rank: store.rankOf(u) });
   });
 
   /** Suppression définitive et immédiate du compte et de toutes ses données. */
@@ -222,6 +225,11 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   });
   router.post('/collection/craft', auth, (req, res) =>
     mutate(req, res, (p) => craftDie(p, String(req.body?.id ?? '')), 'Pas assez d’éclats, ou dé déjà possédé.'));
+  router.post('/collection/fx', auth, (req, res) => {
+    const kind = req.body?.kind === 'fete' ? 'fete' : 'trainee';
+    const id = req.body?.id == null ? null : String(req.body.id);
+    mutate(req, res, (p) => equipFx(p, kind, id), 'Effet non possédé.');
+  });
   router.post('/collection/showcase', auth, (req, res) =>
     mutate(req, res, (p) => setShowcase(p, Array.isArray(req.body?.ids) ? req.body.ids.map(String) : []), 'Vitrine invalide.'));
   router.post('/quests/claim', auth, (req, res) =>
@@ -309,6 +317,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
       // Place annoncée (bornée) ; durée mesurée par le serveur, depuis le début de la partie.
       place: b.won ? 1 : int(b.place, 2, int(b.opponents, 1, 5) + 1),
       minutes: (Date.now() - g.startedAt) / 60000,
+      now: Date.now(),
     };
     const reward = rewardFor(!!b.won, int(b.rounds, 1, 200), ctx);
     const applied = applyGameEnd(store.profileOf(u), reward, ctx, day);
@@ -333,21 +342,6 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
       .sort((a, b) => b.online_wins - a.online_wins || a.online_games - b.online_games)
       .map((u, i) => ({ ...row(u, i + 1), me: u.id === me.id }));
     res.json({ ok: true, friends: list });
-  });
-  router.post('/friends', auth, (req, res) => {
-    const me = userOf(req);
-    const f = typeof req.body?.username === 'string' ? store.userByName(req.body.username.trim()) : undefined;
-    if (!f) return fail(res, 404, 'Aucun joueur avec ce pseudo.');
-    if (f.id === me.id) return fail(res, 400, 'C\'est vous !');
-    if (store.isBlocked(me.id, f.id)) return fail(res, 403, 'Impossible d’ajouter ce joueur.');
-    store.addFriend(me.id, f.id);
-    res.json({ ok: true });
-  });
-  router.delete('/friends/:username', auth, (req, res) => {
-    const me = userOf(req);
-    const f = store.userByName(String(req.params.username));
-    if (f) store.removeFriend(me.id, f.id);
-    res.json({ ok: true });
   });
 
   // Droit d'accès (RGPD) : tout ce que le serveur garde sur le compte, dans un fichier lisible.
@@ -542,7 +536,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     if (!u) return null;
     if (!ctx.suddenDeath) store.addOnlineResult(userId, won && !abandoned); // la mort subite ne compte pas au classement
     if (abandoned) return null; // partie quittée : comptée comme perdue, sans récompense
-    const reward = rewardFor(won, rounds, { ...ctx, day });
+    const reward = rewardFor(won, rounds, { ...ctx, day, now: Date.now() });
     const applied = applyGameEnd(store.profileOf(u), reward, { ...ctx, day, hour: brusselsHour() }, day);
     store.saveProfile(userId, applied.profile);
     if (!ctx.suddenDeath) { leagueGain(userId, reward.xp); checkReferral(userId); if (won && !abandoned) clubWin(userId); }
@@ -629,6 +623,51 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     }
     store.setMeta('league_rolled', cur);
   }
+  // --- Saisons classées ---------------------------------------------------------------------------
+  const currentSeason = () => seasonOf(brusselsDate(opts.now?.() ?? Date.now()));
+  /** Fin de saison : dé de saison, titre et sacs selon la division atteinte (une seule fois). */
+  function rollSeasons(): string[] {
+    const cur = currentSeason();
+    const last = store.getMeta('season_rolled');
+    const done: string[] = [];
+    if (last === cur) return done;
+    for (const season of store.rankedSeasonsBefore(cur)) {
+      if (last && season < last) continue;
+      for (const r of store.rankedAll(season)) {
+        const u = store.userById(r.user_id);
+        if (!u) continue;
+        const div = divisionOf(r.points);
+        let p = store.profileOf(u);
+        const owned = [...p.owned];
+        if (divisionIndex(div.id) >= divisionIndex(SEASON_DIE_FROM) && SEASONS.includes(season)) owned.push(`ds-${season}`);
+        const titles = divisionIndex(div.id) >= divisionIndex(SEASON_TITLE_FROM) ? [...(p.titles ?? []), `saison:${season}_${div.id}`] : p.titles;
+        p = { ...p, owned: [...new Set(owned)], titles: titles ? [...new Set(titles)] : undefined, bags: Math.min(BAGS_MAX, (p.bags ?? 0) + div.bags) };
+        store.saveProfile(u.id, p);
+        done.push(u.id);
+      }
+    }
+    store.setMeta('season_rolled', cur);
+    return done;
+  }
+  /** Partie classée terminée : points selon la place parmi les humains. */
+  function seasonGame(results: { userId: string; place: number; won: boolean }[], humans: number) {
+    rollSeasons();
+    const season = currentSeason();
+    for (const r of results) store.rankedAdd(season, r.userId, seasonDelta(r.place, humans), r.won);
+  }
+  router.get('/season', (req, res) => {
+    rollSeasons();
+    const season = currentSeason();
+    const h = req.headers.authorization ?? '';
+    const viewer = userFromToken(h.startsWith('Bearer ') ? h.slice(7) : '');
+    const mine = viewer ? store.rankedOf(season, viewer.id) : undefined;
+    res.json({
+      ok: true, season, endsOn: nextSeasonStart(season), divisions: DIVISIONS, dieFrom: SEASON_DIE_FROM, titleFrom: SEASON_TITLE_FROM, die: `ds-${season}`,
+      me: viewer ? { points: mine?.points ?? 0, games: mine?.games ?? 0, wins: mine?.wins ?? 0, division: divisionOf(mine?.points ?? 0).id, rank: mine ? store.rankedRank(season, mine.points) : null } : null,
+      top: store.rankedTop(season, 50).map((t, i) => ({ rank: i + 1, ...t, division: divisionOf(t.points).id })),
+    });
+  });
+
   /** XP gagnée : comptée pour la ligue de la semaine. */
   function leagueGain(userId: string, xp: number) {
     if (xp <= 0) return;
@@ -691,7 +730,9 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const u = store.userById(userId);
     if (!u) return null;
     const p = store.profileOf(u);
-    return { account: u.username, photo: photoUrl(u), title: titleLabel(p.title) ?? undefined, accessory: accessoryEmoji(p.equipped.accessoire) || undefined, prestige: p.prestige || undefined, dice: p.equipped.dice };
+    return { account: u.username, photo: photoUrl(u), title: titleLabel(p.title) ?? undefined, accessory: accessoryEmoji(p.equipped.accessoire) || undefined, prestige: p.prestige || undefined, dice: p.equipped.dice, trail: p.fx?.trainee, fete: p.fx?.fete };
   };
-  return { router, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
+  const social = createSocial({ router, store, auth, userOf, fail, adjust, coinsOf, brusselsDate, brusselsHour, now: () => opts.now?.() ?? Date.now() });
+
+  return { social, router, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
 }

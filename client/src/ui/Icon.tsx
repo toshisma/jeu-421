@@ -29,6 +29,7 @@ const PATHS: Record<string, string> = {
   album: 'M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM9 8h2v2H9zM13 8h2v2h-2zM9 13h2v2H9zM13 13h2v2h-2z',
   chart: 'M4 20h16M7 20v-6M12 20V8M17 20v-10',
   stats: 'M3 12h4l3-7 4 14 3-7h4',
+  bell: 'M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 20a2 2 0 0 0 4 0',
   cheers: 'M7 3h5l-1 9a2.5 2.5 0 0 1-3 0zM12 5h5l-1 9a2.5 2.5 0 0 1-3 0M9.5 13v6M7 21h5M14.5 15v4M12 21h5',
   club: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9 5.5-.8z',
 };

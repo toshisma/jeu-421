@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { activeEvent, coinBoost, eventEnd, shortDate } from '../../../shared/progress/events';
+import { useEffect, useState } from 'react';
+import { activeEvent, coinBoost, eventEnd, happyHour, shortDate } from '../../../shared/progress/events';
 import { getItem } from '../../../shared/progress/catalog';
 import {
   DAILY_REWARDS, PASS_POINTS, PASS_TIERS, availableTitles, dailyStatus, monthName, passReward, seasonOf, titleLabel,
@@ -13,6 +13,21 @@ import { Icon } from './Icon';
 import { Shell } from './Screens';
 
 /** Bandeau de l'événement en cours (et des pièces boostées). */
+/** Happy hour en cours : bandeau avec le temps restant (vérifié chaque minute). */
+export function HappyHourBanner() {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(t); }, []);
+  const hh = happyHour(now);
+  if (!hh) return null;
+  const left = 60 - new Date(now).getMinutes();
+  return (
+    <section className="happy-hour" aria-live="polite">
+      <span className="hh-ico" aria-hidden>🍻</span>
+      <div><b>Happy hour !</b><span>Toutes les parties rapportent deux fois plus de pièces jusqu'à {String((hh.hour + 1) % 24).padStart(2, '0')} h. Encore {left} min.</span></div>
+    </section>
+  );
+}
+
 export function EventBanner({ onShop }: { onShop: () => void }) {
   const day = today();
   const e = activeEvent(day);

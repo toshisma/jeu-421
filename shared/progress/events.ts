@@ -80,3 +80,25 @@ export function shortDate(day: string): string {
   const m = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'][Number(day.slice(5, 7)) - 1];
   return `${Number(day.slice(8))} ${m}`;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Happy hour : certains jours, une heure surprise où les pièces sont doublées (heure de Bruxelles).
+
+const brussels = (t: number) => {
+  const f = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Brussels', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false });
+  const parts = Object.fromEntries(f.formatToParts(new Date(t)).map((x) => [x.type, x.value]));
+  return { day: `${parts.year}-${parts.month}-${parts.day}`, hour: Number(parts.hour) % 24 };
+};
+const hashDay = (s: string) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
+/** Happy hour du jour (4 jours sur 7 environ), entre 12 h et 22 h, heure de Bruxelles. */
+export function happyHourOfDay(day: string): { hour: number } | null {
+  const h = hashDay(`hh:${day}`);
+  if (h % 7 >= 4) return null;
+  return { hour: 12 + ((h >>> 3) % 10) };
+}
+/** Happy hour en cours à cet instant : l'heure de début, sinon null. */
+export function happyHour(t: number): { day: string; hour: number } | null {
+  const b = brussels(t);
+  const hh = happyHourOfDay(b.day);
+  return hh && hh.hour === b.hour ? { day: b.day, hour: hh.hour } : null;
+}

@@ -17,7 +17,9 @@ import type { ComboKind } from '../combos';
 import { ACHIEVEMENTS, EMPTY_STATS, newlyUnlocked, type AchievementDef, type Stats } from './achievements';
 import { activeEvent, coinBoost } from './events';
 import { passItems } from './catalog';
-import { COLLECTION, CRAFT_COST, RARITIES, RARITY_ODDS, SHARDS_FOR_DUPLICATE, SHINY_ODDS, SHINY_SUFFIX, baseIdOf, collectionDie, isShiny, type Rarity } from './dice-collection';
+import { COLLECTION, CRAFT_COST, FX, FX_SHARE, RARITIES, RARITY_ODDS, SERIES, SHARDS_FOR_DUPLICATE, SHINY_ODDS, SHINY_SUFFIX, baseIdOf, collectionDie, fxDef, isSeasonDie, isShiny, type FxKind, type Rarity } from './dice-collection';
+import { happyHour } from './events';
+import { DIVISIONS } from '../season';
 import { randomFloat } from '../random';
 import { BOSSES, BOSS_COINS, bossOfWeek, weekKey } from './boss';
 
@@ -55,6 +57,10 @@ export interface Profile {
   shards?: number;
   pity?: number;
   showcase?: string[];
+  /** Effets de lancer équipés (traînée, célébration du 4-2-1). */
+  fx?: Partial<Record<FxKind, string>>;
+  /** Scores contre les habitués de l'ordinateur : nom → victoires / défaites. */
+  vsAi?: Record<string, { w: number; l: number }>;
 }
 
 export interface MonthRecap {
@@ -133,7 +139,7 @@ export function sanitizeProfile(raw: unknown): Profile {
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0);
   p.xp = num(r.xp);
   p.coins = num(r.coins);
-  const owned = Array.isArray(r.owned) ? r.owned.filter((id) => typeof id === 'string' && getItem(id)) : [];
+  const owned = Array.isArray(r.owned) ? r.owned.filter((id) => typeof id === 'string' && (getItem(id) || fxDef(id))) : [];
   p.owned = [...new Set([...FREE, ...owned])];
   for (const k of Object.keys(DEFAULT_APPEARANCE) as (keyof Appearance)[]) {
     const id = r.equipped?.[k];
@@ -151,7 +157,7 @@ export function sanitizeProfile(raw: unknown): Profile {
   if (r.season && typeof r.season.id === 'string' && /^\d{4}-\d{2}$/.test(r.season.id)) {
     p.season = { id: r.season.id, points: num(r.season.points), claimed: Array.isArray(r.season.claimed) ? [...new Set(r.season.claimed.map(num).filter((n) => n >= 1 && n <= PASS_TIERS))] : [] };
   }
-  if (Array.isArray(r.titles)) p.titles = [...new Set(r.titles.filter((t): t is string => typeof t === 'string' && /^(pass|ligue|patron|album):[\w-]{1,20}$/.test(t)))];
+  if (Array.isArray(r.titles)) p.titles = [...new Set(r.titles.filter((t): t is string => typeof t === 'string' && /^(pass|ligue|patron|album|serie|saison):[\w-]{1,20}$/.test(t)))];
   if (Array.isArray(r.album)) p.album = [...new Set(r.album.filter((k): k is string => typeof k === 'string' && ALBUM_KEYS.includes(k)))];
   if (Array.isArray(r.albumPages)) p.albumPages = [...new Set(r.albumPages.filter((k): k is string => typeof k === 'string' && ALBUM.some((a) => a.id === k)))];
   for (const k of ['month', 'prevMonth'] as const) {
@@ -173,6 +179,16 @@ export function sanitizeProfile(raw: unknown): Profile {
   if (num(r.bags)) p.bags = Math.min(BAGS_MAX, num(r.bags));
   if (num(r.shards)) p.shards = num(r.shards);
   if (num(r.pity)) p.pity = Math.min(BAG_PITY, num(r.pity));
+  if (r.fx && typeof r.fx === 'object') {
+    const fx: Partial<Record<FxKind, string>> = {};
+    for (const k of ['trainee', 'fete'] as FxKind[]) { const id = (r.fx as Record<string, unknown>)[k]; if (typeof id === 'string' && fxDef(id)?.kind === k && p.owned.includes(id)) fx[k] = id; }
+    if (Object.keys(fx).length) p.fx = fx;
+  }
+  if (r.vsAi && typeof r.vsAi === 'object') {
+    const v: Record<string, { w: number; l: number }> = {};
+    for (const [n, x] of Object.entries(r.vsAi).slice(0, 30)) if (n.length <= 20 && x && typeof x === 'object') v[n] = { w: num((x as { w: unknown }).w), l: num((x as { l: unknown }).l) };
+    p.vsAi = v;
+  }
   if (Array.isArray(r.showcase)) {
     const sc = [...new Set(r.showcase.filter((id): id is string => typeof id === 'string' && !!collectionDie(id) && p.owned.includes(id)))].slice(0, 3);
     if (sc.length) p.showcase = sc;
@@ -219,6 +235,8 @@ export interface RewardContext {
   place?: number;
   /** Durée réelle de la partie en minutes. */
   minutes?: number;
+  /** Heure de fin de partie (ms) : happy hour. */
+  now?: number;
 }
 
 export interface Reward {
@@ -266,8 +284,10 @@ export function rewardFor(won: boolean, rounds: number, ctx: RewardContext): Rew
   }];
   const n421 = Math.min(REWARDS.bonus421Max, Math.max(0, Math.floor(ctx.count421)));
   if (n421 > 0) lines.push({ label: `4-2-1 × ${n421}`, xp: 0, coins: n421 * REWARDS.bonus421Coins });
-  // Événement ou premier week-end du mois : pièces boostées.
-  const boost = coinBoost(ctx.day ?? today());
+  // Événement, premier week-end du mois ou happy hour : pièces boostées (le meilleur des trois).
+  const ev = coinBoost(ctx.day ?? today());
+  const hh = ctx.now !== undefined && happyHour(ctx.now) ? { factor: 2, label: 'Happy hour : pièces doublées' } : null;
+  const boost = hh && (!ev || ev.factor <= hh.factor) ? hh : ev;
   if (boost) {
     const base = lines.reduce((a, l) => a + l.coins, 0);
     const extra = Math.round(base * (boost.factor - 1));
@@ -299,7 +319,7 @@ export const purchases = (p: Profile) => p.owned.filter((id) => (getItem(id)?.pr
 
 /** Débloque les succès atteints et verse leurs pièces. */
 export function checkAchievements(p: Profile, now = Date.now()): { profile: Profile; unlocked: AchievementDef[] } {
-  const unlocked = newlyUnlocked({ stats: p.stats, level: levelInfo(p.xp).level, purchases: purchases(p) }, p.achievements);
+  const unlocked = newlyUnlocked({ stats: p.stats, level: levelInfo(p.xp).level, purchases: purchases(p), owned: p.owned }, p.achievements);
   if (!unlocked.length) return { profile: p, unlocked };
   const achievements = { ...p.achievements };
   for (const a of unlocked) achievements[a.id] = now;
@@ -355,9 +375,19 @@ export function applyGameEnd(p: Profile, reward: Reward, ctx: RewardContext, day
     triAces: s0.triAces + (c['111'] ?? 0),
     perfectWins: s0.perfectWins + (reward.won && ctx.roundsLost === 0 && (ctx.rounds ?? 0) >= 5 ? 1 : 0),
     comebacks: s0.comebacks + (reward.won && (ctx.maxTokens ?? 0) >= 10 ? 1 : 0),
+    triple421: (s0.triple421 ?? 0) + (ctx.count421 >= 3 ? 1 : 0),
+    nenettes3: (s0.nenettes3 ?? 0) + ((c.nenette ?? 0) >= 3 ? 1 : 0),
+    midnight: (s0.midnight ?? 0) + (ctx.hour === 0 ? 1 : 0),
+    bigComebacks: (s0.bigComebacks ?? 0) + (reward.won && (ctx.maxTokens ?? 0) >= 15 ? 1 : 0),
   };
   // Patron de la semaine battu (une fois par semaine).
   let base: Profile = { ...a.profile, quests, stats };
+  // Les habitués de l'ordinateur se souviennent des scores.
+  if (ctx.mode === 'solo' && ctx.opponentNames?.length) {
+    const v = { ...(base.vsAi ?? {}) };
+    for (const n of ctx.opponentNames.slice(0, 5)) { const r = v[n] ?? { w: 0, l: 0 }; v[n] = reward.won ? { ...r, w: r.w + 1 } : { ...r, l: r.l + 1 }; }
+    base = { ...base, vsAi: v };
+  }
   const extra: { id: string; icon: string; name: string; coins: number }[] = [];
   let bossBag = 0;
   if (ctx.boss && reward.won) {
@@ -402,31 +432,48 @@ export function bagChance(reward: Reward, ctx: RewardContext): number {
   return Math.min(0.5, (reward.won ? 0.22 : 0.1) * (1 + 0.1 * (players - 2)) * dur);
 }
 
-export interface BagResult { id: string; rarity: Rarity; shiny: boolean; duplicate: boolean; shards: number }
-/** Ouvre un sac : un dé tiré selon les raretés ; un doublon est converti en éclats. */
+export interface BagResult { id: string; kind: 'de' | 'effet'; rarity: Rarity; shiny: boolean; duplicate: boolean; shards: number; series?: string }
+/**
+ * Ouvre un sac : un dé (3 fois sur 4) ou un effet de lancer, tiré selon les raretés.
+ * Un doublon est converti en éclats. Une série complétée donne son titre et son tapis.
+ */
 export function openBag(p: Profile, rng: () => number = randomFloat): { profile: Profile; result: BagResult } | null {
   if (!p.bags || p.bags < 1) return null;
+  const isFx = rng() < FX_SHARE;
   let x = rng(), rarity: Rarity = 'commun';
   for (const r of RARITIES) { if (x < RARITY_ODDS[r]) { rarity = r; break; } x -= RARITY_ODDS[r]; }
-  const pool = COLLECTION.filter((c) => c.rarity === rarity);
-  const die = pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))];
-  const shiny = rng() < SHINY_ODDS;
-  const id = shiny ? die.id + SHINY_SUFFIX : die.id;
+  const pool: { id: string }[] = isFx ? FX.filter((f) => f.rarity === rarity) : COLLECTION.filter((c) => c.rarity === rarity);
+  const pick = pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))];
+  const shiny = !isFx && rng() < SHINY_ODDS;
+  const id = shiny ? pick.id + SHINY_SUFFIX : pick.id;
   const duplicate = p.owned.includes(id);
   const shards = duplicate ? SHARDS_FOR_DUPLICATE[rarity] * (shiny ? 2 : 1) : 0;
-  const profile: Profile = {
-    ...p, bags: p.bags - 1, shards: (p.shards ?? 0) + shards,
-    owned: duplicate ? p.owned : [...p.owned, id],
-  };
-  return { profile, result: { id, rarity, shiny, duplicate, shards } };
+  const s = applySeries({ ...p, bags: p.bags - 1, shards: (p.shards ?? 0) + shards, owned: duplicate ? p.owned : [...p.owned, id] });
+  return { profile: s.profile, result: { id, kind: isFx ? 'effet' : 'de', rarity, shiny, duplicate, shards, series: s.done[0] } };
 }
-/** Fabrique un dé de collection avec des éclats (versions brillantes exclues). */
+/** Fabrique un dé ou un effet de collection avec des éclats (brillants et dés de saison exclus). */
 export function craftDie(p: Profile, id: string): Profile | null {
-  const c = collectionDie(id);
-  if (!c || isShiny(id) || p.owned.includes(id)) return null;
-  const cost = CRAFT_COST[c.rarity];
+  const rarity = collectionDie(id)?.rarity ?? fxDef(id)?.rarity;
+  if (!rarity || isShiny(id) || isSeasonDie(id) || p.owned.includes(id)) return null;
+  const cost = CRAFT_COST[rarity];
   if ((p.shards ?? 0) < cost) return null;
-  return { ...p, shards: (p.shards ?? 0) - cost, owned: [...p.owned, id] };
+  return applySeries({ ...p, shards: (p.shards ?? 0) - cost, owned: [...p.owned, id] }).profile;
+}
+/** Séries complétées (version normale ou brillante de chaque dé) : titre et tapis exclusif. */
+export function applySeries(p: Profile): { profile: Profile; done: string[] } {
+  const own = new Set(p.owned);
+  const done = SERIES.filter((s) => !(p.titles ?? []).includes(`serie:${s.id}`) && s.dice.every((d) => own.has(d) || own.has(d + SHINY_SUFFIX)));
+  if (!done.length) return { profile: p, done: [] };
+  return {
+    profile: { ...p, titles: [...new Set([...(p.titles ?? []), ...done.map((s) => `serie:${s.id}`)])], owned: [...new Set([...p.owned, ...done.map((s) => s.felt)])] },
+    done: done.map((s) => s.id),
+  };
+}
+/** Équipe un effet de lancer possédé (ou le retire : id null). */
+export function equipFx(p: Profile, kind: FxKind, id: string | null): Profile | null {
+  if (id === null) { const fx = { ...(p.fx ?? {}) }; delete fx[kind]; return { ...p, fx }; }
+  if (fxDef(id)?.kind !== kind || !p.owned.includes(id)) return null;
+  return { ...p, fx: { ...(p.fx ?? {}), [kind]: id } };
 }
 /** Vitrine : jusqu'à 3 dés de collection possédés, visibles sur le profil. */
 export function setShowcase(p: Profile, ids: string[]): Profile | null {
@@ -436,9 +483,10 @@ export function setShowcase(p: Profile, ids: string[]): Profile | null {
   return { ...p, showcase: clean };
 }
 /** Nombre de dés de collection différents possédés (brillants à part). */
-export function collectionCount(p: Profile): { owned: number; total: number; shiny: number } {
+export function collectionCount(p: Profile): { owned: number; total: number; shiny: number; fx: number; fxTotal: number } {
   const own = new Set(p.owned);
-  return { owned: COLLECTION.filter((c) => own.has(c.id)).length, total: COLLECTION.length, shiny: COLLECTION.filter((c) => own.has(c.id + SHINY_SUFFIX)).length };
+  return { owned: COLLECTION.filter((c) => own.has(c.id)).length, total: COLLECTION.length, shiny: COLLECTION.filter((c) => own.has(c.id + SHINY_SUFFIX)).length,
+    fx: FX.filter((f) => own.has(f.id)).length, fxTotal: FX.length };
 }
 export { baseIdOf };
 
@@ -598,6 +646,8 @@ export function titleLabel(id: string | undefined): string | null {
   if (id === 'album:complet') return 'Collectionneur de combinaisons';
   if (id.startsWith('pass:')) return `Champion de ${monthName(id.slice(5))}`;
   if (id.startsWith('ligue:')) return `Ligue ${id.slice(6)}`;
+  if (id.startsWith('serie:')) return SERIES.find((x) => x.id === id.slice(6))?.title ?? null;
+  if (id.startsWith('saison:')) { const [season, div] = id.slice(7).split('_'); return `${DIVISIONS.find((d) => d.id === div)?.name ?? 'Classé'} de ${monthName(season)}`; }
   return ACHIEVEMENTS.find((a) => a.id === id)?.name ?? null;
 }
 export function setTitle(p: Profile, id: string | null): Profile | null {

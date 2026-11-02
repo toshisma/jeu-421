@@ -30,6 +30,8 @@ import { AccountScreen, LeaderboardScreen } from './ui/AccountScreens';
 import { Home, RulesScreen, Sandbox, SettingsScreen, SoloSetup, STANDALONE } from './ui/Screens';
 import { AdminScreen, StatsScreen } from './ui/StatsScreen';
 import { CollectionScreen } from './ui/DiceCollection';
+import { DuelsScreen } from './ui/Social';
+import type { DuelPlay } from './ui/ChallengeScreen';
 import { setPresence, startPresence } from './presence';
 
 type Screen =
@@ -58,6 +60,8 @@ type Screen =
   | { name: 'tutorial'; controller: TutorialController }
   | { name: 'stats' }
   | { name: 'collection' }
+  | { name: 'duels' }
+  | { name: 'duel'; duel: DuelPlay }
   | { name: 'admin' };
 
 /**
@@ -73,6 +77,8 @@ export function App() {
   const [settings, setSettingsState] = useState<Settings>(loadSettings);
   const invite = useMemo(() => new URLSearchParams(location.search).get('rejoindre'), []);
   const tInvite = useMemo(() => new URLSearchParams(location.search).get('tournoi'), []);
+  // Clic sur une notification : l'accueil s'ouvre sur le panneau des notifications.
+  const openNotifs = useMemo(() => { const v = new URLSearchParams(location.search).has('notifs'); if (v) cleanUrl(); return v; }, []);
   // Lien de parrainage : le pseudo du parrain est retenu pour la création du compte.
   useMemo(() => {
     const p = new URLSearchParams(location.search).get('parrain');
@@ -145,6 +151,9 @@ export function App() {
         onTutorial={startTutorial}
         onStats={() => setScreen({ name: 'stats' })}
         onCollection={() => setScreen({ name: 'collection' })}
+        onDuels={() => setScreen({ name: 'duels' })}
+        onDuelPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }}
+        openNotifs={openNotifs}
         resume={resume} onResume={() => setScreen(resume?.tournament ? { name: 'tournament', mode: { kind: 'resume' } } : { name: 'online', mode: { kind: 'resume' } })} />;
     case 'hub':
       return <OnlineHub tab={screen.tab} settings={settings} onSettings={setSettings} pa={pa} onBack={home}
@@ -170,7 +179,7 @@ export function App() {
     case 'settings':
       return <SettingsScreen settings={settings} onChange={setSettings} onBack={home} />;
     case 'sandbox':
-      return <Sandbox settings={settings} appearance={profile.equipped} onSettings={setSettings} onBack={home} />;
+      return <Sandbox settings={settings} appearance={profile.equipped} trail={profile.fx?.trainee} onSettings={setSettings} onBack={home} />;
     case 'shop':
       return <ShopScreen profile={profile} settings={settings} onBuy={pa.buyItem} onEquip={pa.equipItem} onBack={home} />;
     case 'account':
@@ -201,6 +210,10 @@ export function App() {
       return <ChallengeScreen pa={pa} settings={settings} appearance={profile.equipped} onBack={home} />;
     case 'pass':
       return <PassScreen pa={pa} onBack={home} />;
+    case 'duels':
+      return <DuelsScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} onPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }} />;
+    case 'duel':
+      return <ChallengeScreen key={screen.duel.id} pa={pa} settings={settings} appearance={profile.equipped} duel={screen.duel} onBack={() => setScreen({ name: 'duels' })} />;
     case 'collection':
       return <CollectionScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} />;
     case 'stats':

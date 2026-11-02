@@ -8,6 +8,7 @@ import { publicUrl } from '../platform';
 import { sound } from '../audio/sound';
 import { Shell } from './Screens';
 import { ProfileView } from './ProfileView';
+import { SeasonView } from './SeasonView';
 
 // ---------------------------------------------------------------------------------------------
 // Défis du jour
@@ -218,12 +219,14 @@ export function AccountScreen({ pa, onBack, onPrivacy, initial = 'register' }: {
 interface Row { rank: number | null; username: string; onlineWins: number; onlineGames: number; level: number; me?: boolean }
 
 export function LeaderboardScreen({ pa, onBack, onAccount }: { pa: ProfileApi; onBack: () => void; onAccount: () => void }) {
-  const [tab, setTab] = useState<'ligue' | 'monde' | 'amis'>('ligue');
+  const [tab, setTab] = useState<'saison' | 'ligue' | 'monde' | 'amis'>('saison');
   const [top, setTop] = useState<Row[] | null>(null);
   const [me, setMe] = useState<Row | null>(null);
   const [friends, setFriends] = useState<Row[] | null>(null);
   const [name, setName] = useState('');
   const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
+  const [pending, setPending] = useState<string[]>([]);
   const [open, setOpen] = useState<string | null>(null);
   const token = pa.token;
 
@@ -231,6 +234,7 @@ export function LeaderboardScreen({ pa, onBack, onAccount }: { pa: ProfileApi; o
     if (!token) return;
     api<{ top: Row[]; me: Row }>('/leaderboard', { token }).then((r) => { setTop(r.top); setMe(r.me); }).catch((e) => setErr(e.message));
     api<{ friends: Row[] }>('/friends', { token }).then((r) => setFriends(r.friends)).catch(() => {});
+    api<{ outgoing: { username: string }[] }>('/friends/requests', { token }).then((r) => setPending(r.outgoing.map((x) => x.username))).catch(() => {});
   };
   useEffect(load, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -247,24 +251,30 @@ export function LeaderboardScreen({ pa, onBack, onAccount }: { pa: ProfileApi; o
   const rows = tab === 'monde' ? top : friends;
   return (
     <Shell title="Classement" onBack={onBack}>
-      <div className="seg wide-seg three">
-        <button className={tab === 'ligue' ? 'on' : ''} onClick={() => setTab('ligue')}>Ma ligue</button>
-        <button className={tab === 'monde' ? 'on' : ''} onClick={() => setTab('monde')}>Tous les joueurs</button>
-        <button className={tab === 'amis' ? 'on' : ''} onClick={() => setTab('amis')}>Mes amis</button>
+      <div className="seg wide-seg coll-filter">
+        <button className={tab === 'saison' ? 'on' : ''} onClick={() => setTab('saison')}>Saison</button>
+        <button className={tab === 'ligue' ? 'on' : ''} onClick={() => setTab('ligue')}>Ligue</button>
+        <button className={tab === 'monde' ? 'on' : ''} onClick={() => setTab('monde')}>Victoires</button>
+        <button className={tab === 'amis' ? 'on' : ''} onClick={() => setTab('amis')}>Amis</button>
       </div>
-      {tab === 'ligue' ? <LeagueView pa={pa} onOpen={setOpen} /> : <>
+      {tab === 'saison' ? <SeasonView pa={pa} onOpen={setOpen} /> : tab === 'ligue' ? <LeagueView pa={pa} onOpen={setOpen} /> : <>
       <p className="muted small">Victoires en ligne (le solo ne compte pas). À égalité, le moins de parties jouées passe devant.</p>
       {tab === 'amis' && (
         <form className="friend-add" onSubmit={async (e) => {
           e.preventDefault(); setErr(null);
-          try { await api('/friends', { token, body: { username: name } }); setName(''); load(); }
-          catch (x) { setErr((x as Error).message); }
+          try {
+            const r = await api<{ result: string }>('/friends', { token, body: { username: name } });
+            setOk(r.result === 'accepted' ? `Vous êtes maintenant amis avec ${name}.` : `Demande envoyée à ${name} : elle apparaîtra dans ses notifications.`);
+            setName(''); load();
+          } catch (x) { setErr((x as Error).message); }
         }}>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Pseudo d'un ami" maxLength={20} />
           <button className="btn small primary" disabled={name.trim().length < 3}>Ajouter</button>
         </form>
       )}
       {err && <p className="error small">{err}</p>}
+      {tab === 'amis' && ok && <p className="ok small">{ok}</p>}
+      {tab === 'amis' && pending.length > 0 && <p className="muted small">En attente de réponse : {pending.join(', ')}.</p>}
       <ol className="board">
         {!rows && <li className="muted">Chargement…</li>}
         {rows?.length === 0 && <li className="muted">{tab === 'monde' ? 'Personne encore : jouez une partie en ligne !' : 'Ajoutez des amis par leur pseudo.'}</li>}

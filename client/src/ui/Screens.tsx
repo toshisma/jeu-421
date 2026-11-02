@@ -1,4 +1,4 @@
-import { BossCard, DailyStreak, EventBanner, PassSummary } from './Progression';
+import { BossCard, DailyStreak, EventBanner, HappyHourBanner, PassSummary } from './Progression';
 import { reportUrl } from '../legal';
 import { ChallengeCard } from './ChallengeScreen';
 import { accessoryEmoji } from '../../../shared/progress/catalog';
@@ -17,6 +17,9 @@ import { ConfigEditor } from './ConfigEditor';
 import { InstallPrompt } from './InstallPrompt';
 import { LiveStrip } from './StatsScreen';
 import { CollectionPromo } from './DiceCollection';
+import { fxDef, fxGlows } from '../../../shared/progress/dice-collection';
+import { NotifBell, NotifPanel, useNotifications } from './Social';
+import type { DuelPlay } from './ChallengeScreen';
 import { Icon } from './Icon';
 import type { ProfileApi } from '../account/useProfile';
 import { QuestsPanel } from './AccountScreens';
@@ -62,11 +65,13 @@ export function ProfileChip({ profile, onClick, photo, emoji }: { profile: Profi
 
 export function Home(props: {
   profile: Profile; pa: ProfileApi; avatar: string; displayName: string; onShop: () => void; onAccount: () => void; onLeaderboard: () => void;
-  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onParty: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void; onLogin: () => void; onCollection: () => void;
+  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onParty: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void; onLogin: () => void; onCollection: () => void; onDuels: () => void; onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
   resume: { code: string; tournament?: boolean } | null; onResume: () => void;
 }) {
   const [online, setOnline] = useState(navigator.onLine);
   const [showProfile, setShowProfile] = useState(false);
+  const { notifs, reload } = useNotifications(props.pa);
+  const [showNotifs, setShowNotifs] = useState(!!props.openNotifs);
   useEffect(() => {
     const up = () => setOnline(true), down = () => setOnline(false);
     window.addEventListener('online', up);
@@ -86,6 +91,7 @@ export function Home(props: {
           </span>
         </button>
         {!STANDALONE && !props.pa.isAccount && <button className="install-chip login-chip" onClick={props.onLogin}>Connexion</button>}
+        {!STANDALONE && props.pa.isAccount && <NotifBell count={notifs?.count ?? 0} onOpen={() => { setShowNotifs(true); reload(); }} />}
         <InstallPrompt compact />
         <div className="wallet" aria-label="Mon solde">
           <span className="wallet-xp" title={`${li.into} sur ${li.need} XP pour le niveau suivant`}>
@@ -133,6 +139,7 @@ export function Home(props: {
             <button className="btn primary" onClick={props.onTutorial}>Apprendre à jouer</button>
           </section>
         )}
+        <HappyHourBanner />
         <EventBanner onShop={props.onShop} />
         <DailyStreak pa={props.pa} />
         <ChallengeCard onOpen={props.onChallenge} />
@@ -147,6 +154,7 @@ export function Home(props: {
           <button onClick={props.onAlbum}><Icon name="album" /><span>Album</span></button>
           {!STANDALONE && <button onClick={props.onLeaderboard}><Icon name="trophy" /><span>Classement</span></button>}
           {!STANDALONE && <button onClick={props.onClub}><Icon name="club" /><span>Club</span></button>}
+          {!STANDALONE && <button onClick={props.onDuels} className="tile-coll"><Icon name="dice" /><span>Défis</span>{(notifs?.toPlay.filter((d) => !d.sent).length ?? 0) > 0 && <i className="tile-badge">{notifs!.toPlay.filter((d) => !d.sent).length}</i>}</button>}
           <button onClick={props.onRecap}><Icon name="chart" /><span>Récap</span></button>
           {!STANDALONE && <button onClick={props.onStats}><Icon name="stats" /><span>Statistiques</span></button>}
           <button onClick={props.onRules}><Icon name="rules" /><span>Règles</span></button>
@@ -166,6 +174,8 @@ export function Home(props: {
           </div>
         </div>
       </main>
+      {showNotifs && <NotifPanel pa={props.pa} notifs={notifs} reload={reload} onClose={() => { setShowNotifs(false); reload(); }}
+        onPlay={(d) => { setShowNotifs(false); props.onDuelPlay(d); }} onDuels={() => { setShowNotifs(false); props.onDuels(); }} />}
       {showProfile && <ProfileView pa={props.pa} displayName={props.displayName} avatar={props.avatar} onClose={() => setShowProfile(false)} />}
     </div>
   );
@@ -315,8 +325,10 @@ export function SettingsScreen({ settings, onChange, onBack }: { settings: Setti
 // ---------------------------------------------------------------------------------------------
 
 /** Bac d'essai : lancers libres pour juger la physique, relances partielles comprises. */
-export function Sandbox({ settings, appearance, onBack, onSettings }: { settings: Settings; appearance: Appearance; onBack: () => void; onSettings: (s: Settings) => void }) {
+export function Sandbox({ settings, appearance, onBack, onSettings, trail }: { settings: Settings; appearance: Appearance; onBack: () => void; onSettings: (s: Settings) => void; trail?: string }) {
   const tray = useRef<DiceTrayHandle>(null);
+  // Le bac d'essai montre aussi la traînée équipée.
+  useEffect(() => { tray.current?.setTrail(fxDef(trail)?.colors ?? null, fxGlows(trail)); }, [trail]);
   const [dice, setDice] = useState<number[]>([4, 2, 1]);
   const [keep, setKeep] = useState([false, false, false]);
   const [rolling, setRolling] = useState(false);

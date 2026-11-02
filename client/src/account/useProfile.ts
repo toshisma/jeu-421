@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GameState } from '../../../shared/engine';
 import {
   applyGameEnd, buy, claimDaily, claimPassTier, claimQuest, completeTutorial, computeReward, didWin, equip, loadProfile, saveProfile, sanitizeProfile, setTitle, addSeasonPoints, doPrestige,
-  craftDie, setShowcase,
+  craftDie, setShowcase, equipFx,
   type Applied, type BagResult, type Profile, type Reward, type RewardContext,
 } from '../../../shared/progress/profile';
 import { api, ApiError, loadSession, saveAccountSession, type Session } from './api';
@@ -14,6 +14,7 @@ import { challengeReward, playChallenge, type ChallengeResult } from '../../../s
 import { today } from '../../../shared/progress/quests';
 import { loadGuestPhoto, photoToDataUrl, saveGuestPhoto } from './photo';
 import { deviceId, setPresence } from '../presence';
+import type { FxKind } from '../../../shared/progress/dice-collection';
 
 export interface EndReward { reward: Reward; applied: Applied }
 
@@ -55,13 +56,15 @@ export function useProfile(enabled: boolean) {
     setProfileState(loadProfile());
   }, []);
 
-  // Au démarrage : rafraîchir le profil du compte depuis le serveur.
-  useEffect(() => {
-    if (!session) return;
-    api<{ user: PublicUser; profile: Profile }>('/me', { token: session.token })
+  // Au démarrage (et à la demande) : rafraîchir le profil du compte depuis le serveur.
+  const refresh = useCallback(() => {
+    const s = ref.current.session;
+    if (!s) return;
+    api<{ user: PublicUser; profile: Profile }>('/me', { token: s.token })
       .then((r) => { setUser(r.user); setProfile(sanitizeProfile(r.profile)); })
       .catch((e) => { if (e instanceof ApiError && e.status === 401) dropSession(); });
-  }, [session?.token]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (session) refresh(); }, [session?.token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const signIn = useCallback((r: { token: string; user: PublicUser; profile: Profile }) => {
     const s = { token: r.token, username: r.user.username };
@@ -130,6 +133,15 @@ export function useProfile(enabled: boolean) {
     }
   }, [setProfile, dropSession]);
   const craft = useCallback((id: string) => act('/collection/craft', id, (p) => craftDie(p, id)), [act]);
+  const equipFxAction = useCallback(async (kind: FxKind, id: string | null): Promise<string | null> => {
+    const s = ref.current.session;
+    if (!s) { const n = equipFx(ref.current.profile, kind, id); if (!n) return 'Effet non possédé'; setProfile(n); return null; }
+    try {
+      const r = await api<{ profile: Profile }>('/collection/fx', { body: { kind, id }, token: s.token });
+      setProfile(sanitizeProfile(r.profile));
+      return null;
+    } catch (e) { return (e as Error).message; }
+  }, [setProfile]);
   const setVitrine = useCallback(async (ids: string[]): Promise<string | null> => {
     const s = ref.current.session;
     if (!s) { const n = setShowcase(ref.current.profile, ids); if (!n) return 'Vitrine invalide'; setProfile(n); return null; }
@@ -303,7 +315,7 @@ export function useProfile(enabled: boolean) {
     register, login, recover, logout, deleteAccount,
     submitChallenge,
     buyItem, equipItem, claim, blocked, block, isBlocked, claimDailyReward, claimPass, chooseTitle, finishTutorial, prestige,
-    onSoloStart, onGameEnd, onServerReward, onServerProfile, openBag, craft, setVitrine,
+    onSoloStart, onGameEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
     token: session?.token ?? null,
   };
 }

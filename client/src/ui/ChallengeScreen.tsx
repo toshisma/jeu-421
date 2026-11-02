@@ -16,8 +16,13 @@ interface Board { top: { username: string; points: number; throws: number }[]; t
 const NO_KEEP = [false, false, false];
 
 /** Défi du jour : 5 coups, les mêmes dés pour tous ; un seul essai classé par jour. */
-export function ChallengeScreen({ pa, settings, appearance, onBack }: { pa: ProfileApi; settings: Settings; appearance: Appearance; onBack: () => void }) {
-  const day = today();
+export interface DuelPlay { id: string; opponent: string; stake: number }
+interface DuelOutcome { status: string; mine: { points: number; throws: number }; theirs: { points: number; throws: number } | null; winner: string | null; pot: number }
+
+export function ChallengeScreen({ pa, settings, appearance, onBack, duel }: { pa: ProfileApi; settings: Settings; appearance: Appearance; onBack: () => void; duel?: DuelPlay }) {
+  // Défi entre amis : mêmes règles, mais les dés sont tirés d'une suite propre à ce défi.
+  const day = duel ? `duel-${duel.id}` : today();
+  const [outcome, setOutcome] = useState<DuelOutcome | null>(null);
   const already = loadChallengeDone()?.day === day;
   const tray = useRef<DiceTrayHandle>(null);
   const [turn, setTurn] = useState(0);
@@ -30,7 +35,7 @@ export function ChallengeScreen({ pa, settings, appearance, onBack }: { pa: Prof
   const [done, setDone] = useState<null | { points: number; reward: { coins: number; xp: number } | null; rank?: number; total?: number; error?: string }>(null);
   const [board, setBoard] = useState<Board | null>(null);
 
-  const loadBoard = () => { if (pa.token) api<Board>('/challenge/board', { token: pa.token }).then(setBoard).catch(() => {}); };
+  const loadBoard = () => { if (pa.token && !duel) api<Board>('/challenge/board', { token: pa.token }).then(setBoard).catch(() => {}); };
   useEffect(loadBoard, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const combo = dice[0] ? evaluate(dice, DEFAULT_CONFIG.values) : null;
@@ -74,6 +79,17 @@ export function ChallengeScreen({ pa, settings, appearance, onBack }: { pa: Prof
       return;
     }
     setBusy(true);
+    if (duel) {
+      try {
+        const r = await api<{ duel: DuelOutcome; profile?: unknown }>(`/duels/${duel.id}/play`, { body: { decisions }, token: pa.token });
+        setOutcome(r.duel);
+        setDone({ points: r.duel.mine.points, reward: null });
+        if (r.duel.winner === pa.session?.username) sound.win();
+        pa.refresh();
+      } catch (e) { setDone({ points: sc.reduce((a, x) => a + x.value, 0), reward: null, error: (e as Error).message }); }
+      setBusy(false);
+      return;
+    }
     const r = await pa.submitChallenge(decisions);
     setDone({ points: r.result.points, reward: r.reward, rank: r.rank, total: r.total, error: r.error });
     if (r.reward) sound.chips(5);
@@ -94,7 +110,7 @@ export function ChallengeScreen({ pa, settings, appearance, onBack }: { pa: Prof
       <div className="top">
         <div className="topbar">
           <button className="icon-btn" onClick={onBack} aria-label="Retour"><Icon name="back" /></button>
-          <div className="phase"><span className="logo-mini">421</span> Défi du jour <span className="muted">mêmes dés pour tout le monde</span></div>
+          <div className="phase"><span className="logo-mini">421</span> {duel ? <>Défi contre {duel.opponent} <span className="muted">mêmes dés pour vous deux</span></> : <>Défi du jour <span className="muted">mêmes dés pour tout le monde</span></>}</div>
         </div>
         <div className="tracker">
           <div className="tr-main">
@@ -108,7 +124,7 @@ export function ChallengeScreen({ pa, settings, appearance, onBack }: { pa: Prof
       {!done ? (
         <div className="actionbar">
           <div className="status">
-            <div className="turn-line"><span className="your-turn">{already && !pa.isAccount ? 'Entraînement' : 'À vous'}</span></div>
+            <div className="turn-line"><span className="your-turn">{already && !pa.isAccount && !duel ? 'Entraînement' : 'À vous'}</span></div>
             <div className="throws">{Array.from({ length: CHALLENGE_THROWS }, (_, i) => <i key={i} className={i < throwIdx ? 'used' : ''} />)}<span>{throwsLeft} lancer{throwsLeft > 1 ? 's' : ''} restant{throwsLeft > 1 ? 's' : ''}</span></div>
           </div>
           <div className="result">
@@ -135,17 +151,26 @@ export function ChallengeScreen({ pa, settings, appearance, onBack }: { pa: Prof
         <div className="end-overlay">
           <div className="end-card">
             <h2>{done.points} points</h2>
-            <p className="muted">
+            {duel && (
+              <p className={outcome?.winner === pa.session?.username ? 'ok' : 'muted'}>
+                {!outcome ? done.error
+                  : !outcome.theirs ? `${duel.opponent} n'a pas encore joué : vous recevrez le résultat dès que c'est fait.`
+                    : outcome.winner === null ? `Égalité avec ${duel.opponent} (${outcome.theirs.points} points) : mises rendues.`
+                      : outcome.winner === pa.session?.username ? `Gagné ! ${duel.opponent} a fait ${outcome.theirs.points} points.${outcome.pot ? ` Vous remportez ${outcome.pot} pièces.` : ''}`
+                        : `Perdu : ${duel.opponent} a fait ${outcome.theirs.points} points.`}
+              </p>
+            )}
+            {!duel && <p className="muted">
               {done.rank ? `Vous êtes ${done.rank === 1 ? '1er' : `${done.rank}e`} sur ${done.total} joueur${(done.total ?? 0) > 1 ? 's' : ''} aujourd'hui.`
                 : done.error ?? (pa.isAccount ? '' : 'Créez un compte pour figurer au classement du défi.')}
-            </p>
+            </p>}
             <ol className="ranking">
               {scores.map((s, i) => (
                 <li key={i}><span className="rk">{i + 1}</span><span className="nm"><DiceRow dice={s.dice} size={18} /> {s.label}</span><span className="sc">{s.value} pt{s.value > 1 ? 's' : ''}</span></li>
               ))}
             </ol>
-            {done.reward ? <p className="ok">+{done.reward.coins} pièces et +{done.reward.xp} XP</p>
-              : <p className="muted small">Récompense déjà reçue aujourd'hui : ce coup était pour l'entraînement.</p>}
+            {!duel && (done.reward ? <p className="ok">+{done.reward.coins} pièces et +{done.reward.xp} XP</p>
+              : <p className="muted small">Récompense déjà reçue aujourd'hui : ce coup était pour l'entraînement.</p>)}
             {board && board.top.length > 0 && (
               <>
                 <h3>Meilleurs scores du jour</h3>

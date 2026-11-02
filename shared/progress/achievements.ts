@@ -25,16 +25,20 @@ export interface Stats {
   tournamentWins: number; // tournois gagnés
   potsWon: number; // cagnottes remportées (tables avec mise)
   bossWins: number; // patrons de la semaine battus
+  triple421: number; // parties avec trois 4-2-1 ou plus
+  nenettes3: number; // parties avec trois nénettes ou plus
+  midnight: number; // parties terminées entre minuit et 1 h
+  bigComebacks: number; // victoires après avoir eu 15 jetons ou plus
 }
 
 export const EMPTY_STATS: Stats = {
   played: 0, won: 0, total421: 0, onlineGames: 0, onlineWins: 0, hardWins: 0, brelans: 0, aces: 0,
   gestures: 0, streak: 0, bestStreak: 0, bigTableWins: 0, questsClaimed: 0, triAces: 0, perfectWins: 0, comebacks: 0,
-  tournaments: 0, tournamentWins: 0, potsWon: 0, bossWins: 0,
+  tournaments: 0, tournamentWins: 0, potsWon: 0, bossWins: 0, triple421: 0, nenettes3: 0, midnight: 0, bigComebacks: 0,
 };
 
 /** Ce dont un succès a besoin pour mesurer sa progression. */
-export interface AchievementInput { stats: Stats; level: number; purchases: number }
+export interface AchievementInput { stats: Stats; level: number; purchases: number; owned?: string[] }
 
 /** Nombre d'objets payants du catalogue (pour « tout posséder »). */
 export const PAID_ITEMS = ITEMS.filter((i) => i.price > 0).length;
@@ -48,6 +52,8 @@ export interface AchievementDef {
   coins: number;
   /** Succès difficile (mis en valeur). */
   rare?: boolean;
+  /** Succès secret : nom et description cachés tant qu'il n'est pas débloqué. */
+  secret?: boolean;
   value: (a: AchievementInput) => number;
 }
 
@@ -98,6 +104,13 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'tournoi-10', icon: '🎖️', name: 'Abonné aux podiums', description: 'Gagner 10 tournois', target: 10, coins: 600, rare: true, value: st('tournamentWins') },
   { id: 'tournoi-50', icon: '🎡', name: 'Tournée des grands ducs', description: 'Terminer 50 tournois', target: 50, coins: 300, rare: true, value: st('tournaments') },
   { id: 'cagnotte-25', icon: '🏦', name: 'La banque, c’est moi', description: 'Remporter 25 cagnottes', target: 25, coins: 300, rare: true, value: st('potsWon') },
+  // --- Secrets ---
+  { id: 'secret-triple', icon: '🎰', name: 'Jackpot', description: 'Faire trois 4-2-1 dans la même partie', target: 1, coins: 60, secret: true, value: st('triple421') },
+  { id: 'secret-nenette', icon: '🙈', name: 'Abonné à la nénette', description: 'Faire trois nénettes dans la même partie', target: 1, coins: 30, secret: true, value: st('nenettes3') },
+  { id: 'secret-minuit', icon: '🌙', name: 'Dernière tournée', description: 'Finir une partie entre minuit et une heure du matin', target: 1, coins: 20, secret: true, value: st('midnight') },
+  { id: 'secret-phenix', icon: '🔥', name: 'Revenu de l’enfer', description: 'Gagner après avoir eu 15 jetons ou plus', target: 1, coins: 80, secret: true, value: st('bigComebacks') },
+  { id: 'secret-brillant', icon: '✨', name: 'Ça brille !', description: 'Trouver un dé brillant dans un sac', target: 1, coins: 50, secret: true, value: (a) => (a.owned ?? []).filter((id) => id.endsWith('-brillant')).length },
+  { id: 'secret-legende', icon: '🐉', name: 'Ça, c’est une légende', description: 'Posséder un dé légendaire', target: 1, coins: 40, secret: true, value: (a) => (a.owned ?? []).filter((id) => ['dc-perron', 'dc-dragon', 'dc-aurore'].includes(id.replace('-brillant', ''))).length },
   { id: 'patron-10', icon: '🥊', name: 'Terreur des patrons', description: 'Battre 10 patrons de la semaine', target: 10, coins: 400, rare: true, value: st('bossWins') },
 ];
 

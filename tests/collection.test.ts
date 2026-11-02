@@ -62,9 +62,9 @@ describe('dés de collection', () => {
 
   it('doublon → éclats ; fabrication avec les éclats ; brillant non fabricable', () => {
     let p: Profile = { ...newProfile(), bags: 2 };
-    const r1 = openBag(p, seq(0, 0, 0.5))!; // commun, premier de la liste, pas brillant
+    const r1 = openBag(p, seq(0.9, 0, 0, 0.5))!; // un dé (pas un effet), commun, premier de la liste, pas brillant
     expect(r1.result).toMatchObject({ id: 'dc-craie', rarity: 'commun', duplicate: false, shards: 0 });
-    const r2 = openBag(r1.profile, seq(0, 0, 0.5))!;
+    const r2 = openBag(r1.profile, seq(0.9, 0, 0, 0.5))!;
     expect(r2.result).toMatchObject({ duplicate: true, shards: 5 });
     p = { ...r2.profile, shards: CRAFT_COST.rare };
     expect(craftDie(p, 'dc-galaxie')).toBeNull(); // épique : pas assez
@@ -72,7 +72,7 @@ describe('dés de collection', () => {
     expect(c.owned).toContain('dc-grenat');
     expect(c.shards).toBe(0);
     expect(craftDie({ ...p, shards: 99999 }, 'dc-grenat' + SHINY_SUFFIX)).toBeNull();
-    const shiny = openBag({ ...newProfile(), bags: 1 }, seq(0.999, 0, 0))!;
+    const shiny = openBag({ ...newProfile(), bags: 1 }, seq(0.9, 0.999, 0, 0))!;
     expect(shiny.result).toMatchObject({ rarity: 'legendaire', shiny: true });
     expect(shiny.profile.owned).toContain(shiny.result.id);
   });
@@ -109,15 +109,23 @@ describe('dés de collection : serveur', () => {
   });
 
   it('ouverture sur le serveur, vitrine visible sur le profil public', async () => {
-    const r = await api('/register', { username: 'Collec', password: 'motdepasse1', guestProfile: { bags: 2 } });
+    const r = await api('/register', { username: 'Collec', password: 'motdepasse1', guestProfile: { bags: 10 } });
     expect((await api('/bags/open', {})).status).toBe(401);
-    const o = await api('/bags/open', {}, r.token);
+    let o = await api('/bags/open', {}, r.token);
     expect(o.ok).toBe(true);
     expect(o.profile.owned).toContain(o.result.id);
-    expect(o.profile.bags).toBe(1);
+    expect(o.profile.bags).toBe(9);
+    let fx: string | null = o.result.kind === 'effet' ? o.result.id : null;
+    while (o.result.kind !== 'de') { o = await api('/bags/open', {}, r.token); if (o.result.kind === 'effet') fx = o.result.id; }
     expect((await api('/shop/equip', { id: o.result.id }, r.token)).profile.equipped.dice).toBe(o.result.id);
-    await api('/bags/open', {}, r.token);
+    let left = o.profile.bags;
+    while (left > 0) { const x = await api('/bags/open', {}, r.token); left = x.profile.bags; if (x.result.kind === 'effet') fx = x.result.id; }
     expect((await api('/bags/open', {}, r.token)).status).toBe(400);
+    if (fx) {
+      const kind = fx.startsWith('fx-') && ['fx-bravo', 'fx-ballons', 'fx-eclair', 'fx-pluie-or', 'fx-feu-artifice'].includes(fx) ? 'fete' : 'trainee';
+      expect((await api('/collection/fx', { kind, id: fx }, r.token)).profile.fx[kind]).toBe(fx);
+    }
+    expect((await api('/collection/fx', { kind: 'trainee', id: 'fx-arc-en-ciel' }, r.token)).status).toBe(fx === 'fx-arc-en-ciel' ? 200 : 400);
     expect((await api('/collection/showcase', { ids: [o.result.id] }, r.token)).profile.showcase).toEqual([o.result.id]);
     expect((await api('/collection/showcase', { ids: ['dc-aurore'] }, r.token)).status).toBe(400);
     const pub = await api('/players/Collec');
@@ -132,8 +140,9 @@ describe('dés de collection : serveur', () => {
       c.s.on('connect', () => res(c));
     });
     const emit = (c: { s: ReturnType<typeof connect> }, ev: string, p: object) => new Promise<any>((res) => c.s.emit(ev, p, res)); // eslint-disable-line @typescript-eslint/no-explicit-any
-    const reg = await api('/register', { username: 'Montreur', password: 'motdepasse1', guestProfile: { bags: 1 } });
-    const o = await api('/bags/open', {}, reg.token);
+    const reg = await api('/register', { username: 'Montreur', password: 'motdepasse1', guestProfile: { bags: 10 } });
+    let o = await api('/bags/open', {}, reg.token);
+    while (o.result.kind !== 'de') o = await api('/bags/open', {}, reg.token); // un sac sur quatre contient un effet
     await api('/shop/equip', { id: o.result.id }, reg.token);
     const a = await mk(), b = await mk(), g = await mk();
     const r = await emit(a, 'room:create', { name: 'Montreur', avatar: '🐻', auth: reg.token, dice: 'dice-noir', table: { stake: 0 } });

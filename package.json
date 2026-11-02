@@ -30,7 +30,8 @@
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "three": "^0.170.0",
-    "tsx": "^4.19.2"
+    "tsx": "^4.19.2",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.6.10",
@@ -39,6 +40,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/three": "^0.170.0",
+    "@types/web-push": "^3.6.4",
     "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.1.0",
     "puppeteer-core": "^23.10.0",

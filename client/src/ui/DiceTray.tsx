@@ -13,6 +13,8 @@ export interface DiceTrayHandle {
   setInteractive(on: boolean): void;
   /** Dés d'un autre joueur (identifiant du catalogue), ou les miens (null). */
   setDiceSkin(id: string | null): void;
+  /** Traînée de lancer (couleurs) ou aucune. */
+  setTrail(colors: string[] | null, glow?: boolean): void;
 }
 
 interface Props {
@@ -66,6 +68,7 @@ export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ ap
     setKept: (m) => scene.current?.setKept(m),
     setInteractive: (on) => scene.current?.setInteractive(on),
     setDiceSkin: (id) => scene.current?.setDiceSkin(id),
+    setTrail: (c, g) => scene.current?.setTrail(c, g),
   }), []);
 
   return <div ref={host} className="tray-host" />;

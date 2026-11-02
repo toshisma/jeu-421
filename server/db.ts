@@ -39,6 +39,12 @@ export function toPublic(u: UserRow): PublicUser {
   return { id: u.id, username: u.username, onlineGames: u.online_games, onlineWins: u.online_wins, createdAt: u.created_at, photo: photoUrl(u) };
 }
 
+export interface DuelRow {
+  id: string; from_id: string; to_id: string; stake: number; created_at: number;
+  from_points: number | null; from_throws: number | null; to_points: number | null; to_throws: number | null;
+  status: 'ouvert' | 'fini' | 'refuse' | 'expire'; winner_id: string | null; from_seen: number; to_seen: number; ended_at: number | null;
+}
+
 export class Store {
   private db: DatabaseSync;
 
@@ -176,6 +182,25 @@ export class Store {
         PRIMARY KEY (game_id, player_key)
       );
       CREATE INDEX IF NOT EXISTS idx_gp_user ON game_players(user_id);
+      CREATE TABLE IF NOT EXISTS ranked (
+        season TEXT NOT NULL, user_id TEXT NOT NULL, points INTEGER NOT NULL DEFAULT 0, games INTEGER NOT NULL DEFAULT 0, wins INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (season, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_ranked ON ranked(season, points DESC);
+      CREATE TABLE IF NOT EXISTS friend_requests (
+        from_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, to_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at INTEGER NOT NULL, PRIMARY KEY (from_id, to_id)
+      );
+      CREATE TABLE IF NOT EXISTS duels (
+        id TEXT PRIMARY KEY, from_id TEXT NOT NULL, to_id TEXT NOT NULL, stake INTEGER NOT NULL, created_at INTEGER NOT NULL,
+        from_points INTEGER, from_throws INTEGER, to_points INTEGER, to_throws INTEGER,
+        status TEXT NOT NULL, winner_id TEXT, from_seen INTEGER NOT NULL DEFAULT 1, to_seen INTEGER NOT NULL DEFAULT 0, ended_at INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_duels_from ON duels(from_id, status);
+      CREATE INDEX IF NOT EXISTS idx_duels_to ON duels(to_id, status);
+      CREATE TABLE IF NOT EXISTS push_subs (
+        endpoint TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, p256dh TEXT NOT NULL, auth TEXT NOT NULL, created_at INTEGER NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS solo_tokens (token TEXT PRIMARY KEY, user_id TEXT NOT NULL, started_at INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS idx_challenge_rank ON challenge(day, points DESC, throws ASC, created_at ASC);
     `);
@@ -217,6 +242,7 @@ export class Store {
   }
   deleteUser(id: string) {
     this.db.prepare('DELETE FROM users WHERE id = ?').run(id); // sessions et amis : ON DELETE CASCADE
+    this.db.prepare('DELETE FROM ranked WHERE user_id = ?').run(id);
     // Statistiques : la partie reste comptée, mais plus aucun lien avec le compte supprimé.
     this.db.prepare(`UPDATE game_players SET user_id = NULL, player_key = 'x:' || lower(hex(randomblob(8))) WHERE user_id = ?`).run(id);
   }
@@ -281,6 +307,8 @@ export class Store {
     this.db.prepare('INSERT OR IGNORE INTO blocks (user_id, blocked_id, created_at) VALUES (?, ?, ?)').run(userId, blockedId, Date.now());
     this.removeFriend(userId, blockedId);
     this.removeFriend(blockedId, userId);
+    this.deleteFriendRequest(userId, blockedId);
+    this.deleteFriendRequest(blockedId, userId);
   }
   unblock(userId: string, blockedId: string) { this.db.prepare('DELETE FROM blocks WHERE user_id = ? AND blocked_id = ?').run(userId, blockedId); }
   blockedBy(userId: string): UserRow[] {
@@ -415,6 +443,65 @@ export class Store {
     return this.db.prepare('SELECT user_id, context, amount FROM escrow').all() as unknown as { user_id: string; context: string; amount: number }[];
   }
   escrowClear() { this.db.prepare('DELETE FROM escrow').run(); }
+
+  // --- Demandes d'amis ---
+  friendRequest(fromId: string, toId: string) { this.db.prepare('INSERT OR IGNORE INTO friend_requests (from_id, to_id, created_at) VALUES (?, ?, ?)').run(fromId, toId, Date.now()); }
+  hasFriendRequest(fromId: string, toId: string): boolean { return !!this.db.prepare('SELECT 1 FROM friend_requests WHERE from_id = ? AND to_id = ?').get(fromId, toId); }
+  deleteFriendRequest(fromId: string, toId: string) { this.db.prepare('DELETE FROM friend_requests WHERE from_id = ? AND to_id = ?').run(fromId, toId); }
+  incomingRequests(userId: string) {
+    return this.db.prepare('SELECT u.username AS username, r.created_at AS at FROM friend_requests r JOIN users u ON u.id = r.from_id WHERE r.to_id = ? ORDER BY r.created_at DESC').all(userId) as unknown as { username: string; at: number }[];
+  }
+  outgoingRequests(userId: string) {
+    return this.db.prepare('SELECT u.username AS username, r.created_at AS at FROM friend_requests r JOIN users u ON u.id = r.to_id WHERE r.from_id = ? ORDER BY r.created_at DESC').all(userId) as unknown as { username: string; at: number }[];
+  }
+  isFriend(a: string, b: string): boolean { return !!this.db.prepare('SELECT 1 FROM friends WHERE user_id = ? AND friend_id = ?').get(a, b); }
+
+  // --- Défis entre amis ---
+  duelCreate(d: { id: string; from: string; to: string; stake: number; at: number }) {
+    this.db.prepare(`INSERT INTO duels (id, from_id, to_id, stake, created_at, status) VALUES (?, ?, ?, ?, ?, 'ouvert')`).run(d.id, d.from, d.to, d.stake, d.at);
+  }
+  duel(id: string) { return this.db.prepare('SELECT * FROM duels WHERE id = ?').get(id) as DuelRow | undefined; }
+  duelUpdate(id: string, f: Partial<DuelRow>) {
+    const keys = Object.keys(f);
+    if (!keys.length) return;
+    this.db.prepare(`UPDATE duels SET ${keys.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`).run(...keys.map((k) => (f as Record<string, string | number | null>)[k]), id);
+  }
+  duelsOf(userId: string, now: number, limit = 40) {
+    return this.db.prepare(`SELECT * FROM duels WHERE (from_id = ? OR to_id = ?) AND (status = 'ouvert' OR ended_at > ?) ORDER BY created_at DESC LIMIT ?`)
+      .all(userId, userId, now - 14 * 86400_000, limit) as unknown as DuelRow[];
+  }
+  duelsOpenBefore(t: number) { return this.db.prepare(`SELECT * FROM duels WHERE status = 'ouvert' AND created_at < ?`).all(t) as unknown as DuelRow[]; }
+
+  // --- Notifications push ---
+  pushAdd(userId: string, endpoint: string, p256dh: string, auth: string) {
+    this.db.prepare('INSERT OR REPLACE INTO push_subs (endpoint, user_id, p256dh, auth, created_at) VALUES (?, ?, ?, ?, ?)').run(endpoint, userId, p256dh, auth, Date.now());
+  }
+  pushRemove(endpoint: string) { this.db.prepare('DELETE FROM push_subs WHERE endpoint = ?').run(endpoint); }
+  pushOf(userId: string) { return this.db.prepare('SELECT endpoint, p256dh, auth FROM push_subs WHERE user_id = ?').all(userId) as unknown as { endpoint: string; p256dh: string; auth: string }[]; }
+  pushUsers(): string[] { return (this.db.prepare('SELECT DISTINCT user_id FROM push_subs').all() as unknown as { user_id: string }[]).map((r) => r.user_id); }
+
+  // --- Saisons classées ---
+  rankedAdd(season: string, userId: string, delta: number, won: boolean) {
+    this.db.prepare(`INSERT INTO ranked (season, user_id, points, games, wins) VALUES (?, ?, MAX(0, ?), 1, ?)
+      ON CONFLICT(season, user_id) DO UPDATE SET points = MAX(0, points + ?), games = games + 1, wins = wins + ?`)
+      .run(season, userId, delta, won ? 1 : 0, delta, won ? 1 : 0);
+  }
+  rankedOf(season: string, userId: string) {
+    return this.db.prepare('SELECT points, games, wins FROM ranked WHERE season = ? AND user_id = ?').get(season, userId) as { points: number; games: number; wins: number } | undefined;
+  }
+  rankedRank(season: string, points: number): number {
+    return 1 + (this.db.prepare('SELECT COUNT(*) AS n FROM ranked WHERE season = ? AND points > ?').get(season, points) as { n: number }).n;
+  }
+  rankedTop(season: string, limit: number) {
+    return this.db.prepare(`SELECT u.username AS username, r.points AS points, r.games AS games, r.wins AS wins FROM ranked r JOIN users u ON u.id = r.user_id
+      WHERE r.season = ? ORDER BY r.points DESC, r.wins DESC, r.games ASC LIMIT ?`).all(season, limit) as unknown as { username: string; points: number; games: number; wins: number }[];
+  }
+  rankedAll(season: string) {
+    return this.db.prepare('SELECT user_id, points FROM ranked WHERE season = ?').all(season) as unknown as { user_id: string; points: number }[];
+  }
+  rankedSeasonsBefore(season: string): string[] {
+    return (this.db.prepare('SELECT DISTINCT season FROM ranked WHERE season < ? ORDER BY season').all(season) as unknown as { season: string }[]).map((r) => r.season);
+  }
 
   // --- Parties solo en cours (jetons) ---
   soloTokenSet(token: string, userId: string, startedAt: number) {

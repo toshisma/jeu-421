@@ -5,6 +5,8 @@ import { flyTokens } from './flyTokens';
 import { isSuddenDeath } from '../../../shared/config';
 import { albumKey, finalPlace } from '../../../shared/progress/profile';
 import { setPresence } from '../presence';
+import { fxDef, fxGlows } from '../../../shared/progress/dice-collection';
+import { Celebration } from './Celebration';
 import { currentPlayerId, standings, type GameState } from '../../../shared/engine';
 import { evaluate } from '../../../shared/combos';
 import type { GameController, GameEvent, MetaPlayer } from '../game/controller';
@@ -82,7 +84,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
     sound.click();
     setTimeout(() => setEmotes((m) => { if (m[pid]?.k !== k) return m; const n = { ...m }; delete n[pid]; return n; }), 2200);
   }), [controller]);
-  const [bigShot, setBigShot] = useState<{ text: string; who: string; id: number } | null>(null);
+  const [bigShot, setBigShot] = useState<{ text: string; who: string; id: number; fete?: string } | null>(null);
   useEffect(() => { if (!bigShot) return; const t = setTimeout(() => setBigShot(null), 2400); return () => clearTimeout(t); }, [bigShot]);
   const [now, setNow] = useState(Date.now());
   const [endReward, setEndReward] = useState<EndReward | null>(null);
@@ -112,6 +114,11 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   metaRef.current = meta;
   const skinOf = (id: string | null): string | null =>
     !id || id === controller.meId ? null : metaRef.current.find((m) => m.id === id)?.dice ?? null;
+  const fxRef = useRef(pa?.profile.fx);
+  fxRef.current = pa?.profile.fx;
+  /** Effets de lancer d'un joueur (les miens : mon profil ; les autres : ce qu'annonce la table). */
+  const fxOf = (id: string, kind: 'trail' | 'fete'): string | undefined =>
+    id === controller.meId ? fxRef.current?.[kind === 'trail' ? 'trainee' : 'fete'] : metaRef.current.find((m) => m.id === id)?.[kind];
 
   const say = useCallback((id: string, text: string | null) => {
     if (!text) return;
@@ -119,6 +126,21 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
     setTimeout(() => setSpeech((s) => { const n = { ...s }; if (n[id] === text) delete n[id]; return n; }), 2600);
   }, []);
   sayRef.current = say;
+
+  // Les habitués se souviennent : en début de partie, l'un d'eux rappelle le score entre vous.
+  useEffect(() => {
+    if (controller.mode !== 'solo' || !pa) return;
+    const rec = pa.profile.vsAi ?? {};
+    const known = controller.getMeta().filter((m) => m.isBot && (rec[m.name]?.w ?? 0) + (rec[m.name]?.l ?? 0) >= 2);
+    if (!known.length) return;
+    const m = known[Math.floor(Math.random() * known.length)];
+    const { w, l } = rec[m.name];
+    const line = l > w ? `Encore toi ? ${l} à ${w} pour moi, je te rappelle.`
+      : w > l ? `${w} à ${l} pour toi… mais ce soir, c'est ma tournée !`
+        : `${w} partout entre nous. On se départage ?`;
+    const t = setTimeout(() => say(m.id, line), 1400);
+    return () => clearTimeout(t);
+  }, [controller]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ------------------------------------------------------------------------------------------
   // File d'événements : chaque lancer est animé jusqu'au bout avant d'afficher le nouvel état.
@@ -155,10 +177,11 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
         tray.current?.setInteractive(false);
         const big = ev.roll.combo.kind === '421' || ev.roll.combo.kind === '111';
         tray.current?.setDiceSkin(skinOf(ev.roll.playerId));
+        { const t = fxOf(ev.roll.playerId, 'trail'); tray.current?.setTrail(fxDef(t)?.colors ?? null, fxGlows(t)); }
         await tray.current?.roll(ev.roll.dice, ev.roll.kept, ev.seed, ev.gesture, big);
         if (big) {
           sound.jackpot();
-          setBigShot({ text: ev.roll.combo.kind === '421' ? '4-2-1 !' : 'Trois as !', who: ev.roll.playerId, id: ev.roll.seq });
+          setBigShot({ text: ev.roll.combo.kind === '421' ? '4-2-1 !' : 'Trois as !', who: ev.roll.playerId, id: ev.roll.seq, fete: fxOf(ev.roll.playerId, 'fete') });
           await wait(900);
         }
         const p = personas?.[ev.roll.playerId];
@@ -216,6 +239,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
           boss: bossId,
           place: finalPlace(ev.state, me),
           minutes: (Date.now() - startedAt.current) / 60000,
+          now: Date.now(),
         })).then((r) => setEndReward(r ?? null));
       }
     }
@@ -510,6 +534,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
       </div>
       {bigShot && (
         <div key={bigShot.id} className="bigshot" aria-live="assertive">
+          {bigShot.fete && <Celebration id={bigShot.fete} />}
           <div className="bs-rays" />
           <div className="bs-text">{bigShot.text}</div>
           <div className="bs-who" style={{ color: metaOf(bigShot.who)?.color }}>{nameOf(bigShot.who)}</div>

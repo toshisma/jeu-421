@@ -29,6 +29,9 @@ export interface MetaPlayer {
   prestige?: number;
   /** Dés du joueur (identifiant du catalogue), affichés quand il lance. */
   dice?: string;
+  /** Effets de lancer du joueur : traînée et célébration du 4-2-1. */
+  trail?: string;
+  fete?: string;
 }
 
 export type GameEvent =

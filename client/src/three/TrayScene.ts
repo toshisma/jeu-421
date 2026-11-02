@@ -51,6 +51,11 @@ export class TrayScene {
   private faceCache = new Map<string, ReturnType<typeof dieFace>[]>();
   /** Dés d'un autre joueur affichés à la place des miens (null : les miens). */
   private skin: string | null = null;
+  private glowBase = 0;
+  // Traînée de lancer : particules émises derrière les dés pendant qu'ils roulent.
+  private fxTrail: string[] | null = null;
+  private parts: { mat: THREE.PointsMaterial; geo: THREE.BufferGeometry; pos: Float32Array; col: Float32Array; vel: Float32Array; life: Float32Array; max: Float32Array; next: number } | null = null;
+  private lastDie: THREE.Vector3[] = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
   private trayGroup = new THREE.Group();
   private disposables: { dispose(): void }[] = [];
   private raf = 0;
@@ -224,6 +229,73 @@ export class TrayScene {
     this.invalidate();
   }
 
+  /** Traînée de lancer (couleurs des particules), ou aucune (null). */
+  setTrail(colors: string[] | null, glow = true) {
+    this.fxTrail = colors && colors.length ? colors : null;
+    if (this.fxTrail && !this.parts) this.buildParticles();
+    if (this.parts) { this.parts.mat.blending = glow ? THREE.AdditiveBlending : THREE.NormalBlending; this.parts.mat.needsUpdate = true; }
+  }
+
+  private buildParticles() {
+    const N = 600;
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(N * 3), col = new Float32Array(N * 4), vel = new Float32Array(N * 3), life = new Float32Array(N), max = new Float32Array(N);
+    pos.fill(-999);
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 4));
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const g = c.getContext('2d')!;
+    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.85)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    const tex = new THREE.CanvasTexture(c);
+    const mat = new THREE.PointsMaterial({ size: 0.75, map: tex, vertexColors: true, transparent: true, depthWrite: false, sizeAttenuation: true });
+    const pts = new THREE.Points(geo, mat);
+    pts.frustumCulled = false;
+    this.scene.add(pts);
+    this.disposables.push(geo, mat, tex);
+    this.parts = { mat, geo, pos, col, vel, life, max, next: 0 };
+  }
+
+  /** Émet et fait vivre les particules ; renvoie vrai s'il en reste à animer. */
+  private stepParticles(dt: number, emit: boolean): boolean {
+    const P = this.parts;
+    if (!P) return false;
+    const N = P.life.length;
+    if (emit && this.fxTrail) {
+      this.dice.forEach((d, i) => {
+        const p = d.mesh.position;
+        const speed = p.distanceTo(this.lastDie[i]) / Math.max(dt, 1e-3);
+        this.lastDie[i].copy(p);
+        if (speed < 0.8) return;
+        const n = Math.min(6, 2 + Math.floor(speed / 3));
+        for (let k = 0; k < n; k++) {
+          const j = P.next; P.next = (P.next + 1) % N;
+          P.pos[j * 3] = p.x + (Math.random() - 0.5) * 0.4; P.pos[j * 3 + 1] = p.y + (Math.random() - 0.3) * 0.3; P.pos[j * 3 + 2] = p.z + (Math.random() - 0.5) * 0.4;
+          P.vel[j * 3] = (Math.random() - 0.5) * 0.6; P.vel[j * 3 + 1] = 0.4 + Math.random() * 0.8; P.vel[j * 3 + 2] = (Math.random() - 0.5) * 0.6;
+          const c = new THREE.Color(this.fxTrail![Math.floor(Math.random() * this.fxTrail!.length)]);
+          P.col[j * 4] = c.r; P.col[j * 4 + 1] = c.g; P.col[j * 4 + 2] = c.b; P.col[j * 4 + 3] = 1;
+          P.max[j] = P.life[j] = 0.6 + Math.random() * 0.6;
+        }
+      });
+    } else {
+      this.dice.forEach((d, i) => this.lastDie[i].copy(d.mesh.position));
+    }
+    let alive = false;
+    for (let j = 0; j < N; j++) {
+      if (P.life[j] <= 0) continue;
+      P.life[j] -= dt;
+      if (P.life[j] <= 0) { P.col[j * 4 + 3] = 0; P.pos[j * 3 + 1] = -999; continue; }
+      alive = true;
+      P.vel[j * 3 + 1] -= 0.9 * dt;
+      P.pos[j * 3] += P.vel[j * 3] * dt; P.pos[j * 3 + 1] = Math.max(0.05, P.pos[j * 3 + 1] + P.vel[j * 3 + 1] * dt); P.pos[j * 3 + 2] += P.vel[j * 3 + 2] * dt;
+      P.col[j * 4 + 3] = P.life[j] / P.max[j];
+    }
+    (P.geo.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
+    (P.geo.getAttribute('color') as THREE.BufferAttribute).needsUpdate = true;
+    return alive;
+  }
+
   /** Affiche les dés d'un joueur (identifiant de dés du catalogue), ou les miens (null). */
   setDiceSkin(id: string | null) {
     this.skin = id;
@@ -236,6 +308,7 @@ export class TrayScene {
     const st: DiceItem = other && other.category === 'dice' ? other : this.look.dice;
     if (st.id === this.diceKey) return;
     this.diceKey = st.id;
+    this.glowBase = st.glow ? 0.9 : 0;
     let faces = this.faceCache.get(st.id);
     if (!faces) {
       faces = FACE_VALUES.map((v) => dieFace(v, { ...st, id: st.id }));
@@ -253,8 +326,7 @@ export class TrayScene {
         m.iridescence = st.iridescence ?? 0;
         m.iridescenceIOR = 1.6;
         m.emissiveMap = f.emissive;
-        m.emissive.set(f.emissive ? 0xffffff : 0x000000);
-        m.emissiveIntensity = f.emissive ? 0.9 : 0;
+        m.emissiveIntensity = 1;
         m.envMapIntensity = st.metalness > 0.5 ? 1.1 : 0.55;
         m.needsUpdate = true;
       });
@@ -688,6 +760,8 @@ export class TrayScene {
       if (frame >= pb.sim.frameCount - 1) this.finishPlayback();
     }
 
+    if (this.parts && this.stepParticles(dt, !!this.playback && !this.playback.hold)) animating = true;
+
     // Anneaux dorés sous les dés conservés, halo au survol.
     this.dice.forEach((d, i) => {
       const ringMat = d.ring.material as THREE.MeshBasicMaterial;
@@ -697,7 +771,8 @@ export class TrayScene {
       else ringMat.opacity = target;
       d.ring.visible = ringMat.opacity > 0.01;
       const glow = this.kept[i] ? 0.18 : i === this.hover ? 0.1 : 0;
-      for (const m of d.mats) m.emissive.setRGB(glow, glow * 0.75, glow * 0.25);
+      const b = this.glowBase; // dés aux points lumineux : la carte lumineuse reste allumée
+      for (const m of d.mats) m.emissive.setRGB(b + glow, b + glow * 0.75, b + glow * 0.25);
     });
 
     if (this.moves.length && !this.playback) {

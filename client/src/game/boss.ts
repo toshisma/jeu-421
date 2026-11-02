@@ -18,6 +18,6 @@ export class BossController extends LocalController {
     ], me);
     this.boss = boss;
     // Le patron sort ses dés des grands soirs : un dé épique, pour donner envie.
-    this.meta = this.meta.map((m) => (m.id === 'ia-0' ? { ...m, dice: BOSS_DICE[boss.id] ?? 'dc-galaxie' } : m));
+    this.meta = this.meta.map((m) => (m.id === 'ia-0' ? { ...m, dice: BOSS_DICE[boss.id] ?? 'dc-galaxie', trail: 'fx-flammes', fete: 'fx-eclair' } : m));
   }
 }

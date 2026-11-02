@@ -410,6 +410,13 @@ export async function startServer(opts: ServerOptions) {
       }, m.day, m.left);
       if (out && m.socketId) io.to(m.socketId).emit('profile:reward', out);
     }
+    // Saison classée : entre au moins deux humains, sans mort subite. Places parmi les humains.
+    const humans = r.members.filter((m) => !m.bot && g.players.some((p) => p.id === m.id));
+    if (humans.length >= 2 && !isSuddenDeath(g.config)) {
+      // Un joueur parti est dernier ; sinon : 1 + humains restés et mieux classés (ex æquo possibles).
+      const placed = humans.map((m) => ({ m, place: m.left ? humans.length : 1 + humans.filter((x) => !x.left && finalPlace(g, x.id) < finalPlace(g, m.id)).length }));
+      accounts.seasonGame(placed.filter((x) => x.m.userId).map((x) => ({ userId: x.m.userId!, place: x.place, won: x.place === 1 })), humans.length);
+    }
     // Statistiques : la partie est terminée, on l'enregistre une fois.
     stats.recordOnline({
       startedAt: r.startedAt,
@@ -1052,7 +1059,9 @@ export async function startServer(opts: ServerOptions) {
     port,
     rooms,
     tournaments,
+    accounts,
     close: () => new Promise<void>((resolve) => {
+      accounts.social.close();
       clearInterval(sweeper);
       for (const r of rooms.values()) { if (r.turnTimer) clearTimeout(r.turnTimer); if (r.hostTimer) clearTimeout(r.hostTimer); }
       for (const t of tournaments.values()) if (t.timer) clearTimeout(t.timer);
