@@ -17,6 +17,8 @@ import type { ComboKind } from '../combos';
 import { ACHIEVEMENTS, EMPTY_STATS, newlyUnlocked, type AchievementDef, type Stats } from './achievements';
 import { activeEvent, coinBoost } from './events';
 import { passItems } from './catalog';
+import { COLLECTION, CRAFT_COST, RARITIES, RARITY_ODDS, SHARDS_FOR_DUPLICATE, SHINY_ODDS, SHINY_SUFFIX, baseIdOf, collectionDie, isShiny, type Rarity } from './dice-collection';
+import { randomFloat } from '../random';
 import { BOSSES, BOSS_COINS, bossOfWeek, weekKey } from './boss';
 
 export interface Profile {
@@ -48,6 +50,11 @@ export interface Profile {
   prestige?: number;
   /** Patron de la semaine : semaine de la dernière victoire. */
   bossWeek?: string;
+  /** Dés de collection : sacs à ouvrir, éclats (doublons), parties depuis le dernier sac, vitrine (3 dés). */
+  bags?: number;
+  shards?: number;
+  pity?: number;
+  showcase?: string[];
 }
 
 export interface MonthRecap {
@@ -163,6 +170,13 @@ export function sanitizeProfile(raw: unknown): Profile {
   if (typeof r.bossWeek === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.bossWeek)) p.bossWeek = r.bossWeek;
   if (typeof r.title === 'string' && availableTitles(p).includes(r.title)) p.title = r.title;
   if (num(r.tutorial)) p.tutorial = 1;
+  if (num(r.bags)) p.bags = Math.min(BAGS_MAX, num(r.bags));
+  if (num(r.shards)) p.shards = num(r.shards);
+  if (num(r.pity)) p.pity = Math.min(BAG_PITY, num(r.pity));
+  if (Array.isArray(r.showcase)) {
+    const sc = [...new Set(r.showcase.filter((id): id is string => typeof id === 'string' && !!collectionDie(id) && p.owned.includes(id)))].slice(0, 3);
+    if (sc.length) p.showcase = sc;
+  }
   const q = r.quests;
   if (q && typeof q === 'object' && typeof q.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(q.day)) {
     const progress: Record<string, number> = {};
@@ -276,6 +290,8 @@ export interface Applied {
   questsDone?: { id: string; text: string }[];
   /** Succès débloqués par cette partie (pièces déjà ajoutées). */
   achievementsDone?: { id: string; icon: string; name: string; coins: number }[];
+  /** Sacs de dés trouvés pendant cette partie. */
+  bagsFound?: number;
 }
 
 /** Nombre d'objets achetés (hors objets gratuits). */
@@ -316,7 +332,7 @@ export function summarize(reward: Reward, ctx: RewardContext): GameSummary {
 }
 
 /** Récompense + défis du jour, en une seule opération (jeu et serveur). */
-export function applyGameEnd(p: Profile, reward: Reward, ctx: RewardContext, day = today()): Applied {
+export function applyGameEnd(p: Profile, reward: Reward, ctx: RewardContext, day = today(), rng: () => number = randomFloat): Applied {
   const a = applyReward(p, reward, ctx.count421);
   // Mort subite : quelques pièces et un peu d'XP, mais ni statistiques, ni défis, ni succès, ni pass.
   if (ctx.suddenDeath) return { ...a, profile: { ...a.profile, stats: p.stats }, questsDone: [], achievementsDone: [] };
@@ -343,6 +359,7 @@ export function applyGameEnd(p: Profile, reward: Reward, ctx: RewardContext, day
   // Patron de la semaine battu (une fois par semaine).
   let base: Profile = { ...a.profile, quests, stats };
   const extra: { id: string; icon: string; name: string; coins: number }[] = [];
+  let bossBag = 0;
   if (ctx.boss && reward.won) {
     const b = bossOfWeek(day);
     const wk = weekKey(day);
@@ -350,8 +367,13 @@ export function applyGameEnd(p: Profile, reward: Reward, ctx: RewardContext, day
       base = { ...base, bossWeek: wk, coins: base.coins + BOSS_COINS, stats: { ...base.stats, bossWins: base.stats.bossWins + 1 },
         titles: [...new Set([...(base.titles ?? []), `patron:${b.id}`])] };
       extra.push({ id: `patron-${wk}`, icon: '🏆', name: `${b.name}, patron de la semaine, est battu`, coins: BOSS_COINS });
+      bossBag = 1;
     }
   }
+  // Sac de dés : chance à chaque partie terminée, garanti au bout de BAG_PITY parties sans sac.
+  const pity = (base.pity ?? 0) + 1;
+  const found = (pity >= BAG_PITY || rng() < bagChance(reward, ctx) ? 1 : 0) + bossBag;
+  base = { ...base, pity: found - bossBag > 0 ? 0 : pity, bags: Math.min(BAGS_MAX, (base.bags ?? 0) + found) };
   const al = applyAlbum(base, ctx.comboKeys ?? []);
   extra.push(...al.done);
   const withRecap = recordMonth(al.profile, reward, ctx, day);
@@ -361,8 +383,64 @@ export function applyGameEnd(p: Profile, reward: Reward, ctx: RewardContext, day
     profile: ach.profile,
     questsDone: completed.map((q) => ({ id: q.id, text: q.text })),
     achievementsDone: [...extra, ...ach.unlocked.map((x) => ({ id: x.id, icon: x.icon, name: x.name, coins: x.coins }))],
+    bagsFound: found,
   };
 }
+
+// ---------------------------------------------------------------------------------------------
+// Dés de collection : sacs, ouverture, éclats, fabrication, vitrine
+
+export const BAG_PITY = 10;
+export const BAGS_MAX = 99;
+/**
+ * Chance de trouver un sac en fin de partie : 22 % en gagnant, 10 % sinon, un peu plus à une
+ * grande table, moins pour une partie très courte. Au plus tard un sac toutes les 10 parties.
+ */
+export function bagChance(reward: Reward, ctx: RewardContext): number {
+  const players = Math.max(2, Math.floor(ctx.opponents) + 1);
+  const dur = ctx.minutes !== undefined ? Math.min(1, Math.max(0.3, ctx.minutes / 10)) : Math.min(1, Math.max(0.3, (ctx.rounds ?? 10) / 8));
+  return Math.min(0.5, (reward.won ? 0.22 : 0.1) * (1 + 0.1 * (players - 2)) * dur);
+}
+
+export interface BagResult { id: string; rarity: Rarity; shiny: boolean; duplicate: boolean; shards: number }
+/** Ouvre un sac : un dé tiré selon les raretés ; un doublon est converti en éclats. */
+export function openBag(p: Profile, rng: () => number = randomFloat): { profile: Profile; result: BagResult } | null {
+  if (!p.bags || p.bags < 1) return null;
+  let x = rng(), rarity: Rarity = 'commun';
+  for (const r of RARITIES) { if (x < RARITY_ODDS[r]) { rarity = r; break; } x -= RARITY_ODDS[r]; }
+  const pool = COLLECTION.filter((c) => c.rarity === rarity);
+  const die = pool[Math.min(pool.length - 1, Math.floor(rng() * pool.length))];
+  const shiny = rng() < SHINY_ODDS;
+  const id = shiny ? die.id + SHINY_SUFFIX : die.id;
+  const duplicate = p.owned.includes(id);
+  const shards = duplicate ? SHARDS_FOR_DUPLICATE[rarity] * (shiny ? 2 : 1) : 0;
+  const profile: Profile = {
+    ...p, bags: p.bags - 1, shards: (p.shards ?? 0) + shards,
+    owned: duplicate ? p.owned : [...p.owned, id],
+  };
+  return { profile, result: { id, rarity, shiny, duplicate, shards } };
+}
+/** Fabrique un dé de collection avec des éclats (versions brillantes exclues). */
+export function craftDie(p: Profile, id: string): Profile | null {
+  const c = collectionDie(id);
+  if (!c || isShiny(id) || p.owned.includes(id)) return null;
+  const cost = CRAFT_COST[c.rarity];
+  if ((p.shards ?? 0) < cost) return null;
+  return { ...p, shards: (p.shards ?? 0) - cost, owned: [...p.owned, id] };
+}
+/** Vitrine : jusqu'à 3 dés de collection possédés, visibles sur le profil. */
+export function setShowcase(p: Profile, ids: string[]): Profile | null {
+  if (!Array.isArray(ids) || ids.length > 3) return null;
+  const clean = [...new Set(ids)];
+  if (clean.some((id) => typeof id !== 'string' || !collectionDie(id) || !p.owned.includes(id))) return null;
+  return { ...p, showcase: clean };
+}
+/** Nombre de dés de collection différents possédés (brillants à part). */
+export function collectionCount(p: Profile): { owned: number; total: number; shiny: number } {
+  const own = new Set(p.owned);
+  return { owned: COLLECTION.filter((c) => own.has(c.id)).length, total: COLLECTION.length, shiny: COLLECTION.filter((c) => own.has(c.id + SHINY_SUFFIX)).length };
+}
+export { baseIdOf };
 
 /** Récupérer un défi accompli : pièces + XP (avec bonus de niveau éventuel). */
 export function claimQuest(p: Profile, id: string, day = today()): { profile: Profile; quest: QuestDef; levelAfter: number } | null {
@@ -448,15 +526,17 @@ export function dailyStatus(p: Profile, day = today()): { count: number; cycleDa
   const count = d && d.last === prevDay(day) ? d.count + 1 : 1;
   return { count, cycleDay: ((count - 1) % 7) + 1, canClaim: true };
 }
-export function claimDaily(p: Profile, day = today()): { profile: Profile; coins: number; xp: number; cycleDay: number } | null {
+export function claimDaily(p: Profile, day = today()): { profile: Profile; coins: number; xp: number; cycleDay: number; bag: number } | null {
   const st = dailyStatus(p, day);
   if (!st.canClaim) return null;
   const r = DAILY_REWARDS[st.cycleDay - 1];
   const before = levelInfo(p.xp).level, after = levelInfo(p.xp + r.xp).level;
   let bonus = 0;
   for (let l = before + 1; l <= after; l++) bonus += REWARDS.levelBonus(l);
-  const profile = checkAchievements(addSeasonPoints({ ...p, xp: p.xp + r.xp, coins: p.coins + r.coins + bonus, daily: { last: day, count: st.count } }, r.xp, day)).profile;
-  return { profile, coins: r.coins, xp: r.xp, cycleDay: st.cycleDay };
+  const bag = st.cycleDay === 7 ? 1 : 0; // le coffre du 7e jour contient un sac de dés
+  const profile = checkAchievements(addSeasonPoints({ ...p, xp: p.xp + r.xp, coins: p.coins + r.coins + bonus, daily: { last: day, count: st.count },
+    bags: Math.min(BAGS_MAX, (p.bags ?? 0) + bag) }, r.xp, day)).profile;
+  return { profile, coins: r.coins, xp: r.xp, cycleDay: st.cycleDay, bag };
 }
 
 /** Pass de saison : un par mois, 20 paliers de 100 points (1 point = 1 XP gagné dans le mois). */

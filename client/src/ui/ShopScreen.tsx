@@ -70,7 +70,7 @@ export function ShopScreen({ profile, settings, onBuy, onEquip, onBack }: Props)
   const event = activeEvent(day);
   const check = canBuy(profile, item, day);
   // Objets d'événement visibles pendant l'événement (ou s'ils sont possédés) ; objets du pass si possédés.
-  const visible = (it: Item) => profile.owned.includes(it.id) || (it.event ? it.event === event?.id : !it.pass);
+  const visible = (it: Item) => !(it.category === 'dice' && it.rarity) && (profile.owned.includes(it.id) || (it.event ? it.event === event?.id : !it.pass));
 
   const [busy, setBusy] = useState(false);
   const doBuy = async () => {

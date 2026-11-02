@@ -3,6 +3,8 @@
  * règles ni les chances. Chaque objet a un prix en pièces (gagnées en jouant) et un niveau requis.
  * Aucun achat n'est aléatoire : on voit et on essaie l'objet avant de l'acheter.
  */
+import { COLLECTION, SHINY_SUFFIX, type DicePattern, type Rarity } from './dice-collection';
+
 /** Identifiants de formes (voir client/src/physics/trayShapes.ts). */
 export type TrayShapeId = 'rectangle' | 'octogone' | 'hexagone' | 'rond' | 'ovale' | 'stade';
 
@@ -42,6 +44,14 @@ export interface DiceItem extends Base {
   roughness: number;
   metalness: number;
   clearcoat: number;
+  /** Dé de collection : rareté, motif, effets (voir dice-collection.ts). Jamais en vente. */
+  rarity?: Rarity;
+  shiny?: boolean;
+  accent?: string;
+  pattern?: DicePattern;
+  glow?: boolean;
+  iridescence?: number;
+  flavor?: string;
 }
 /** Accessoire d'avatar : petit emblème posé sur la photo ou l'emoji du joueur. */
 export interface AccessoryItem extends Base { category: 'accessoire'; emoji: string }
@@ -132,23 +142,23 @@ export const ITEMS: Item[] = [
   { id: 'dice-noir', category: 'dice', name: 'Ébène', price: 200, level: 1, body: '#2a2a2c', body2: '#121214', pip: '#f4efe4', roughness: 0.3, metalness: 0, clearcoat: 0.7 },
   { id: 'dice-rouge', category: 'dice', name: 'Rouge casino', price: 300, level: 2, body: '#c4202c', body2: '#8e1019', pip: '#fdf6ea', roughness: 0.22, metalness: 0, clearcoat: 0.9 },
   { id: 'dice-bleu', category: 'dice', name: 'Bleu & or', price: 500, level: 4, body: '#1d3a78', body2: '#0f2048', pip: '#e8c25a', roughness: 0.25, metalness: 0, clearcoat: 0.85 },
-  { id: 'dice-jade', category: 'dice', name: 'Jade', price: 800, level: 6, body: '#4f9c7c', body2: '#2a6650', pip: '#f4efe4', roughness: 0.2, metalness: 0, clearcoat: 1 },
+  { id: 'dice-jade', category: 'dice', name: 'Jade', price: 800, level: 6, body: '#3a8466', body2: '#24604a', pip: '#fbf8f0', roughness: 0.2, metalness: 0, clearcoat: 1 },
   { id: 'dice-or', category: 'dice', name: 'Or massif', price: 2000, level: 10, body: '#f1cf72', body2: '#b8892c', pip: '#1a1205', roughness: 0.28, metalness: 0.85, clearcoat: 0.4 },
   { id: 'dice-rose', category: 'dice', name: 'Rose bonbon', price: 350, level: 3, body: '#f7a8c8', body2: '#e07aa6', pip: '#4a0f2a', roughness: 0.3, metalness: 0, clearcoat: 0.8 },
-  { id: 'dice-bois', category: 'dice', name: 'Bois clair', price: 600, level: 5, body: '#c99a62', body2: '#8a5a2e', pip: '#2a1a0a', roughness: 0.6, metalness: 0, clearcoat: 0.15 },
+  { id: 'dice-bois', category: 'dice', name: 'Bois clair', price: 600, level: 5, body: '#d1a46c', body2: '#a97a48', pip: '#1c1006', roughness: 0.6, metalness: 0, clearcoat: 0.15 },
   { id: 'dice-marbre', category: 'dice', name: 'Marbre', price: 1000, level: 8, body: '#f4f1ea', body2: '#c9c3b6', pip: '#2a2a2a', roughness: 0.18, metalness: 0, clearcoat: 1 },
   { id: 'dice-neon', category: 'dice', name: 'Néon', price: 1200, level: 9, body: '#15151a', body2: '#050508', pip: '#39ff88', roughness: 0.25, metalness: 0, clearcoat: 0.9 },
   { id: 'dice-argent', category: 'dice', name: 'Argent', price: 1600, level: 11, body: '#e4e7ea', body2: '#9aa1a8', pip: '#101418', roughness: 0.25, metalness: 0.9, clearcoat: 0.4 },
   { id: 'dice-obsidienne', category: 'dice', name: 'Obsidienne', price: 2500, level: 13, body: '#1a1418', body2: '#050304', pip: '#f2c75c', roughness: 0.12, metalness: 0.1, clearcoat: 1 },
   // --- Événements (en vente pendant l'événement seulement) ---
-  { id: 'dice-citrouille', category: 'dice', name: 'Citrouille', price: 500, level: 1, event: 'halloween', body: '#e8771f', body2: '#a84a0c', pip: '#1a0f05', roughness: 0.4, metalness: 0, clearcoat: 0.5 },
+  { id: 'dice-citrouille', category: 'dice', name: 'Citrouille', price: 500, level: 1, event: 'halloween', body: '#ee8530', body2: '#c95d14', pip: '#140a02', roughness: 0.4, metalness: 0, clearcoat: 0.5 },
   { id: 'dice-saint-nicolas', category: 'dice', name: 'Saint-Nicolas', price: 600, level: 1, event: 'saint-nicolas', body: '#b3161d', body2: '#740b10', pip: '#f2d27a', roughness: 0.25, metalness: 0, clearcoat: 0.9 },
   { id: 'dice-neige', category: 'dice', name: 'Flocon', price: 600, level: 1, event: 'fetes', body: '#f4fbff', body2: '#cfe6f5', pip: '#2a6fa8', roughness: 0.35, metalness: 0, clearcoat: 0.8 },
   { id: 'dice-carnaval', category: 'dice', name: 'Carnaval', price: 500, level: 1, event: 'carnaval', body: '#7b2ccf', body2: '#4a137f', pip: '#ffd23f', roughness: 0.25, metalness: 0, clearcoat: 0.9 },
   { id: 'dice-peket', category: 'dice', name: 'Péket', price: 700, level: 1, event: 'outremeuse', body: '#eef3ea', body2: '#c8d4c2', pip: '#2f6b3a', roughness: 0.08, metalness: 0.05, clearcoat: 1 },
-  { id: 'dice-wallonie', category: 'dice', name: 'Coq hardi', price: 600, level: 1, event: 'wallonie', body: '#f2cd1c', body2: '#c49a00', pip: '#c8102e', roughness: 0.3, metalness: 0, clearcoat: 0.7 },
+  { id: 'dice-wallonie', category: 'dice', name: 'Coq hardi', price: 600, level: 1, event: 'wallonie', body: '#f6d42e', body2: '#d9ad12', pip: '#7a0617', roughness: 0.3, metalness: 0, clearcoat: 0.7 },
   // --- Pass de saison (gagnés, pas achetés) ---
-  { id: 'dice-pass-cuivre', category: 'dice', name: 'Cuivre (pass)', price: 0, level: 1, pass: 1, body: '#c27a45', body2: '#7a4420', pip: '#1a0d05', roughness: 0.3, metalness: 0.8, clearcoat: 0.3 },
+  { id: 'dice-pass-cuivre', category: 'dice', name: 'Cuivre (pass)', price: 0, level: 1, pass: 1, body: '#cf8a55', body2: '#a8683a', pip: '#140802', roughness: 0.3, metalness: 0.8, clearcoat: 0.3 },
   { id: 'dice-pass-opale', category: 'dice', name: 'Opale (pass)', price: 0, level: 1, pass: 1, body: '#dff1f2', body2: '#a9c9e8', pip: '#6a3aa0', roughness: 0.1, metalness: 0.1, clearcoat: 1 },
   { id: 'dice-album', category: 'dice', name: 'Collectionneur (album)', price: 0, level: 1, pass: 1, description: 'Pour qui a complété l’album des combinaisons.', body: '#151515', body2: '#000000', pip: '#e8c25a', roughness: 0.15, metalness: 0.3, clearcoat: 1 },
   { id: 'dice-diamant', category: 'dice', name: 'Diamant', price: 6000, level: 18, body: '#eef8ff', body2: '#bcd8ec', pip: '#1b3a5a', roughness: 0.05, metalness: 0.25, clearcoat: 1 },
@@ -173,6 +183,14 @@ export const ITEMS: Item[] = [
   { id: 'acc-pass-etoile', category: 'accessoire', name: 'Étoile (pass)', price: 0, level: 1, pass: 1, emoji: '⭐' },
   { id: 'acc-pass-feu', category: 'accessoire', name: 'Flamme (pass)', price: 0, level: 1, pass: 1, emoji: '🔥' },
 ];
+
+// Dés de collection (trouvés dans les sacs) et leur version brillante.
+for (const c of COLLECTION) {
+  const base = { category: 'dice' as const, price: 0, level: 1, pass: 1 as const, rarity: c.rarity, body: c.body, body2: c.body2, pip: c.pip,
+    roughness: c.roughness, metalness: c.metalness, clearcoat: c.clearcoat, accent: c.accent, pattern: c.pattern, glow: c.glow, flavor: c.flavor };
+  ITEMS.push({ ...base, id: c.id, name: c.name, iridescence: c.iridescence });
+  ITEMS.push({ ...base, id: c.id + SHINY_SUFFIX, name: `${c.name} brillant`, shiny: true, iridescence: 1, clearcoat: 1 });
+}
 
 export interface Appearance { decor: string; felt: string; rim: string; shape: string; dice: string; accessoire: string }
 

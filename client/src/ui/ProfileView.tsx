@@ -3,6 +3,8 @@
  * d'un autre joueur (informations publiques : jamais son argent).
  */
 import { useEffect, useRef, useState } from 'react';
+import { Showcase } from './DiceCollection';
+import { collectionCount } from '../../../shared/progress/profile';
 import { askConfirm } from './confirm';
 import { Icon } from './Icon';
 import { ACHIEVEMENTS, EMPTY_STATS, type Stats } from '../../../shared/progress/achievements';
@@ -23,6 +25,8 @@ interface PublicPlayer {
   onlineGames: number; onlineWins: number;
   stats: Pick<Stats, 'played' | 'won' | 'total421' | 'bestStreak'>;
   achievements: Record<string, number>;
+  showcase?: string[];
+  collection?: { owned: number; total: number; shiny: number };
 }
 
 const fmt = (n: number) => n.toLocaleString('fr-BE');
@@ -100,6 +104,7 @@ export function ProfileView({ pa, username, displayName, avatar, onClose }: {
           <div><b>{pub.stats.total421}</b><small>4-2-1</small></div>
           <div><b>{pub.stats.bestStreak}</b><small>meilleure série</small></div>
         </div>
+        {(pub.showcase?.length || pub.collection?.owned) ? <><h3>Vitrine</h3><Showcase ids={pub.showcase ?? []} count={pub.collection} /></> : null}
         <Achievements unlocked={pub.achievements} />
         {pa.isAccount && (
           <div className="row">
@@ -155,6 +160,7 @@ export function ProfileView({ pa, username, displayName, avatar, onClose }: {
           </div>
         </div>
         <TitlePicker pa={pa} />
+        {(p.showcase?.length || collectionCount(p).owned) ? <><h3>Ma vitrine</h3><Showcase ids={p.showcase ?? []} count={collectionCount(p)} /></> : null}
         {(p.prestige ?? 0) > 0 && <p className="pv-title">Prestige {p.prestige} <span className="prestige">★{p.prestige}</span></p>}
         {li.level >= PRESTIGE_LEVEL && (
           <div className="prestige-box">

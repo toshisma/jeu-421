@@ -11,7 +11,7 @@ import {
 } from '../physics/diceSim';
 import { brushed, dieFace, felt, leather, stone, wood } from './textures';
 import { getShape, clampInside, insideShape, offsetVerts, type TrayShape } from '../physics/trayShapes';
-import { resolveAppearance, type Appearance, type ResolvedAppearance } from '../../../shared/progress/catalog';
+import { getItem, resolveAppearance, type Appearance, type DiceItem, type ResolvedAppearance } from '../../../shared/progress/catalog';
 
 export type Quality = 'haute' | 'normale';
 export interface Insets { top: number; right: number; bottom: number; left: number }
@@ -47,7 +47,10 @@ export class TrayScene {
   private shape: TrayShape = getShape('rectangle');
   private trayKey = '';
   private diceKey = '';
-  private faceTextures: THREE.Texture[] = [];
+  /** Textures des dés, par modèle de dés (chaque joueur peut avoir les siens). */
+  private faceCache = new Map<string, ReturnType<typeof dieFace>[]>();
+  /** Dés d'un autre joueur affichés à la place des miens (null : les miens). */
+  private skin: string | null = null;
   private trayGroup = new THREE.Group();
   private disposables: { dispose(): void }[] = [];
   private raf = 0;
@@ -217,25 +220,41 @@ export class TrayScene {
       }
       this.buildTray();
     }
-    if (L.dice.id !== this.diceKey) {
-      this.diceKey = L.dice.id;
-      this.styleDice();
-    }
+    this.styleDice();
+    this.invalidate();
+  }
+
+  /** Affiche les dés d'un joueur (identifiant de dés du catalogue), ou les miens (null). */
+  setDiceSkin(id: string | null) {
+    this.skin = id;
+    this.styleDice();
     this.invalidate();
   }
 
   private styleDice() {
-    const st = this.look.dice;
-    for (const t of this.faceTextures) t.dispose();
-    const faces = FACE_VALUES.map((v) => dieFace(v, st));
-    this.faceTextures = faces.flatMap((f) => [f.map, f.bump]);
+    const other = this.skin ? getItem(this.skin) : undefined;
+    const st: DiceItem = other && other.category === 'dice' ? other : this.look.dice;
+    if (st.id === this.diceKey) return;
+    this.diceKey = st.id;
+    let faces = this.faceCache.get(st.id);
+    if (!faces) {
+      faces = FACE_VALUES.map((v) => dieFace(v, { ...st, id: st.id }));
+      this.faceCache.set(st.id, faces);
+    }
     for (const d of this.dice)
       d.mats.forEach((m, j) => {
-        m.map = faces[j].map;
-        m.bumpMap = faces[j].bump;
+        const f = faces![j];
+        m.map = f.map;
+        m.bumpMap = f.bump;
+        m.metalnessMap = f.metal;
         m.roughness = st.roughness;
         m.metalness = st.metalness;
         m.clearcoat = st.clearcoat;
+        m.iridescence = st.iridescence ?? 0;
+        m.iridescenceIOR = 1.6;
+        m.emissiveMap = f.emissive;
+        m.emissive.set(f.emissive ? 0xffffff : 0x000000);
+        m.emissiveIntensity = f.emissive ? 0.9 : 0;
         m.envMapIntensity = st.metalness > 0.5 ? 1.1 : 0.55;
         m.needsUpdate = true;
       });
@@ -806,7 +825,7 @@ export class TrayScene {
     if (this.playback) this.finishPlayback();
     this.clearTray();
     for (const d of this.disposables) d.dispose();
-    for (const t of this.faceTextures) t.dispose();
+    for (const faces of this.faceCache.values()) for (const f of faces) { f.map.dispose(); f.bump.dispose(); f.metal.dispose(); f.emissive?.dispose(); }
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }

@@ -20,6 +20,8 @@ export interface PublicMember {
   accessory?: string;
   /** Niveau de prestige (0 si aucun). */
   prestige?: number;
+  /** Dés du joueur (identifiant du catalogue), affichés quand il lance. */
+  dice?: string;
   /** Joueur ordinateur : son niveau. */
   bot?: 'facile' | 'normal' | 'difficile';
 }

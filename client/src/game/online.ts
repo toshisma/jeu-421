@@ -33,6 +33,8 @@ export class OnlineSession {
   closed = false;
   /** Jeton du compte (facultatif) : le serveur attribue alors les récompenses de la partie. */
   auth: string | null = null;
+  /** Dés équipés (les invités n'ont droit qu'aux dés de la boutique ; le serveur vérifie). */
+  dice: string | undefined;
   onReward: ((r: EndReward) => void) | null = null;
   onProfile: ((p: Profile) => void) | null = null;
   /** Tournoi (facultatif) : code, état diffusé, et raison d'une désinscription forcée. */
@@ -108,7 +110,7 @@ export class OnlineSession {
 
   async create(name: string, avatar: string, config: GameConfig, table?: TableSettings) {
     if (!(await this.waitConnected())) throw new Error('Impossible de joindre le serveur de jeu');
-    const a = await this.call<{ code: string; playerId: string; token: string }>('room:create', { name, avatar, config, table, auth: this.auth, day: today() });
+    const a = await this.call<{ code: string; playerId: string; token: string }>('room:create', { name, avatar, config, table, auth: this.auth, dice: this.dice, day: today() });
     if (!a.ok) throw new Error(a.error);
     this.remember(a);
   }
@@ -116,14 +118,14 @@ export class OnlineSession {
   /** Partie rapide : une table publique qui attend des joueurs, ou une nouvelle. */
   async quick(name: string, avatar: string) {
     if (!(await this.waitConnected())) throw new Error('Impossible de joindre le serveur de jeu');
-    const a = await this.call<{ code: string; playerId: string; token: string }>('room:quick', { name, avatar, auth: this.auth, day: today() });
+    const a = await this.call<{ code: string; playerId: string; token: string }>('room:quick', { name, avatar, auth: this.auth, dice: this.dice, day: today() });
     if (!a.ok) throw new Error(a.error);
     this.remember(a);
   }
 
   async join(code: string, name: string, avatar: string, token?: string) {
     if (!(await this.waitConnected())) throw new Error('Impossible de joindre le serveur de jeu');
-    const a = await this.call<{ code: string; playerId: string; token: string }>('room:join', { code, name, avatar, token, auth: this.auth, day: today() });
+    const a = await this.call<{ code: string; playerId: string; token: string }>('room:join', { code, name, avatar, token, auth: this.auth, dice: this.dice, day: today() });
     if (!a.ok) {
       if (token) saveSession(null);
       throw new Error(a.error);
@@ -140,13 +142,13 @@ export class OnlineSession {
   }
   async tCreate(name: string, avatar: string, settings: TournamentSettings) {
     if (!(await this.waitConnected())) throw new Error('Impossible de joindre le serveur de jeu');
-    const a = await this.call<{ code: string; playerId: string; token: string }>('tournament:create', { name, avatar, settings, auth: this.auth, day: today() });
+    const a = await this.call<{ code: string; playerId: string; token: string }>('tournament:create', { name, avatar, settings, auth: this.auth, dice: this.dice, day: today() });
     if (!a.ok) throw new Error(a.error);
     this.rememberT(a);
   }
   async tJoin(code: string, name: string, avatar: string, token?: string) {
     if (!(await this.waitConnected())) throw new Error('Impossible de joindre le serveur de jeu');
-    const a = await this.call<{ code: string; playerId: string; token: string }>('tournament:join', { code, name, avatar, token, auth: this.auth, day: today() });
+    const a = await this.call<{ code: string; playerId: string; token: string }>('tournament:join', { code, name, avatar, token, auth: this.auth, dice: this.dice, day: today() });
     if (!a.ok) {
       if (token) saveSession(null);
       throw new Error(a.error);
@@ -219,6 +221,7 @@ export class OnlineSession {
         title: m?.title,
         accessory: m?.accessory,
         prestige: m?.prestige,
+        dice: m?.dice ?? 'dice-ivoire',
       };
     });
   }

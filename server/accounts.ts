@@ -17,8 +17,11 @@ import { PHRASES } from '../shared/protocol';
 import {
   adjustCoins, applyGameEnd, applyPot, applyTournament, buy, claimDaily, claimPassTier, completeTutorial, setTitle, titleLabel, addSeasonPoints, REWARDS,
   LEAGUES, LEAGUE_DEMOTE, LEAGUE_PRIZES, ALBUM_KEYS, CLUB_CHEST, CLUB_COST, CLUB_EMBLEMS, CLUB_MAX, doPrestige, PRESTIGE_LEVEL, LEAGUE_PROMOTE, LEAGUE_SIZE, REFERRAL_BONUS, REFERRAL_GAMES, claimQuest, equip, levelInfo, rewardFor, sanitizeProfile, newProfile,
+  openBag, craftDie, setShowcase, collectionCount,
   type Profile, type RewardContext,
 } from '../shared/progress/profile';
+import { DEFAULT_APPEARANCE } from '../shared/progress/catalog';
+import { collectionDie } from '../shared/progress/dice-collection';
 import { today } from '../shared/progress/quests';
 import type { ComboKind } from '../shared/combos';
 import type { Difficulty } from '../shared/ai';
@@ -72,7 +75,13 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   const SOLO_CAP = opts.soloDailyCap ?? 40;
   const ATTEMPTS = opts.authAttempts ?? 12;
   const router = express.Router();
-  const soloGames = new Map<string, { userId: string; startedAt: number }>();
+  // Parties solo en cours : gardées en base, pour survivre à un redémarrage du serveur (mise à jour).
+  const soloGames = {
+    set: (token: string, v: { userId: string; startedAt: number }) => store.soloTokenSet(token, v.userId, v.startedAt),
+    get: (token: string) => store.soloTokenGet(token),
+    delete: (token: string) => store.soloTokenDelete(token),
+    prune: (before: number) => store.soloTokenPrune(before),
+  };
   const attempts = new Map<string, { n: number; since: number }>();
 
   // CORS : l'application mobile appelle l'API depuis une autre origine. Les jetons voyagent dans
@@ -84,7 +93,9 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     if (req.method === 'OPTIONS') { res.sendStatus(204); return; }
     next();
   });
-  router.use(express.json({ limit: '32kb' }));
+  // Photos de profil (256 × 256, en base64) : jusqu'à 200 ko ; le reste : 32 ko.
+  const jsonSmall = express.json({ limit: '32kb' }), jsonPhoto = express.json({ limit: '200kb' });
+  router.use((req, res, next) => (req.path === '/me/photo' ? jsonPhoto : jsonSmall)(req, res, next));
 
   const fail = (res: Response, status: number, error: string) => { res.status(status).json({ ok: false, error }); };
 
@@ -116,6 +127,16 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   };
 
   // --- Inscription / connexion ---------------------------------------------------------------
+  /**
+   * Progression d'invité reprise à l'inscription. Les dés de collection, eux, ne se créent que
+   * sur le serveur (un invité garde ses sacs, il les ouvre avec son compte) : on ne reprend ni
+   * dés de collection ni éclats d'un appareil, et au plus 10 sacs.
+   */
+  const importGuest = (p: Profile): Profile => {
+    const owned = p.owned.filter((id) => !collectionDie(id));
+    const equipped = collectionDie(p.equipped.dice) ? { ...p.equipped, dice: DEFAULT_APPEARANCE.dice } : p.equipped;
+    return { ...p, owned, equipped, shards: undefined, showcase: undefined, bags: Math.min(10, p.bags ?? 0) };
+  };
   router.post('/register', async (req, res) => {
     if (limited(req)) return fail(res, 429, 'Trop de tentatives, réessayez dans quelques minutes.');
     const { username, password, guestProfile } = req.body ?? {};
@@ -127,7 +148,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     if (store.userByName(name)) return fail(res, 409, 'Ce pseudo est déjà pris.');
     const recoveryCode = newRecoveryCode();
     // La progression d'invité de cet appareil est reprise une fois, à la création du compte.
-    const profile = guestProfile ? sanitizeProfile(guestProfile) : newProfile();
+    const profile = guestProfile ? importGuest(sanitizeProfile(guestProfile)) : newProfile();
     const u = store.createUser({ id: randomUUID(), username: name, passHash: await scryptHash(password), recoveryHash: await scryptHash(recoveryCode), profile });
     // Parrainage : pseudo de l'ami qui a invité (facultatif).
     const ref = typeof req.body?.referrer === 'string' ? store.userByName(req.body.referrer.trim()) : undefined;
@@ -190,6 +211,19 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     return b ? equip(b, String(req.body.id)) : null;
   }, 'Achat impossible (pièces ou niveau insuffisants).'));
   router.post('/shop/equip', auth, (req, res) => mutate(req, res, (p) => equip(p, String(req.body?.id ?? '')), 'Objet non possédé.'));
+
+  // --- Dés de collection : tirage fait ici (hasard cryptographique), jamais par le navigateur ---
+  router.post('/bags/open', auth, (req, res) => {
+    const u = userOf(req);
+    const r = openBag(store.profileOf(u));
+    if (!r) return fail(res, 400, 'Aucun sac à ouvrir.');
+    store.saveProfile(u.id, r.profile);
+    res.json({ ok: true, profile: r.profile, result: r.result });
+  });
+  router.post('/collection/craft', auth, (req, res) =>
+    mutate(req, res, (p) => craftDie(p, String(req.body?.id ?? '')), 'Pas assez d’éclats, ou dé déjà possédé.'));
+  router.post('/collection/showcase', auth, (req, res) =>
+    mutate(req, res, (p) => setShowcase(p, Array.isArray(req.body?.ids) ? req.body.ids.map(String) : []), 'Vitrine invalide.'));
   router.post('/quests/claim', auth, (req, res) =>
     mutate(req, res, (p) => claimQuest(p, String(req.body?.id ?? ''), clientDay(req.headers['x-day']))?.profile ?? null, 'Défi non accompli.'));
 
@@ -237,7 +271,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   router.post('/solo/start', auth, (req, res) => {
     const token = randomBytes(18).toString('base64url');
     soloGames.set(token, { userId: userOf(req).id, startedAt: Date.now() });
-    for (const [k, v] of soloGames) if (Date.now() - v.startedAt > 6 * 3600_000) soloGames.delete(k);
+    soloGames.prune(Date.now() - 12 * 3600_000);
     res.json({ ok: true, gameToken: token });
   });
   router.post('/solo/end', auth, (req, res) => {
@@ -488,6 +522,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
         league: LEAGUES[u.league],
         prestige: p.prestige ?? 0,
         album: (p.album ?? []).length,
+        showcase: p.showcase ?? [],
+        collection: collectionCount(p),
         rivalry: viewer && viewer.id !== u.id ? store.h2h(viewer.id, u.id) : null,
       },
     });
@@ -655,7 +691,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const u = store.userById(userId);
     if (!u) return null;
     const p = store.profileOf(u);
-    return { account: u.username, photo: photoUrl(u), title: titleLabel(p.title) ?? undefined, accessory: accessoryEmoji(p.equipped.accessoire) || undefined, prestige: p.prestige || undefined };
+    return { account: u.username, photo: photoUrl(u), title: titleLabel(p.title) ?? undefined, accessory: accessoryEmoji(p.equipped.accessoire) || undefined, prestige: p.prestige || undefined, dice: p.equipped.dice };
   };
   return { router, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
 }

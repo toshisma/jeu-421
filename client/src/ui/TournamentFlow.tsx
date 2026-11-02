@@ -57,6 +57,7 @@ export function TournamentFlow({ mode, settings, onSettings, onExit, onCancel, a
     setBusy(true);
     setError(null);
     const s = new OnlineSession(pa.token, pa.onServerReward, pa.onServerProfile);
+    s.dice = pa.profile.equipped.dice;
     try {
       if (kind === 'create') await s.tCreate(name, settings.avatar, form);
       else if (kind === 'join') await s.tJoin((mode as { code: string }).code, name, settings.avatar);

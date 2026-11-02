@@ -125,7 +125,9 @@ export function createStats(store: Store, opts: StatsOptions & { userFromToken: 
 
   // --- Routes ------------------------------------------------------------------------------------
   const router = express.Router();
-  router.use(express.json({ limit: '4kb' }));
+  // Lecteur JSON limité à nos propres routes : ce routeur est monté sur /api, devant celui des
+  // comptes, et ne doit pas imposer sa limite aux autres requêtes (photos, inscription…).
+  const json = express.json({ limit: '4kb' });
   router.get('/stats', (_req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.json(publicStats());
@@ -135,7 +137,7 @@ export function createStats(store: Store, opts: StatsOptions & { userFromToken: 
   // une durée minimale. Limites par adresse IP contre les envois en rafale.
   const guestSolo = new Map<string, { startedAt: number; ip: string }>();
   const perIpDay = new Map<string, number>();
-  router.post('/stats/solo/start', (req, res) => {
+  router.post('/stats/solo/start', json, (req, res) => {
     const ip = req.ip ?? '?';
     const t = now();
     for (const [k, v] of guestSolo) if (t - v.startedAt > 6 * 3600_000) guestSolo.delete(k);
@@ -144,7 +146,7 @@ export function createStats(store: Store, opts: StatsOptions & { userFromToken: 
     guestSolo.set(token, { startedAt: t, ip });
     res.json({ ok: true, token });
   });
-  router.post('/stats/solo/end', (req, res) => {
+  router.post('/stats/solo/end', json, (req, res) => {
     const b = req.body ?? {};
     const g = typeof b.token === 'string' ? guestSolo.get(b.token) : undefined;
     if (!g) return res.status(400).json({ ok: false, error: 'Partie inconnue.' });

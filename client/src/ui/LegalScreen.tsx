@@ -68,7 +68,8 @@ export function LegalScreen({ onBack }: { onBack: () => void }) {
         <p>La création d'un compte est réservée aux personnes de <b>13 ans ou plus</b>. En dessous, on peut jouer sans compte.</p>
 
         <h3>Pièces et mises</h3>
-        <p>Les pièces sont des points de jeu : elles ne s'achètent pas, ne s'échangent pas contre de l'argent et n'ont aucune valeur en dehors du jeu.</p>
+        <p>Les pièces sont des points de jeu : elles ne s'achètent pas, ne s'échangent pas contre de l'argent et n'ont aucune valeur en dehors du jeu.
+          Il en va de même des sacs et des dés de collection : ils se gagnent seulement en jouant, ne s'achètent ni avec de l'argent ni avec des pièces, et les chances de chaque rareté sont affichées dans la Collection.</p>
 
         <h3>Mentions légales</h3>
         <ul>

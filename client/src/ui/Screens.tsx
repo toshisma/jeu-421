@@ -16,6 +16,7 @@ import type { Settings } from '../settings';
 import { ConfigEditor } from './ConfigEditor';
 import { InstallPrompt } from './InstallPrompt';
 import { LiveStrip } from './StatsScreen';
+import { CollectionPromo } from './DiceCollection';
 import { Icon } from './Icon';
 import type { ProfileApi } from '../account/useProfile';
 import { QuestsPanel } from './AccountScreens';
@@ -61,7 +62,7 @@ export function ProfileChip({ profile, onClick, photo, emoji }: { profile: Profi
 
 export function Home(props: {
   profile: Profile; pa: ProfileApi; avatar: string; displayName: string; onShop: () => void; onAccount: () => void; onLeaderboard: () => void;
-  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onParty: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void; onLogin: () => void;
+  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onParty: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void; onLogin: () => void; onCollection: () => void;
   resume: { code: string; tournament?: boolean } | null; onResume: () => void;
 }) {
   const [online, setOnline] = useState(navigator.onLine);
@@ -116,6 +117,7 @@ export function Home(props: {
           {!online && !STANDALONE && <p className="note">Hors connexion : le jeu entre amis reviendra avec le réseau.</p>}
         </nav>
 
+        {!STANDALONE && <CollectionPromo pa={props.pa} onOpen={props.onCollection} />}
         {!STANDALONE && !props.pa.isAccount && (
           <section className="account-card">
             <div><b>Gardez votre progression</b><span>Un compte gratuit sauvegarde vos pièces et vos objets, et ouvre les classements, clubs et tables avec mise.</span></div>
@@ -141,6 +143,7 @@ export function Home(props: {
         <nav className="home-grid" aria-label="Plus">
           <button onClick={() => setShowProfile(true)}><Icon name="user" /><span>Profil</span></button>
           <button onClick={props.onShop}><Icon name="shop" /><span>Boutique</span></button>
+          {!STANDALONE && <button onClick={props.onCollection} className="tile-coll"><Icon name="dice" /><span>Collection</span>{(props.profile.bags ?? 0) > 0 && <i className="tile-badge">{props.profile.bags}</i>}</button>}
           <button onClick={props.onAlbum}><Icon name="album" /><span>Album</span></button>
           {!STANDALONE && <button onClick={props.onLeaderboard}><Icon name="trophy" /><span>Classement</span></button>}
           {!STANDALONE && <button onClick={props.onClub}><Icon name="club" /><span>Club</span></button>}

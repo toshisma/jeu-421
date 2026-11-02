@@ -6,7 +6,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GameState } from '../../../shared/engine';
 import {
   applyGameEnd, buy, claimDaily, claimPassTier, claimQuest, completeTutorial, computeReward, didWin, equip, loadProfile, saveProfile, sanitizeProfile, setTitle, addSeasonPoints, doPrestige,
-  type Applied, type Profile, type Reward, type RewardContext,
+  craftDie, setShowcase,
+  type Applied, type BagResult, type Profile, type Reward, type RewardContext,
 } from '../../../shared/progress/profile';
 import { api, ApiError, loadSession, saveAccountSession, type Session } from './api';
 import { challengeReward, playChallenge, type ChallengeResult } from '../../../shared/challenge';
@@ -114,6 +115,30 @@ export function useProfile(enabled: boolean) {
       return (e as Error).message;
     }
   }, [setProfile, dropSession]);
+
+  // --- Dés de collection : les sacs s'ouvrent sur le serveur (comptes uniquement) ---
+  const openBag = useCallback(async (): Promise<{ result?: BagResult; error?: string }> => {
+    const s = ref.current.session;
+    if (!s) return { error: 'compte' };
+    try {
+      const r = await api<{ profile: Profile; result: BagResult }>('/bags/open', { body: {}, token: s.token });
+      setProfile(sanitizeProfile(r.profile));
+      return { result: r.result };
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) dropSession();
+      return { error: (e as Error).message };
+    }
+  }, [setProfile, dropSession]);
+  const craft = useCallback((id: string) => act('/collection/craft', id, (p) => craftDie(p, id)), [act]);
+  const setVitrine = useCallback(async (ids: string[]): Promise<string | null> => {
+    const s = ref.current.session;
+    if (!s) { const n = setShowcase(ref.current.profile, ids); if (!n) return 'Vitrine invalide'; setProfile(n); return null; }
+    try {
+      const r = await api<{ profile: Profile }>('/collection/showcase', { body: { ids }, token: s.token });
+      setProfile(sanitizeProfile(r.profile));
+      return null;
+    } catch (e) { return (e as Error).message; }
+  }, [setProfile]);
 
   // --- Joueurs bloqués (comptes) ---
   const [blocked, setBlocked] = useState<string[]>([]);
@@ -278,7 +303,7 @@ export function useProfile(enabled: boolean) {
     register, login, recover, logout, deleteAccount,
     submitChallenge,
     buyItem, equipItem, claim, blocked, block, isBlocked, claimDailyReward, claimPass, chooseTitle, finishTutorial, prestige,
-    onSoloStart, onGameEnd, onServerReward, onServerProfile,
+    onSoloStart, onGameEnd, onServerReward, onServerProfile, openBag, craft, setVitrine,
     token: session?.token ?? null,
   };
 }

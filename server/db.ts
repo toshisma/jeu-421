@@ -176,6 +176,7 @@ export class Store {
         PRIMARY KEY (game_id, player_key)
       );
       CREATE INDEX IF NOT EXISTS idx_gp_user ON game_players(user_id);
+      CREATE TABLE IF NOT EXISTS solo_tokens (token TEXT PRIMARY KEY, user_id TEXT NOT NULL, started_at INTEGER NOT NULL);
       CREATE INDEX IF NOT EXISTS idx_challenge_rank ON challenge(day, points DESC, throws ASC, created_at ASC);
     `);
     // Migrations douces : colonnes ajoutées après la première version.
@@ -414,6 +415,17 @@ export class Store {
     return this.db.prepare('SELECT user_id, context, amount FROM escrow').all() as unknown as { user_id: string; context: string; amount: number }[];
   }
   escrowClear() { this.db.prepare('DELETE FROM escrow').run(); }
+
+  // --- Parties solo en cours (jetons) ---
+  soloTokenSet(token: string, userId: string, startedAt: number) {
+    this.db.prepare('INSERT OR REPLACE INTO solo_tokens (token, user_id, started_at) VALUES (?, ?, ?)').run(token, userId, startedAt);
+  }
+  soloTokenGet(token: string): { userId: string; startedAt: number } | undefined {
+    const r = this.db.prepare('SELECT user_id, started_at FROM solo_tokens WHERE token = ?').get(token) as { user_id: string; started_at: number } | undefined;
+    return r ? { userId: r.user_id, startedAt: r.started_at } : undefined;
+  }
+  soloTokenDelete(token: string) { this.db.prepare('DELETE FROM solo_tokens WHERE token = ?').run(token); }
+  soloTokenPrune(before: number) { this.db.prepare('DELETE FROM solo_tokens WHERE started_at < ?').run(before); }
 
   // --- Statistiques ---
   /** Enregistre une partie terminée. Renvoie false si elle était déjà enregistrée. */

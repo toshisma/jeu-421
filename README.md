@@ -250,6 +250,29 @@ Les valeurs du 421, des trois as, des suites, des autres et de la nénette sont 
 
 Temps écoulé : si le joueur n'a pas lancé, le jeu lance pour lui, puis valide son tour.
 
+## 4 ter. Collection de dés
+
+Accueil → carte **« Collectionne des dés super rares ! »** ou tuile **Collection**
+(`shared/progress/dice-collection.ts`, `client/src/ui/DiceCollection.tsx`).
+
+- 25 dés en 4 raretés : 10 communs, 7 rares, 5 épiques, 3 légendaires (motifs, nacre irisée, points
+  lumineux), plus une **version brillante** de chaque dé (1 sac sur 150).
+- **Sacs** : trouvés en fin de partie (22 % en gagnant, 10 % sinon, un peu plus à une grande table,
+  moins pour une partie très courte ; garanti au bout de 10 parties sans sac), au 7e jour de la série
+  et contre le patron de la semaine. Jamais à vendre. Chances affichées dans l'écran Collection :
+  commun 66 %, rare 25 %, épique 8 %, légendaire 1 %.
+- Doublon → **éclats** ; les éclats servent à **fabriquer** un dé précis (40 / 120 / 400 / 1 500).
+- **Vitrine** : 3 dés sur le profil, visible des autres joueurs.
+- **Les autres voient vos dés** : en ligne, quand un joueur lance, le bac affiche ses dés à lui ;
+  une pastille de rareté apparaît sur sa carte. Contre l'ordinateur, chaque habitué a ses dés, et le
+  patron de la semaine sort un dé épique.
+- Sécurité : les sacs s'ouvrent sur le serveur (compte requis) ; un invité garde ses sacs et les
+  ouvre en créant son compte. Le serveur n'accepte jamais de dé de collection annoncé par un
+  navigateur, ni à l'inscription ni en ligne.
+- Lisibilité : points plus grands, posés sur un fond uni (le motif ne passe jamais dessous), jamais
+  métalliques, arêtes ombrées pour se détacher du tapis ; un test vérifie le contraste des points de
+  chaque dé (au moins 4:1).
+
 ## 5 bis. Statistiques du jeu
 
 Accueil → bandeau « joueurs en ligne » ou tuile **Statistiques**. Tout est calculé par le serveur

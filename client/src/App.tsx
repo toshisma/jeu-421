@@ -29,6 +29,7 @@ import { ShopScreen } from './ui/ShopScreen';
 import { AccountScreen, LeaderboardScreen } from './ui/AccountScreens';
 import { Home, RulesScreen, Sandbox, SettingsScreen, SoloSetup, STANDALONE } from './ui/Screens';
 import { AdminScreen, StatsScreen } from './ui/StatsScreen';
+import { CollectionScreen } from './ui/DiceCollection';
 import { setPresence, startPresence } from './presence';
 
 type Screen =
@@ -56,6 +57,7 @@ type Screen =
   | { name: 'recap' }
   | { name: 'tutorial'; controller: TutorialController }
   | { name: 'stats' }
+  | { name: 'collection' }
   | { name: 'admin' };
 
 /**
@@ -142,6 +144,7 @@ export function App() {
         onRecap={() => setScreen({ name: 'recap' })}
         onTutorial={startTutorial}
         onStats={() => setScreen({ name: 'stats' })}
+        onCollection={() => setScreen({ name: 'collection' })}
         resume={resume} onResume={() => setScreen(resume?.tournament ? { name: 'tournament', mode: { kind: 'resume' } } : { name: 'online', mode: { kind: 'resume' } })} />;
     case 'hub':
       return <OnlineHub tab={screen.tab} settings={settings} onSettings={setSettings} pa={pa} onBack={home}
@@ -198,6 +201,8 @@ export function App() {
       return <ChallengeScreen pa={pa} settings={settings} appearance={profile.equipped} onBack={home} />;
     case 'pass':
       return <PassScreen pa={pa} onBack={home} />;
+    case 'collection':
+      return <CollectionScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} />;
     case 'stats':
       return <StatsScreen pa={pa} onBack={home} onAdmin={() => setScreen({ name: 'admin' })} />;
     case 'admin':

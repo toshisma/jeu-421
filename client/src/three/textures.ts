@@ -1,6 +1,8 @@
 /** Textures procédurales (aucun fichier image à charger) : faces des dés, feutrine, bois, cuir. */
 import * as THREE from 'three';
 import { mulberry32 } from '../../../shared/rng';
+import type { DicePattern } from '../../../shared/progress/dice-collection';
+import { paintFace, type Layer } from './dieArt';
 
 function canvas(w: number, h: number) {
   const c = document.createElement('canvas');
@@ -9,68 +11,22 @@ function canvas(w: number, h: number) {
   return [c, c.getContext('2d')!] as const;
 }
 
-const PIPS: Record<number, [number, number][]> = {
-  1: [[0.5, 0.5]],
-  2: [[0.27, 0.27], [0.73, 0.73]],
-  3: [[0.25, 0.25], [0.5, 0.5], [0.75, 0.75]],
-  4: [[0.27, 0.27], [0.73, 0.27], [0.27, 0.73], [0.73, 0.73]],
-  5: [[0.26, 0.26], [0.74, 0.26], [0.5, 0.5], [0.26, 0.74], [0.74, 0.74]],
-  6: [[0.27, 0.23], [0.73, 0.23], [0.27, 0.5], [0.73, 0.5], [0.27, 0.77], [0.73, 0.77]],
-};
-
-export interface DieStyle { body: string; body2: string; pip: string }
+export interface DieStyle { body: string; body2: string; pip: string; accent?: string; pattern?: DicePattern; glow?: boolean; id?: string }
 const IVORY: DieStyle = { body: '#fbf9f3', body2: '#ebe5d8', pip: '#111111' };
 
-/** Luminance approximative d'une couleur hexadécimale (0 = noir, 1 = blanc). */
-function luminance(hex: string): number {
-  const n = parseInt(hex.slice(1), 16);
-  return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
-}
-
-/** Face de dé : corps légèrement dégradé, points creusés (couleur + relief). */
-export function dieFace(value: number, style: DieStyle = IVORY): { map: THREE.Texture; bump: THREE.Texture } {
+/** Face de dé : couleur, relief des points, points lumineux éventuels, zones métalliques. */
+export function dieFace(value: number, style: DieStyle = IVORY): { map: THREE.Texture; bump: THREE.Texture; emissive: THREE.Texture | null; metal: THREE.Texture } {
   const S = 256;
-  const [c, g] = canvas(S, S);
-  const grad = g.createRadialGradient(S / 2, S / 2, S * 0.1, S / 2, S / 2, S * 0.72);
-  grad.addColorStop(0, style.body);
-  grad.addColorStop(1, style.body2);
-  g.fillStyle = grad;
-  g.fillRect(0, 0, S, S);
-  const r = value === 1 ? S * 0.11 : S * 0.085;
-  const lightBody = luminance(style.body) > 0.5;
-  for (const [x, y] of PIPS[value]) {
-    // Petit liseré en bas : effet de creux éclairé par le haut.
-    g.beginPath();
-    g.arc(x * S, y * S + 2.5, r, 0, Math.PI * 2);
-    g.fillStyle = lightBody ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.18)';
-    g.fill();
-    const pg = g.createRadialGradient(x * S - r * 0.25, y * S - r * 0.3, r * 0.1, x * S, y * S, r);
-    pg.addColorStop(0, style.pip);
-    pg.addColorStop(0.75, style.pip);
-    pg.addColorStop(1, lightBody ? '#000' : 'rgba(0,0,0,0.6)');
-    g.beginPath();
-    g.arc(x * S, y * S, r, 0, Math.PI * 2);
-    g.fillStyle = pg;
-    g.fill();
-  }
-  const [bc, bg] = canvas(S, S);
-  bg.fillStyle = '#fff';
-  bg.fillRect(0, 0, S, S);
-  for (const [x, y] of PIPS[value]) {
-    const pg = bg.createRadialGradient(x * S, y * S, 0, x * S, y * S, r * 1.05);
-    pg.addColorStop(0, '#000');
-    pg.addColorStop(0.8, '#222');
-    pg.addColorStop(1, '#fff');
-    bg.fillStyle = pg;
-    bg.beginPath();
-    bg.arc(x * S, y * S, r * 1.05, 0, Math.PI * 2);
-    bg.fill();
-  }
-  const map = new THREE.CanvasTexture(c);
+  const art = { ...style, seed: style.id };
+  const layer = (l: Layer) => { const [c, g] = canvas(S, S); paintFace(g, S, value, art, l); return c; };
+  const map = new THREE.CanvasTexture(layer('color'));
   map.colorSpace = THREE.SRGBColorSpace;
   map.anisotropy = 8;
-  const bump = new THREE.CanvasTexture(bc);
-  return { map, bump };
+  const bump = new THREE.CanvasTexture(layer('bump'));
+  const metal = new THREE.CanvasTexture(layer('metal'));
+  let emissive: THREE.Texture | null = null;
+  if (style.glow) { emissive = new THREE.CanvasTexture(layer('emissive')); emissive.colorSpace = THREE.SRGBColorSpace; }
+  return { map, bump, emissive, metal };
 }
 
 /** Feutrine : fibres fines et irrégularités, avec une carte de relief assortie. */

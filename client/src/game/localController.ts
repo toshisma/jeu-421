@@ -3,7 +3,7 @@ import { createGame, currentPlayerId, rollAction, stopAction, type GameState } f
 import { decide, type Difficulty } from '../../../shared/ai';
 import type { GameController, GameEvent, MetaPlayer } from './controller';
 import { sanitizeGesture, type ThrowGesture } from '../../../shared/gesture';
-import type { Persona } from './personas';
+import { PERSONA_DICE, type Persona } from './personas';
 import { fairDie } from '../../../shared/random';
 
 export interface Opponent { persona: Persona; difficulty: Difficulty }
@@ -16,7 +16,7 @@ export class LocalController implements GameController {
   readonly mode = 'solo' as const;
   readonly meId = 'moi';
   protected state!: GameState;
-  private meta: MetaPlayer[];
+  protected meta: MetaPlayer[];
   /** Premier joueur imposé (partie guidée) ; sinon tiré au sort. */
   protected firstIdx: number | null = null;
   private evL = new Set<(e: GameEvent) => void>();
@@ -36,7 +36,7 @@ export class LocalController implements GameController {
       { id: this.meId, name: me.name || 'Vous', avatar: me.avatar, color: '#d9a441', isBot: false, connected: true, isMe: true, photo: me.photo, account: me.account, title: me.title, accessory: me.accessory },
       ...opponents.map((o, i) => ({
         id: `ia-${i}`, name: o.persona.name, avatar: o.persona.avatar, color: o.persona.color, isBot: true,
-        difficulty: o.difficulty, tagline: o.persona.tagline, connected: true, isMe: false,
+        difficulty: o.difficulty, tagline: o.persona.tagline, connected: true, isMe: false, dice: PERSONA_DICE[o.persona.id] ?? 'dice-ivoire',
       })),
     ];
     this.newGame();

@@ -11,6 +11,8 @@ export interface DiceTrayHandle {
   showValues(values: number[]): void;
   setKept(mask: boolean[]): void;
   setInteractive(on: boolean): void;
+  /** Dés d'un autre joueur (identifiant du catalogue), ou les miens (null). */
+  setDiceSkin(id: string | null): void;
 }
 
 interface Props {
@@ -63,6 +65,7 @@ export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ ap
     showValues: (v) => scene.current?.showValues(v),
     setKept: (m) => scene.current?.setKept(m),
     setInteractive: (on) => scene.current?.setInteractive(on),
+    setDiceSkin: (id) => scene.current?.setDiceSkin(id),
   }), []);
 
   return <div ref={host} className="tray-host" />;

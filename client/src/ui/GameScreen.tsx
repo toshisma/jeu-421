@@ -107,6 +107,11 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
     return m && m.photo && pa?.isBlocked(m.account) ? { ...m, photo: null } : m;
   }, [meta, pa]);
   const nameOf = (id: string) => metaOf(id)?.name ?? shown?.players.find((p) => p.id === id)?.name ?? '?';
+  // Dés de chaque joueur : quand quelqu'un lance, le bac montre ses dés à lui.
+  const metaRef = useRef(meta);
+  metaRef.current = meta;
+  const skinOf = (id: string | null): string | null =>
+    !id || id === controller.meId ? null : metaRef.current.find((m) => m.id === id)?.dice ?? null;
 
   const say = useCallback((id: string, text: string | null) => {
     if (!text) return;
@@ -149,6 +154,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
       if (ev.type === 'roll') {
         tray.current?.setInteractive(false);
         const big = ev.roll.combo.kind === '421' || ev.roll.combo.kind === '111';
+        tray.current?.setDiceSkin(skinOf(ev.roll.playerId));
         await tray.current?.roll(ev.roll.dice, ev.roll.kept, ev.seed, ev.gesture, big);
         if (big) {
           sound.jackpot();
@@ -262,6 +268,8 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   // elle repart à zéro seulement quand le tour change.
   const turnKey = s ? `${s.round}|${currentId}|${s.isRolloff}|${s.throwsUsed === 0 ? 'new' : 'on'}` : '';
   useEffect(() => { setKeep(NO_KEEP); }, [turnKey]);
+  // Au repos, le bac montre les dés du joueur dont c'est le tour.
+  useEffect(() => { if (!animating) tray.current?.setDiceSkin(skinOf(currentId)); }, [currentId, animating, meta]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (animating) return;
     tray.current?.setKept(canKeepNow ? keep : NO_KEEP);

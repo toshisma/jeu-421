@@ -48,6 +48,7 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
     setBusy(true);
     setError(null);
     const s = new OnlineSession(auth, onServerReward, pa.onServerProfile);
+    s.dice = pa.profile.equipped.dice;
     try {
       if (kind === 'create') await s.create(name.trim(), avatar, DEFAULT_CONFIG, table);
       else if (kind === 'join') await s.join(code.trim().toUpperCase(), name.trim(), avatar);

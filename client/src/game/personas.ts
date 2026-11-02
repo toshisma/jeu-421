@@ -12,7 +12,14 @@ export interface Persona {
   tempo: number;
   style: AiStyle;
   lines: { big: string[]; good: string[]; bad: string[]; think: string[] };
+  /** Ses dés (de collection) : on les voit quand il lance. */
+  dice?: string;
 }
+
+/** Dés des habitués : un aperçu de ce qu'on peut trouver dans les sacs. */
+export const PERSONA_DICE: Record<string, string> = {
+  marcel: 'dc-brique', josiane: 'dc-lavande', baron: 'dc-grenat', lulu: 'dc-corail', dede: 'dc-chene', simone: 'dc-tortue', gege: 'dc-moutarde',
+};
 
 export const PERSONAS: Persona[] = [
   {
