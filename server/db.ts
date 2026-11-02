@@ -1,0 +1,395 @@
+/**
+ * Base de données des comptes (SQLite intégré à Node : aucun service à installer).
+ * Le fichier est créé au premier lancement ; sur un hébergeur, placez-le sur un disque persistant
+ * (variable DATABASE_PATH). ':memory:' sert aux tests.
+ */
+import type { DatabaseSync as DatabaseSyncT } from 'node:sqlite';
+import { createRequire } from 'node:module';
+// Chargé via require : certains outils (Vite/Vitest) ne reconnaissent pas encore « node:sqlite ».
+const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite');
+type DatabaseSync = DatabaseSyncT;
+import { mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { newProfile, sanitizeProfile, type Profile } from '../shared/progress/profile';
+
+export interface UserRow {
+  id: string;
+  username: string;
+  pass_hash: string;
+  recovery_hash: string;
+  created_at: number;
+  profile: string;
+  online_games: number;
+  online_wins: number;
+  solo_day: string;
+  solo_count: number;
+  photo_version: number;
+  photo_hidden: number;
+  league: number;
+  referred_by: string | null;
+  referral_paid: number;
+}
+
+export interface PublicUser { id: string; username: string; onlineGames: number; onlineWins: number; createdAt: number; photo: string | null }
+
+/** Adresse de la photo (le numéro de version évite les caches périmés). */
+export const photoUrl = (u: UserRow) => (u.photo_version > 0 && !u.photo_hidden ? `/api/photos/${u.id}?v=${u.photo_version}` : null);
+
+export function toPublic(u: UserRow): PublicUser {
+  return { id: u.id, username: u.username, onlineGames: u.online_games, onlineWins: u.online_wins, createdAt: u.created_at, photo: photoUrl(u) };
+}
+
+export class Store {
+  private db: DatabaseSync;
+
+  constructor(path: string) {
+    if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
+    this.db = new DatabaseSync(path);
+    this.db.exec(`
+      PRAGMA journal_mode = WAL;
+      PRAGMA foreign_keys = ON;
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        pass_hash TEXT NOT NULL,
+        recovery_hash TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        profile TEXT NOT NULL,
+        online_games INTEGER NOT NULL DEFAULT 0,
+        online_wins INTEGER NOT NULL DEFAULT 0,
+        solo_day TEXT NOT NULL DEFAULT '',
+        solo_count INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS sessions (
+        token_hash TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at INTEGER NOT NULL,
+        last_seen INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS friends (
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        friend_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, friend_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_wins ON users(online_wins DESC, online_games ASC);
+      CREATE TABLE IF NOT EXISTS photos (
+        user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        type TEXT NOT NULL,
+        data BLOB NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS reports (
+        reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        target_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        reason TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (reporter_id, target_id)
+      );
+      CREATE TABLE IF NOT EXISTS blocks (
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        blocked_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, blocked_id)
+      );
+      -- Mises engagées dans une partie ou un tournoi en cours : remboursées si le serveur redémarre.
+      CREATE TABLE IF NOT EXISTS escrow (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        context TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_escrow_ctx ON escrow(context);
+      -- Défi du jour : un seul essai classé par joueur et par jour.
+      CREATE TABLE IF NOT EXISTS challenge (
+        day TEXT NOT NULL,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        points INTEGER NOT NULL,
+        throws INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (day, user_id)
+      );
+      -- Ligues hebdomadaires : XP gagnée dans la semaine, par groupe de 20 joueurs d'une même ligue.
+      CREATE TABLE IF NOT EXISTS league_xp (
+        week TEXT NOT NULL,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        league INTEGER NOT NULL,
+        grp INTEGER NOT NULL,
+        xp INTEGER NOT NULL,
+        PRIMARY KEY (week, user_id)
+      );
+      CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      -- Rivalités : bilan des parties en ligne entre deux comptes (a < b).
+      CREATE TABLE IF NOT EXISTS h2h (
+        a TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        b TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        a_wins INTEGER NOT NULL DEFAULT 0,
+        b_wins INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (a, b)
+      );
+      -- Clubs : 30 membres au plus, victoires de la semaine (coffre commun), discussion en phrases rapides.
+      CREATE TABLE IF NOT EXISTS clubs (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        emblem TEXT NOT NULL,
+        owner_id TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS club_members (
+        user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        club_id TEXT NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+        joined_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS club_wins (
+        week TEXT NOT NULL,
+        club_id TEXT NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        wins INTEGER NOT NULL,
+        PRIMARY KEY (week, club_id, user_id)
+      );
+      CREATE TABLE IF NOT EXISTS club_chat (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        club_id TEXT NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        phrase TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_challenge_rank ON challenge(day, points DESC, throws ASC, created_at ASC);
+    `);
+    // Migrations douces : colonnes ajoutées après la première version.
+    for (const col of ['photo_version INTEGER NOT NULL DEFAULT 0', 'photo_hidden INTEGER NOT NULL DEFAULT 0',
+      'league INTEGER NOT NULL DEFAULT 0', 'referred_by TEXT', 'referral_paid INTEGER NOT NULL DEFAULT 0']) {
+      try { this.db.exec(`ALTER TABLE users ADD COLUMN ${col}`); } catch { /* déjà présente */ }
+    }
+  }
+
+  createUser(u: { id: string; username: string; passHash: string; recoveryHash: string; profile?: Profile }): UserRow {
+    this.db.prepare(`INSERT INTO users (id, username, pass_hash, recovery_hash, created_at, profile) VALUES (?, ?, ?, ?, ?, ?)`)
+      .run(u.id, u.username, u.passHash, u.recoveryHash, Date.now(), JSON.stringify(u.profile ?? newProfile()));
+    return this.userById(u.id)!;
+  }
+  userById(id: string): UserRow | undefined {
+    return this.db.prepare('SELECT * FROM users WHERE id = ?').get(id) as UserRow | undefined;
+  }
+  userByName(name: string): UserRow | undefined {
+    return this.db.prepare('SELECT * FROM users WHERE username = ?').get(name) as UserRow | undefined;
+  }
+  profileOf(u: UserRow): Profile { return sanitizeProfile(JSON.parse(u.profile)); }
+  saveProfile(id: string, p: Profile) {
+    this.db.prepare('UPDATE users SET profile = ? WHERE id = ?').run(JSON.stringify(p), id);
+  }
+  setPassword(id: string, passHash: string, recoveryHash: string) {
+    this.db.prepare('UPDATE users SET pass_hash = ?, recovery_hash = ? WHERE id = ?').run(passHash, recoveryHash, id);
+    this.db.prepare('DELETE FROM sessions WHERE user_id = ?').run(id);
+  }
+  addOnlineResult(id: string, won: boolean) {
+    this.db.prepare('UPDATE users SET online_games = online_games + 1, online_wins = online_wins + ? WHERE id = ?').run(won ? 1 : 0, id);
+  }
+  /** Compteur de parties solo récompensées aujourd'hui (plafond anti-abus). */
+  bumpSolo(id: string, day: string): number {
+    const u = this.userById(id)!;
+    const n = u.solo_day === day ? u.solo_count + 1 : 1;
+    this.db.prepare('UPDATE users SET solo_day = ?, solo_count = ? WHERE id = ?').run(day, n, id);
+    return n;
+  }
+  deleteUser(id: string) {
+    this.db.prepare('DELETE FROM users WHERE id = ?').run(id); // sessions et amis : ON DELETE CASCADE
+  }
+
+  createSession(tokenHash: string, userId: string) {
+    const now = Date.now();
+    this.db.prepare('INSERT INTO sessions (token_hash, user_id, created_at, last_seen) VALUES (?, ?, ?, ?)').run(tokenHash, userId, now, now);
+  }
+  sessionUser(tokenHash: string): UserRow | undefined {
+    const s = this.db.prepare('SELECT user_id, last_seen FROM sessions WHERE token_hash = ?').get(tokenHash) as { user_id: string; last_seen: number } | undefined;
+    if (!s) return undefined;
+    // Session valable 180 jours sans utilisation.
+    if (Date.now() - s.last_seen > 180 * 86400_000) { this.deleteSession(tokenHash); return undefined; }
+    this.db.prepare('UPDATE sessions SET last_seen = ? WHERE token_hash = ?').run(Date.now(), tokenHash);
+    return this.userById(s.user_id);
+  }
+  deleteSession(tokenHash: string) { this.db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash); }
+
+  /** Classement : victoires en ligne (vérifiées par le serveur), puis le moins de parties jouées. */
+  leaderboard(limit = 50): UserRow[] {
+    return this.db.prepare('SELECT * FROM users WHERE online_games > 0 ORDER BY online_wins DESC, online_games ASC, created_at ASC LIMIT ?').all(limit) as unknown as UserRow[];
+  }
+  rankOf(u: UserRow): number | null {
+    if (u.online_games === 0) return null;
+    const r = this.db.prepare(`SELECT COUNT(*) AS n FROM users WHERE online_games > 0 AND (online_wins > ? OR (online_wins = ? AND (online_games < ? OR (online_games = ? AND created_at < ?))))`)
+      .get(u.online_wins, u.online_wins, u.online_games, u.online_games, u.created_at) as { n: number };
+    return r.n + 1;
+  }
+  addFriend(userId: string, friendId: string) {
+    this.db.prepare('INSERT OR IGNORE INTO friends (user_id, friend_id, created_at) VALUES (?, ?, ?)').run(userId, friendId, Date.now());
+  }
+  removeFriend(userId: string, friendId: string) {
+    this.db.prepare('DELETE FROM friends WHERE user_id = ? AND friend_id = ?').run(userId, friendId);
+  }
+  friendsOf(userId: string): UserRow[] {
+    return this.db.prepare('SELECT u.* FROM friends f JOIN users u ON u.id = f.friend_id WHERE f.user_id = ? ORDER BY u.online_wins DESC, u.username').all(userId) as unknown as UserRow[];
+  }
+  setPhoto(id: string, type: string, data: Uint8Array) {
+    this.db.prepare('INSERT OR REPLACE INTO photos (user_id, type, data) VALUES (?, ?, ?)').run(id, type, data);
+    // Nouvelle photo : les anciens signalements ne la concernent plus.
+    this.db.prepare('DELETE FROM reports WHERE target_id = ?').run(id);
+    this.db.prepare('UPDATE users SET photo_version = photo_version + 1, photo_hidden = 0 WHERE id = ?').run(id);
+  }
+  removePhoto(id: string) {
+    this.db.prepare('DELETE FROM photos WHERE user_id = ?').run(id);
+    this.db.prepare('UPDATE users SET photo_version = 0, photo_hidden = 0 WHERE id = ?').run(id);
+  }
+  photo(id: string): { type: string; data: Uint8Array } | undefined {
+    const u = this.userById(id);
+    if (!u || u.photo_hidden) return undefined;
+    return this.db.prepare('SELECT type, data FROM photos WHERE user_id = ?').get(id) as { type: string; data: Uint8Array } | undefined;
+  }
+  /** Signalement d'une photo ; au-delà de 3 joueurs différents, elle est masquée en attendant une vérification. */
+  report(reporterId: string, targetId: string, reason: string): number {
+    this.db.prepare('INSERT OR IGNORE INTO reports (reporter_id, target_id, reason, created_at) VALUES (?, ?, ?, ?)').run(reporterId, targetId, reason, Date.now());
+    const n = (this.db.prepare('SELECT COUNT(*) AS n FROM reports WHERE target_id = ?').get(targetId) as { n: number }).n;
+    if (n >= 3) this.db.prepare('UPDATE users SET photo_hidden = 1 WHERE id = ?').run(targetId);
+    return n;
+  }
+  // --- Blocages ---
+  block(userId: string, blockedId: string) {
+    this.db.prepare('INSERT OR IGNORE INTO blocks (user_id, blocked_id, created_at) VALUES (?, ?, ?)').run(userId, blockedId, Date.now());
+    this.removeFriend(userId, blockedId);
+    this.removeFriend(blockedId, userId);
+  }
+  unblock(userId: string, blockedId: string) { this.db.prepare('DELETE FROM blocks WHERE user_id = ? AND blocked_id = ?').run(userId, blockedId); }
+  blockedBy(userId: string): UserRow[] {
+    return this.db.prepare('SELECT u.* FROM blocks b JOIN users u ON u.id = b.blocked_id WHERE b.user_id = ? ORDER BY u.username').all(userId) as unknown as UserRow[];
+  }
+  /** L'un des deux a-t-il bloqué l'autre ? */
+  isBlocked(a: string, b: string): boolean {
+    return !!this.db.prepare('SELECT 1 FROM blocks WHERE (user_id = ? AND blocked_id = ?) OR (user_id = ? AND blocked_id = ?)').get(a, b, b, a);
+  }
+
+  // --- Méta ---
+  getMeta(key: string): string | null { return (this.db.prepare('SELECT value FROM meta WHERE key = ?').get(key) as { value: string } | undefined)?.value ?? null; }
+  setMeta(key: string, value: string) { this.db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run(key, value); }
+
+  // --- Ligues ---
+  leagueRow(week: string, userId: string) {
+    return this.db.prepare('SELECT * FROM league_xp WHERE week = ? AND user_id = ?').get(week, userId) as { week: string; user_id: string; league: number; grp: number; xp: number } | undefined;
+  }
+  leagueJoin(week: string, userId: string, league: number, size: number) {
+    const n = (this.db.prepare('SELECT COUNT(*) AS n FROM league_xp WHERE week = ? AND league = ?').get(week, league) as { n: number }).n;
+    this.db.prepare('INSERT OR IGNORE INTO league_xp (week, user_id, league, grp, xp) VALUES (?, ?, ?, ?, 0)').run(week, userId, league, Math.floor(n / size));
+  }
+  leagueAdd(week: string, userId: string, xp: number) { this.db.prepare('UPDATE league_xp SET xp = xp + ? WHERE week = ? AND user_id = ?').run(xp, week, userId); }
+  leagueGroup(week: string, league: number, grp: number) {
+    return this.db.prepare('SELECT l.user_id, l.xp, u.username FROM league_xp l JOIN users u ON u.id = l.user_id WHERE l.week = ? AND l.league = ? AND l.grp = ? ORDER BY l.xp DESC, u.username')
+      .all(week, league, grp) as unknown as { user_id: string; xp: number; username: string }[];
+  }
+  leagueWeeksBefore(week: string): string[] {
+    return (this.db.prepare('SELECT DISTINCT week FROM league_xp WHERE week < ? ORDER BY week').all(week) as unknown as { week: string }[]).map((r) => r.week);
+  }
+  leagueGroups(week: string) {
+    return this.db.prepare('SELECT DISTINCT league, grp FROM league_xp WHERE week = ?').all(week) as unknown as { league: number; grp: number }[];
+  }
+  setLeague(userId: string, league: number) { this.db.prepare('UPDATE users SET league = ? WHERE id = ?').run(league, userId); }
+
+  // --- Parrainage ---
+  setReferrer(userId: string, referrerId: string) { this.db.prepare('UPDATE users SET referred_by = ? WHERE id = ? AND referred_by IS NULL').run(referrerId, userId); }
+  markReferralPaid(userId: string) { this.db.prepare('UPDATE users SET referral_paid = 1 WHERE id = ?').run(userId); }
+  referralsPaidSince(referrerId: string, since: number): number {
+    return (this.db.prepare('SELECT COUNT(*) AS n FROM users WHERE referred_by = ? AND referral_paid = 1 AND created_at >= ?').get(referrerId, since) as { n: number }).n;
+  }
+  referralCount(referrerId: string): { invited: number; paid: number } {
+    const r = this.db.prepare('SELECT COUNT(*) AS invited, SUM(referral_paid) AS paid FROM users WHERE referred_by = ?').get(referrerId) as { invited: number; paid: number | null };
+    return { invited: r.invited, paid: r.paid ?? 0 };
+  }
+
+  // --- Rivalités ---
+  h2hRecord(winnerId: string, loserId: string) {
+    const [a, b] = winnerId < loserId ? [winnerId, loserId] : [loserId, winnerId];
+    this.db.prepare('INSERT OR IGNORE INTO h2h (a, b) VALUES (?, ?)').run(a, b);
+    this.db.prepare(`UPDATE h2h SET ${winnerId === a ? 'a_wins = a_wins + 1' : 'b_wins = b_wins + 1'} WHERE a = ? AND b = ?`).run(a, b);
+  }
+  h2h(me: string, other: string): { mine: number; theirs: number } | null {
+    const [a, b] = me < other ? [me, other] : [other, me];
+    const r = this.db.prepare('SELECT a_wins, b_wins FROM h2h WHERE a = ? AND b = ?').get(a, b) as { a_wins: number; b_wins: number } | undefined;
+    if (!r) return null;
+    return me === a ? { mine: r.a_wins, theirs: r.b_wins } : { mine: r.b_wins, theirs: r.a_wins };
+  }
+
+  // --- Clubs ---
+  clubOf(userId: string) {
+    return this.db.prepare('SELECT c.* FROM club_members m JOIN clubs c ON c.id = m.club_id WHERE m.user_id = ?').get(userId) as { id: string; name: string; emblem: string; owner_id: string; created_at: number } | undefined;
+  }
+  clubById(id: string) { return this.db.prepare('SELECT * FROM clubs WHERE id = ?').get(id) as { id: string; name: string; emblem: string; owner_id: string; created_at: number } | undefined; }
+  clubByName(name: string) { return this.db.prepare('SELECT * FROM clubs WHERE name = ?').get(name) as { id: string } | undefined; }
+  clubCreate(id: string, name: string, emblem: string, ownerId: string) {
+    this.db.prepare('INSERT INTO clubs (id, name, emblem, owner_id, created_at) VALUES (?, ?, ?, ?, ?)').run(id, name, emblem, ownerId, Date.now());
+    this.clubJoin(id, ownerId);
+  }
+  clubJoin(clubId: string, userId: string) { this.db.prepare('INSERT OR REPLACE INTO club_members (user_id, club_id, joined_at) VALUES (?, ?, ?)').run(userId, clubId, Date.now()); }
+  clubLeave(userId: string) { this.db.prepare('DELETE FROM club_members WHERE user_id = ?').run(userId); }
+  clubDelete(id: string) { this.db.prepare('DELETE FROM clubs WHERE id = ?').run(id); }
+  clubSetOwner(id: string, userId: string) { this.db.prepare('UPDATE clubs SET owner_id = ? WHERE id = ?').run(userId, id); }
+  clubMembers(clubId: string, week: string) {
+    return this.db.prepare(`SELECT u.id, u.username, u.profile, m.joined_at, COALESCE(w.wins, 0) AS wins FROM club_members m JOIN users u ON u.id = m.user_id
+      LEFT JOIN club_wins w ON w.user_id = m.user_id AND w.club_id = m.club_id AND w.week = ? WHERE m.club_id = ? ORDER BY wins DESC, m.joined_at`).all(week, clubId) as unknown as { id: string; username: string; profile: string; joined_at: number; wins: number }[];
+  }
+  clubSize(clubId: string): number { return (this.db.prepare('SELECT COUNT(*) AS n FROM club_members WHERE club_id = ?').get(clubId) as { n: number }).n; }
+  clubAddWin(week: string, clubId: string, userId: string) {
+    this.db.prepare('INSERT INTO club_wins (week, club_id, user_id, wins) VALUES (?, ?, ?, 1) ON CONFLICT(week, club_id, user_id) DO UPDATE SET wins = wins + 1').run(week, clubId, userId);
+  }
+  clubWeekWins(week: string, clubId: string): number {
+    return (this.db.prepare('SELECT COALESCE(SUM(wins), 0) AS n FROM club_wins WHERE week = ? AND club_id = ?').get(week, clubId) as { n: number }).n;
+  }
+  clubTop(week: string, q: string, limit = 30) {
+    return this.db.prepare(`SELECT c.id, c.name, c.emblem, (SELECT COUNT(*) FROM club_members m WHERE m.club_id = c.id) AS members,
+      (SELECT COALESCE(SUM(wins), 0) FROM club_wins w WHERE w.club_id = c.id AND w.week = ?) AS wins
+      FROM clubs c WHERE c.name LIKE ? ORDER BY wins DESC, members DESC, c.created_at LIMIT ?`).all(week, `%${q}%`, limit) as unknown as { id: string; name: string; emblem: string; members: number; wins: number }[];
+  }
+  clubWeeksBefore(week: string): string[] {
+    return (this.db.prepare('SELECT DISTINCT week FROM club_wins WHERE week < ? ORDER BY week').all(week) as unknown as { week: string }[]).map((r) => r.week);
+  }
+  clubContributors(week: string) {
+    return this.db.prepare('SELECT club_id, user_id, wins FROM club_wins WHERE week = ?').all(week) as unknown as { club_id: string; user_id: string; wins: number }[];
+  }
+  clubChatAdd(clubId: string, userId: string, phrase: string) {
+    this.db.prepare('INSERT INTO club_chat (club_id, user_id, phrase, created_at) VALUES (?, ?, ?, ?)').run(clubId, userId, phrase, Date.now());
+    this.db.prepare('DELETE FROM club_chat WHERE club_id = ? AND id NOT IN (SELECT id FROM club_chat WHERE club_id = ? ORDER BY id DESC LIMIT 50)').run(clubId, clubId);
+  }
+  clubChat(clubId: string) {
+    return this.db.prepare('SELECT u.username, c.phrase, c.created_at FROM club_chat c JOIN users u ON u.id = c.user_id WHERE c.club_id = ? ORDER BY c.id DESC LIMIT 30').all(clubId) as unknown as { username: string; phrase: string; created_at: number }[];
+  }
+
+  // --- Défi du jour ---
+  challengeAdd(day: string, userId: string, points: number, throws: number): boolean {
+    const r = this.db.prepare('INSERT OR IGNORE INTO challenge (day, user_id, points, throws, created_at) VALUES (?, ?, ?, ?, ?)').run(day, userId, points, throws, Date.now());
+    return Number(r.changes) > 0;
+  }
+  challengeOf(day: string, userId: string): { points: number; throws: number; created_at: number } | undefined {
+    return this.db.prepare('SELECT points, throws, created_at FROM challenge WHERE day = ? AND user_id = ?').get(day, userId) as { points: number; throws: number; created_at: number } | undefined;
+  }
+  challengeTop(day: string, limit = 20): { username: string; points: number; throws: number }[] {
+    return this.db.prepare('SELECT u.username, c.points, c.throws FROM challenge c JOIN users u ON u.id = c.user_id WHERE c.day = ? ORDER BY c.points DESC, c.throws ASC, c.created_at ASC LIMIT ?')
+      .all(day, limit) as unknown as { username: string; points: number; throws: number }[];
+  }
+  challengeRank(day: string, userId: string): { rank: number; total: number } | null {
+    const me = this.challengeOf(day, userId);
+    const total = (this.db.prepare('SELECT COUNT(*) AS n FROM challenge WHERE day = ?').get(day) as { n: number }).n;
+    if (!me) return null;
+    const better = (this.db.prepare('SELECT COUNT(*) AS n FROM challenge WHERE day = ? AND (points > ? OR (points = ? AND (throws < ? OR (throws = ? AND created_at < ?))))')
+      .get(day, me.points, me.points, me.throws, me.throws, me.created_at) as { n: number }).n;
+    return { rank: better + 1, total };
+  }
+  challengeCount(day: string): number { return (this.db.prepare('SELECT COUNT(*) AS n FROM challenge WHERE day = ?').get(day) as { n: number }).n; }
+
+  // --- Mises en séquestre ---
+  escrowAdd(userId: string, context: string, amount: number) {
+    this.db.prepare('INSERT INTO escrow (user_id, context, amount, created_at) VALUES (?, ?, ?, ?)').run(userId, context, amount, Date.now());
+  }
+  escrowRelease(context: string) { this.db.prepare('DELETE FROM escrow WHERE context = ?').run(context); }
+  escrowAll(): { user_id: string; context: string; amount: number }[] {
+    return this.db.prepare('SELECT user_id, context, amount FROM escrow').all() as unknown as { user_id: string; context: string; amount: number }[];
+  }
+  escrowClear() { this.db.prepare('DELETE FROM escrow').run(); }
+
+  close() { this.db.close(); }
+}

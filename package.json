@@ -1,0 +1,53 @@
+{
+  "name": "jeu-421",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Jeu de 421 en ligne : bac 3D physique, mode solo contre IA et multijoueur temps réel",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n serveur,client -c yellow,cyan \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "node --disable-warning=ExperimentalWarning --import tsx --watch server/index.ts",
+    "dev:client": "vite",
+    "build": "vite build",
+    "build:standalone": "vite build --mode standalone",
+    "start": "node --disable-warning=ExperimentalWarning --import tsx server/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "app:build": "node scripts/check-server-url.mjs && vite build && cap sync",
+    "app:android": "npm run app:build && cap open android",
+    "app:ios": "npm run app:build && cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.6.10",
+    "@capacitor/core": "^7.6.10",
+    "@capacitor/ios": "^7.6.10",
+    "@fontsource/barlow": "^5.3.0",
+    "@fontsource/barlow-condensed": "^5.3.0",
+    "cannon-es": "^0.20.0",
+    "express": "^4.21.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "three": "^0.170.0",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.6.10",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.170.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "puppeteer-core": "^23.10.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.3",
+    "vite-plugin-singlefile": "^2.1.0",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}

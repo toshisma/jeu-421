@@ -1,0 +1,579 @@
+/**
+ * Progression du joueur : expérience (XP), niveaux, pièces, objets possédés et équipés.
+ *
+ * Règles (modifiables ici, en un seul endroit) :
+ *  - Une partie gagnée rapporte XP et pièces, davantage selon la difficulté, le nombre
+ *    d'adversaires et la longueur de la partie (pour éviter de « farmer » des parties express).
+ *  - Une partie terminée sans gagner rapporte une petite récompense de participation.
+ *  - Chaque 4-2-1 obtenu rapporte un bonus (plafonné).
+ *  - Chaque niveau gagné rapporte un bonus de pièces.
+ *  - Les pièces ne s'achètent pas et ne se convertissent pas en argent : aucun pari, aucun lot.
+ */
+import type { GameState } from '../engine';
+import type { Difficulty } from '../ai';
+import { DEFAULT_APPEARANCE, ITEMS, getItem, type Appearance, type Item } from './catalog';
+import { applySummary, canClaim, questsFor, today, type GameSummary, type QuestDef, type QuestState } from './quests';
+import type { ComboKind } from '../combos';
+import { ACHIEVEMENTS, EMPTY_STATS, newlyUnlocked, type AchievementDef, type Stats } from './achievements';
+import { activeEvent, coinBoost } from './events';
+import { passItems } from './catalog';
+import { BOSSES, BOSS_COINS, bossOfWeek, weekKey } from './boss';
+
+export interface Profile {
+  version: 1;
+  xp: number; // XP totale cumulée
+  coins: number;
+  owned: string[];
+  equipped: Appearance;
+  stats: Stats;
+  quests?: QuestState;
+  /** Succès débloqués : identifiant → date (ms). */
+  achievements: Record<string, number>;
+  /** Série de connexions : dernier jour récupéré et longueur de la série. */
+  daily?: { last: string; count: number };
+  /** Pass de saison du mois : points gagnés (= XP du mois) et paliers récupérés. */
+  season?: { id: string; points: number; claimed: number[] };
+  /** Titre affiché sous le pseudo, et titres gagnés hors succès (pass, ligues). */
+  title?: string;
+  titles?: string[];
+  /** Première partie guidée terminée. */
+  tutorial?: number;
+  /** Album des combinaisons : combinaisons déjà réussies et pages complétées. */
+  album?: string[];
+  albumPages?: string[];
+  /** Récap du mois en cours et du mois précédent. */
+  month?: MonthRecap;
+  prevMonth?: MonthRecap;
+  /** Niveau de prestige (remise à zéro du niveau à partir du niveau 30). */
+  prestige?: number;
+  /** Patron de la semaine : semaine de la dernière victoire. */
+  bossWeek?: string;
+}
+
+export interface MonthRecap {
+  id: string; // AAAA-MM
+  played: number;
+  won: number;
+  c421: number;
+  best: { label: string; rank: number } | null;
+  /** Adversaires affrontés (nom → nombre de parties). */
+  opp: Record<string, number>;
+  /** Parties par heure de la journée (0 à 23). */
+  hours: number[];
+}
+
+export const REWARDS = {
+  winXp: 60,
+  winCoins: 25,
+  playXp: 15,
+  playCoins: 4,
+  bonus421Coins: 5,
+  bonus421Max: 3,
+  difficulty: { facile: 0.5, normal: 1, difficile: 1.6 } as Record<Difficulty, number>,
+  online: 1.5,
+  perExtraOpponent: 0.25,
+  /** Une partie de 10 manches ou plus compte pleinement ; en dessous, la récompense est réduite. */
+  fullLengthRounds: 10,
+  minLengthFactor: 0.25,
+  levelBonus: (level: number) => 10 + 5 * level,
+};
+/**
+ * XP nécessaire pour passer du niveau L au niveau L+1 : de plus en plus long.
+ * Niveau 2 : 120 XP · niveau 5 : ~1 650 XP cumulés · niveau 10 : ~9 200 · niveau 20 : ~48 000.
+ */
+export const xpToNext = (level: number) => Math.round((120 * level ** 1.3) / 10) * 10;
+
+export function levelInfo(totalXp: number): { level: number; into: number; need: number } {
+  let level = 1;
+  let rest = Math.max(0, Math.floor(totalXp));
+  while (rest >= xpToNext(level)) { rest -= xpToNext(level); level++; }
+  return { level, into: rest, need: xpToNext(level) };
+}
+
+const FREE = ITEMS.filter((i) => i.price === 0 && !i.pass && !i.event).map((i) => i.id);
+
+export function newProfile(): Profile {
+  return { version: 1, xp: 0, coins: 0, owned: [...FREE], equipped: { ...DEFAULT_APPEARANCE }, stats: { ...EMPTY_STATS }, achievements: {} };
+}
+
+/** Répare un profil chargé (champs manquants, objets inconnus, objet équipé non possédé). */
+export function sanitizeProfile(raw: unknown): Profile {
+  const p = newProfile();
+  if (!raw || typeof raw !== 'object') return p;
+  const r = raw as Partial<Profile>;
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0);
+  p.xp = num(r.xp);
+  p.coins = num(r.coins);
+  const owned = Array.isArray(r.owned) ? r.owned.filter((id) => typeof id === 'string' && getItem(id)) : [];
+  p.owned = [...new Set([...FREE, ...owned])];
+  for (const k of Object.keys(DEFAULT_APPEARANCE) as (keyof Appearance)[]) {
+    const id = r.equipped?.[k];
+    const it = typeof id === 'string' ? getItem(id) : undefined;
+    if (it && it.category === k && p.owned.includes(id!)) p.equipped[k] = id!;
+  }
+  if (r.stats && typeof r.stats === 'object') {
+    for (const k of Object.keys(EMPTY_STATS) as (keyof Stats)[]) p.stats[k] = num((r.stats as Partial<Stats>)[k]);
+  }
+  if (r.achievements && typeof r.achievements === 'object') {
+    for (const a of ACHIEVEMENTS) { const t = (r.achievements as Record<string, unknown>)[a.id]; if (typeof t === 'number' && t > 0) p.achievements[a.id] = t; }
+  }
+  const isDay = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  if (r.daily && isDay(r.daily.last)) p.daily = { last: r.daily.last, count: Math.max(1, num(r.daily.count)) };
+  if (r.season && typeof r.season.id === 'string' && /^\d{4}-\d{2}$/.test(r.season.id)) {
+    p.season = { id: r.season.id, points: num(r.season.points), claimed: Array.isArray(r.season.claimed) ? [...new Set(r.season.claimed.map(num).filter((n) => n >= 1 && n <= PASS_TIERS))] : [] };
+  }
+  if (Array.isArray(r.titles)) p.titles = [...new Set(r.titles.filter((t): t is string => typeof t === 'string' && /^(pass|ligue|patron|album):[\w-]{1,20}$/.test(t)))];
+  if (Array.isArray(r.album)) p.album = [...new Set(r.album.filter((k): k is string => typeof k === 'string' && ALBUM_KEYS.includes(k)))];
+  if (Array.isArray(r.albumPages)) p.albumPages = [...new Set(r.albumPages.filter((k): k is string => typeof k === 'string' && ALBUM.some((a) => a.id === k)))];
+  for (const k of ['month', 'prevMonth'] as const) {
+    const m = r[k];
+    if (m && typeof m === 'object' && typeof m.id === 'string' && /^\d{4}-\d{2}$/.test(m.id)) {
+      const opp: Record<string, number> = {};
+      for (const [n, v] of Object.entries(m.opp ?? {}).slice(0, 60)) if (typeof n === 'string' && n.length <= 30) opp[n] = num(v);
+      p[k] = {
+        id: m.id, played: num(m.played), won: num(m.won), c421: num(m.c421),
+        best: m.best && typeof m.best.label === 'string' ? { label: m.best.label.slice(0, 30), rank: num(m.best.rank) } : null,
+        opp, hours: Array.from({ length: 24 }, (_, i) => num(Array.isArray(m.hours) ? m.hours[i] : 0)),
+      };
+    }
+  }
+  if (num(r.prestige)) p.prestige = Math.min(99, num(r.prestige));
+  if (typeof r.bossWeek === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.bossWeek)) p.bossWeek = r.bossWeek;
+  if (typeof r.title === 'string' && availableTitles(p).includes(r.title)) p.title = r.title;
+  if (num(r.tutorial)) p.tutorial = 1;
+  const q = r.quests;
+  if (q && typeof q === 'object' && typeof q.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(q.day)) {
+    const progress: Record<string, number> = {};
+    for (const [k, v] of Object.entries(q.progress ?? {})) progress[k] = num(v);
+    p.quests = { day: q.day, progress, claimed: Array.isArray(q.claimed) ? q.claimed.filter((x) => typeof x === 'string') : [] };
+  }
+  return p;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Récompenses de fin de partie
+
+export interface RewardContext {
+  mode: 'solo' | 'online';
+  /** Nombre d'adversaires (IA ou humains). */
+  opponents: number;
+  /** Difficulté des IA (solo). */
+  difficulty?: Difficulty;
+  /** Nombre de 4-2-1 obtenus par le joueur pendant la partie. */
+  count421: number;
+  /** Lancers du joueur par combinaison, et lancers faits d'un geste (pour les défis). */
+  combos?: Partial<Record<ComboKind, number>>;
+  gestureThrows?: number;
+  /** Nombre de manches de la partie, manches perdues par le joueur, maximum de jetons détenus. */
+  rounds?: number;
+  roundsLost?: number;
+  maxTokens?: number;
+  /** Jour local du joueur (événements, pièces boostées). */
+  day?: string;
+  /** Mort subite : récompense divisée par dix, la partie ne compte pas pour la progression. */
+  suddenDeath?: boolean;
+  /** Combinaisons réussies pendant la partie (album), meilleur coup, adversaires, heure (récap). */
+  comboKeys?: string[];
+  best?: { label: string; rank: number };
+  opponentNames?: string[];
+  hour?: number;
+  /** Partie contre le patron de la semaine. */
+  boss?: string;
+}
+
+export interface Reward {
+  won: boolean;
+  xp: number;
+  coins: number;
+  lines: { label: string; xp: number; coins: number }[];
+}
+
+/** Victoire d'un joueur dans une partie terminée (aux points : les ex æquo en tête gagnent tous). */
+export function didWin(state: GameState, meId: string): boolean {
+  const me = state.players.find((p) => p.id === meId);
+  if (!me || state.phase !== 'fini') return false;
+  if (state.config.variant === 'manches') return me.score === Math.max(...state.players.map((p) => p.score));
+  return state.ranking[0] === meId;
+}
+
+export function computeReward(state: GameState, meId: string, ctx: RewardContext): Reward {
+  if (!state.players.some((p) => p.id === meId) || state.phase !== 'fini') return { won: false, xp: 0, coins: 0, lines: [] };
+  return rewardFor(didWin(state, meId), state.round, ctx);
+}
+
+/** Calcul de la récompense à partir du résultat (utilisé aussi par le serveur pour les comptes). */
+export const SUDDEN_DEATH_FACTOR = 0.1;
+
+export function rewardFor(won: boolean, rounds: number, ctx: RewardContext): Reward {
+  if (ctx.suddenDeath) {
+    const full = rewardFor(won, REWARDS.fullLengthRounds, { ...ctx, suddenDeath: false, count421: 0, day: '2000-01-03' });
+    const xp = Math.round(full.xp * SUDDEN_DEATH_FACTOR), coins = Math.round(full.coins * SUDDEN_DEATH_FACTOR);
+    return { won, xp, coins, lines: [{ label: 'Mort subite (récompense réduite)', xp, coins }] };
+  }
+  const lengthF = Math.min(1, Math.max(REWARDS.minLengthFactor, rounds / REWARDS.fullLengthRounds));
+  const mult = ctx.mode === 'online' ? REWARDS.online : REWARDS.difficulty[ctx.difficulty ?? 'normal'];
+  const oppF = 1 + REWARDS.perExtraOpponent * Math.max(0, ctx.opponents - 1);
+  const lines: Reward['lines'] = [];
+  if (won) {
+    lines.push({
+      label: 'Victoire',
+      xp: Math.round(REWARDS.winXp * mult * oppF * lengthF),
+      coins: Math.round(REWARDS.winCoins * mult * oppF * lengthF),
+    });
+  } else {
+    lines.push({ label: 'Partie terminée', xp: Math.round(REWARDS.playXp * lengthF), coins: Math.round(REWARDS.playCoins * lengthF) });
+  }
+  const n421 = Math.min(REWARDS.bonus421Max, Math.max(0, Math.floor(ctx.count421)));
+  if (n421 > 0) lines.push({ label: `4-2-1 × ${n421}`, xp: 0, coins: n421 * REWARDS.bonus421Coins });
+  // Événement ou premier week-end du mois : pièces boostées.
+  const boost = coinBoost(ctx.day ?? today());
+  if (boost) {
+    const base = lines.reduce((a, l) => a + l.coins, 0);
+    const extra = Math.round(base * (boost.factor - 1));
+    if (extra > 0) lines.push({ label: boost.label, xp: 0, coins: extra });
+  }
+  return {
+    won,
+    xp: lines.reduce((acc, l) => acc + l.xp, 0),
+    coins: lines.reduce((acc, l) => acc + l.coins, 0),
+    lines,
+  };
+}
+
+export interface Applied {
+  profile: Profile;
+  levelBefore: number;
+  levelAfter: number;
+  levelBonusCoins: number;
+  /** Défis du jour accomplis par cette partie. */
+  questsDone?: { id: string; text: string }[];
+  /** Succès débloqués par cette partie (pièces déjà ajoutées). */
+  achievementsDone?: { id: string; icon: string; name: string; coins: number }[];
+}
+
+/** Nombre d'objets achetés (hors objets gratuits). */
+export const purchases = (p: Profile) => p.owned.filter((id) => (getItem(id)?.price ?? 0) > 0).length;
+
+/** Débloque les succès atteints et verse leurs pièces. */
+export function checkAchievements(p: Profile, now = Date.now()): { profile: Profile; unlocked: AchievementDef[] } {
+  const unlocked = newlyUnlocked({ stats: p.stats, level: levelInfo(p.xp).level, purchases: purchases(p) }, p.achievements);
+  if (!unlocked.length) return { profile: p, unlocked };
+  const achievements = { ...p.achievements };
+  for (const a of unlocked) achievements[a.id] = now;
+  return { profile: { ...p, achievements, coins: p.coins + unlocked.reduce((n, a) => n + a.coins, 0) }, unlocked };
+}
+
+/** Pièces gagnées ou dépensées hors partie (mise, cagnotte, gain de tournoi). Refuse un solde négatif. */
+export function adjustCoins(p: Profile, delta: number): Profile | null {
+  if (!Number.isFinite(delta) || p.coins + delta < 0) return null;
+  return { ...p, coins: p.coins + Math.round(delta) };
+}
+
+/** Cagnotte d'une table avec mise remportée. */
+export function applyPot(p: Profile, amount: number): { profile: Profile; unlocked: AchievementDef[] } {
+  return checkAchievements({ ...p, coins: p.coins + amount, stats: { ...p.stats, potsWon: p.stats.potsWon + 1 } });
+}
+
+/** Fin d'un tournoi pour un joueur : place (0 = vainqueur) et gain éventuel. */
+export function applyTournament(p: Profile, place: number, prize: number): { profile: Profile; unlocked: AchievementDef[] } {
+  const stats = { ...p.stats, tournaments: p.stats.tournaments + 1, tournamentWins: p.stats.tournamentWins + (place === 0 ? 1 : 0) };
+  return checkAchievements({ ...p, coins: p.coins + Math.max(0, prize), stats });
+}
+
+/** Résumé de la partie pour les défis. */
+export function summarize(reward: Reward, ctx: RewardContext): GameSummary {
+  return {
+    won: reward.won, mode: ctx.mode, difficulty: ctx.difficulty, opponents: ctx.opponents,
+    combos: ctx.combos ?? {}, gestureThrows: ctx.gestureThrows ?? 0,
+  };
+}
+
+/** Récompense + défis du jour, en une seule opération (jeu et serveur). */
+export function applyGameEnd(p: Profile, reward: Reward, ctx: RewardContext, day = today()): Applied {
+  const a = applyReward(p, reward, ctx.count421);
+  // Mort subite : quelques pièces et un peu d'XP, mais ni statistiques, ni défis, ni succès, ni pass.
+  if (ctx.suddenDeath) return { ...a, profile: { ...a.profile, stats: p.stats }, questsDone: [], achievementsDone: [] };
+  const { quests, completed } = applySummary(p.quests, summarize(reward, ctx), day);
+  // Statistiques détaillées (pour les succès)
+  const c = ctx.combos ?? {};
+  const s0 = a.profile.stats;
+  const streak = reward.won ? s0.streak + 1 : 0;
+  const stats: Stats = {
+    ...s0,
+    onlineGames: s0.onlineGames + (ctx.mode === 'online' ? 1 : 0),
+    onlineWins: s0.onlineWins + (ctx.mode === 'online' && reward.won ? 1 : 0),
+    hardWins: s0.hardWins + (ctx.mode === 'solo' && ctx.difficulty === 'difficile' && reward.won ? 1 : 0),
+    brelans: s0.brelans + (c.brelan ?? 0),
+    aces: s0.aces + (c['11x'] ?? 0) + (c['111'] ?? 0),
+    gestures: s0.gestures + (ctx.gestureThrows ?? 0),
+    streak,
+    bestStreak: Math.max(s0.bestStreak, streak),
+    bigTableWins: s0.bigTableWins + (reward.won && ctx.opponents >= 3 ? 1 : 0),
+    triAces: s0.triAces + (c['111'] ?? 0),
+    perfectWins: s0.perfectWins + (reward.won && ctx.roundsLost === 0 && (ctx.rounds ?? 0) >= 5 ? 1 : 0),
+    comebacks: s0.comebacks + (reward.won && (ctx.maxTokens ?? 0) >= 10 ? 1 : 0),
+  };
+  // Patron de la semaine battu (une fois par semaine).
+  let base: Profile = { ...a.profile, quests, stats };
+  const extra: { id: string; icon: string; name: string; coins: number }[] = [];
+  if (ctx.boss && reward.won) {
+    const b = bossOfWeek(day);
+    const wk = weekKey(day);
+    if (b.id === ctx.boss && base.bossWeek !== wk) {
+      base = { ...base, bossWeek: wk, coins: base.coins + BOSS_COINS, stats: { ...base.stats, bossWins: base.stats.bossWins + 1 },
+        titles: [...new Set([...(base.titles ?? []), `patron:${b.id}`])] };
+      extra.push({ id: `patron-${wk}`, icon: '🏆', name: `${b.name}, patron de la semaine, est battu`, coins: BOSS_COINS });
+    }
+  }
+  const al = applyAlbum(base, ctx.comboKeys ?? []);
+  extra.push(...al.done);
+  const withRecap = recordMonth(al.profile, reward, ctx, day);
+  const ach = checkAchievements(addSeasonPoints(withRecap, reward.xp, day));
+  return {
+    ...a,
+    profile: ach.profile,
+    questsDone: completed.map((q) => ({ id: q.id, text: q.text })),
+    achievementsDone: [...extra, ...ach.unlocked.map((x) => ({ id: x.id, icon: x.icon, name: x.name, coins: x.coins }))],
+  };
+}
+
+/** Récupérer un défi accompli : pièces + XP (avec bonus de niveau éventuel). */
+export function claimQuest(p: Profile, id: string, day = today()): { profile: Profile; quest: QuestDef; levelAfter: number } | null {
+  const def = canClaim(p.quests, id, day);
+  if (!def) return null;
+  const cur = questsFor(p.quests, day);
+  const before = levelInfo(p.xp).level;
+  const xp = p.xp + def.xp;
+  const after = levelInfo(xp).level;
+  let bonus = 0;
+  for (let l = before + 1; l <= after; l++) bonus += REWARDS.levelBonus(l);
+  return {
+    profile: checkAchievements(addSeasonPoints({ ...p, xp, coins: p.coins + def.coins + bonus, quests: { ...cur, claimed: [...cur.claimed, id] }, stats: { ...p.stats, questsClaimed: p.stats.questsClaimed + 1 } }, def.xp, day)).profile,
+    quest: def,
+    levelAfter: after,
+  };
+}
+
+export function applyReward(p: Profile, r: Reward, count421: number): Applied {
+  const levelBefore = levelInfo(p.xp).level;
+  const xp = p.xp + r.xp;
+  const levelAfter = levelInfo(xp).level;
+  let levelBonusCoins = 0;
+  for (let l = levelBefore + 1; l <= levelAfter; l++) levelBonusCoins += REWARDS.levelBonus(l);
+  return {
+    profile: {
+      ...p,
+      xp,
+      coins: p.coins + r.coins + levelBonusCoins,
+      stats: { ...p.stats, played: p.stats.played + 1, won: p.stats.won + (r.won ? 1 : 0), total421: p.stats.total421 + count421 },
+    },
+    levelBefore,
+    levelAfter,
+    levelBonusCoins,
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Boutique
+
+export type BuyCheck = { ok: true } | { ok: false; reason: 'owned' | 'level' | 'coins' | 'unknown' | 'event' | 'pass' };
+
+export function canBuy(p: Profile, item: Item | undefined, day = today()): BuyCheck {
+  // Après un prestige, les niveaux requis ne s'appliquent plus.
+  if (item && (p.prestige ?? 0) > 0 && !p.owned.includes(item.id) && !item.pass && !(item.event && activeEvent(day)?.id !== item.event)) {
+    return p.coins < item.price ? { ok: false, reason: 'coins' } : { ok: true };
+  }
+  if (!item) return { ok: false, reason: 'unknown' };
+  if (p.owned.includes(item.id)) return { ok: false, reason: 'owned' };
+  if (item.pass) return { ok: false, reason: 'pass' };
+  if (item.event && activeEvent(day)?.id !== item.event) return { ok: false, reason: 'event' };
+  if (levelInfo(p.xp).level < item.level) return { ok: false, reason: 'level' };
+  if (p.coins < item.price) return { ok: false, reason: 'coins' };
+  return { ok: true };
+}
+
+export function buy(p: Profile, id: string, day = today()): Profile | null {
+  const item = getItem(id);
+  if (!canBuy(p, item, day).ok) return null;
+  return checkAchievements({ ...p, coins: p.coins - item!.price, owned: [...p.owned, id] }).profile;
+}
+
+export function equip(p: Profile, id: string): Profile | null {
+  const item = getItem(id);
+  if (!item || !p.owned.includes(id)) return null;
+  return { ...p, equipped: { ...p.equipped, [item.category]: id } };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Série de connexions, pass de saison, titres
+
+/** Récompenses de la série : jour 1 à 7, le 7e jour est un coffre. */
+export const DAILY_REWARDS = [
+  { coins: 10, xp: 0 }, { coins: 15, xp: 0 }, { coins: 20, xp: 5 }, { coins: 25, xp: 5 },
+  { coins: 30, xp: 10 }, { coins: 40, xp: 10 }, { coins: 120, xp: 50 },
+];
+const prevDay = (day: string) => new Date(Date.parse(`${day}T12:00:00Z`) - 86400_000).toISOString().slice(0, 10);
+
+/** État de la série pour aujourd'hui : position dans la semaine (1 à 7) et récupérable ? */
+export function dailyStatus(p: Profile, day = today()): { count: number; cycleDay: number; canClaim: boolean } {
+  const d = p.daily;
+  if (d?.last === day) return { count: d.count, cycleDay: ((d.count - 1) % 7) + 1, canClaim: false };
+  const count = d && d.last === prevDay(day) ? d.count + 1 : 1;
+  return { count, cycleDay: ((count - 1) % 7) + 1, canClaim: true };
+}
+export function claimDaily(p: Profile, day = today()): { profile: Profile; coins: number; xp: number; cycleDay: number } | null {
+  const st = dailyStatus(p, day);
+  if (!st.canClaim) return null;
+  const r = DAILY_REWARDS[st.cycleDay - 1];
+  const before = levelInfo(p.xp).level, after = levelInfo(p.xp + r.xp).level;
+  let bonus = 0;
+  for (let l = before + 1; l <= after; l++) bonus += REWARDS.levelBonus(l);
+  const profile = checkAchievements(addSeasonPoints({ ...p, xp: p.xp + r.xp, coins: p.coins + r.coins + bonus, daily: { last: day, count: st.count } }, r.xp, day)).profile;
+  return { profile, coins: r.coins, xp: r.xp, cycleDay: st.cycleDay };
+}
+
+/** Pass de saison : un par mois, 20 paliers de 100 points (1 point = 1 XP gagné dans le mois). */
+export const PASS_TIERS = 20;
+export const PASS_POINTS = 100;
+export const seasonId = (day: string) => day.slice(0, 7);
+export type PassReward = { coins: number; item?: string; title?: string };
+export function passReward(tier: number, season: string): PassReward {
+  const items = passItems(season);
+  if (tier === 5) return { coins: 0, item: items.accessoire };
+  if (tier === 10) return { coins: 150 };
+  if (tier === 15) return { coins: 0, item: items.felt };
+  if (tier === 20) return { coins: 100, item: items.dice, title: `pass:${season}` };
+  return { coins: 15 + tier * 2 };
+}
+/** Saison en cours (remise à zéro au changement de mois). */
+export function seasonOf(p: Profile, day = today()) {
+  const id = seasonId(day);
+  return p.season?.id === id ? p.season : { id, points: 0, claimed: [] as number[] };
+}
+export function addSeasonPoints(p: Profile, points: number, day = today()): Profile {
+  if (points <= 0) return p;
+  const s = seasonOf(p, day);
+  return { ...p, season: { ...s, points: s.points + Math.floor(points) } };
+}
+export function claimPassTier(p: Profile, tier: number, day = today()): { profile: Profile; reward: PassReward } | null {
+  const s = seasonOf(p, day);
+  if (!Number.isInteger(tier) || tier < 1 || tier > PASS_TIERS || s.claimed.includes(tier) || s.points < tier * PASS_POINTS) return null;
+  const r = passReward(tier, s.id);
+  const owned = r.item && !p.owned.includes(r.item) ? [...p.owned, r.item] : p.owned;
+  const titles = r.title ? [...new Set([...(p.titles ?? []), r.title])] : p.titles;
+  return { profile: { ...p, coins: p.coins + r.coins, owned, titles, season: { ...s, claimed: [...s.claimed, tier] } }, reward: r };
+}
+
+const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+export const monthName = (season: string) => `${MONTHS[Number(season.slice(5, 7)) - 1]} ${season.slice(0, 4)}`;
+export const LEAGUES = ['Bronze', 'Argent', 'Or', 'Saphir', 'Rubis', 'Diamant'];
+/** Ligues : groupes de 20, les 3 premiers montent (et sont récompensés), les 3 derniers descendent. */
+export const LEAGUE_SIZE = 20;
+export const LEAGUE_PROMOTE = 3;
+export const LEAGUE_DEMOTE = 3;
+export const LEAGUE_PRIZES = [150, 100, 60];
+/** Parrainage : bonus pour le parrain et le filleul après 3 parties du filleul. */
+export const REFERRAL_BONUS = 200;
+export const REFERRAL_GAMES = 3;
+/** Clubs : 30 membres, création payante (contre le spam), coffre commun de la semaine. */
+export const CLUB_MAX = 30;
+export const CLUB_COST = 100;
+export const CLUB_EMBLEMS = ['🍺', '🎲', '🦁', '🐓', '⚓', '🌹', '🎩', '🔥', '🍀', '👑', '🦊', '🐻'];
+export const CLUB_CHEST = [{ wins: 15, coins: 50 }, { wins: 40, coins: 120 }, { wins: 80, coins: 250 }];
+
+/** Titres disponibles : succès débloqués, pass de saison complétés, ligues atteintes. */
+export function availableTitles(p: Profile): string[] {
+  return [...Object.keys(p.achievements), ...(p.titles ?? [])];
+}
+export function titleLabel(id: string | undefined): string | null {
+  if (!id) return null;
+  if (id.startsWith('patron:')) return `Tombeur de ${BOSSES.find((b) => b.id === id.slice(7))?.name ?? 'patron'}`;
+  if (id === 'album:complet') return 'Collectionneur de combinaisons';
+  if (id.startsWith('pass:')) return `Champion de ${monthName(id.slice(5))}`;
+  if (id.startsWith('ligue:')) return `Ligue ${id.slice(6)}`;
+  return ACHIEVEMENTS.find((a) => a.id === id)?.name ?? null;
+}
+export function setTitle(p: Profile, id: string | null): Profile | null {
+  if (id === null || id === '') { const n = { ...p }; delete n.title; return n; }
+  return availableTitles(p).includes(id) ? { ...p, title: id } : null;
+}
+// ---------------------------------------------------------------------------------------------
+// Album des combinaisons
+
+export const ALBUM = [
+  { id: 'grands', name: 'Les grands coups', keys: ['421', '111'], coins: 150 },
+  { id: 'as', name: 'Deux as', keys: ['611', '511', '411', '311', '211'], coins: 150 },
+  { id: 'brelans', name: 'Les brelans', keys: ['666', '555', '444', '333', '222'], coins: 200 },
+  { id: 'suites', name: 'Les suites', keys: ['654', '543', '432', '321'], coins: 150 },
+  { id: 'nenette', name: 'La nénette', keys: ['221'], coins: 50 },
+];
+export const ALBUM_KEYS = ALBUM.flatMap((a) => a.keys);
+export const ALBUM_FULL_COINS = 500;
+/** Clé d'album d'une combinaison (dés triés), ou null si elle n'est pas dans l'album. */
+export const albumKey = (dice: number[]) => { const k = [...dice].sort((a, b) => b - a).join(''); return ALBUM_KEYS.includes(k) ? k : null; };
+
+export function applyAlbum(p: Profile, keys: string[]): { profile: Profile; done: { id: string; icon: string; name: string; coins: number }[] } {
+  const add = keys.filter((k) => ALBUM_KEYS.includes(k) && !(p.album ?? []).includes(k));
+  if (!add.length) return { profile: p, done: [] };
+  const album = [...(p.album ?? []), ...new Set(add)];
+  const pages = [...(p.albumPages ?? [])];
+  const done: { id: string; icon: string; name: string; coins: number }[] = [];
+  let coins = p.coins;
+  for (const page of ALBUM) {
+    if (pages.includes(page.id) || !page.keys.every((k) => album.includes(k))) continue;
+    pages.push(page.id);
+    coins += page.coins;
+    done.push({ id: `album-${page.id}`, icon: '📒', name: `Album : page « ${page.name} » complète`, coins: page.coins });
+  }
+  let owned = p.owned, titles = p.titles;
+  if (pages.length === ALBUM.length && !owned.includes('dice-album')) {
+    owned = [...owned, 'dice-album'];
+    titles = [...new Set([...(titles ?? []), 'album:complet'])];
+    coins += ALBUM_FULL_COINS;
+    done.push({ id: 'album-complet', icon: '🏅', name: 'Album complet : dés « Collectionneur » débloqués', coins: ALBUM_FULL_COINS });
+  }
+  return { profile: { ...p, album, albumPages: pages, coins, owned, titles }, done };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Récap du mois
+
+const emptyMonth = (id: string): MonthRecap => ({ id, played: 0, won: 0, c421: 0, best: null, opp: {}, hours: Array(24).fill(0) });
+export function recordMonth(p: Profile, reward: Reward, ctx: RewardContext, day: string): Profile {
+  const id = day.slice(0, 7);
+  let month = p.month, prevMonth = p.prevMonth;
+  if (!month || month.id !== id) { if (month) prevMonth = month; month = emptyMonth(id); }
+  const opp = { ...month.opp };
+  for (const n of ctx.opponentNames ?? []) opp[n] = (opp[n] ?? 0) + 1;
+  const hours = [...month.hours];
+  const h = ctx.hour ?? new Date().getHours();
+  if (h >= 0 && h < 24) hours[h]++;
+  const best = ctx.best && (!month.best || ctx.best.rank > month.best.rank) ? ctx.best : month.best;
+  return { ...p, prevMonth, month: { ...month, played: month.played + 1, won: month.won + (reward.won ? 1 : 0), c421: month.c421 + ctx.count421, best, opp, hours } };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Prestige
+
+export const PRESTIGE_LEVEL = 30;
+export const PRESTIGE_COINS = 300;
+export function doPrestige(p: Profile): Profile | null {
+  if (levelInfo(p.xp).level < PRESTIGE_LEVEL) return null;
+  return { ...p, xp: 0, prestige: (p.prestige ?? 0) + 1, coins: p.coins + PRESTIGE_COINS };
+}
+
+export function completeTutorial(p: Profile): Profile | null {
+  if (p.tutorial) return null;
+  return { ...p, tutorial: 1, coins: p.coins + 50 };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Stockage (navigateur). Le profil est local à l'appareil : voir README.
+
+const KEY = '421.profil';
+export function loadProfile(): Profile {
+  try { return sanitizeProfile(JSON.parse(localStorage.getItem(KEY) ?? 'null')); } catch { return newProfile(); }
+}
+export function saveProfile(p: Profile) {
+  try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* stockage indisponible */ }
+}

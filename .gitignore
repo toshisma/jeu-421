@@ -1,0 +1,12 @@
+node_modules
+dist
+captures
+*.log
+android/app/src/main/assets/public
+android/app/src/main/assets/capacitor.config.json
+android/.gradle
+android/build
+android/app/build
+ios/App/App/public
+ios/App/Pods
+data

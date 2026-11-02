@@ -1,0 +1,22 @@
+# Déploiement sur Render (https://render.com) : Dashboard → New → Blueprint → choisir le dépôt.
+# Les comptes joueurs sont enregistrés dans une base SQLite : elle doit être sur un disque
+# persistant, disponible uniquement sur les offres payantes (voir DEPLOIEMENT.md).
+services:
+  - type: web
+    name: jeu-421
+    runtime: node
+    plan: starter
+    region: frankfurt # serveurs dans l’Union européenne (RGPD)
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_PATH
+        value: /var/data/421.sqlite
+      - key: NODE_VERSION
+        value: "22"
+    disk:
+      name: donnees
+      mountPath: /var/data
+      sizeGB: 1

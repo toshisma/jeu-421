@@ -1,0 +1,654 @@
+/**
+ * Comptes joueurs (facultatifs) : inscription, connexion, progression, boutique, défis,
+ * classement et amis. Le serveur est l'autorité : pièces, XP et achats sont calculés ici.
+ *
+ * Sécurité :
+ *  - mots de passe et codes de récupération hachés avec scrypt (sel aléatoire) ;
+ *  - jetons de session aléatoires (256 bits), seule leur empreinte SHA-256 est stockée ;
+ *  - limite de tentatives par adresse IP sur l'inscription, la connexion et la récupération ;
+ *  - entrées validées et bornées ; suppression complète du compte possible.
+ */
+import express, { type Request, type Response, type NextFunction } from 'express';
+import { createHash, randomBytes, randomInt, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
+import { Store, photoUrl, toPublic, type UserRow } from './db';
+import { accessoryEmoji } from '../shared/progress/catalog';
+import { challengeReward, playChallenge } from '../shared/challenge';
+import { PHRASES } from '../shared/protocol';
+import {
+  adjustCoins, applyGameEnd, applyPot, applyTournament, buy, claimDaily, claimPassTier, completeTutorial, setTitle, titleLabel, addSeasonPoints, REWARDS,
+  LEAGUES, LEAGUE_DEMOTE, LEAGUE_PRIZES, ALBUM_KEYS, CLUB_CHEST, CLUB_COST, CLUB_EMBLEMS, CLUB_MAX, doPrestige, PRESTIGE_LEVEL, LEAGUE_PROMOTE, LEAGUE_SIZE, REFERRAL_BONUS, REFERRAL_GAMES, claimQuest, equip, levelInfo, rewardFor, sanitizeProfile, newProfile,
+  type Profile, type RewardContext,
+} from '../shared/progress/profile';
+import { today } from '../shared/progress/quests';
+import type { ComboKind } from '../shared/combos';
+import type { Difficulty } from '../shared/ai';
+
+export interface AccountsOptions {
+  /** Durée minimale d'une partie solo pour être récompensée (anti-triche basique). */
+  minSoloMs?: number;
+  /** Parties solo récompensées par jour et par compte. */
+  soloDailyCap?: number;
+  /** Tentatives d'authentification par IP et par fenêtre de 10 minutes. */
+  authAttempts?: number;
+  /** Horloge (tests des ligues). */
+  now?: () => number;
+}
+
+const USERNAME = /^[\p{L}\p{N}_.-]{3,20}$/u;
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+function scryptHash(secret: string): Promise<string> {
+  const salt = randomBytes(16);
+  return new Promise((resolve, reject) => scrypt(secret, salt, 64, (err, key) =>
+    err ? reject(err) : resolve(`s1$${salt.toString('base64')}$${key.toString('base64')}`)));
+}
+function scryptVerify(secret: string, stored: string): Promise<boolean> {
+  const [v, salt, hash] = stored.split('$');
+  if (v !== 's1' || !salt || !hash) return Promise.resolve(false);
+  const expected = Buffer.from(hash, 'base64');
+  return new Promise((resolve) => scrypt(secret, Buffer.from(salt, 'base64'), expected.length, (err, key) =>
+    resolve(!err && key.length === expected.length && timingSafeEqual(key, expected))));
+}
+const sha = (t: string) => createHash('sha256').update(t).digest('hex');
+const newRecoveryCode = () => Array.from({ length: 4 }, () =>
+  Array.from({ length: 4 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('')).join('-');
+
+/** Jour du joueur (AAAA-MM-JJ, son fuseau), accepté s'il est à ±1 jour de la date du serveur. */
+export function clientDay(raw: unknown): string {
+  const server = today();
+  if (typeof raw !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return server;
+  const diff = Math.abs(Date.parse(raw) - Date.parse(server));
+  return Number.isFinite(diff) && diff <= 86400_000 ? raw : server;
+}
+
+function publicProfile(u: UserRow, p: Profile) {
+  return { user: toPublic(u), profile: p };
+}
+
+export function createAccounts(store: Store, opts: AccountsOptions = {}) {
+  const MIN_SOLO = opts.minSoloMs ?? 20_000;
+  const SOLO_CAP = opts.soloDailyCap ?? 40;
+  const ATTEMPTS = opts.authAttempts ?? 12;
+  const router = express.Router();
+  const soloGames = new Map<string, { userId: string; startedAt: number }>();
+  const attempts = new Map<string, { n: number; since: number }>();
+
+  // CORS : l'application mobile appelle l'API depuis une autre origine. Les jetons voyagent dans
+  // l'en-tête Authorization (pas de cookie), donc autoriser toutes les origines est sans risque.
+  router.use((req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Day');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    if (req.method === 'OPTIONS') { res.sendStatus(204); return; }
+    next();
+  });
+  router.use(express.json({ limit: '32kb' }));
+
+  const fail = (res: Response, status: number, error: string) => { res.status(status).json({ ok: false, error }); };
+
+  function limited(req: Request): boolean {
+    const ip = req.ip ?? 'inconnu';
+    const now = Date.now();
+    const a = attempts.get(ip);
+    if (!a || now - a.since > 10 * 60_000) { attempts.set(ip, { n: 1, since: now }); return false; }
+    a.n++;
+    return a.n > ATTEMPTS;
+  }
+
+  function userFromToken(token: unknown): UserRow | undefined {
+    if (typeof token !== 'string' || token.length < 20 || token.length > 100) return undefined;
+    return store.sessionUser(sha(token));
+  }
+  function auth(req: Request, res: Response, next: NextFunction) {
+    const h = req.headers.authorization ?? '';
+    const u = userFromToken(h.startsWith('Bearer ') ? h.slice(7) : '');
+    if (!u) return fail(res, 401, 'Session expirée : reconnectez-vous.');
+    (req as Request & { user: UserRow }).user = u;
+    next();
+  }
+  const userOf = (req: Request) => (req as Request & { user: UserRow }).user;
+  const startSession = (userId: string) => {
+    const token = randomBytes(32).toString('base64url');
+    store.createSession(sha(token), userId);
+    return token;
+  };
+
+  // --- Inscription / connexion ---------------------------------------------------------------
+  router.post('/register', async (req, res) => {
+    if (limited(req)) return fail(res, 429, 'Trop de tentatives, réessayez dans quelques minutes.');
+    const { username, password, guestProfile } = req.body ?? {};
+    if (typeof username !== 'string' || !USERNAME.test(username.trim()))
+      return fail(res, 400, 'Pseudo : 3 à 20 caractères (lettres, chiffres, _ . -).');
+    if (typeof password !== 'string' || password.length < 8 || password.length > 200)
+      return fail(res, 400, 'Mot de passe : au moins 8 caractères.');
+    const name = username.trim();
+    if (store.userByName(name)) return fail(res, 409, 'Ce pseudo est déjà pris.');
+    const recoveryCode = newRecoveryCode();
+    // La progression d'invité de cet appareil est reprise une fois, à la création du compte.
+    const profile = guestProfile ? sanitizeProfile(guestProfile) : newProfile();
+    const u = store.createUser({ id: randomUUID(), username: name, passHash: await scryptHash(password), recoveryHash: await scryptHash(recoveryCode), profile });
+    // Parrainage : pseudo de l'ami qui a invité (facultatif).
+    const ref = typeof req.body?.referrer === 'string' ? store.userByName(req.body.referrer.trim()) : undefined;
+    if (ref && ref.id !== u.id) store.setReferrer(u.id, ref.id);
+    res.json({ ok: true, token: startSession(u.id), recoveryCode, ...publicProfile(u, profile) });
+  });
+
+  router.post('/login', async (req, res) => {
+    if (limited(req)) return fail(res, 429, 'Trop de tentatives, réessayez dans quelques minutes.');
+    const { username, password } = req.body ?? {};
+    const u = typeof username === 'string' ? store.userByName(username.trim()) : undefined;
+    // Même délai et même message que le compte existe ou non.
+    const ok = await scryptVerify(typeof password === 'string' ? password : '', u?.pass_hash ?? 's1$AAAA$AAAA');
+    if (!u || !ok) return fail(res, 401, 'Pseudo ou mot de passe incorrect.');
+    res.json({ ok: true, token: startSession(u.id), ...publicProfile(u, store.profileOf(u)) });
+  });
+
+  router.post('/recover', async (req, res) => {
+    if (limited(req)) return fail(res, 429, 'Trop de tentatives, réessayez dans quelques minutes.');
+    const { username, recoveryCode, newPassword } = req.body ?? {};
+    const u = typeof username === 'string' ? store.userByName(username.trim()) : undefined;
+    const code = typeof recoveryCode === 'string' ? recoveryCode.trim().toUpperCase() : '';
+    const ok = await scryptVerify(code, u?.recovery_hash ?? 's1$AAAA$AAAA');
+    if (!u || !ok) return fail(res, 401, 'Pseudo ou code de récupération incorrect.');
+    if (typeof newPassword !== 'string' || newPassword.length < 8 || newPassword.length > 200)
+      return fail(res, 400, 'Mot de passe : au moins 8 caractères.');
+    const fresh = newRecoveryCode(); // un code ne sert qu'une fois
+    store.setPassword(u.id, await scryptHash(newPassword), await scryptHash(fresh));
+    res.json({ ok: true, token: startSession(u.id), recoveryCode: fresh, ...publicProfile(u, store.profileOf(u)) });
+  });
+
+  router.post('/logout', auth, (req, res) => {
+    store.deleteSession(sha((req.headers.authorization ?? '').slice(7)));
+    res.json({ ok: true });
+  });
+
+  router.get('/me', auth, (req, res) => {
+    const u = userOf(req);
+    res.json({ ok: true, ...publicProfile(store.userById(u.id)!, store.profileOf(u)), rank: store.rankOf(u) });
+  });
+
+  /** Suppression définitive et immédiate du compte et de toutes ses données. */
+  router.delete('/me', auth, async (req, res) => {
+    const u = userOf(req);
+    if (!(await scryptVerify(String(req.body?.password ?? ''), u.pass_hash))) return fail(res, 401, 'Mot de passe incorrect.');
+    store.deleteUser(u.id);
+    res.json({ ok: true });
+  });
+
+  // --- Boutique et défis -------------------------------------------------------------------------
+  const mutate = (req: Request, res: Response, fn: (p: Profile) => Profile | null, error: string) => {
+    const u = userOf(req);
+    const next = fn(store.profileOf(u));
+    if (!next) return fail(res, 400, error);
+    store.saveProfile(u.id, next);
+    res.json({ ok: true, profile: next });
+  };
+  router.post('/shop/buy', auth, (req, res) => mutate(req, res, (p) => {
+    const b = buy(p, String(req.body?.id ?? ''), clientDay(req.headers['x-day']));
+    return b ? equip(b, String(req.body.id)) : null;
+  }, 'Achat impossible (pièces ou niveau insuffisants).'));
+  router.post('/shop/equip', auth, (req, res) => mutate(req, res, (p) => equip(p, String(req.body?.id ?? '')), 'Objet non possédé.'));
+  router.post('/quests/claim', auth, (req, res) =>
+    mutate(req, res, (p) => claimQuest(p, String(req.body?.id ?? ''), clientDay(req.headers['x-day']))?.profile ?? null, 'Défi non accompli.'));
+
+  router.post('/prestige', auth, (req, res) =>
+    mutate(req, res, (p) => doPrestige(p), `Le prestige s'ouvre au niveau ${PRESTIGE_LEVEL}.`));
+
+  // --- Série de connexions, pass de saison, titres, partie guidée ---------------------------------
+  router.post('/daily/claim', auth, (req, res) =>
+    mutate(req, res, (p) => claimDaily(p, clientDay(req.headers['x-day']))?.profile ?? null, 'Récompense du jour déjà récupérée.'));
+  router.post('/season/claim', auth, (req, res) =>
+    mutate(req, res, (p) => claimPassTier(p, Number(req.body?.tier), clientDay(req.headers['x-day']))?.profile ?? null, 'Palier pas encore atteint.'));
+  router.post('/title', auth, (req, res) =>
+    mutate(req, res, (p) => setTitle(p, req.body?.id == null ? null : String(req.body.id)), 'Titre non débloqué.'));
+  router.post('/tutorial/done', auth, (req, res) =>
+    mutate(req, res, (p) => completeTutorial(p), 'Partie guidée déjà récompensée.'));
+
+  // --- Défi du jour : le serveur rejoue les décisions et calcule le score officiel ---------------
+  router.post('/challenge/submit', auth, (req, res) => {
+    const u = userOf(req);
+    const day = clientDay(req.headers['x-day']);
+    const result = playChallenge(day, req.body?.decisions);
+    if (!result) return fail(res, 400, 'Partie du défi invalide.');
+    if (!store.challengeAdd(day, u.id, result.points, result.throws)) return fail(res, 409, 'Vous avez déjà joué le défi du jour.');
+    const r = challengeReward(result.points);
+    const p0 = store.profileOf(u);
+    const before = levelInfo(p0.xp).level, after = levelInfo(p0.xp + r.xp).level;
+    let bonus = 0;
+    for (let l = before + 1; l <= after; l++) bonus += REWARDS.levelBonus(l);
+    const profile = addSeasonPoints({ ...p0, xp: p0.xp + r.xp, coins: p0.coins + r.coins + bonus }, r.xp, day);
+    store.saveProfile(u.id, profile);
+    leagueGain(u.id, r.xp);
+    res.json({ ok: true, result, reward: r, profile, ...store.challengeRank(day, u.id) });
+  });
+  router.get('/challenge/board', auth, (req, res) => {
+    const u = userOf(req);
+    const day = clientDay(req.headers['x-day']);
+    const mine = store.challengeOf(day, u.id);
+    res.json({ ok: true, day, top: store.challengeTop(day), total: store.challengeCount(day), mine: mine ? { points: mine.points, throws: mine.throws, ...store.challengeRank(day, u.id) } : null });
+  });
+
+  // --- Parties solo (jouées sur l'appareil) ------------------------------------------------------
+  // Le serveur ne voit pas la partie solo : il exige un jeton de début de partie, une durée minimale,
+  // borne les valeurs et plafonne le nombre de parties récompensées par jour. Le classement, lui,
+  // ne compte que les parties en ligne, vérifiées par le serveur.
+  router.post('/solo/start', auth, (req, res) => {
+    const token = randomBytes(18).toString('base64url');
+    soloGames.set(token, { userId: userOf(req).id, startedAt: Date.now() });
+    for (const [k, v] of soloGames) if (Date.now() - v.startedAt > 6 * 3600_000) soloGames.delete(k);
+    res.json({ ok: true, gameToken: token });
+  });
+  router.post('/solo/end', auth, (req, res) => {
+    const u = userOf(req);
+    const b = req.body ?? {};
+    const g = typeof b.gameToken === 'string' ? soloGames.get(b.gameToken) : undefined;
+    if (!g || g.userId !== u.id) return fail(res, 400, 'Partie inconnue.');
+    if (Date.now() - g.startedAt < MIN_SOLO) return fail(res, 400, 'Partie trop courte pour être récompensée.');
+    soloGames.delete(b.gameToken);
+    const day = clientDay(req.headers['x-day']);
+    if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.');
+    const int = (v: unknown, min: number, max: number) => Math.min(max, Math.max(min, Math.floor(Number(v) || 0)));
+    const diffs: Difficulty[] = ['facile', 'normal', 'difficile'];
+    const combos: Partial<Record<ComboKind, number>> = {};
+    for (const k of ['421', '111', '11x', 'brelan', 'suite', 'nenette', 'autre'] as ComboKind[]) combos[k] = int(b.combos?.[k], 0, 60);
+    const ctx: RewardContext = {
+      mode: 'solo',
+      opponents: int(b.opponents, 1, 5),
+      difficulty: diffs.includes(b.difficulty) ? b.difficulty : 'normal',
+      count421: Math.min(int(b.count421, 0, 60), combos['421'] ?? 0),
+      combos,
+      gestureThrows: int(b.gestureThrows, 0, 300),
+      rounds: int(b.rounds, 1, 200),
+      roundsLost: b.roundsLost === undefined || b.roundsLost === null ? undefined : int(b.roundsLost, 0, 200),
+      maxTokens: int(b.maxTokens, 0, 99),
+      day,
+      suddenDeath: !!b.suddenDeath || int(b.rounds, 1, 200) <= 1,
+      comboKeys: Array.isArray(b.comboKeys) ? b.comboKeys.filter((k: unknown) => typeof k === 'string' && ALBUM_KEYS.includes(k)).slice(0, 30) : [],
+      best: b.best && typeof b.best.label === 'string' ? { label: String(b.best.label).slice(0, 30), rank: int(b.best.rank, 0, 2000) } : undefined,
+      opponentNames: Array.isArray(b.opponentNames) ? b.opponentNames.filter((n: unknown) => typeof n === 'string').map((n: string) => n.slice(0, 20)).slice(0, 5) : [],
+      hour: brusselsHour(),
+      boss: typeof b.boss === 'string' ? b.boss.slice(0, 20) : undefined,
+    };
+    const reward = rewardFor(!!b.won, int(b.rounds, 1, 200), ctx);
+    const applied = applyGameEnd(store.profileOf(u), reward, ctx, day);
+    store.saveProfile(u.id, applied.profile);
+    if (!ctx.suddenDeath) { leagueGain(u.id, reward.xp); checkReferral(u.id); if (b.won) clubWin(u.id); }
+    res.json({ ok: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
+  });
+
+  // --- Classement et amis -----------------------------------------------------------------------
+  const row = (u: UserRow, rank: number | null) => ({
+    rank, username: u.username, onlineWins: u.online_wins, onlineGames: u.online_games,
+    level: levelInfo(store.profileOf(u).xp).level,
+  });
+  router.get('/leaderboard', auth, (req, res) => {
+    const me = userOf(req);
+    const top = store.leaderboard(50).map((u, i) => row(u, i + 1));
+    res.json({ ok: true, top, me: row(me, store.rankOf(me)) });
+  });
+  router.get('/friends', auth, (req, res) => {
+    const me = userOf(req);
+    const list = [me, ...store.friendsOf(me.id)]
+      .sort((a, b) => b.online_wins - a.online_wins || a.online_games - b.online_games)
+      .map((u, i) => ({ ...row(u, i + 1), me: u.id === me.id }));
+    res.json({ ok: true, friends: list });
+  });
+  router.post('/friends', auth, (req, res) => {
+    const me = userOf(req);
+    const f = typeof req.body?.username === 'string' ? store.userByName(req.body.username.trim()) : undefined;
+    if (!f) return fail(res, 404, 'Aucun joueur avec ce pseudo.');
+    if (f.id === me.id) return fail(res, 400, 'C\'est vous !');
+    if (store.isBlocked(me.id, f.id)) return fail(res, 403, 'Impossible d’ajouter ce joueur.');
+    store.addFriend(me.id, f.id);
+    res.json({ ok: true });
+  });
+  router.delete('/friends/:username', auth, (req, res) => {
+    const me = userOf(req);
+    const f = store.userByName(String(req.params.username));
+    if (f) store.removeFriend(me.id, f.id);
+    res.json({ ok: true });
+  });
+
+  // Droit d'accès (RGPD) : tout ce que le serveur garde sur le compte, dans un fichier lisible.
+  router.get('/me/export', auth, (req, res) => {
+    const u = userOf(req);
+    res.setHeader('Content-Disposition', `attachment; filename="421-${u.username}.json"`);
+    res.json({
+      ok: true,
+      exportedAt: new Date().toISOString(),
+      account: { username: u.username, createdAt: new Date(u.created_at).toISOString(), onlineGames: u.online_games, onlineWins: u.online_wins, hasPhoto: u.photo_version > 0 },
+      progress: store.profileOf(u),
+      friends: store.friendsOf(u.id).map((f) => f.username),
+      blocked: store.blockedBy(u.id).map((f) => f.username),
+      note: 'Le mot de passe et le code de récupération ne sont conservés que sous forme d’empreinte (hachage) et ne peuvent pas être exportés.',
+    });
+  });
+
+  // --- Ligues hebdomadaires -------------------------------------------------------------------
+  router.get('/league', auth, (req, res) => {
+    const u = userOf(req);
+    rollLeagues();
+    const week = weekId();
+    const fresh = store.userById(u.id)!;
+    const row = store.leagueRow(week, u.id);
+    const group = row ? store.leagueGroup(week, row.league, row.grp) : [];
+    res.json({
+      ok: true, week, endsAt: weekEnd(), league: fresh.league, name: LEAGUES[fresh.league],
+      promote: LEAGUE_PROMOTE, demote: fresh.league > 0 ? LEAGUE_DEMOTE : 0, prizes: LEAGUE_PRIZES,
+      group: group.map((g, i) => ({ rank: i + 1, username: g.username, xp: g.xp, me: g.user_id === u.id })),
+    });
+  });
+
+  // --- Clubs ---------------------------------------------------------------------------------
+  const CLUB_NAME = /^[\p{L}\p{N}][\p{L}\p{N} '’.-]{1,22}[\p{L}\p{N}.]$/u;
+  const chatLimit = new Map<string, number>();
+  function clubInfo(clubId: string, viewer: string) {
+    rollClubs();
+    const c = store.clubById(clubId)!;
+    const week = weekId();
+    const members = store.clubMembers(clubId, week).map((m) => ({
+      username: m.username, wins: m.wins, level: levelInfo(sanitizeProfile(JSON.parse(m.profile)).xp).level, owner: m.id === c.owner_id, me: m.id === viewer,
+    }));
+    return {
+      id: c.id, name: c.name, emblem: c.emblem, members, max: CLUB_MAX, wins: store.clubWeekWins(week, clubId), chest: CLUB_CHEST, endsAt: weekEnd(),
+      chat: store.clubChat(clubId).map((x) => ({ username: x.username, phrase: x.phrase, at: x.created_at })),
+    };
+  }
+  router.get('/clubs', auth, (req, res) => {
+    const u = userOf(req);
+    rollClubs();
+    const mine = store.clubOf(u.id);
+    const q = String(req.query.q ?? '').slice(0, 24).replace(/[%_]/g, '');
+    res.json({ ok: true, mine: mine ? clubInfo(mine.id, u.id) : null, top: store.clubTop(weekId(), q), cost: CLUB_COST, emblems: CLUB_EMBLEMS });
+  });
+  router.post('/clubs', auth, (req, res) => {
+    const u = userOf(req);
+    if (store.clubOf(u.id)) return fail(res, 400, 'Quittez d’abord votre club actuel.');
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim().replace(/\s+/g, ' ') : '';
+    if (!CLUB_NAME.test(name)) return fail(res, 400, 'Nom du club : 3 à 24 caractères (lettres, chiffres, espaces).');
+    if (store.clubByName(name)) return fail(res, 409, 'Ce nom de club est déjà pris.');
+    const emblem = CLUB_EMBLEMS.includes(req.body?.emblem) ? req.body.emblem : CLUB_EMBLEMS[0];
+    const p = adjustCoins(store.profileOf(u), -CLUB_COST);
+    if (!p) return fail(res, 400, `Créer un club coûte ${CLUB_COST} pièces.`);
+    store.saveProfile(u.id, p);
+    const id = randomUUID();
+    store.clubCreate(id, name, emblem, u.id);
+    res.json({ ok: true, club: clubInfo(id, u.id), profile: p });
+  });
+  router.post('/clubs/join', auth, (req, res) => {
+    const u = userOf(req);
+    if (store.clubOf(u.id)) return fail(res, 400, 'Quittez d’abord votre club actuel.');
+    const c = typeof req.body?.id === 'string' ? store.clubById(req.body.id) : undefined;
+    if (!c) return fail(res, 404, 'Club introuvable.');
+    if (store.clubSize(c.id) >= CLUB_MAX) return fail(res, 400, `Ce club est complet (${CLUB_MAX} membres).`);
+    if (store.isBlocked(c.owner_id, u.id)) return fail(res, 403, 'Impossible de rejoindre ce club.');
+    store.clubJoin(c.id, u.id);
+    res.json({ ok: true, club: clubInfo(c.id, u.id) });
+  });
+  router.post('/clubs/leave', auth, (req, res) => {
+    const u = userOf(req);
+    const c = store.clubOf(u.id);
+    if (!c) return fail(res, 400, 'Vous n’êtes dans aucun club.');
+    store.clubLeave(u.id);
+    const rest = store.clubMembers(c.id, weekId());
+    if (!rest.length) store.clubDelete(c.id);
+    else if (c.owner_id === u.id) store.clubSetOwner(c.id, [...rest].sort((a, b) => a.joined_at - b.joined_at)[0].id);
+    res.json({ ok: true });
+  });
+  router.post('/clubs/chat', auth, (req, res) => {
+    const u = userOf(req);
+    const c = store.clubOf(u.id);
+    if (!c) return fail(res, 400, 'Vous n’êtes dans aucun club.');
+    if (!PHRASES.includes(req.body?.phrase)) return fail(res, 400, 'Phrase inconnue.');
+    if (Date.now() - (chatLimit.get(u.id) ?? 0) < 3000) return fail(res, 429, 'Doucement !');
+    chatLimit.set(u.id, Date.now());
+    store.clubChatAdd(c.id, u.id, req.body.phrase);
+    res.json({ ok: true, club: clubInfo(c.id, u.id) });
+  });
+
+  // --- Parrainage ------------------------------------------------------------------------------
+  router.get('/referral', auth, (req, res) => {
+    const u = userOf(req);
+    res.json({ ok: true, code: u.username, bonus: REFERRAL_BONUS, gamesNeeded: REFERRAL_GAMES, ...store.referralCount(u.id) });
+  });
+
+  // --- Joueurs bloqués : leurs photos et réactions sont masquées, ils ne rejoignent pas vos tables ---
+  router.get('/blocks', auth, (req, res) => {
+    res.json({ ok: true, blocked: store.blockedBy(userOf(req).id).map((u) => u.username) });
+  });
+  router.post('/blocks', auth, (req, res) => {
+    const me = userOf(req);
+    const t = typeof req.body?.username === 'string' ? store.userByName(req.body.username.trim()) : undefined;
+    if (!t) return fail(res, 404, 'Aucun joueur avec ce pseudo.');
+    if (t.id === me.id) return fail(res, 400, 'Vous ne pouvez pas vous bloquer vous-même.');
+    store.block(me.id, t.id);
+    res.json({ ok: true, blocked: store.blockedBy(me.id).map((u) => u.username) });
+  });
+  router.delete('/blocks/:username', auth, (req, res) => {
+    const me = userOf(req);
+    const t = store.userByName(String(req.params.username));
+    if (t) store.unblock(me.id, t.id);
+    res.json({ ok: true, blocked: store.blockedBy(me.id).map((u) => u.username) });
+  });
+
+  // --- Photo de profil ---------------------------------------------------------------------------
+  // L'image est réduite sur l'appareil (256 × 256) avant l'envoi ; le serveur vérifie le format
+  // réel (signature du fichier) et la taille, puis la sert avec un type fixe (pas d'exécution possible).
+  const MAGIC: [string, number[]][] = [['image/jpeg', [0xff, 0xd8, 0xff]], ['image/png', [0x89, 0x50, 0x4e, 0x47]], ['image/webp', [0x52, 0x49, 0x46, 0x46]]];
+  router.post('/me/photo', auth, (req, res) => {
+    const m = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(req.body?.dataUrl ?? ''));
+    if (!m) return fail(res, 400, 'Format d’image non pris en charge (JPEG, PNG ou WebP).');
+    const buf = Buffer.from(m[2], 'base64');
+    if (buf.length > 120_000) return fail(res, 413, 'Image trop lourde.');
+    const type = MAGIC.find(([, sig]) => sig.every((b, i) => buf[i] === b))?.[0];
+    if (!type || (type === 'image/webp' && buf.subarray(8, 12).toString('latin1') !== 'WEBP')) return fail(res, 400, 'Fichier image invalide.');
+    const u = userOf(req);
+    store.setPhoto(u.id, type, buf);
+    res.json({ ok: true, photo: photoUrl(store.userById(u.id)!) });
+  });
+  router.delete('/me/photo', auth, (req, res) => {
+    store.removePhoto(userOf(req).id);
+    res.json({ ok: true });
+  });
+  router.get('/photos/:id', (req, res) => {
+    const p = store.photo(String(req.params.id));
+    if (!p) { res.status(404).end(); return; }
+    res.setHeader('Content-Type', p.type);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    res.end(Buffer.from(p.data));
+  });
+
+  // --- Profils publics ---------------------------------------------------------------------------
+  router.get('/players/:username', (req, res) => {
+    const u = store.userByName(String(req.params.username));
+    if (!u) return fail(res, 404, 'Joueur introuvable.');
+    const h = req.headers.authorization ?? '';
+    const viewer = userFromToken(h.startsWith('Bearer ') ? h.slice(7) : '');
+    const p = store.profileOf(u);
+    const li = levelInfo(p.xp);
+    res.json({
+      ok: true,
+      player: {
+        username: u.username, photo: photoUrl(u), createdAt: u.created_at, rank: store.rankOf(u),
+        level: li.level, xp: p.xp, into: li.into, need: li.need,
+        onlineGames: u.online_games, onlineWins: u.online_wins,
+        stats: { played: p.stats.played, won: p.stats.won, total421: p.stats.total421, bestStreak: p.stats.bestStreak },
+        achievements: p.achievements,
+        equipped: p.equipped,
+        title: titleLabel(p.title),
+        accessory: accessoryEmoji(p.equipped.accessoire),
+        league: LEAGUES[u.league],
+        prestige: p.prestige ?? 0,
+        album: (p.album ?? []).length,
+        rivalry: viewer && viewer.id !== u.id ? store.h2h(viewer.id, u.id) : null,
+      },
+    });
+  });
+  router.post('/report', auth, (req, res) => {
+    const me = userOf(req);
+    const t = typeof req.body?.username === 'string' ? store.userByName(req.body.username) : undefined;
+    if (!t || t.id === me.id) return fail(res, 400, 'Signalement impossible.');
+    store.report(me.id, t.id, String(req.body?.reason ?? 'photo').slice(0, 200));
+    res.json({ ok: true });
+  });
+
+  /** Fin d'une partie en ligne : récompense calculée et enregistrée par le serveur. */
+  function onlineGameEnd(userId: string, won: boolean, rounds: number, ctx: RewardContext, day: string, abandoned: boolean) {
+    const u = store.userById(userId);
+    if (!u) return null;
+    if (!ctx.suddenDeath) store.addOnlineResult(userId, won && !abandoned); // la mort subite ne compte pas au classement
+    if (abandoned) return null; // partie quittée : comptée comme perdue, sans récompense
+    const reward = rewardFor(won, rounds, { ...ctx, day });
+    const applied = applyGameEnd(store.profileOf(u), reward, { ...ctx, day, hour: brusselsHour() }, day);
+    store.saveProfile(userId, applied.profile);
+    if (!ctx.suddenDeath) { leagueGain(userId, reward.xp); checkReferral(userId); if (won && !abandoned) clubWin(userId); }
+    return { reward, applied: { ...applied, profile: store.profileOf(store.userById(userId)!) } };
+  }
+
+  /** Solde actuel d'un compte (vérification des mises). */
+  const coinsOf = (userId: string) => { const u = store.userById(userId); return u ? store.profileOf(u).coins : 0; };
+  /** Débite ou crédite des pièces (mise, remboursement). Renvoie le profil, ou null si le solde ne suffit pas. */
+  function adjust(userId: string, delta: number) {
+    const u = store.userById(userId);
+    if (!u) return null;
+    const next = adjustCoins(store.profileOf(u), delta);
+    if (next) store.saveProfile(userId, next);
+    return next;
+  }
+  /** Mise prélevée et mise en séquestre (remboursée si le serveur redémarre avant la fin). */
+  function stake(userId: string, amount: number, context: string) {
+    const p = adjust(userId, -amount);
+    if (p) store.escrowAdd(userId, context, amount);
+    return p;
+  }
+  /** Fin de la partie ou du tournoi : les mises ont été redistribuées, le séquestre est levé. */
+  const release = (context: string) => store.escrowRelease(context);
+  // Démarrage : toute mise encore en séquestre appartient à une partie interrompue → remboursement.
+  {
+    const left = store.escrowAll();
+    for (const e of left) adjust(e.user_id, e.amount);
+    store.escrowClear();
+    if (left.length && !process.env.VITEST) console.log(`Mises remboursées après redémarrage : ${left.length}`);
+  }
+  const isBlocked = (a: string, b: string) => store.isBlocked(a, b);
+
+  /** Cagnotte d'une table remportée. */
+  function winPot(userId: string, amount: number) {
+    const u = store.userById(userId);
+    if (!u) return null;
+    const out = applyPot(store.profileOf(u), amount);
+    store.saveProfile(userId, out.profile);
+    return out;
+  }
+  /** Fin de tournoi : statistiques, succès et gain. */
+  function tournamentEnd(userId: string, place: number, prize: number) {
+    const u = store.userById(userId);
+    if (!u) return null;
+    const out = applyTournament(store.profileOf(u), place, prize);
+    store.saveProfile(userId, out.profile);
+    return out;
+  }
+
+  // --- Ligues : semaine du lundi au dimanche (heure de Bruxelles) ------------------------------
+  const brusselsHour = () => Number(new Intl.DateTimeFormat('fr-BE', { timeZone: 'Europe/Brussels', hour: 'numeric', hour12: false }).format(new Date())) % 24;
+  const brusselsDate = (now: number) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Brussels', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now));
+  function weekId(now = opts.now?.() ?? Date.now()): string {
+    const d = brusselsDate(now);
+    const t = Date.parse(`${d}T12:00:00Z`);
+    const dow = (new Date(t).getUTCDay() + 6) % 7; // lundi = 0
+    return new Date(t - dow * 86400_000).toISOString().slice(0, 10);
+  }
+  const weekEnd = () => new Date(Date.parse(`${weekId()}T00:00:00Z`) + 7 * 86400_000).toISOString().slice(0, 10);
+  /** Clôture des semaines passées : montées, descentes, récompenses et titres. */
+  function rollLeagues() {
+    const cur = weekId();
+    const last = store.getMeta('league_rolled');
+    if (last === cur) return;
+    for (const week of store.leagueWeeksBefore(cur)) {
+      if (last && week < last) continue;
+      for (const { league, grp } of store.leagueGroups(week)) {
+        const rows = store.leagueGroup(week, league, grp);
+        rows.forEach((r, i) => {
+          const u = store.userById(r.user_id);
+          if (!u) return;
+          let p = store.profileOf(u);
+          if (i < LEAGUE_PRIZES.length && r.xp > 0) p = { ...p, coins: p.coins + LEAGUE_PRIZES[i] };
+          if (i < LEAGUE_PROMOTE && r.xp > 0 && u.league < LEAGUES.length - 1) {
+            store.setLeague(u.id, u.league + 1);
+            p = { ...p, titles: [...new Set([...(p.titles ?? []), `ligue:${LEAGUES[u.league + 1]}`])] };
+          } else if (rows.length >= 8 && i >= rows.length - LEAGUE_DEMOTE && u.league > 0) {
+            store.setLeague(u.id, u.league - 1);
+          }
+          store.saveProfile(u.id, p);
+        });
+      }
+    }
+    store.setMeta('league_rolled', cur);
+  }
+  /** XP gagnée : comptée pour la ligue de la semaine. */
+  function leagueGain(userId: string, xp: number) {
+    if (xp <= 0) return;
+    rollLeagues();
+    const week = weekId();
+    const u = store.userById(userId);
+    if (!u) return;
+    if (!store.leagueRow(week, userId)) store.leagueJoin(week, userId, u.league, LEAGUE_SIZE);
+    store.leagueAdd(week, userId, xp);
+  }
+  /** Clubs : chaque victoire d'un membre remplit le coffre commun de la semaine. */
+  function clubWin(userId: string) {
+    rollClubs();
+    const c = store.clubOf(userId);
+    if (c) store.clubAddWin(weekId(), c.id, userId);
+  }
+  /** Fin de semaine : chaque membre qui a contribué reçoit le palier atteint par le coffre du club. */
+  function rollClubs() {
+    const cur = weekId();
+    const last = store.getMeta('clubs_rolled');
+    if (last === cur) return;
+    for (const week of store.clubWeeksBefore(cur)) {
+      if (last && week < last) continue;
+      const rows = store.clubContributors(week);
+      const total = new Map<string, number>();
+      for (const r of rows) total.set(r.club_id, (total.get(r.club_id) ?? 0) + r.wins);
+      for (const r of rows) {
+        const tier = [...CLUB_CHEST].reverse().find((t) => (total.get(r.club_id) ?? 0) >= t.wins);
+        const u = tier && store.userById(r.user_id);
+        if (u) { const p = store.profileOf(u); store.saveProfile(u.id, { ...p, coins: p.coins + tier!.coins }); }
+      }
+    }
+    store.setMeta('clubs_rolled', cur);
+  }
+
+  /** Parrainage : quand le filleul a terminé assez de parties, les deux reçoivent un bonus. */
+  function checkReferral(userId: string) {
+    const u = store.userById(userId);
+    if (!u?.referred_by || u.referral_paid) return;
+    const p = store.profileOf(u);
+    if (p.stats.played < REFERRAL_GAMES) return;
+    store.markReferralPaid(u.id);
+    store.saveProfile(u.id, { ...p, coins: p.coins + REFERRAL_BONUS });
+    const r = store.userById(u.referred_by);
+    // Plafond : 10 filleuls récompensés par mois pour le parrain.
+    if (r && store.referralsPaidSince(r.id, Date.now() - 30 * 86400_000) <= 10) {
+      const rp = store.profileOf(r);
+      store.saveProfile(r.id, { ...rp, coins: rp.coins + REFERRAL_BONUS });
+    }
+  }
+  /** Rivalités : chaque partie en ligne compte pour chaque paire de comptes de la table. */
+  function recordRivalry(rankedUserIds: string[]) {
+    for (let i = 0; i < rankedUserIds.length; i++)
+      for (let j = i + 1; j < rankedUserIds.length; j++)
+        if (rankedUserIds[i] !== rankedUserIds[j]) store.h2hRecord(rankedUserIds[i], rankedUserIds[j]);
+  }
+
+  /** Pseudo et photo d'un compte (cartes des joueurs en partie). */
+  const publicInfo = (userId: string) => {
+    const u = store.userById(userId);
+    if (!u) return null;
+    const p = store.profileOf(u);
+    return { account: u.username, photo: photoUrl(u), title: titleLabel(p.title) ?? undefined, accessory: accessoryEmoji(p.equipped.accessoire) || undefined, prestige: p.prestige || undefined };
+  };
+  return { router, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
+}
