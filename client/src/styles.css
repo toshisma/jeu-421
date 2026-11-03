@@ -1157,3 +1157,9 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .push-box { margin: 4px 0 12px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.05); font-size: .9rem; line-height: 1.35; }
 .push-box.on { background: rgba(47,168,90,.14); color: #8fe0ab; }
 .push-box .btn { width: 100%; }
+.ref-set { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; background: linear-gradient(90deg, rgba(255,90,30,.18), rgba(110,180,255,.18)); }
+.ref-set-dice { display: flex; gap: 2px; flex: none; }
+.ref-set > span:last-child { display: grid; font-size: .88rem; }
+.ref-set small { opacity: .85; }
+.coll-card.locked { opacity: .55; filter: saturate(.6); }
+.ref-set small, .ref-set b { background: none; padding: 0; }

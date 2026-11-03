@@ -79,9 +79,26 @@ export const isShiny = (id: string) => id.endsWith(SHINY_SUFFIX);
 export const baseIdOf = (id: string) => (isShiny(id) ? id.slice(0, -SHINY_SUFFIX.length) : id);
 const byId = new Map(COLLECTION.map((c) => [c.id, c]));
 /** Dé de collection (ou sa version brillante). */
+/**
+ * Dés « Feu et Glace » : jamais dans les sacs ni en fabrication. Le set complet est offert au parrain
+ * dont INVITE_SET_FRIENDS filleuls ont joué INVITE_SET_GAMES parties chacun.
+ */
+export const INVITE_SET_FRIENDS = 5;
+export const INVITE_SET_GAMES = 3;
+export const INVITE_DICE: CollectionDie[] = [
+  { id: 'dl-dragon-braise', name: 'Dragon de braise', rarity: 'legendaire', body: '#1a0d0a', body2: '#5a1408', pip: '#ffb347', accent: '#ff4d1a', pattern: 'ecaille',
+    roughness: 0.25, metalness: 0.35, clearcoat: 1, glow: true, flavor: 'Ses écailles sont encore chaudes. Ne le laissez pas sur le comptoir.' },
+  { id: 'dl-dragon-givre', name: 'Dragon de givre', rarity: 'legendaire', body: '#dff3ff', body2: '#6fb3e0', pip: '#0b2a5c', accent: '#2e7fd1', pattern: 'ecaille',
+    roughness: 0.1, metalness: 0.2, clearcoat: 1, iridescence: 0.8, flavor: 'Né dans le blizzard, il glace les verres qu’il effleure.' },
+  { id: 'dl-loup-nord', name: 'Loup du Grand Nord', rarity: 'legendaire', body: '#2f3a44', body2: '#1a232b', pip: '#f4f8fb', accent: '#9fd8ff', pattern: 'craquele',
+    roughness: 0.4, metalness: 0.15, clearcoat: 0.8, glow: true, flavor: 'L’hiver vient toujours avant la tournée suivante.' },
+];
+const inviteById = new Map(INVITE_DICE.map((c) => [c.id, c]));
+export const isInviteDie = (id: string) => inviteById.has(baseIdOf(id));
+
 export function collectionDie(id: string): CollectionDie | undefined {
   const b = baseIdOf(id);
-  return byId.get(b) ?? (/^ds-\d{4}-\d{2}$/.test(b) && SEASONS.includes(b.slice(3)) && !isShiny(id) ? seasonDie(b.slice(3)) : undefined);
+  return byId.get(b) ?? inviteById.get(b) ?? (/^ds-\d{4}-\d{2}$/.test(b) && SEASONS.includes(b.slice(3)) && !isShiny(id) ? seasonDie(b.slice(3)) : undefined);
 }
 
 /** Luminance relative (WCAG) d'une couleur #rrggbb. */

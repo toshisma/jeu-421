@@ -3,10 +3,13 @@ import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
 import { publicUrl } from '../platform';
 import { Icon } from './Icon';
+import { DieCube } from './DiceCollection';
+import { INVITE_DICE } from '../../../shared/progress/dice-collection';
 
 export interface ReferralInfo {
   code: string; gamesNeeded: number; bagsMax: number; bagsEarned: number; bonus: number;
   referees: { username: string; played: number; done: boolean }[];
+  inviteSet?: { friends: number; games: number; done: number };
 }
 
 export function useReferral(pa: ProfileApi) {
@@ -69,6 +72,14 @@ export function ReferralCard({ pa, onAccount }: { pa: ProfileApi; onAccount: () 
         {Array.from({ length: r.bagsMax }, (_, i) => <i key={i} className={i < r.bagsEarned ? 'on' : ''}>🎒</i>)}
         <small>{r.bagsEarned}/{r.bagsMax} sacs gagnés</small>
       </div>
+      {r.inviteSet && (
+        <div className="ref-set">
+          <span className="ref-set-dice">{INVITE_DICE.map((c) => <DieCube key={c.id} id={c.id} size={34} />)}</span>
+          <span><b>Set légendaire « Feu et Glace »</b>
+            <small>{r.inviteSet.done >= r.inviteSet.friends ? 'Débloqué : il est dans votre collection !'
+              : `${r.inviteSet.done}/${r.inviteSet.friends} amis avec ${r.inviteSet.games} parties jouées : les 3 dés sont à vous à ${r.inviteSet.friends}.`}</small></span>
+        </div>
+      )}
       {pending.length > 0 && (
         <ul className="ref-list">
           {pending.slice(0, 4).map((f) => (

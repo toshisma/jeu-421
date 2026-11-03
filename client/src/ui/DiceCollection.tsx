@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { getItem, type DiceItem } from '../../../shared/progress/catalog';
 import {
   COLLECTION, CRAFT_COST, FX, FX_KIND_LABEL, FX_SHARE, RARITIES, RARITY_COLOR, RARITY_LABEL, RARITY_ODDS, SERIES, SHINY_ODDS, SHINY_SUFFIX,
-  collectionDie, fxDef, isSeasonDie, isShiny, type FxDef, type Rarity,
+  collectionDie, fxDef, isInviteDie, isSeasonDie, isShiny, INVITE_DICE, INVITE_SET_FRIENDS, INVITE_SET_GAMES, type FxDef, type Rarity,
 } from '../../../shared/progress/dice-collection';
 import { titleLabel } from '../../../shared/progress/profile';
 import { BAG_PITY, collectionCount, type BagResult } from '../../../shared/progress/profile';
@@ -147,8 +147,8 @@ function DieSheet({ pa, id, onClose }: { pa: ProfileApi; id: string; onClose: ()
               {inShow ? 'Retirer de la vitrine' : show.length >= 3 ? 'Vitrine pleine (3)' : 'Mettre en vitrine'}
             </button>
           </div>
-        ) : isShiny(id) || isSeasonDie(id) ? (
-          <p className="muted">{isSeasonDie(id) ? 'Les dés de saison se gagnent seulement en fin de saison classée.' : 'Les dés brillants ne se fabriquent pas : on les trouve seulement dans les sacs.'}</p>
+        ) : isShiny(id) || isSeasonDie(id) || isInviteDie(id) ? (
+          <p className="muted">{isInviteDie(id) ? `Set « Feu et Glace » : offert quand ${INVITE_SET_FRIENDS} amis invités avec votre lien ont créé leur compte et joué ${INVITE_SET_GAMES} parties chacun.` : isSeasonDie(id) ? 'Les dés de saison se gagnent seulement en fin de saison classée.' : 'Les dés brillants ne se fabriquent pas : on les trouve seulement dans les sacs.'}</p>
         ) : (
           <div className="row">
             <button className="btn primary" disabled={(p.shards ?? 0) < cost || !pa.isAccount} onClick={() => void run(() => pa.craft(id))}>Fabriquer pour {cost} éclats</button>
@@ -245,6 +245,15 @@ export function CollectionScreen({ pa, onBack, onAccount }: { pa: ProfileApi; on
       </div>
 
       <ul className="coll-grid">
+        {INVITE_DICE.map((c) => (
+          <li key={c.id}>
+            <button className={`coll-card r-legendaire${owns(c.id) ? '' : ' locked'}`} style={{ '--rc': RARITY_COLOR.legendaire } as CSSProperties} onClick={() => setOpen(c.id)}>
+              <DieCube id={c.id} size={56} />
+              <b>{c.name}</b>
+              <span className="rarity-tag" style={{ '--rc': '#ff6a2b' } as CSSProperties}>{owns(c.id) ? 'Feu et Glace' : '🔒 Parrainage'}</span>
+            </button>
+          </li>
+        ))}
         {seasonDice.map((id) => (
           <li key={id}>
             <button className="coll-card r-epique season" style={{ '--rc': RARITY_COLOR.epique } as CSSProperties} onClick={() => setOpen(id)}>

@@ -75,6 +75,21 @@ describe('parrainage', () => {
   }, 30_000);
 });
 
+describe('set Feu et Glace', () => {
+  it('offert quand 5 filleuls ont joué 3 parties chacun', async () => {
+    const p = await call('/register', { username: 'Seigneur', password: 'motdepasse1' });
+    for (let k = 1; k <= 5; k++) {
+      const g = await call('/register', { username: `Vassal${k}`, password: 'motdepasse1', referrer: 'Seigneur' });
+      for (let i = 0; i < 3; i++) await solo(g.token, false);
+      const owned = (await call('/me', undefined, p.token)).profile.owned;
+      expect(owned.includes('dl-dragon-braise')).toBe(k === 5);
+    }
+    const me = (await call('/me', undefined, p.token)).profile;
+    expect(me.owned).toEqual(expect.arrayContaining(['dl-dragon-braise', 'dl-dragon-givre', 'dl-loup-nord']));
+    expect((await call('/referral', undefined, p.token)).inviteSet).toMatchObject({ done: 5, friends: 5 });
+  }, 30_000);
+});
+
 describe('rivalités', () => {
   it('le bilan entre deux comptes se met à jour après une partie en ligne', async () => {
     const a = await call('/register', { username: 'RivalA', password: 'motdepasse1' });

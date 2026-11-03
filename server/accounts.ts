@@ -9,6 +9,7 @@
  *  - entrées validées et bornées ; suppression complète du compte possible.
  */
 import express, { type Request, type Response, type NextFunction } from 'express';
+import { INVITE_DICE, INVITE_SET_FRIENDS, INVITE_SET_GAMES } from '../shared/progress/dice-collection';
 import { createHash, randomBytes, randomInt, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
 import { Store, photoUrl, toPublic, type UserRow } from './db';
 import { accessoryEmoji } from '../shared/progress/catalog';
@@ -469,7 +470,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const u = userOf(req);
     const p = store.profileOf(store.userById(u.id)!);
     res.json({
-      ok: true, code: u.username, bonus: REFERRAL_BONUS, gamesNeeded: REFERRAL_GAMES, bagsMax: REFERRAL_BAGS_MAX, bagsEarned: p.referralBags ?? 0,
+      ok: true, code: u.username, bonus: REFERRAL_BONUS, inviteSet: { friends: INVITE_SET_FRIENDS, games: INVITE_SET_GAMES, done: Math.min(INVITE_SET_FRIENDS, inviteProgress(u.id)) }, gamesNeeded: REFERRAL_GAMES, bagsMax: REFERRAL_BAGS_MAX, bagsEarned: p.referralBags ?? 0,
       ...store.referralCount(u.id),
       referees: store.referees(u.id).map((f) => ({ username: f.username, played: Math.min(REFERRAL_GAMES, store.profileOf(f).stats.played - (store.profileOf(f).refBase ?? 0)), done: !!f.referral_paid })),
     });
@@ -731,13 +732,26 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     store.setMeta('clubs_rolled', cur);
   }
 
-  /** Parrainage : quand le filleul a terminé assez de parties, les deux reçoivent un bonus. */
+  const inviteProgress = (referrerId: string) =>
+    store.referees(referrerId, 500).filter((f) => { const fp = store.profileOf(f); return fp.stats.played - (fp.refBase ?? 0) >= INVITE_SET_GAMES; }).length;
+  /** Set « Feu et Glace » : offert quand INVITE_SET_FRIENDS filleuls ont joué INVITE_SET_GAMES parties. */
+  function checkInviteSet(referrerId: string) {
+    const r = store.userById(referrerId);
+    if (!r) return;
+    const rp = store.profileOf(r);
+    const missing = INVITE_DICE.map((c) => c.id).filter((id) => !rp.owned.includes(id));
+    if (!missing.length || inviteProgress(r.id) < INVITE_SET_FRIENDS) return;
+    store.saveProfile(r.id, { ...rp, owned: [...rp.owned, ...missing] });
+    void social.push(r.id, 'Set « Feu et Glace » débloqué !', `${INVITE_SET_FRIENDS} amis ont rejoint le comptoir : vos 3 dés légendaires vous attendent.`, '/');
+  }
+
   /**
    * Parrainage : quand un filleul a joué REFERRAL_GAMES parties (vérifiées par le serveur), il reçoit
    * des pièces de bienvenue et son parrain un sac de dés, au plus REFERRAL_BAGS_MAX sacs par parrain.
    */
   function checkReferral(userId: string) {
     const u = store.userById(userId);
+    if (u?.referred_by) checkInviteSet(u.referred_by);
     if (!u?.referred_by || u.referral_paid) return;
     const p = store.profileOf(u);
     if (p.stats.played - (p.refBase ?? 0) < REFERRAL_GAMES) return;

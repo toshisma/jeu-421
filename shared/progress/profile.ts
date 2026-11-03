@@ -17,7 +17,7 @@ import type { ComboKind } from '../combos';
 import { ACHIEVEMENTS, EMPTY_STATS, newlyUnlocked, type AchievementDef, type Stats } from './achievements';
 import { activeEvent, coinBoost } from './events';
 import { passItems } from './catalog';
-import { COLLECTION, CRAFT_COST, FX, FX_SHARE, RARITIES, RARITY_ODDS, SERIES, SHARDS_FOR_DUPLICATE, SHINY_ODDS, SHINY_SUFFIX, baseIdOf, collectionDie, fxDef, isSeasonDie, isShiny, type FxKind, type Rarity } from './dice-collection';
+import { COLLECTION, CRAFT_COST, FX, FX_SHARE, RARITIES, RARITY_ODDS, SERIES, SHARDS_FOR_DUPLICATE, SHINY_ODDS, SHINY_SUFFIX, baseIdOf, collectionDie, fxDef, isInviteDie, isSeasonDie, isShiny, type FxKind, type Rarity } from './dice-collection';
 import { happyHour } from './events';
 import { DIVISIONS } from '../season';
 import { randomFloat } from '../random';
@@ -463,7 +463,7 @@ export function openBag(p: Profile, rng: () => number = randomFloat): { profile:
 /** Fabrique un dé ou un effet de collection avec des éclats (brillants et dés de saison exclus). */
 export function craftDie(p: Profile, id: string): Profile | null {
   const rarity = collectionDie(id)?.rarity ?? fxDef(id)?.rarity;
-  if (!rarity || isShiny(id) || isSeasonDie(id) || p.owned.includes(id)) return null;
+  if (!rarity || isShiny(id) || isSeasonDie(id) || isInviteDie(id) || p.owned.includes(id)) return null;
   const cost = CRAFT_COST[rarity];
   if ((p.shards ?? 0) < cost) return null;
   return applySeries({ ...p, shards: (p.shards ?? 0) - cost, owned: [...p.owned, id] }).profile;

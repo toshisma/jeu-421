@@ -3,7 +3,7 @@
  * règles ni les chances. Chaque objet a un prix en pièces (gagnées en jouant) et un niveau requis.
  * Aucun achat n'est aléatoire : on voit et on essaie l'objet avant de l'acheter.
  */
-import { COLLECTION, SEASONS, SERIES, SHINY_SUFFIX, seasonDie, type DicePattern, type Rarity } from './dice-collection';
+import { COLLECTION, INVITE_DICE, SEASONS, SERIES, SHINY_SUFFIX, seasonDie, type DicePattern, type Rarity } from './dice-collection';
 
 /** Identifiants de formes (voir client/src/physics/trayShapes.ts). */
 export type TrayShapeId = 'rectangle' | 'octogone' | 'hexagone' | 'rond' | 'ovale' | 'stade';
@@ -197,6 +197,11 @@ for (const season of SEASONS) {
   const c = seasonDie(season);
   ITEMS.push({ id: c.id, category: 'dice', name: c.name, price: 0, level: 1, pass: 1, rarity: c.rarity, body: c.body, body2: c.body2, pip: c.pip,
     roughness: c.roughness, metalness: c.metalness, clearcoat: c.clearcoat, accent: c.accent, pattern: c.pattern, flavor: c.flavor });
+}
+// Dés « Feu et Glace » du parrainage : jamais en vente, jamais dans les sacs.
+for (const c of INVITE_DICE) {
+  ITEMS.push({ id: c.id, category: 'dice', name: c.name, price: 0, level: 1, pass: 1, rarity: c.rarity, body: c.body, body2: c.body2, pip: c.pip,
+    roughness: c.roughness, metalness: c.metalness, clearcoat: c.clearcoat, accent: c.accent, pattern: c.pattern, glow: c.glow, iridescence: c.iridescence, flavor: c.flavor });
 }
 // Tapis des séries de collection complétées.
 const SERIES_FELTS: Record<string, { color: string; pattern?: FeltPattern }> = {
