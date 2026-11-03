@@ -331,6 +331,8 @@ export function SettingsScreen({ settings, onChange, onBack }: { settings: Setti
         <label className="field"><span>Volume : {settings.muted ? 0 : Math.round(settings.volume * 100)} %</span>
           <input type="range" min={0} max={100} step={1} value={settings.muted ? 0 : Math.round(settings.volume * 100)}
             onChange={(e) => { const v = Number(e.target.value); set({ volume: v / 100, muted: v === 0 }); }} /></label>
+        <label className="field"><span>Musique d'ambiance : {Math.round(settings.music * 100)} %</span>
+          <input type="range" min={0} max={100} step={1} value={Math.round(settings.music * 100)} onChange={(e) => set({ music: Number(e.target.value) / 100 })} /></label>
         <label className="field check"><input type="checkbox" checked={settings.muted} onChange={(e) => set({ muted: e.target.checked })} /><span>Couper tous les sons</span></label>
         <label className="field check"><input type="checkbox" checked={settings.vibrate} onChange={(e) => set({ vibrate: e.target.checked })} /><span>Vibrations quand les dés frappent (téléphone)</span></label>
         <label className="field check"><input type="checkbox" checked={settings.shake}

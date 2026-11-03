@@ -7,6 +7,9 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.24', date: '2026-11-03T21:10:00+01:00', title: 'Musique d’ambiance', items: [
+    'Trois morceaux lofi originaux en boucle, réglables de 0 à 100 % dans les réglages.',
+  ] },
   { version: '0.23', date: '2026-11-03T21:07:00+01:00', title: 'Tchat de table et coffre du comptoir', items: [
     'Tchat dans les tables en ligne, avec un bouton pour le couper.',
     'Le coffre reste sur l’accueil avec un décompte : il se recharge 24 h après chaque ouverture.',

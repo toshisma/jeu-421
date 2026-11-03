@@ -7,6 +7,8 @@ export interface Settings {
   avatar: string;
   volume: number;
   muted: boolean;
+  /** Musique d'ambiance, de 0 (coupée) à 1. */
+  music: number;
   vibrate: boolean;
   shake: boolean;
   quality: Quality;
@@ -21,6 +23,7 @@ export const DEFAULT_SETTINGS: Settings = {
   avatar: AVATARS[0],
   volume: 0.8,
   muted: false,
+  music: 0.4,
   vibrate: true,
   shake: true,
   quality: 'haute',
