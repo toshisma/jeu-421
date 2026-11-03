@@ -1178,3 +1178,4 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
   pointer-events: none; animation: toast-life 4.5s ease both; }
 @keyframes toast-life { 0% { opacity: 0; transform: translateY(8px); } 8%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .friend-toast { animation: none; } }
+.link-btn { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-decoration: underline dotted; cursor: pointer; } .recent-games { margin-top: 16px; }

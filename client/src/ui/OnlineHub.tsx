@@ -7,6 +7,8 @@ import type { Settings } from '../settings';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { Shell } from './Screens';
+import { RecentGames } from './Friends';
+import { ProfileView } from './ProfileView';
 
 export type HubTab = 'tables' | 'tournois';
 const VARIANT: Record<string, string> = { classique: 'Partie classique', manches: 'Aux points', 'sans-charge': 'Sans charge' };
@@ -19,6 +21,7 @@ export function OnlineHub({ tab: initial, settings, onSettings, pa, onBack, onJo
   tab: HubTab; settings: Settings; onSettings: (s: Settings) => void; pa: ProfileApi; onBack: () => void;
   onJoinRoom: (code: string) => void; onJoinTournament: (code: string) => void; onCreateRoom: () => void; onCreateTournament: () => void; onQuick: () => void;
 }) {
+  const [profile, setProfile] = useState<string | null>(null);
   const [tab, setTab] = useState<HubTab>(initial);
   const [name, setName] = useState(settings.name || pa.session?.username || '');
   const [avatar, setAvatar] = useState(settings.avatar);
@@ -128,6 +131,8 @@ export function OnlineHub({ tab: initial, settings, onSettings, pa, onBack, onJo
             </ul>
           </section>
         )}
+        <RecentGames onOpen={setProfile} />
+        {profile && <ProfileView pa={pa} username={profile} onClose={() => setProfile(null)} />}
       </div>
     </Shell>
   );

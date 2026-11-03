@@ -109,6 +109,7 @@ export function Home(props: {
         <p className="tagline">Trois dés, un bac, et le dernier paie la tournée.</p>
 
         {!STANDALONE && <LiveStrip onOpen={props.onStats} />}
+        {!STANDALONE && <OpenLobbies onJoin={props.onJoinRoom} onAll={props.onOnline} />}
         <nav className="home-actions">
           {props.resume && !STANDALONE && (
             <button className="btn secondary wide" onClick={props.onResume}><Icon name="resume" /> {props.resume.tournament ? 'Reprendre le tournoi' : 'Reprendre la partie'} {props.resume.code}</button>
@@ -137,7 +138,6 @@ export function Home(props: {
             </div>
           </section>
         )}
-        {!STANDALONE && <OpenLobbies onJoin={props.onJoinRoom} onAll={props.onOnline} />}
         {!props.profile.tutorial && (
           <section className="tuto-card">
             <div><b>Nouveau au 421 ?</b><span>Une partie guidée de quelques minutes pour apprendre les règles en jouant. 50 pièces à la clé.</span></div>

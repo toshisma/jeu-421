@@ -155,3 +155,35 @@ export function FriendOnlineToast({ pa }: { pa: ProfileApi }) {
   if (!msg) return null;
   return <div className="friend-toast" role="status"><i className="fr-dot on" aria-hidden />{msg}</div>;
 }
+
+/** Historique global : les dernières parties jouées sur le site, et par qui. */
+export function RecentGames({ onOpen }: { onOpen?: (username: string) => void }) {
+  const [games, setGames] = useState<{ mode: string; humans: number; bots: number; endedAt: number; duration: number; players: { username: string; won: boolean }[]; guests: number }[] | null>(null);
+  useEffect(() => {
+    const load = () => api<{ games: NonNullable<typeof games> }>('/recent-games').then((r) => setGames(r.games)).catch(() => {});
+    load(); const t = setInterval(load, 30_000); return () => clearInterval(t);
+  }, []);
+  if (!games?.length) return null;
+  const ago = (t: number) => { const m = Math.round((Date.now() - t) / 60_000); return m < 60 ? `il y a ${Math.max(1, m)} min` : m < 1440 ? `il y a ${Math.round(m / 60)} h` : `il y a ${Math.round(m / 1440)} j`; };
+  return (
+    <section className="recent-games">
+      <h3>Dernières parties jouées</h3>
+      <ul className="history">
+        {games.map((g, i) => {
+          const winner = g.players.find((p) => p.won);
+          return (
+            <li key={i}>
+              <span className="h-ico" aria-hidden>{g.mode === 'online' ? '🌐' : '🤖'}</span>
+              <span className="h-main">
+                <b>{g.players.map((p, j) => <span key={p.username}>{j > 0 && ', '}<button className="link-btn" onClick={() => onOpen?.(p.username)}>{p.username}</button></span>)}
+                  {g.guests > 0 && `${g.players.length ? ' + ' : ''}${g.guests} invité${g.guests > 1 ? 's' : ''}`}</b>
+                <small>{g.mode === 'online' ? 'En ligne' : `Contre ${g.bots} ordi`} · {winner ? `🏆 ${winner.username}` : g.mode === 'solo' ? 'perdue' : 'victoire d’un invité ou d’un ordi'} · {Math.max(1, Math.round(g.duration / 60))} min</small>
+              </span>
+              <small className="h-when">{ago(g.endedAt)}</small>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}

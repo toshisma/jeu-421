@@ -525,6 +525,15 @@ export class Store {
 
   // --- Statistiques ---
   /** Enregistre une partie terminée. Renvoie false si elle était déjà enregistrée. */
+  /** Dernières parties jouées sur le site, avec les pseudos des comptes (invités comptés à part). */
+  recentGames(limit = 20): { mode: string; humans: number; bots: number; endedAt: number; duration: number; players: { username: string; won: boolean }[]; guests: number }[] {
+    const games = this.db.prepare('SELECT id, mode, humans, bots, ended_at AS endedAt, duration_s AS duration FROM games_log ORDER BY ended_at DESC LIMIT ?').all(limit) as { id: string; mode: string; humans: number; bots: number; endedAt: number; duration: number }[];
+    const q = this.db.prepare('SELECT u.username, p.won FROM game_players p JOIN users u ON u.id = p.user_id WHERE p.game_id = ?');
+    return games.map(({ id, ...g }) => {
+      const players = (q.all(id) as { username: string; won: number }[]).map((r) => ({ username: r.username, won: !!r.won }));
+      return { ...g, players, guests: Math.max(0, g.humans - players.length) };
+    });
+  }
   /** Dernières parties d'un compte (historique du profil). */
   historyOf(userId: string, limit = 15): { mode: string; humans: number; bots: number; endedAt: number; duration: number; won: boolean }[] {
     return (this.db.prepare(`SELECT g.mode, g.humans, g.bots, g.ended_at AS endedAt, g.duration_s AS duration, p.won FROM game_players p

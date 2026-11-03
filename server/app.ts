@@ -227,6 +227,11 @@ export async function startServer(opts: ServerOptions) {
     res.setHeader('Cache-Control', 'no-store');
     res.json({ ok: true, lobbies, tournaments: tours });
   });
+  // Historique global : les dernières parties jouées sur le site.
+  app.get('/api/recent-games', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ok: true, games: store.recentGames(20) });
+  });
   // Un code saisi : table ou tournoi ?
   app.get('/api/code/:code', (req, res) => {
     const code = cleanCode(req.params.code);
