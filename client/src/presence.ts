@@ -38,3 +38,10 @@ export function setPresence(s: PresenceState) {
   state = s;
   socket?.emit('presence', s);
 }
+
+/** Après connexion ou déconnexion d'un compte : la présence repart avec le bon compte. */
+export function restartPresence() {
+  if (!socket) return;
+  socket.disconnect(); socket = null;
+  startPresence();
+}

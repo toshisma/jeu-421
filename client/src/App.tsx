@@ -1,7 +1,7 @@
 import { api } from './account/api';
 import { ChangelogScreen } from './ui/Changelog';
 import { FriendOnlineToast, FriendsScreen, InviteBanner } from './ui/Friends';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
 import type { GameConfig } from '../../shared/config';
 import { sound } from './audio/sound';
 import { setHaptics } from './audio/haptics';
@@ -35,7 +35,7 @@ import { AdminScreen, StatsScreen } from './ui/StatsScreen';
 import { CollectionScreen } from './ui/DiceCollection';
 import { DuelsScreen } from './ui/Social';
 import type { DuelPlay } from './ui/ChallengeScreen';
-import { setPresence, startPresence } from './presence';
+import { restartPresence, setPresence, startPresence } from './presence';
 
 type Screen =
   | { name: 'home' }
@@ -99,6 +99,8 @@ export function App() {
   // Profil : invité (sur l'appareil) ou compte (sur le serveur). Pas de comptes sans serveur.
   const pa = useProfile(!STANDALONE);
   // Signe de vie : un compte avec le jeu ouvert apparaît « en ligne » chez ses amis.
+  const firstToken = useRef(true);
+  useEffect(() => { if (firstToken.current) { firstToken.current = false; return; } restartPresence(); }, [pa.token]);
   useEffect(() => {
     if (!pa.token) return;
     const ping = () => { if (document.visibilityState === 'visible') api('/notifications', { token: pa.token! }).catch(() => {}); };

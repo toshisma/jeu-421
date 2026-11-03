@@ -15,6 +15,7 @@ export interface PublicStats {
 }
 interface AdminStats extends PublicStats {
   presence: { menu: number; solo: number; online: number };
+  connected?: { name: string | null; state: string; since: number }[];
   signups: { username: string; at: number }[];
   active: { today: number; week: number; month: number };
   mostActiveWeek: { username: string; games: number; wins: number; last: number }[];
@@ -202,6 +203,20 @@ export function AdminScreen({ pa, onBack }: { pa: ProfileApi; onBack: () => void
       {error && <p className="error">{error}</p>}
       {s && (
         <div className="stats">
+          <section className="connected">
+            <h3>Connectés en ce moment ({s.connected?.length ?? 0})</h3>
+            {!s.connected?.length ? <p className="empty">Personne pour l'instant.</p> : (
+              <ul>
+                {s.connected.map((c, i) => (
+                  <li key={i}>
+                    <i className={`fr-dot ${c.state === 'menu' ? 'on' : 'play'}`} aria-hidden />
+                    <b>{c.name ?? 'Visiteur sans compte'}</b>
+                    <small>{c.state === 'online' ? 'en partie en ligne' : c.state === 'solo' ? 'en partie solo' : 'dans les menus'} · depuis {Math.max(1, Math.round((Date.now() - c.since) / 60_000))} min</small>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
           <div className="stat-row">
             <Counter value={nf(s.live.online)} label="en ligne" />
             <Counter value={nf(s.presence.solo)} label="en solo" />

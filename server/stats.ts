@@ -55,7 +55,7 @@ export function createStats(store: Store, opts: StatsOptions & { userFromToken: 
   const isAdmin = (u: UserRow | undefined) => !!u && admins.has(u.username.toLowerCase());
 
   // --- Présence : appareils reliés en ce moment ---------------------------------------------------
-  const presence = new Map<string, { device: string; state: 'menu' | 'solo' | 'online' }>();
+  const presence = new Map<string, { device: string; state: 'menu' | 'solo' | 'online'; name?: string; since?: number }>();
   const devices = () => new Set([...presence.values()].map((p) => p.device));
   const soloDevices = () => new Set([...presence.values()].filter((p) => p.state === 'solo').map((p) => p.device));
   let peak: { n: number; at: number } = (() => { try { return JSON.parse(store.getMeta('stats_peak') ?? '') as { n: number; at: number }; } catch { return { n: 0, at: 0 }; } })();
@@ -85,7 +85,7 @@ export function createStats(store: Store, opts: StatsOptions & { userFromToken: 
       const user = opts.userFromToken(socket.handshake.auth?.token);
       const who = user?.username ?? 'Un visiteur';
       const quiet = isAdmin(user);
-      presence.set(socket.id, { device, state: 'menu' });
+      presence.set(socket.id, { device, state: 'menu', name: user?.username, since: now() });
       checkPeak();
       const others = () => [...presence.values()].filter((x) => x.device !== device).length;
       if (!quiet) alert(`v:${device}`, 3 * 3600_000, `${who} est sur le jeu`, others() ? `${others() + 1} personnes connectées en ce moment.` : 'Personne d’autre en ligne : c’est le moment de le rejoindre !');
@@ -203,7 +203,16 @@ export function createStats(store: Store, opts: StatsOptions & { userFromToken: 
     const day = brusselsDay(t);
     const since7 = addDays(day, -6);
     const since30 = addDays(day, -29);
+    // Joueurs connectés en ce moment (un par appareil), comptes nommés et visiteurs.
+    const byDevice = new Map<string, { name: string | null; state: string; since: number }>();
+    for (const p of presence.values()) {
+      const cur = byDevice.get(p.device);
+      const rank = (st: string) => (st === 'online' ? 2 : st === 'solo' ? 1 : 0);
+      if (!cur || rank(p.state) > rank(cur.state) || (!cur.name && p.name)) byDevice.set(p.device, { name: p.name ?? cur?.name ?? null, state: rank(p.state) >= rank(cur?.state ?? 'menu') ? p.state : cur!.state, since: Math.min(p.since ?? t, cur?.since ?? t) });
+    }
+    const connected = [...byDevice.values()].sort((a, b) => Number(!a.name) - Number(!b.name) || a.since - b.since);
     res.json({
+      connected,
       ...publicStats(),
       presence: { menu: [...presence.values()].filter((p) => p.state === 'menu').length, solo: soloDevices().size, online: [...presence.values()].filter((p) => p.state === 'online').length },
       signups: store.usersCreatedSince(brusselsMidnight(since30)).map((u) => ({ username: u.username, at: u.created_at })),
