@@ -350,6 +350,10 @@ export class Store {
   referralsPaidSince(referrerId: string, since: number): number {
     return (this.db.prepare('SELECT COUNT(*) AS n FROM users WHERE referred_by = ? AND referral_paid = 1 AND created_at >= ?').get(referrerId, since) as { n: number }).n;
   }
+  /** Filleuls d'un parrain (les plus récents d'abord). */
+  referees(referrerId: string, limit = 30): UserRow[] {
+    return this.db.prepare('SELECT * FROM users WHERE referred_by = ? ORDER BY created_at DESC LIMIT ?').all(referrerId, limit) as unknown as UserRow[];
+  }
   referralCount(referrerId: string): { invited: number; paid: number } {
     const r = this.db.prepare('SELECT COUNT(*) AS invited, SUM(referral_paid) AS paid FROM users WHERE referred_by = ?').get(referrerId) as { invited: number; paid: number | null };
     return { invited: r.invited, paid: r.paid ?? 0 };

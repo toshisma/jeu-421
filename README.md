@@ -113,7 +113,7 @@ points de jeu.
   tapis, dés et titre exclusifs).
 - **Ligues hebdomadaires** (comptes) : groupes de 20 joueurs ; les 3 premiers montent et gagnent
   60 / 40 / 25 pièces, les 3 derniers descendent. Bronze → Argent → Or → Saphir → Rubis → Diamant.
-- **Parrainage** : lien `?parrain=Pseudo` ; 75 pièces pour chacun quand le filleul a joué 3 parties.
+- **Parrainage** : lien `?parrain=Pseudo` copiable depuis l'accueil ; quand le filleul crée son compte et joue 10 parties avec, le parrain reçoit un sac de dés (3 sacs au plus par compte) et le filleul 75 pièces. Les parties jouées en invité avant l'inscription ne comptent pas.
 - **Rivalités** : bilan contre chaque compte croisé en ligne, affiché sur son profil.
 - **Titres** sous le pseudo (succès, pass, ligues) et **accessoires d'avatar**.
 - **Événements liégeois** : Carnaval, 15 août en Outremeuse, Fêtes de Wallonie, Halloween,

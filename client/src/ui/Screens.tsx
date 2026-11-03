@@ -17,6 +17,7 @@ import { ConfigEditor } from './ConfigEditor';
 import { InstallPrompt } from './InstallPrompt';
 import { LiveStrip } from './StatsScreen';
 import { CollectionPromo } from './DiceCollection';
+import { ReferralCard } from './Referral';
 import { fxDef, fxGlows } from '../../../shared/progress/dice-collection';
 import { NotifBell, NotifPanel, useNotifications } from './Social';
 import type { DuelPlay } from './ChallengeScreen';
@@ -124,6 +125,7 @@ export function Home(props: {
         </nav>
 
         {!STANDALONE && <CollectionPromo pa={props.pa} onOpen={props.onCollection} />}
+        {!STANDALONE && <ReferralCard pa={props.pa} onAccount={props.onAccount} />}
         {!STANDALONE && !props.pa.isAccount && (
           <section className="account-card">
             <div><b>Gardez votre progression</b><span>Un compte gratuit sauvegarde vos pièces et vos objets, et ouvre les classements, clubs et tables avec mise.</span></div>

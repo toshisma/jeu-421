@@ -1091,3 +1091,22 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 /* Mode sombre forcé de certains navigateurs : les petits dés gardent leurs couleurs. */
 .mini-die { forced-color-adjust: none; color-scheme: only light; }
 .mini-die { display: inline-block; vertical-align: middle; flex: none; }
+
+/* Parrainage */
+.ref-card { margin: 12px 0; padding: 14px; border-radius: 14px; background: linear-gradient(135deg, rgba(212,175,55,.16), rgba(212,175,55,.04)); border: 1px solid rgba(212,175,55,.45); display: grid; gap: 10px; }
+.ref-top { display: flex; gap: 12px; align-items: flex-start; }
+.ref-top b { display: block; font-size: 1.05rem; }
+.ref-top span { font-size: .9rem; opacity: .85; line-height: 1.35; }
+.ref-ico { font-size: 1.9rem; line-height: 1; }
+.ref-progress { display: flex; align-items: center; gap: 6px; }
+.ref-progress i { font-style: normal; font-size: 1.3rem; filter: grayscale(1); opacity: .35; }
+.ref-progress i.on { filter: none; opacity: 1; }
+.ref-progress small { margin-left: 6px; opacity: .8; }
+.ref-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ref-list li { display: grid; grid-template-columns: minmax(0, 1fr) 90px auto; gap: 8px; align-items: center; font-size: .88rem; }
+.ref-list b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ref-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; }
+.ref-bar i { display: block; height: 100%; background: #d4af37; }
+.ref-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ref-actions .btn { flex: 1 1 140px; }
+.ref-link { flex-basis: 100%; word-break: break-all; margin: 0; }

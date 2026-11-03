@@ -1,7 +1,7 @@
 /** Ligues hebdomadaires, parrainage et rivalités (vrai serveur, base en mémoire). */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { io as connect } from 'socket.io-client';
-import { LEAGUE_PRIZES, REFERRAL_BONUS } from '../shared/progress/profile';
+import { LEAGUE_PRIZES, REFERRAL_BAGS_MAX, REFERRAL_BONUS, REFERRAL_GAMES } from '../shared/progress/profile';
 import { startServer } from '../server/app';
 
 let clock = Date.parse('2026-11-04T12:00:00Z'); // un mercredi
@@ -49,19 +49,30 @@ describe('ligues', () => {
 });
 
 describe('parrainage', () => {
-  it('bonus pour les deux après 3 parties du filleul', async () => {
+  it('un sac de dés au parrain quand le filleul a joué 10 parties avec son compte, 3 sacs au plus', async () => {
     const p = await call('/register', { username: 'Parrain', password: 'motdepasse1' });
-    const f = await call('/register', { username: 'Filleul', password: 'motdepasse1', referrer: 'Parrain' });
-    expect((await call('/referral', undefined, p.token))).toMatchObject({ code: 'Parrain', invited: 1, paid: 0 });
-    const before = (await call('/me', undefined, p.token)).profile.coins;
-    for (let i = 0; i < 3; i++) await solo(f.token, false);
-    expect((await call('/me', undefined, p.token)).profile.coins).toBe(before + REFERRAL_BONUS);
-    expect((await call('/referral', undefined, p.token)).paid).toBe(1);
+    // Les parties jouées en invité avant le compte ne comptent pas.
+    const f = await call('/register', { username: 'Filleul', password: 'motdepasse1', referrer: 'Parrain', guestProfile: { coins: 100, stats: { played: 40, won: 0 } } });
+    expect((await call('/referral', undefined, p.token))).toMatchObject({ code: 'Parrain', invited: 1, paid: 0, bagsEarned: 0, bagsMax: REFERRAL_BAGS_MAX, gamesNeeded: REFERRAL_GAMES });
+    const bags = (await call('/me', undefined, p.token)).profile.bags ?? 0;
+    for (let i = 0; i < REFERRAL_GAMES - 1; i++) await solo(f.token, false);
+    expect((await call('/referral', undefined, p.token)).referees[0]).toMatchObject({ username: 'Filleul', played: REFERRAL_GAMES - 1, done: false });
+    expect((await call('/me', undefined, p.token)).profile.bags ?? 0).toBe(bags);
     const fc = (await call('/me', undefined, f.token)).profile.coins;
     await solo(f.token, false);
-    expect((await call('/me', undefined, p.token)).profile.coins).toBe(before + REFERRAL_BONUS); // une seule fois
-    expect((await call('/me', undefined, f.token)).profile.coins).toBeLessThan(fc + REFERRAL_BONUS);
-  });
+    expect((await call('/me', undefined, p.token)).profile.bags).toBe(bags + 1);
+    expect((await call('/me', undefined, f.token)).profile.coins).toBeGreaterThanOrEqual(fc + REFERRAL_BONUS);
+    expect((await call('/referral', undefined, p.token))).toMatchObject({ paid: 1, bagsEarned: 1 });
+    await solo(f.token, false);
+    expect((await call('/me', undefined, p.token)).profile.bags).toBe(bags + 1); // une seule fois
+    // Trois sacs au plus par parrain.
+    for (let k = 2; k <= 4; k++) {
+      const g = await call('/register', { username: `Filleul${k}`, password: 'motdepasse1', referrer: 'Parrain' });
+      for (let i = 0; i < REFERRAL_GAMES; i++) await solo(g.token, false);
+    }
+    expect((await call('/me', undefined, p.token)).profile.bags).toBe(bags + REFERRAL_BAGS_MAX);
+    expect((await call('/referral', undefined, p.token))).toMatchObject({ paid: 4, bagsEarned: REFERRAL_BAGS_MAX });
+  }, 30_000);
 });
 
 describe('rivalités', () => {

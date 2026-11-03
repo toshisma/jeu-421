@@ -4,11 +4,11 @@ import { dailyQuests, questsFor, today } from '../../../shared/progress/quests';
 import { levelInfo, type Profile } from '../../../shared/progress/profile';
 import type { ProfileApi } from '../account/useProfile';
 import { api } from '../account/api';
-import { publicUrl } from '../platform';
 import { sound } from '../audio/sound';
 import { Shell } from './Screens';
 import { ProfileView } from './ProfileView';
 import { SeasonView } from './SeasonView';
+import { ReferralCard } from './Referral';
 
 // ---------------------------------------------------------------------------------------------
 // Défis du jour
@@ -66,9 +66,6 @@ export function AccountScreen({ pa, onBack, onPrivacy, initial = 'register' }: {
   const [code, setCode] = useState('');
   const [importGuest, setImportGuest] = useState(true);
   const [referrer, setReferrer] = useState(() => { try { return localStorage.getItem('421.parrain') ?? ''; } catch { return ''; } });
-  const [ref, setRef] = useState<{ code: string; invited: number; paid: number; bonus: number; gamesNeeded: number } | null>(null);
-  const [copied, setCopied] = useState(false);
-  useEffect(() => { if (pa.token) api<{ code: string; invited: number; paid: number; bonus: number; gamesNeeded: number }>('/referral', { token: pa.token }).then(setRef).catch(() => {}); }, [pa.token]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [recovery, setRecovery] = useState<string | null>(null);
@@ -126,19 +123,8 @@ export function AccountScreen({ pa, onBack, onPrivacy, initial = 'register' }: {
             <div><b>{pa.profile.stats.won}</b><small>victoires au total</small></div>
           </div>
           <p className="muted small">Votre progression (niveau, pièces, objets, défis) est enregistrée sur le serveur et vous suit sur tous vos appareils.</p>
-          {ref && (
-            <>
-              <h3>Inviter des amis</h3>
-              <p className="muted small">Quand un ami crée son compte avec votre pseudo comme code de parrainage et joue {ref.gamesNeeded} parties, vous recevez chacun {ref.bonus} pièces.
-                {ref.invited ? ` Amis invités : ${ref.invited}, dont ${ref.paid} récompensé${ref.paid > 1 ? 's' : ''}.` : ''}</p>
-              <div className="row left">
-                <button className="btn" onClick={async () => {
-                  const link = `${publicUrl()}/?parrain=${encodeURIComponent(ref.code)}`;
-                  try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { window.prompt('Copiez :', link); }
-                }}><Icon name="share" size={18} />{copied ? 'Lien copié' : "Copier mon lien d'invitation"}</button>
-              </div>
-            </>
-          )}
+          <h3>Inviter des amis</h3>
+          <ReferralCard pa={pa} onAccount={() => {}} />
           <h3>Joueurs bloqués</h3>
           {pa.blocked.length ? (
             <ul className="list">

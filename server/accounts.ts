@@ -16,7 +16,7 @@ import { challengeReward, playChallenge } from '../shared/challenge';
 import { PHRASES } from '../shared/protocol';
 import {
   adjustCoins, applyGameEnd, applyPot, applyTournament, buy, claimDaily, claimPassTier, completeTutorial, setTitle, titleLabel, addSeasonPoints, REWARDS,
-  LEAGUES, LEAGUE_DEMOTE, LEAGUE_PRIZES, ALBUM_KEYS, CLUB_CHEST, CLUB_COST, CLUB_EMBLEMS, CLUB_MAX, doPrestige, PRESTIGE_LEVEL, LEAGUE_PROMOTE, LEAGUE_SIZE, REFERRAL_BONUS, REFERRAL_GAMES, claimQuest, equip, levelInfo, rewardFor, sanitizeProfile, newProfile,
+  LEAGUES, LEAGUE_DEMOTE, LEAGUE_PRIZES, ALBUM_KEYS, CLUB_CHEST, CLUB_COST, CLUB_EMBLEMS, CLUB_MAX, doPrestige, PRESTIGE_LEVEL, LEAGUE_PROMOTE, LEAGUE_SIZE, REFERRAL_BONUS, REFERRAL_GAMES, REFERRAL_BAGS_MAX, claimQuest, equip, levelInfo, rewardFor, sanitizeProfile, newProfile,
   openBag, craftDie, setShowcase, collectionCount, equipFx, BAGS_MAX,
   type Profile, type RewardContext,
 } from '../shared/progress/profile';
@@ -137,7 +137,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   const importGuest = (p: Profile): Profile => {
     const owned = p.owned.filter((id) => !collectionDie(id));
     const equipped = collectionDie(p.equipped.dice) ? { ...p.equipped, dice: DEFAULT_APPEARANCE.dice } : p.equipped;
-    return { ...p, owned, equipped, shards: undefined, showcase: undefined, bags: Math.min(10, p.bags ?? 0) };
+    return { ...p, owned, equipped, shards: undefined, showcase: undefined, referralBags: undefined, refBase: undefined, bags: Math.min(10, p.bags ?? 0) };
   };
   router.post('/register', async (req, res) => {
     if (limited(req)) return fail(res, 429, 'Trop de tentatives, réessayez dans quelques minutes.');
@@ -154,7 +154,11 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const u = store.createUser({ id: randomUUID(), username: name, passHash: await scryptHash(password), recoveryHash: await scryptHash(recoveryCode), profile });
     // Parrainage : pseudo de l'ami qui a invité (facultatif).
     const ref = typeof req.body?.referrer === 'string' ? store.userByName(req.body.referrer.trim()) : undefined;
-    if (ref && ref.id !== u.id) store.setReferrer(u.id, ref.id);
+    if (ref && ref.id !== u.id) {
+      store.setReferrer(u.id, ref.id);
+      // Seules les parties jouées avec le compte comptent pour le parrainage (pas la progression d'invité reprise).
+      store.saveProfile(u.id, { ...profile, refBase: profile.stats.played });
+    }
     res.json({ ok: true, token: startSession(u.id), recoveryCode, ...publicProfile(u, profile) });
   });
 
@@ -444,7 +448,12 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   // --- Parrainage ------------------------------------------------------------------------------
   router.get('/referral', auth, (req, res) => {
     const u = userOf(req);
-    res.json({ ok: true, code: u.username, bonus: REFERRAL_BONUS, gamesNeeded: REFERRAL_GAMES, ...store.referralCount(u.id) });
+    const p = store.profileOf(store.userById(u.id)!);
+    res.json({
+      ok: true, code: u.username, bonus: REFERRAL_BONUS, gamesNeeded: REFERRAL_GAMES, bagsMax: REFERRAL_BAGS_MAX, bagsEarned: p.referralBags ?? 0,
+      ...store.referralCount(u.id),
+      referees: store.referees(u.id).map((f) => ({ username: f.username, played: Math.min(REFERRAL_GAMES, store.profileOf(f).stats.played - (store.profileOf(f).refBase ?? 0)), done: !!f.referral_paid })),
+    });
   });
 
   // --- Joueurs bloqués : leurs photos et réactions sont masquées, ils ne rejoignent pas vos tables ---
@@ -704,19 +713,23 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   }
 
   /** Parrainage : quand le filleul a terminé assez de parties, les deux reçoivent un bonus. */
+  /**
+   * Parrainage : quand un filleul a joué REFERRAL_GAMES parties (vérifiées par le serveur), il reçoit
+   * des pièces de bienvenue et son parrain un sac de dés, au plus REFERRAL_BAGS_MAX sacs par parrain.
+   */
   function checkReferral(userId: string) {
     const u = store.userById(userId);
     if (!u?.referred_by || u.referral_paid) return;
     const p = store.profileOf(u);
-    if (p.stats.played < REFERRAL_GAMES) return;
+    if (p.stats.played - (p.refBase ?? 0) < REFERRAL_GAMES) return;
     store.markReferralPaid(u.id);
     store.saveProfile(u.id, { ...p, coins: p.coins + REFERRAL_BONUS });
     const r = store.userById(u.referred_by);
-    // Plafond : 10 filleuls récompensés par mois pour le parrain.
-    if (r && store.referralsPaidSince(r.id, Date.now() - 30 * 86400_000) <= 10) {
-      const rp = store.profileOf(r);
-      store.saveProfile(r.id, { ...rp, coins: rp.coins + REFERRAL_BONUS });
-    }
+    if (!r) return;
+    const rp = store.profileOf(r);
+    if ((rp.referralBags ?? 0) >= REFERRAL_BAGS_MAX) return;
+    store.saveProfile(r.id, { ...rp, bags: Math.min(BAGS_MAX, (rp.bags ?? 0) + 1), referralBags: (rp.referralBags ?? 0) + 1 });
+    void social.push(r.id, 'Parrainage réussi !', `${u.username} a joué ${REFERRAL_GAMES} parties : un sac de dés vous attend.`, '/');
   }
   /** Rivalités : chaque partie en ligne compte pour chaque paire de comptes de la table. */
   function recordRivalry(rankedUserIds: string[]) {
