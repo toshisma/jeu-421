@@ -23,7 +23,7 @@ export function seenAgo(t: number, now = Date.now()): string {
 }
 
 /** Écran Amis : qui est en ligne, qui joue, rejoindre son salon d'un clic, voir son profil. */
-export function FriendsScreen({ pa, onBack, onAccount, onJoin }: { pa: ProfileApi; onBack: () => void; onAccount: () => void; onJoin: (code: string) => void }) {
+export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite }: { pa: ProfileApi; onBack: () => void; onAccount: () => void; onJoin: (code: string) => void; onInvite: (username: string) => void }) {
   const [list, setList] = useState<Friend[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -61,11 +61,12 @@ export function FriendsScreen({ pa, onBack, onAccount, onJoin }: { pa: ProfileAp
                 {f.room ? (f.room.status === 'salon' ? 'Dans un salon, en attente de joueurs' : 'En pleine partie') : f.online ? 'En ligne' : seenAgo(f.lastSeen)}
                 {' · '}niv. {f.level}</small></span>
             </button>
-            {f.room?.joinable && <button className="btn small primary" onClick={() => onJoin(f.room!.code)}>Rejoindre</button>}
+            {f.room?.joinable ? <button className="btn small primary" onClick={() => onJoin(f.room!.code)}>Rejoindre</button>
+              : f.online && !f.room ? <button className="btn small" onClick={() => onInvite(f.username)}>Inviter</button> : null}
           </li>
         ))}
       </ul>
-      {open && <ProfileView pa={pa} username={open} onClose={() => setOpen(null)} />}
+      {open && <ProfileView pa={pa} username={open} onClose={() => setOpen(null)} onInvite={onInvite} />}
     </Shell>
   );
 }
@@ -106,4 +107,51 @@ export function FriendsButton({ pa, onOpen }: { pa: ProfileApi; onOpen: () => vo
       {n > 0 && <i className="bell-badge friends-badge">{n > 9 ? '9+' : n}</i>}
     </button>
   );
+}
+
+/** Bandeau d'invitation reçue : accepter (rejoindre la table) ou refuser. */
+export function InviteBanner({ pa, onJoin }: { pa: ProfileApi; onJoin: (code: string) => void }) {
+  const [list, setList] = useState<{ from: string; code: string }[]>([]);
+  useEffect(() => {
+    if (!pa.token) { setList([]); return; }
+    const load = () => { if (document.visibilityState === 'visible') api<{ invites: { from: string; code: string }[] }>('/invites', { token: pa.token! }).then((r) => setList(r.invites)).catch(() => {}); };
+    load(); const t = setInterval(load, 10_000); return () => clearInterval(t);
+  }, [pa.token]);
+  const inv = list[list.length - 1];
+  if (!inv) return null;
+  const drop = () => { setList((l) => l.filter((x) => x.code !== inv.code)); void api('/invites/decline', { token: pa.token!, body: { code: inv.code } }).catch(() => {}); };
+  return (
+    <div className="invite-banner" role="alert">
+      <span aria-hidden>🎲</span>
+      <span className="ib-text"><b>{inv.from}</b> vous invite à sa table</span>
+      <button className="btn primary small" onClick={() => { drop(); onJoin(inv.code); }}>Accepter</button>
+      <button className="btn ghost small" onClick={drop}>Refuser</button>
+    </div>
+  );
+}
+
+/** Petit toast discret quand un ami se connecte (n'intercepte aucun clic, disparaît seul). */
+export function FriendOnlineToast({ pa }: { pa: ProfileApi }) {
+  const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pa.token) return;
+    let known: Set<string> | null = null;
+    let hide: ReturnType<typeof setTimeout> | undefined;
+    const load = () => {
+      if (document.visibilityState !== 'visible') return;
+      api<{ friends: Friend[] }>('/friends', { token: pa.token! }).then((r) => {
+        const now = new Set(r.friends.filter((f) => !f.me && f.online).map((f) => f.username));
+        const fresh = known ? [...now].filter((n) => !known!.has(n)) : [];
+        known = now;
+        if (fresh.length) {
+          setMsg(fresh.length > 1 ? `${fresh.slice(0, 2).join(' et ')}${fresh.length > 2 ? '…' : ''} sont en ligne` : `${fresh[0]} est en ligne`);
+          clearTimeout(hide); hide = setTimeout(() => setMsg(null), 4500);
+        }
+      }).catch(() => {});
+    };
+    load(); const t = setInterval(load, 30_000);
+    return () => { clearInterval(t); clearTimeout(hide); };
+  }, [pa.token]);
+  if (!msg) return null;
+  return <div className="friend-toast" role="status"><i className="fr-dot on" aria-hidden />{msg}</div>;
 }

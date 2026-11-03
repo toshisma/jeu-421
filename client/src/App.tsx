@@ -1,5 +1,5 @@
 import { api } from './account/api';
-import { FriendsScreen } from './ui/Friends';
+import { FriendOnlineToast, FriendsScreen, InviteBanner } from './ui/Friends';
 import { useEffect, useMemo, useState } from 'react';
 import type { GameConfig } from '../../shared/config';
 import { sound } from './audio/sound';
@@ -138,7 +138,7 @@ export function App() {
     setScreen({ name: 'tutorial', controller: new TutorialController({ name: settings.name || pa.session?.username || 'Vous', avatar: settings.avatar, photo: pa.photo }) });
   };
 
-  switch (screen.name) {
+  const view = (() => { switch (screen.name) {
     case 'home':
       return <Home
         profile={profile} pa={pa} avatar={settings.avatar} displayName={settings.name} onShop={() => setScreen({ name: 'shop' })}
@@ -222,7 +222,8 @@ export function App() {
     case 'pass':
       return <PassScreen pa={pa} onBack={home} />;
     case 'friends':
-      return <FriendsScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} onJoin={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })} />;
+      return <FriendsScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} onJoin={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
+        onInvite={(username) => setScreen({ name: 'online', mode: { kind: 'create', invite: username } })} />;
     case 'duels':
       return <DuelsScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} onPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }} />;
     case 'duel':
@@ -237,5 +238,14 @@ export function App() {
       return <LegalScreen onBack={() => (screen.back.name === 'home' ? home() : setScreen(screen.back))} />;
     case 'leaderboard':
       return <LeaderboardScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} />;
-  }
+  } })();
+  // Invitation d'un ami : bandeau partout, sauf quand on est déjà à une table en ligne.
+  const atTable = screen.name === 'online' || screen.name === 'tournament';
+  return (
+    <>
+      {view}
+      {!STANDALONE && <FriendOnlineToast pa={pa} />}
+      {!STANDALONE && !atTable && <InviteBanner pa={pa} onJoin={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })} />}
+    </>
+  );
 }

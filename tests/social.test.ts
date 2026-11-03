@@ -1,5 +1,6 @@
 /** Demandes d'amis, défis entre amis, saisons classées, séries, secrets, happy hour. */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { io as connect } from 'socket.io-client';
 import { startServer } from '../server/app';
 import { CHALLENGE_TURNS } from '../shared/challenge';
 import { SERIES } from '../shared/progress/dice-collection';
@@ -44,6 +45,19 @@ describe('amis et défis', () => {
     const al = (await api('/friends', undefined, b)).friends.find((f: { username: string }) => f.username === 'Alice');
     expect(al).toMatchObject({ online: true, room: null });
     expect(al.lastSeen).toBeGreaterThan(0);
+  });
+
+  it('invitation à une table : seulement depuis une table ouverte, acceptée ou refusée ; historique public', async () => {
+    expect((await api('/invites', { username: 'Bob' }, a)).code).toBe(409);
+    const sock = connect(base);
+    const r = await new Promise<{ ok: boolean; code: string }>((ok) => sock.emit('room:create', { name: 'Alice', auth: a, table: { visibility: 'private', maxPlayers: 4, stake: 0 } }, ok));
+    expect(r.ok).toBe(true);
+    expect((await api('/invites', { username: 'Bob' }, a)).ok).toBe(true);
+    expect((await api('/invites', undefined, b)).invites).toEqual([{ from: 'Alice', code: r.code }]);
+    expect((await api('/invites/decline', { code: r.code }, b)).ok).toBe(true);
+    expect((await api('/invites', undefined, b)).invites).toEqual([]);
+    sock.close();
+    expect((await api('/players/Alice/history')).games).toEqual([]);
   });
 
   it('défi avec mise : mêmes dés, score caché tant qu’on n’a pas joué, cagnotte au gagnant', async () => {

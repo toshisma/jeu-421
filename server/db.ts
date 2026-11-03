@@ -525,6 +525,12 @@ export class Store {
 
   // --- Statistiques ---
   /** Enregistre une partie terminée. Renvoie false si elle était déjà enregistrée. */
+  /** Dernières parties d'un compte (historique du profil). */
+  historyOf(userId: string, limit = 15): { mode: string; humans: number; bots: number; endedAt: number; duration: number; won: boolean }[] {
+    return (this.db.prepare(`SELECT g.mode, g.humans, g.bots, g.ended_at AS endedAt, g.duration_s AS duration, p.won FROM game_players p
+      JOIN games_log g ON g.id = p.game_id WHERE p.user_id = ? ORDER BY g.ended_at DESC LIMIT ?`).all(userId, limit) as { mode: string; humans: number; bots: number; endedAt: number; duration: number; won: number }[])
+      .map((r) => ({ ...r, won: !!r.won }));
+  }
   logGame(g: { id: string; mode: 'online' | 'solo'; humans: number; bots: number; startedAt: number; endedAt: number; day: string;
     players: { key: string; userId: string | null; won: boolean }[] }): boolean {
     const r = this.db.prepare('INSERT OR IGNORE INTO games_log (id, mode, humans, bots, started_at, ended_at, duration_s, day) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')

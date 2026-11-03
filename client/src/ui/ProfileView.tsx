@@ -77,8 +77,10 @@ function Achievements({ unlocked, progress }: { unlocked: Record<string, number>
   );
 }
 
-export function ProfileView({ pa, username, displayName, avatar, onClose }: {
+export function ProfileView({ pa, username, displayName, avatar, onClose, onInvite }: {
   pa: ProfileApi; username?: string | null; displayName?: string; avatar?: string; onClose: () => void;
+  /** Ouvre une table et y invite ce joueur (amis seulement). */
+  onInvite?: (username: string) => void;
 }) {
   const other = !!username && username !== pa.session?.username;
   const [pub, setPub] = useState<PublicPlayer | null>(null);
@@ -115,7 +117,8 @@ export function ProfileView({ pa, username, displayName, avatar, onClose }: {
         <XpCard level={pub.level} xp={pub.xp} into={pub.into} need={pub.need} />
         <div className="pv-friend">
           {!pa.isAccount ? <p className="muted small">Créez un compte pour ajouter {pub.username} en ami.</p>
-            : isFriend ? <span className="ok small">✓ Vous êtes amis</span>
+            : isFriend ? <>{onInvite && <button className="btn primary small" onClick={() => onInvite(pub.username)}><Icon name="dice" size={18} /> Inviter à jouer</button>}
+              <span className="ok small">✓ Vous êtes amis</span></>
               : <button className="btn primary small" onClick={async () => {
                 try {
                   const r = await api<{ result: string }>('/friends', { body: { username: pub.username }, token: pa.token });
@@ -131,6 +134,7 @@ export function ProfileView({ pa, username, displayName, avatar, onClose }: {
           <div><b>{pub.stats.bestStreak}</b><small>meilleure série</small></div>
         </div>
         {(pub.showcase?.length || pub.collection?.owned) ? <><h3>Vitrine</h3><Showcase ids={pub.showcase ?? []} count={pub.collection} /></> : null}
+        <History username={pub.username} />
         <Achievements unlocked={pub.achievements} />
         {pa.isAccount && (
           <div className="row">
@@ -223,5 +227,33 @@ export function ProfileView({ pa, username, displayName, avatar, onClose }: {
         <div className="modal-body">{body}</div>
       </div>
     </div>
+  );
+}
+
+/** Dernières parties d'un joueur : quand, contre qui, gagnée ou perdue. */
+function History({ username }: { username: string }) {
+  const [games, setGames] = useState<{ mode: string; humans: number; bots: number; endedAt: number; duration: number; won: boolean }[] | null>(null);
+  useEffect(() => { api<{ games: NonNullable<typeof games> }>(`/players/${encodeURIComponent(username)}/history`).then((r) => setGames(r.games)).catch(() => setGames([])); }, [username]);
+  if (!games) return null;
+  const when = (t: number) => {
+    const m = Math.round((Date.now() - t) / 60_000);
+    return m < 60 ? `il y a ${Math.max(1, m)} min` : m < 1440 ? `il y a ${Math.round(m / 60)} h` : new Date(t).toLocaleDateString('fr-BE', { day: 'numeric', month: 'short' });
+  };
+  return (
+    <>
+      <h3>Dernières parties</h3>
+      {!games.length ? <p className="muted small">Aucune partie enregistrée pour l'instant.</p> : (
+        <ul className="history">
+          {games.map((g, i) => (
+            <li key={i} className={g.won ? 'won' : ''}>
+              <span className="h-ico" aria-hidden>{g.won ? '🏆' : '🍺'}</span>
+              <span className="h-main"><b>{g.won ? 'Victoire' : 'Défaite'} {g.mode === 'online' ? 'en ligne' : 'contre l’ordinateur'}</b>
+                <small>{g.mode === 'online' ? `${g.humans} joueur${g.humans > 1 ? 's' : ''}${g.bots ? ` + ${g.bots} ordi` : ''}` : `${g.bots} adversaire${g.bots > 1 ? 's' : ''}`} · {Math.max(1, Math.round(g.duration / 60))} min</small></span>
+              <small className="h-when">{when(g.endedAt)}</small>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }

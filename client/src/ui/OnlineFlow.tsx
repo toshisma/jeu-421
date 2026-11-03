@@ -1,3 +1,4 @@
+import { api } from '../account/api';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { DEFAULT_CONFIG, describeConfig, type GameConfig } from '../../../shared/config';
 import { AVATARS } from '../../../shared/protocol';
@@ -15,7 +16,7 @@ import { DEFAULT_TABLE, STAKES, stakeLabel, type TableSettings } from '../../../
 import { Icon } from './Icon';
 import { Seg, StakePicker } from './OnlineHub';
 
-export type OnlineMode = { kind: 'create' } | { kind: 'join'; code?: string; auto?: boolean } | { kind: 'resume' } | { kind: 'quick' };
+export type OnlineMode = { kind: 'create'; invite?: string } | { kind: 'join'; code?: string; auto?: boolean } | { kind: 'resume' } | { kind: 'quick' };
 type Mode = OnlineMode;
 
 function useSession(session: OnlineSession | null) {
@@ -35,7 +36,7 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
   const [session, setSession] = useState<OnlineSession | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [name, setName] = useState(settings.name);
+  const [name, setName] = useState(settings.name || pa.session?.username || '');
   const [avatar, setAvatar] = useState(settings.avatar);
   const [code, setCode] = useState(mode.kind === 'join' ? mode.code ?? '' : '');
   const [table, setTable] = useState<TableSettings>(DEFAULT_TABLE);
@@ -60,6 +61,10 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
       }
       if (kind !== 'resume' && kind !== 'quick') onSettings({ ...settings, name: name.trim(), avatar });
       setSession(s);
+      // Table créée pour inviter un ami : l'invitation part dès que la table existe.
+      if (kind === 'create' && mode.kind === 'create' && mode.invite && pa.token) {
+        await api('/invites', { token: pa.token, body: { username: mode.invite } }).catch((e) => setError((e as Error).message));
+      }
     } catch (e) {
       s.socket.disconnect();
       setError((e as Error).message);
@@ -69,6 +74,9 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
 
   useEffect(() => {
     if (mode.kind === 'resume') void connect('resume');
+    else if (mode.kind === 'create' && mode.invite) {
+      if (name.trim()) void connect('create');
+    }
     else if (mode.kind === 'quick') void connect('quick');
     else if (mode.kind === 'join' && mode.auto && name.trim() && code.length === 5) void connect('join');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

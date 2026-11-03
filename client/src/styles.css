@@ -1163,3 +1163,18 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .ref-set small { opacity: .85; }
 .coll-card.locked { opacity: .55; filter: saturate(.6); }
 .ref-set small, .ref-set b { background: none; padding: 0; }
+.history { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 4px; }
+.history li { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,.04); }
+.history li.won { background: rgba(242,182,50,.1); }
+.h-main { flex: 1; min-width: 0; display: grid; }
+.h-main small, .h-when { opacity: .75; }
+.h-when { white-space: nowrap; }
+.invite-banner { position: fixed; z-index: 120; left: 50%; top: max(10px, env(safe-area-inset-top)); transform: translateX(-50%); width: min(440px, calc(100% - 20px));
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 14px; background: #1d2a33; border: 2px solid #f2b632; box-shadow: 0 8px 30px rgba(0,0,0,.5); animation: pop-in .35s cubic-bezier(.2,1.4,.4,1); }
+.invite-banner > span:first-child { font-size: 1.5rem; }
+.ib-text { flex: 1; min-width: 0; font-size: .92rem; }
+.friend-toast { position: fixed; z-index: 110; left: 12px; bottom: max(12px, env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 8px;
+  max-width: calc(100% - 24px); padding: 7px 12px; border-radius: 999px; background: rgba(20,28,34,.82); color: #e8f2ea; font-size: .82rem;
+  pointer-events: none; animation: toast-life 4.5s ease both; }
+@keyframes toast-life { 0% { opacity: 0; transform: translateY(8px); } 8%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .friend-toast { animation: none; } }

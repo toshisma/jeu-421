@@ -524,6 +524,42 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   });
 
   // --- Profils publics ---------------------------------------------------------------------------
+  router.get('/players/:username/history', (req, res) => {
+    const u = store.userByName(String(req.params.username));
+    if (!u) return fail(res, 404, 'Joueur introuvable.');
+    res.json({ ok: true, games: store.historyOf(u.id) });
+  });
+
+  // --- Invitations en partie : un ami invite un autre à rejoindre sa table, d'un clic. ---------------
+  const invites = new Map<string, { from: string; code: string; at: number }[]>();
+  const INVITE_MS = 10 * 60_000;
+  const invitesOf = (userId: string) => {
+    const t = Date.now();
+    const list = (invites.get(userId) ?? []).filter((i) => t - i.at < INVITE_MS && presence(store.userByName(i.from)?.id ?? '')?.code === i.code);
+    invites.set(userId, list);
+    return list;
+  };
+  router.post('/invites', auth, (req, res) => {
+    const me = userOf(req);
+    const to = store.userByName(String(req.body?.username ?? ''));
+    if (!to || !store.friendsOf(me.id).some((f) => f.id === to.id)) return fail(res, 403, 'Vous ne pouvez inviter que vos amis.');
+    const room = presence(me.id);
+    if (!room?.joinable) return fail(res, 409, 'Ouvrez d’abord une table pour y inviter vos amis.');
+    const list = invitesOf(to.id).filter((i) => i.from !== me.username);
+    list.push({ from: me.username, code: room.code, at: Date.now() });
+    invites.set(to.id, list.slice(-5));
+    void social.push(to.id, `${me.username} vous invite à jouer`, 'Une table vous attend : touchez pour la rejoindre.', `/?rejoindre=${room.code}`);
+    res.json({ ok: true });
+  });
+  router.get('/invites', auth, (req, res) => {
+    res.json({ ok: true, invites: invitesOf(userOf(req).id).map((i) => ({ from: i.from, code: i.code })) });
+  });
+  router.post('/invites/decline', auth, (req, res) => {
+    const me = userOf(req);
+    invites.set(me.id, invitesOf(me.id).filter((i) => i.code !== String(req.body?.code ?? '')));
+    res.json({ ok: true });
+  });
+
   router.get('/players/:username', (req, res) => {
     const u = store.userByName(String(req.params.username));
     if (!u) return fail(res, 404, 'Joueur introuvable.');
