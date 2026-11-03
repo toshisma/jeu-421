@@ -1218,3 +1218,7 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .bigshot.mid .bs-text { font-size: clamp(2rem, 9vw, 3.4rem); }
 .bigshot.mid .bs-rays { opacity: .5; }
 @media (prefers-reduced-motion: reduce) { .game.impact-big, .game.impact-mid, .bs-flash { animation: none; opacity: 0; } }
+.home-audio { display: flex; gap: 6px; }
+.home-audio .icon-btn { width: 40px; height: 40px; }
+.music-btn span { font-size: 1.25rem; line-height: 1; }
+.music-btn.off { opacity: .55; }

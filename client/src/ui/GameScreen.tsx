@@ -18,7 +18,7 @@ import { DiceTray, type DiceTrayHandle } from './DiceTray';
 import { DiceRow, MiniDie } from './MiniDie';
 import { PlayerCard } from './PlayerCard';
 import { EndOverlay } from './EndOverlay';
-import { VolumeControl } from './VolumeControl';
+import { MusicControl, VolumeControl } from './VolumeControl';
 import { RoundTracker, WhatIf } from './RoundTracker';
 import { RulesContent } from './Screens';
 import { ProfileView } from './ProfileView';
@@ -428,6 +428,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
               )}
             </div>
             <button className="icon-btn" onClick={() => setRulesOpen(true)} aria-label="Règles du jeu"><Icon name="rules" /></button>
+            <MusicControl settings={settings} onSettings={onSettings} />
             <VolumeControl settings={settings} onSettings={onSettings} />
           </div>
         </div>

@@ -29,7 +29,7 @@ import type { ProfileApi } from '../account/useProfile';
 import { QuestsPanel } from './AccountScreens';
 import { Avatar } from './Avatar';
 import { ProfileView } from './ProfileView';
-import { VolumeControl } from './VolumeControl';
+import { MusicControl, VolumeControl } from './VolumeControl';
 import { needsMotionPermission, requestMotionPermission, useShakeToThrow } from '../game/shake';
 import type { ThrowGesture } from '../../../shared/gesture';
 import { DiceRow, MiniDie } from './MiniDie';
@@ -69,7 +69,7 @@ export function ProfileChip({ profile, onClick, photo, emoji }: { profile: Profi
 
 export function Home(props: {
   profile: Profile; pa: ProfileApi; avatar: string; displayName: string; onShop: () => void; onAccount: () => void; onLeaderboard: () => void;
-  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onParty: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void; onLogin: () => void; onCollection: () => void; onDuels: () => void; onFriends: () => void; onChangelog: () => void; onJoinRoom: (code: string) => void; onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
+  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onParty: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void; onLogin: () => void; onCollection: () => void; onDuels: () => void; onFriends: () => void; onChangelog: () => void; onJoinRoom: (code: string) => void; settings: Settings; onChangeSettings: (s: Settings) => void; onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
   resume: { code: string; tournament?: boolean } | null; onResume: () => void;
 }) {
   const [online, setOnline] = useState(navigator.onLine);
@@ -95,6 +95,7 @@ export function Home(props: {
           </span>
         </button>
         {!STANDALONE && !props.pa.isAccount && <button className="install-chip login-chip" onClick={props.onLogin}>Connexion</button>}
+        <div className="home-audio"><MusicControl settings={props.settings} onSettings={props.onChangeSettings} /><VolumeControl settings={props.settings} onSettings={props.onChangeSettings} /></div>
         {!STANDALONE && props.pa.isAccount && <FriendsButton pa={props.pa} onOpen={props.onFriends} />}
         {!STANDALONE && props.pa.isAccount && <NotifBell count={notifs?.count ?? 0} onOpen={() => { setShowNotifs(true); reload(); }} />}
         <InstallPrompt compact />

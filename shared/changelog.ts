@@ -7,6 +7,9 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.26', date: '2026-11-03T21:17:00+01:00', title: 'Son et musique à portée de main', items: [
+    'Boutons son et musique sur l’accueil et pendant les parties.',
+  ] },
   { version: '0.25', date: '2026-11-03T21:12:00+01:00', title: 'Moments forts', items: [
     'Les grands coups sont mis en scène : ralenti, gros plan, roulement de tambour, flash et secousse.',
     'Les brelans et les « deux as » ont aussi droit à leur petit moment de gloire.',

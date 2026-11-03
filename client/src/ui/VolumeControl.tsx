@@ -41,3 +41,33 @@ export function VolumeControl({ settings, onSettings }: { settings: Settings; on
     </div>
   );
 }
+
+/** Bouton musique d'ambiance : curseur 0–100 %. */
+export function MusicControl({ settings, onSettings }: { settings: Settings; onSettings: (s: Settings) => void }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const pct = Math.round(settings.music * 100);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    window.addEventListener('pointerdown', close);
+    return () => window.removeEventListener('pointerdown', close);
+  }, [open]);
+  const set = (v: number) => onSettings({ ...settings, music: v / 100, ...(v > 0 && settings.muted ? { muted: false } : {}) });
+  return (
+    <div className="volume" ref={box}>
+      <button className={`icon-btn music-btn${pct === 0 ? ' off' : ''}`} title={`Musique : ${pct} %`} aria-label={`Musique ${pct} %`} onClick={() => setOpen((o) => !o)}>
+        <span aria-hidden>♫</span>
+      </button>
+      {open && (
+        <div className="volume-pop" role="dialog" aria-label="Musique">
+          <button className="icon-btn small" title={pct === 0 ? 'Remettre la musique' : 'Couper la musique'} onClick={() => set(pct === 0 ? 40 : 0)}>
+            <span aria-hidden>{pct === 0 ? '♫' : '⏸'}</span>
+          </button>
+          <input type="range" min={0} max={100} step={1} value={pct} aria-label="Musique" onChange={(e) => set(Number(e.target.value))} />
+          <span className="vol-pct">{pct} %</span>
+        </div>
+      )}
+    </div>
+  );
+}

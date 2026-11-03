@@ -177,6 +177,7 @@ export function App() {
         onDuels={() => setScreen({ name: 'duels' })}
         onFriends={() => setScreen({ name: 'friends' })}
         onChangelog={() => setScreen({ name: 'changelog' })}
+        settings={settings} onChangeSettings={setSettings}
         onJoinRoom={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
         onDuelPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }}
         openNotifs={openNotifs}
