@@ -1153,3 +1153,7 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .ol-row b, .ol-row small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ol-row small { opacity: .8; }
 .pv-friend { margin: 10px 0; display: flex; justify-content: center; }
+.friends-badge { background: #2fa85a; }
+.push-box { margin: 4px 0 12px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.05); font-size: .9rem; line-height: 1.35; }
+.push-box.on { background: rgba(47,168,90,.14); color: #8fe0ab; }
+.push-box .btn { width: 100%; }

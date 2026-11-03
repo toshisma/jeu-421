@@ -4,6 +4,7 @@ import type { ProfileApi } from '../account/useProfile';
 import type { LobbyEntry } from '../../../shared/tournament';
 import { Shell } from './Screens';
 import { ProfileView } from './ProfileView';
+import { Icon } from './Icon';
 
 interface Friend {
   username: string; level: number; me?: boolean; lastSeen: number; online: boolean;
@@ -88,5 +89,21 @@ export function OpenLobbies({ onJoin, onAll }: { onJoin: (code: string) => void;
       ))}
       {lobbies.length > 3 && <button className="btn ghost small" onClick={onAll}>Voir toutes les tables</button>}
     </section>
+  );
+}
+
+/** Bouton Amis à côté de la cloche, avec le nombre d'amis en ligne. */
+export function FriendsButton({ pa, onOpen }: { pa: ProfileApi; onOpen: () => void }) {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (!pa.token) return;
+    const load = () => api<{ friends: Friend[] }>('/friends', { token: pa.token! }).then((r) => setN(r.friends.filter((f) => !f.me && f.online).length)).catch(() => {});
+    load(); const t = setInterval(load, 30_000); return () => clearInterval(t);
+  }, [pa.token]);
+  return (
+    <button className="bell" onClick={onOpen} aria-label={n ? `Amis : ${n} en ligne` : 'Amis'}>
+      <Icon name="user" size={22} />
+      {n > 0 && <i className="bell-badge friends-badge">{n > 9 ? '9+' : n}</i>}
+    </button>
   );
 }

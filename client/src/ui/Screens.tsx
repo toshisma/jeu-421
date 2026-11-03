@@ -18,7 +18,7 @@ import { InstallPrompt } from './InstallPrompt';
 import { LiveStrip } from './StatsScreen';
 import { CollectionPromo } from './DiceCollection';
 import { ReferralCard } from './Referral';
-import { OpenLobbies } from './Friends';
+import { FriendsButton, OpenLobbies } from './Friends';
 import { fxDef, fxGlows } from '../../../shared/progress/dice-collection';
 import { NotifBell, NotifPanel, useNotifications } from './Social';
 import type { DuelPlay } from './ChallengeScreen';
@@ -93,6 +93,7 @@ export function Home(props: {
           </span>
         </button>
         {!STANDALONE && !props.pa.isAccount && <button className="install-chip login-chip" onClick={props.onLogin}>Connexion</button>}
+        {!STANDALONE && props.pa.isAccount && <FriendsButton pa={props.pa} onOpen={props.onFriends} />}
         {!STANDALONE && props.pa.isAccount && <NotifBell count={notifs?.count ?? 0} onOpen={() => { setShowNotifs(true); reload(); }} />}
         <InstallPrompt compact />
         <div className="wallet" aria-label="Mon solde">
