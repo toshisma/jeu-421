@@ -212,6 +212,7 @@ export function ProfileView({ pa, username, displayName, avatar, onClose, onInvi
           <div><b>{s.brelans}</b><small>brelans</small></div>
           <div><b>{purchases(p)}</b><small>objets achetés</small></div>
         </div>
+        {pa.session?.username ? <History username={pa.session.username} /> : <p className="muted small">Créez un compte pour garder l’historique de vos parties.</p>}
         <Achievements unlocked={p.achievements} progress={progress} />
       </>
     );

@@ -7,6 +7,9 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.19', date: '2026-11-03T20:03:00+01:00', title: 'Mon historique', items: [
+    'Votre historique des dernières parties s’affiche sur votre propre profil.',
+  ] },
   { version: '0.18', date: '2026-11-03T19:59:00+01:00', title: 'Nouveautés', items: [
     'Un écran « Nouveautés » pour suivre toutes les mises à jour du jeu.',
   ] },
