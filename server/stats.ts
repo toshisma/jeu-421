@@ -48,7 +48,7 @@ export function brusselsMidnight(day: string): number {
 const addDays = (day: string, n: number) => new Date(Date.parse(`${day}T12:00:00Z`) + n * 86400_000).toISOString().slice(0, 10);
 const cleanDevice = (v: unknown) => (typeof v === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(v) ? v : null);
 
-export function createStats(store: Store, opts: StatsOptions & { userFromToken: (t: unknown) => UserRow | undefined; live: () => LiveRooms }) {
+export function createStats(store: Store, opts: StatsOptions & { userFromToken: (t: unknown) => UserRow | undefined; live: () => LiveRooms; notifyAdmins?: (title: string, body: string) => void }) {
   const now = opts.now ?? Date.now;
   const MIN_SOLO = opts.minSoloMs ?? 20_000;
   const admins = new Set((opts.adminUsers ?? (process.env.ADMIN_USERS ?? '').split(',')).map((s) => s.trim().toLowerCase()).filter(Boolean));
@@ -63,15 +63,39 @@ export function createStats(store: Store, opts: StatsOptions & { userFromToken: 
     const n = devices().size;
     if (n > peak.n) { peak = { n, at: now() }; store.setMeta('stats_peak', JSON.stringify(peak)); }
   };
+  // Alerte aux administrateurs (notification sur leur téléphone) : quelqu'un arrive ou lance une partie.
+  // Au plus une alerte d'arrivée par appareil toutes les 3 h, une de partie par appareil toutes les 30 min,
+  // et 30 alertes par heure en tout ; jamais pour les administrateurs eux-mêmes.
+  const lastAlert = new Map<string, number>();
+  let hourStart = 0, hourCount = 0;
+  function alert(key: string, every: number, title: string, body: string) {
+    if (!opts.notifyAdmins) return;
+    const t = now();
+    if (t - (lastAlert.get(key) ?? 0) < every) return;
+    if (t - hourStart > 3600_000) { hourStart = t; hourCount = 0; }
+    if (++hourCount > 30) return;
+    lastAlert.set(key, t);
+    if (lastAlert.size > 5000) lastAlert.clear();
+    opts.notifyAdmins(title, body);
+  }
   function attach(io: Server) {
     const ns: Namespace = io.of('/presence');
     ns.on('connection', (socket) => {
       const device = cleanDevice(socket.handshake.auth?.device) ?? `s-${socket.id}`;
+      const user = opts.userFromToken(socket.handshake.auth?.token);
+      const who = user?.username ?? 'Un visiteur';
+      const quiet = isAdmin(user);
       presence.set(socket.id, { device, state: 'menu' });
       checkPeak();
+      const others = () => [...presence.values()].filter((x) => x.device !== device).length;
+      if (!quiet) alert(`v:${device}`, 3 * 3600_000, `${who} est sur le jeu`, others() ? `${others() + 1} personnes connectées en ce moment.` : 'Personne d’autre en ligne : c’est le moment de le rejoindre !');
       socket.on('presence', (st: unknown) => {
         const p = presence.get(socket.id);
         if (p) p.state = st === 'solo' || st === 'online' ? st : 'menu';
+        if (!quiet && (st === 'solo' || st === 'online')) {
+          alert(`g:${device}`, 30 * 60_000, st === 'online' ? `${who} joue en ligne` : `${who} lance une partie solo`,
+            st === 'online' ? 'Une table en ligne est ouverte : rejoins-la depuis l’accueil.' : 'Contre les habitués du bistrot.');
+        }
       });
       socket.on('disconnect', () => { presence.delete(socket.id); });
     });

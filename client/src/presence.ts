@@ -27,7 +27,8 @@ export function startPresence() {
   if (socket) return;
   try {
     const url = `${(SERVER_URL ?? '').replace(/\/$/, '')}/presence`;
-    socket = io(url, { auth: { device: deviceId() }, transports: ['websocket', 'polling'] });
+    const token = (() => { try { return JSON.parse(localStorage.getItem('421.compte') ?? 'null')?.token; } catch { return undefined; } })();
+    socket = io(url, { auth: { device: deviceId(), token }, transports: ['websocket', 'polling'] });
     socket.on('connect', () => socket?.emit('presence', state));
   } catch { socket = null; }
 }

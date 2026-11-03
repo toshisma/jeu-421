@@ -176,6 +176,12 @@ export async function startServer(opts: ServerOptions) {
   const humanConnected = (m: Member) => !m.bot && !m.left && m.socketId != null;
   stats = createStats(store, {
     minSoloMs: opts.accounts?.minSoloMs, ...opts.stats, userFromToken: accounts.userFromToken,
+    notifyAdmins: (title, body) => {
+      for (const name of (process.env.ADMIN_USERS ?? '').split(',').map((x) => x.trim()).filter(Boolean)) {
+        const u = store.userByName(name);
+        if (u) void accounts.social.push(u.id, title, body, '/');
+      }
+    },
     live: () => {
       let onlineGames = 0, inRooms = 0;
       for (const r of rooms.values()) {
