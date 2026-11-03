@@ -7,6 +7,10 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.25', date: '2026-11-03T21:12:00+01:00', title: 'Moments forts', items: [
+    'Les grands coups sont mis en scène : ralenti, gros plan, roulement de tambour, flash et secousse.',
+    'Les brelans et les « deux as » ont aussi droit à leur petit moment de gloire.',
+  ] },
   { version: '0.24', date: '2026-11-03T21:10:00+01:00', title: 'Musique d’ambiance', items: [
     'Trois morceaux lofi originaux en boucle, réglables de 0 à 100 % dans les réglages.',
   ] },

@@ -1211,3 +1211,10 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .chat-panel input { flex: 1; min-width: 0; }
 .chat-peek { position: fixed; z-index: 89; right: 66px; bottom: max(90px, calc(env(safe-area-inset-bottom) + 90px)); max-width: min(260px, calc(100% - 90px)); padding: 6px 10px; border-radius: 12px; background: rgba(18,24,29,.88); font-size: .82rem; pointer-events: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; animation: toast-life 6s ease both; }
 .chest-timer { font-variant-numeric: tabular-nums; }
+/* Moments forts : secousse de l'écran, flash et texte plus discret pour les coups moyens */
+.game.impact-big { animation: bag-quake .55s ease-out; }
+.game.impact-mid { animation: bag-quake .35s ease-out; }
+.bs-flash { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(circle at 50% 40%, rgba(255,240,200,.85), transparent 70%); animation: bag-flash .6s ease-out both; }
+.bigshot.mid .bs-text { font-size: clamp(2rem, 9vw, 3.4rem); }
+.bigshot.mid .bs-rays { opacity: .5; }
+@media (prefers-reduced-motion: reduce) { .game.impact-big, .game.impact-mid, .bs-flash { animation: none; opacity: 0; } }

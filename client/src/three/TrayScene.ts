@@ -61,6 +61,8 @@ export class TrayScene {
   private raf = 0;
   // t0 = null : l'horloge du lancer démarre à la première image réellement affichée (pas au clic),
   // pour ne jamais sauter les premières images si le navigateur est occupé à cet instant.
+  /** Appelé quand un coup exceptionnel passe au ralenti (montée de tension). */
+  onDramatic: (() => void) | null = null;
   private playback: { sim: ThrowResult; t0: number | null; frame: number; dramatic: boolean; nextEvent: number; resolve: () => void; hold?: boolean } | null = null;
   /** Gobelet : secoué, versé, puis retiré pendant que les dés roulent. */
   private cup: THREE.Group | null = null;
@@ -741,6 +743,7 @@ export class TrayScene {
       const scale = pb.dramatic && pb.frame > slowFrom ? 0.3 : 1;
       if (pb.dramatic && pb.frame > slowFrom - 10 && this.zoomTarget === 0) {
         this.zoomTarget = 1;
+        this.onDramatic?.();
         // Gros plan sur le centre des dés à leur position finale.
         this.zoomFocus.set(0, 0.5, 0);
         for (const p of pb.sim.finalPoses) this.zoomFocus.add(new THREE.Vector3(p.p[0] / 3, 0, p.p[2] / 3));

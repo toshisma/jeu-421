@@ -15,6 +15,8 @@ export interface DiceTrayHandle {
   setDiceSkin(id: string | null): void;
   /** Traînée de lancer (couleurs) ou aucune. */
   setTrail(colors: string[] | null, glow?: boolean): void;
+  /** Montée de tension quand un coup exceptionnel passe au ralenti. */
+  setOnDramatic(cb: (() => void) | null): void;
 }
 
 interface Props {
@@ -69,6 +71,7 @@ export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ ap
     setInteractive: (on) => scene.current?.setInteractive(on),
     setDiceSkin: (id) => scene.current?.setDiceSkin(id),
     setTrail: (c, g) => scene.current?.setTrail(c, g),
+    setOnDramatic: (cb) => { if (scene.current) scene.current.onDramatic = cb; },
   }), []);
 
   return <div ref={host} className="tray-host" />;
