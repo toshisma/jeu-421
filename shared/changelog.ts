@@ -7,6 +7,9 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.29', date: '2026-11-03T22:38:00+01:00', title: 'Correction', items: [
+    'Le réglage du son et de la musique sur l’accueil ne sort plus de l’écran sur téléphone.',
+  ] },
   { version: '0.28', date: '2026-11-03T22:25:00+01:00', title: 'Salons et cagnottes', items: [
     'Inviter ses amis directement depuis le salon.',
     'L’hôte peut exclure un joueur du salon.',
