@@ -188,7 +188,8 @@ describe('suivi de manche', () => {
           const res = getPlayerResult(s, id);
           const pred = roundStatus(before, { id, dice: res.dice, throws: res.throws });
           expect(pred.amount).toBe(sum.amount);
-          expect(pred.worst!.ids).toContain(sum.loserId);
+          if (before.rolloffKind === 'donneur') expect(pred.best!.id).toBe(sum.winnerId); // barrage « qui donne »
+          else expect(pred.worst!.ids).toContain(sum.loserId);
           checked++;
         }
       }

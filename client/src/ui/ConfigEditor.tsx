@@ -68,6 +68,15 @@ export function ConfigEditor({ config, onChange, readOnly }: Props) {
             </select>
           </label>
         )}
+        {config.variant !== 'manches' && (
+          <label className="field">
+            <span>Égalité pour la meilleure combinaison (décharge)</span>
+            <select value={config.bestTieRule} onChange={(e) => set({ bestTieRule: e.target.value as GameConfig['bestTieRule'] })}>
+              <option value="barrage">Barrage pour savoir qui donne</option>
+              <option value="premier">Le premier à l'avoir faite donne</option>
+            </select>
+          </label>
+        )}
         {config.variant !== 'manches' && config.tieRule === 'barrage' && (
           <label className="field">
             <span>Barrage départagé</span>

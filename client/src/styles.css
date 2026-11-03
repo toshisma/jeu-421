@@ -23,7 +23,7 @@
   --r: 10px;
   --font: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --cond: 'Barlow Condensed', 'Barlow', system-ui, sans-serif;
-  color-scheme: dark;
+  color-scheme: only dark;
 }
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
@@ -1087,3 +1087,7 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .chip.on { background: var(--blanc); color: var(--fond); }
 .coll-tabs { display: grid; grid-template-columns: repeat(3, 1fr); }
 .coll-tabs button { padding: 0 8px; }
+
+/* Mode sombre forcé de certains navigateurs : les petits dés gardent leurs couleurs. */
+.mini-die { forced-color-adjust: none; color-scheme: only light; }
+.mini-die { display: inline-block; vertical-align: middle; flex: none; }

@@ -17,7 +17,11 @@ export function RoundTracker({ s, nameOf, colorOf }: { s: GameState; nameOf: (id
 
   let main: React.ReactNode;
   let sub: React.ReactNode = null;
-  if (st.points) {
+  if (s.isRolloff && s.rolloffKind === 'donneur') {
+    // Barrage entre les meilleurs : le plus fort donne les jetons au perdant déjà connu.
+    main = <><span className="tag-barrage">Barrage</span> qui donne <b className="stake">{tok(s.rolloffPayout ?? 0)}</b> à {who([s.rolloffLoserId!])} ?</>;
+    sub = st.best ? <>En tête : {who([st.best.id])} (<b>{st.addition ? `total ${diceSum(st.best.combo.dice)}` : st.best.combo.label}</b>), un seul lancer chacun</> : <>Un seul lancer chacun : le meilleur donne.</>;
+  } else if (st.points) {
     main = st.best
       ? <>Meilleur coup : <DiceRow dice={st.best.combo.dice} size={18} /> <b>{st.best.combo.label}</b>, par {who([st.best.id])}</>
       : <>Manche {s.round}/{s.config.rounds} : {who([cur!])} ouvre</>;
@@ -59,6 +63,9 @@ export function WhatIf({ s, meId }: { s: GameState; meId: string }) {
   if (s.phase === 'fini' || s.throwsUsed === 0 || currentPlayerId(s) !== meId) return null;
   const st = roundStatus(s, { id: meId, dice: s.dice, throws: s.throwsUsed });
   if (st.points) return null;
+  if (s.isRolloff && s.rolloffKind === 'donneur') {
+    return st.best?.id === meId ? <div className="whatif top">En tête du barrage : c'est vous qui donneriez {tok(st.amount)}</div> : <div className="whatif ok">Un autre joueur fait mieux pour l'instant</div>;
+  }
   const othersPlayed = s.roundOrder.filter((id) => s.results[id]).length;
   if (!othersPlayed && st.remaining <= 1) return null;
   if (st.worst?.ids.includes(meId)) {

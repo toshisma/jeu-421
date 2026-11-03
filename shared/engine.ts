@@ -61,6 +61,11 @@ export interface GameState {
   rolloffPayout: number | null;
   rolloffPayerId: string | null;
   rolloffLabel: string | null; // combinaison du payeur, conservée pendant le barrage
+  /** Barrage pour la dernière place (« perdant ») ou entre les meilleurs, pour savoir qui donne (« donneur »). */
+  rolloffKind?: 'perdant' | 'donneur';
+  /** Barrage « donneur » : le perdant déjà connu. Barrage « perdant » : les meilleurs ex æquo, à départager ensuite. */
+  rolloffLoserId?: string | null;
+  rolloffBestTied?: string[] | null;
   dice: number[]; // dés du joueur actif (0 = pas encore lancé)
   throwsUsed: number;
   throwLimit: number;
@@ -166,6 +171,9 @@ function startRound(s: GameState, starterId: string) {
   s.rolloffPayout = null;
   s.rolloffPayerId = null;
   s.rolloffLabel = null;
+  s.rolloffKind = undefined;
+  s.rolloffLoserId = null;
+  s.rolloffBestTied = null;
   beginTurn(s);
 }
 
@@ -276,45 +284,74 @@ function resolveRound(s: GameState) {
 
   // --- Charge / décharge ------------------------------------------------------------------
   const cmp = turnComparer(s);
-  let best = order[0];
-  for (const id of order) if (cmp(res(id), res(best)) > 0) best = id;
-  let worst: string[] = [order[0]];
-  for (const id of order.slice(1)) {
-    const c = cmp(res(id), res(worst[0]));
-    if (c < 0) worst = [id];
-    else if (c === 0) worst.push(id);
-  }
-  let payerId = s.isRolloff ? s.rolloffPayerId! : best;
-  let payout = s.isRolloff ? s.rolloffPayout! : res(best).combo.value;
-  let payLabel = s.isRolloff ? s.rolloffLabel! : res(best).combo.label;
+  /** Joueurs à égalité pour la meilleure combinaison parmi `ids`. */
+  const topOf = (ids: string[]) => { let t = [ids[0]]; for (const id of ids.slice(1)) { const c = cmp(res(id), res(t[0])); if (c > 0) t = [id]; else if (c === 0) t.push(id); } return t; };
+  const startRolloff = (kind: 'perdant' | 'donneur', ids: string[], text: string, extra: Partial<GameState>) => {
+    summarize(s, { winnerId: null, loserId: null, amount: s.rolloffPayout ?? 0, barrage: true, text }, phaseAtRound);
+    Object.assign(s, { isRolloff: true, rolloffKind: kind, roundOrder: ids, turnIdx: 0, results: {} }, extra);
+    beginTurn(s);
+  };
+  const how = cfg.rolloffMode === 'addition' ? 'à l’addition' : 'à la figure';
 
+  let payerId: string;
+  let payout: number;
+  let payLabel: string;
   let loser: string;
-  if (worst.length > 1) {
-    if (cfg.tieRule === 'barrage') {
-      summarize(s, {
-        winnerId: null, loserId: null, amount: payout, barrage: true,
-        text: `Égalité pour la dernière place entre ${worst.map((id) => nameOf(s, id)).join(', ')} : barrage ${cfg.rolloffMode === 'addition' ? 'à l’addition' : 'à la figure'} !`,
-      }, phaseAtRound);
-      s.isRolloff = true;
-      s.rolloffPayout = payout;
-      s.rolloffPayerId = payerId;
-      s.rolloffLabel = payLabel;
-      s.roundOrder = worst;
-      s.turnIdx = 0;
-      s.results = {};
-      beginTurn(s);
+
+  if (s.isRolloff && s.rolloffKind === 'donneur') {
+    // Barrage entre les meilleurs : le meilleur du barrage donne ; encore égalité → on recommence.
+    const top = topOf(order);
+    if (top.length > 1) {
+      startRolloff('donneur', top, `Encore égalité entre ${top.map((id) => nameOf(s, id)).join(', ')} : nouveau barrage pour savoir qui donne !`, {});
       return;
     }
-    loser = cfg.tieRule === 'premierPerd' ? worst[0] : worst[worst.length - 1];
-  } else loser = worst[0];
+    payerId = top[0];
+    payout = s.rolloffPayout!;
+    payLabel = s.rolloffLabel!;
+    loser = s.rolloffLoserId!;
+  } else {
+    let best = order[0];
+    for (const id of order) if (cmp(res(id), res(best)) > 0) best = id;
+    let worst: string[] = [order[0]];
+    for (const id of order.slice(1)) {
+      const c = cmp(res(id), res(worst[0]));
+      if (c < 0) worst = [id];
+      else if (c === 0) worst.push(id);
+    }
+    payerId = s.isRolloff ? s.rolloffPayerId! : best;
+    payout = s.isRolloff ? s.rolloffPayout! : res(best).combo.value;
+    payLabel = s.isRolloff ? s.rolloffLabel! : res(best).combo.label;
+    // Meilleurs ex æquo du tour normal (gardés pendant un barrage pour la dernière place).
+    const bestTied = s.isRolloff ? (s.rolloffBestTied ?? []) : topOf(order);
 
-  // Au barrage, si le « payeur » d'origine perd lui-même, le meilleur des autres paie.
-  if (loser === payerId) {
-    const others = order.filter((id) => id !== loser);
-    payerId = others.reduce((a, b) => (cmp(res(b), res(a)) > 0 ? b : a), others[0]);
-    payLabel = res(payerId).combo.label;
+    if (worst.length > 1) {
+      if (cfg.tieRule === 'barrage') {
+        startRolloff('perdant', worst, `Égalité pour la dernière place entre ${worst.map((id) => nameOf(s, id)).join(', ')} : barrage ${how} !`,
+          { rolloffPayout: payout, rolloffPayerId: payerId, rolloffLabel: payLabel, rolloffBestTied: bestTied });
+        return;
+      }
+      loser = cfg.tieRule === 'premierPerd' ? worst[0] : worst[worst.length - 1];
+    } else loser = worst[0];
+
+    // Au barrage, si le « payeur » d'origine perd lui-même, le meilleur des autres paie.
+    if (loser === payerId) {
+      const others = (s.isRolloff ? (s.rolloffBestTied ?? order) : order).filter((id) => id !== loser && res(id));
+      const pool = others.length ? others : order.filter((id) => id !== loser);
+      payerId = pool.reduce((a, b) => (cmp(res(b), res(a)) > 0 ? b : a), pool[0]);
+      payLabel = res(payerId)?.combo.label ?? payLabel;
+    }
+
+    if (res(loser)?.combo.kind === 'nenette') payout = Math.max(payout, cfg.values.nenetteMin);
+    // Décharge : plusieurs joueurs ex æquo pour la meilleure combinaison → barrage pour savoir qui donne.
+    const tiedGivers = bestTied.filter((id) => id !== loser);
+    if (s.phase === 'decharge' && cfg.bestTieRule === 'barrage' && tiedGivers.length > 1) {
+      startRolloff('donneur', tiedGivers, `Égalité pour la meilleure combinaison (${payLabel}) entre ${tiedGivers.map((id) => nameOf(s, id)).join(', ')} : barrage ${how} pour savoir qui donne !`,
+        { rolloffPayout: payout, rolloffPayerId: null, rolloffLabel: payLabel, rolloffLoserId: loser, rolloffBestTied: null });
+      return;
+    }
   }
-  if (res(loser).combo.kind === 'nenette') payout = Math.max(payout, cfg.values.nenetteMin);
+
+  if (res(loser)?.combo.kind === 'nenette') payout = Math.max(payout, cfg.values.nenetteMin);
 
   const loserP = getPlayer(s, loser);
   let text: string;
@@ -432,6 +469,8 @@ export function roundStatus(s: GameState, extra?: { id: string; dice: number[]; 
   }
   if (points) return { worst: null, best: { id: best, combo: results[best].combo }, amount: results[best].combo.value, remaining, points, addition };
 
+  // Barrage « qui donne » : le meilleur du barrage donne au perdant déjà connu.
+  if (s.isRolloff && s.rolloffKind === 'donneur') return { worst: null, best: { id: best, combo: results[best].combo }, amount: Math.min(s.rolloffPayout ?? 0, getPlayer(s, best).tokens), remaining, points, addition };
   let payer = s.isRolloff ? s.rolloffPayerId! : best;
   let amount = s.isRolloff ? s.rolloffPayout! : results[best].combo.value;
   // Qui perdrait, selon la règle d'égalité (null = barrage).

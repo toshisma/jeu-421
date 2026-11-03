@@ -36,6 +36,8 @@ export interface GameConfig {
   tieRule: TieRule;
   /** Barrage : on départage à la figure (combinaisons) ou à l'addition (total des trois dés). */
   rolloffMode: RolloffMode;
+  /** Décharge : égalité pour la meilleure combinaison → barrage pour savoir qui donne, ou le premier à l'avoir faite donne. */
+  bestTieRule: 'barrage' | 'premier';
   /** À combinaison égale, celui qui a utilisé le moins de lancers l'emporte. */
   fewerThrowsWins: boolean;
   /** Le perdant d'une manche commence la suivante (sinon on tourne d'un siège). */
@@ -55,6 +57,7 @@ export const DEFAULT_CONFIG: GameConfig = {
   leaderSetsThrows: true,
   direction: 'horaire',
   tieRule: 'barrage',
+  bestTieRule: 'barrage',
   fewerThrowsWins: false,
   loserStarts: true,
   turnSeconds: 30,
@@ -117,6 +120,7 @@ export function sanitizeConfig(input: unknown): GameConfig {
     leaderSetsThrows: bool(i.leaderSetsThrows, d.leaderSetsThrows),
     direction: oneOf(i.direction, ['horaire', 'antihoraire'] as const, d.direction),
     tieRule: oneOf(i.tieRule, ['barrage', 'premierPerd', 'dernierPerd'] as const, d.tieRule),
+    bestTieRule: oneOf(i.bestTieRule, ['barrage', 'premier'] as const, d.bestTieRule),
     rolloffMode: oneOf(i.rolloffMode, ['figure', 'addition'] as const, d.rolloffMode),
     fewerThrowsWins: bool(i.fewerThrowsWins, d.fewerThrowsWins),
     loserStarts: bool(i.loserStarts, d.loserStarts),
@@ -140,6 +144,7 @@ export function describeConfig(c: GameConfig): string[] {
   lines.push(`Jusqu'à ${c.maxThrows} lancer(s) par tour${c.leaderSetsThrows ? ', limité par le premier joueur de la manche' : ''}`);
   lines.push(`Sens ${c.direction}, ${c.loserStarts ? 'le perdant commence la manche suivante' : 'on tourne d’un siège à chaque manche'}`);
   lines.push(c.turnSeconds ? `${c.turnSeconds} secondes pour jouer, sinon le jeu joue à votre place` : 'Pas de limite de temps');
+  if (c.variant !== 'manches') lines.push(`Égalité pour la meilleure combinaison (décharge) : ${c.bestTieRule === 'barrage' ? 'barrage pour savoir qui donne' : 'le premier à l’avoir faite donne'}`);
   lines.push(`Égalité pour la dernière place : ${TIE_LABELS[c.tieRule]}${c.tieRule === 'barrage' ? (c.rolloffMode === 'addition' ? ', à l’addition (total des dés)' : ', à la figure') : ''}${c.fewerThrowsWins ? ' (le moins de lancers départage d’abord)' : ''}`);
   return lines;
 }

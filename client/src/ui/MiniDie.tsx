@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 const P: Record<number, [number, number][]> = {
   1: [[50, 50]],
   2: [[28, 28], [72, 72]],
@@ -7,13 +8,36 @@ const P: Record<number, [number, number][]> = {
   6: [[28, 24], [72, 24], [28, 50], [72, 50], [28, 76], [72, 76]],
 };
 
-/** Petit dé vectoriel pour l'historique, les cartes et la barre d'action. */
+/**
+ * Petit dé pour l'historique, les cartes et la barre d'action. Dessiné dans un canvas : le « mode
+ * sombre forcé » de certains navigateurs Android recolore les SVG (points blancs sur dé blanc),
+ * jamais le contenu d'un canvas.
+ */
 export function MiniDie({ value, size = 22, kept = false, dim = false, body, pip }: { value: number; size?: number; kept?: boolean; dim?: boolean; body?: string; pip?: string }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const dpr = typeof window !== 'undefined' ? Math.min(3, window.devicePixelRatio || 1) : 1;
+  useLayoutEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+    const g = c.getContext('2d');
+    if (!g) return;
+    const S = size * dpr;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, S, S);
+    g.scale(S / 100, S / 100);
+    g.beginPath();
+    g.roundRect(4, 4, 92, 92, 18);
+    g.fillStyle = body ?? '#f6f3ec';
+    g.fill();
+    g.lineWidth = kept ? 9 : 3;
+    g.strokeStyle = kept ? '#2a50b5' : 'rgba(0,0,0,0.3)';
+    g.stroke();
+    g.fillStyle = pip ?? '#141414';
+    for (const [x, y] of P[value] ?? []) { g.beginPath(); g.arc(x, y, value === 1 ? 12 : 9.5, 0, Math.PI * 2); g.fill(); }
+  }, [value, size, kept, body, pip, dpr]);
   return (
-    <svg className={`mini-die${kept ? ' kept' : ''}${dim ? ' dim' : ''}`} width={size} height={size} viewBox="0 0 100 100" aria-label={value ? `dé ${value}` : 'dé'}>
-      <rect x="4" y="4" width="92" height="92" rx="18" style={body ? { fill: body } : undefined} />
-      {(P[value] ?? []).map(([x, y], i) => <circle key={i} cx={x} cy={y} r={value === 1 ? 12 : 9.5} style={pip ? { fill: pip } : undefined} />)}
-    </svg>
+    <canvas ref={ref} className={`mini-die${kept ? ' kept' : ''}${dim ? ' dim' : ''}`} width={Math.round(size * dpr)} height={Math.round(size * dpr)}
+      style={{ width: size, height: size }} role="img" aria-label={value ? `dé ${value}` : 'dé'} />
   );
 }
 
