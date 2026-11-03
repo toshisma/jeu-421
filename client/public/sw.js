@@ -6,7 +6,7 @@
  * - Polices : servies par le jeu lui-même (/assets/), donc mises en cache comme le reste.
  * - Le multijoueur (/socket.io) n'est jamais mis en cache.
  */
-const VERSION = 'v3';
+const VERSION = 'v4';
 const CACHE = `421-${VERSION}`;
 const CORE = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png'];
 
@@ -41,11 +41,11 @@ self.addEventListener('fetch', (event) => {
     event.respondWith((async () => {
       try {
         const res = await fetch(req);
-        const cache = await caches.open(CACHE);
-        cache.put('/', res.clone());
+        // Seule la page du jeu est gardée pour jouer hors ligne (pas les pages de règles).
+        if (url.pathname === '/' && res.ok) (await caches.open(CACHE)).put('/', res.clone());
         return res;
       } catch {
-        return (await caches.match('/')) || Response.error();
+        return (await caches.match(url.pathname === '/' ? '/' : req)) || (await caches.match('/')) || Response.error();
       }
     })());
     return;

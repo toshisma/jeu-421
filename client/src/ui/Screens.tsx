@@ -172,6 +172,13 @@ export function Home(props: {
             <a className="link small-link" href={reportUrl()}>Signaler un problème</a>
             <button className="link small-link" onClick={props.onLegal}>Confidentialité et mentions légales</button>
           </div>
+          {!STANDALONE && (
+            <div className="foot-links">
+              <a className="link small-link" href="/regles-du-421">Règles du 421</a>
+              <a className="link small-link" href="/combinaisons-du-421">Combinaisons et probabilités</a>
+              <a className="link small-link" href="/421-entre-amis">Jouer entre amis</a>
+            </div>
+          )}
         </div>
       </main>
       {showNotifs && <NotifPanel pa={props.pa} notifs={notifs} reload={reload} onClose={() => { setShowNotifs(false); reload(); }}

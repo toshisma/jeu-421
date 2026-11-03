@@ -230,6 +230,7 @@ export async function startServer(opts: ServerOptions) {
   if (existsSync(clientDir)) {
     // sw.js et index.html ne doivent jamais rester en cache : sinon les mises à jour n'arrivent pas.
     app.use(express.static(clientDir, {
+      extensions: ['html'], // /regles-du-421 → regles-du-421.html (pages lisibles par les moteurs de recherche)
       setHeaders: (res, path) => {
         if (path.endsWith('sw.js') || path.endsWith('index.html') || path.endsWith('.webmanifest')) res.setHeader('Cache-Control', 'no-cache');
         if (path.endsWith('.webmanifest')) res.setHeader('Content-Type', 'application/manifest+json');
