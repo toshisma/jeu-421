@@ -76,6 +76,22 @@ describe('amis et défis', () => {
   });
 });
 
+describe('retour après une absence', () => {
+  it('un sac de dés après 3 jours sans venir, une seule fois', async () => {
+    const t = (await api('/register', { username: 'Revenant', password: 'motdepasse1' })).token;
+    const first = await api('/me', undefined, t);
+    expect(first.welcomeBack).toBe(false);
+    const bags = first.profile.bags ?? 0;
+    clock += 2 * 86400_000;
+    expect((await api('/me', undefined, t)).welcomeBack).toBe(false);
+    clock += 3 * 86400_000;
+    const back = await api('/me', undefined, t);
+    expect(back.welcomeBack).toBe(true);
+    expect(back.profile.bags).toBe(bags + 1);
+    expect((await api('/me', undefined, t)).welcomeBack).toBe(false);
+  });
+});
+
 describe('saisons classées', () => {
   it('points selon la place parmi les humains, divisions', () => {
     expect(seasonDelta(1, 2)).toBe(25);
@@ -101,9 +117,9 @@ describe('saisons classées', () => {
     expect(after.owned).toContain('ds-2026-11');
     expect(after.titles).toContain('saison:2026-11_salle');
     expect(titleLabel('saison:2026-11_salle')).toBe('Salle de novembre 2026');
-    expect(after.bags).toBe(2);
+    expect(after.bags).toBe(3); // 2 sacs de saison + 1 sac de retour (12 jours d'absence)
     expect((await api('/season', undefined, t)).me.points).toBe(0); // nouvelle saison
-    expect((await api('/me', undefined, t)).profile.bags).toBe(2); // versé une seule fois
+    expect((await api('/me', undefined, t)).profile.bags).toBe(3); // versé une seule fois
   });
 });
 

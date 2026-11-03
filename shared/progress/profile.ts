@@ -63,6 +63,8 @@ export interface Profile {
   referralBags?: number;
   /** Filleul : parties déjà jouées à l'inscription (seules les parties jouées avec le compte comptent). */
   refBase?: number;
+  /** Dernière visite d'un compte (sac de retour après RETURN_DAYS jours d'absence). */
+  lastVisit?: number;
   /** Scores contre les habitués de l'ordinateur : nom → victoires / défaites. */
   vsAi?: Record<string, { w: number; l: number }>;
 }
@@ -182,6 +184,7 @@ export function sanitizeProfile(raw: unknown): Profile {
   if (num(r.tutorial)) p.tutorial = 1;
   if (num(r.bags)) p.bags = Math.min(BAGS_MAX, num(r.bags));
   if (num(r.refBase)) p.refBase = num(r.refBase);
+  if (num(r.lastVisit)) p.lastVisit = num(r.lastVisit);
   if (num(r.referralBags)) p.referralBags = Math.min(REFERRAL_BAGS_MAX, num(r.referralBags));
   if (num(r.shards)) p.shards = num(r.shards);
   if (num(r.pity)) p.pity = Math.min(BAG_PITY, num(r.pity));
@@ -638,6 +641,8 @@ export const REFERRAL_BONUS = 75;
 export const REFERRAL_GAMES = 10;
 /** Parrainage : un sac de dés par filleul qui a joué REFERRAL_GAMES parties, au plus 3 sacs par compte. */
 export const REFERRAL_BAGS_MAX = 3;
+/** Un sac de dés offert au retour après ce nombre de jours d'absence. */
+export const RETURN_DAYS = 3;
 /** Clubs : 30 membres, création payante (contre le spam), coffre commun de la semaine. */
 export const CLUB_MAX = 30;
 export const CLUB_COST = 100;

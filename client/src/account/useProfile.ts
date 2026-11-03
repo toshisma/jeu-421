@@ -35,6 +35,7 @@ const saveCache = (p: Profile | null) => { try { if (p) localStorage.setItem(CAC
 export function useProfile(enabled: boolean) {
   const [session, setSession] = useState<Session | null>(() => (enabled ? loadSession() : null));
   const [user, setUser] = useState<PublicUser | null>(null);
+  const [welcomeBack, setWelcomeBack] = useState(false);
   const [guestPhoto, setGuestPhoto] = useState<string | null>(loadGuestPhoto);
   const [profile, setProfileState] = useState<Profile>(() => (enabled && loadSession() ? loadCache() ?? loadProfile() : loadProfile()));
   const ref = useRef({ profile, session });
@@ -60,8 +61,8 @@ export function useProfile(enabled: boolean) {
   const refresh = useCallback(() => {
     const s = ref.current.session;
     if (!s) return;
-    api<{ user: PublicUser; profile: Profile }>('/me', { token: s.token })
-      .then((r) => { setUser(r.user); setProfile(sanitizeProfile(r.profile)); })
+    api<{ user: PublicUser; profile: Profile; welcomeBack?: boolean }>('/me', { token: s.token })
+      .then((r) => { setUser(r.user); setProfile(sanitizeProfile(r.profile)); if (r.welcomeBack) setWelcomeBack(true); })
       .catch((e) => { if (e instanceof ApiError && e.status === 401) dropSession(); });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (session) refresh(); }, [session?.token]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -311,7 +312,7 @@ export function useProfile(enabled: boolean) {
   const photo = session ? user?.photo ?? null : guestPhoto;
 
   return {
-    profile, session, user, isAccount: !!session, photo, setPhoto, removePhoto,
+    profile, session, user, isAccount: !!session, welcomeBack, dismissWelcome: () => setWelcomeBack(false), photo, setPhoto, removePhoto,
     register, login, recover, logout, deleteAccount,
     submitChallenge,
     buyItem, equipItem, claim, blocked, block, isBlocked, claimDailyReward, claimPass, chooseTitle, finishTutorial, prestige,

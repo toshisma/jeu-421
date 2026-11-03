@@ -3,6 +3,7 @@ import type { GameState } from '../../../shared/engine';
 import type { MetaPlayer } from '../game/controller';
 import { levelInfo } from '../../../shared/progress/profile';
 import type { EndReward } from './GameScreen';
+import { CopyReferral } from './Referral';
 
 interface Props {
   reward: EndReward | null;
@@ -15,12 +16,14 @@ interface Props {
   onExit: () => void;
   exitLabel?: string;
   note?: string;
+  /** Pseudo du joueur connecté : propose de partager son lien de parrainage après une victoire. */
+  referral?: string;
 }
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 /** Écran de fin : classement animé et confettis. */
-export function EndOverlay({ reward, state, meta, meId, canRematch, online, onRematch, onExit, exitLabel, note }: Props) {
+export function EndOverlay({ reward, state, meta, meId, canRematch, online, onRematch, onExit, exitLabel, note, referral }: Props) {
   const points = state.config.variant === 'manches';
   const winner = state.ranking[0];
   const scoreOf = (id: string) => state.players.find((p) => p.id === id)!.score;
@@ -66,6 +69,12 @@ export function EndOverlay({ reward, state, meta, meId, canRematch, online, onRe
         </ol>
         {note && <p className="end-note">{note}</p>}
         {reward && <RewardBox r={reward} />}
+        {iWon && referral && (
+          <div className="end-share">
+            <p className="small">Défiez un ami : s'il s'inscrit avec votre lien et joue 10 parties, vous gagnez un sac de dés.</p>
+            <CopyReferral code={referral} />
+          </div>
+        )}
         <div className="end-buttons">
           {canRematch && <button className="btn primary" onClick={onRematch}>{online ? 'Revanche (retour au salon)' : 'Rejouer'}</button>}
           {!canRematch && online && !exitLabel && <p className="muted small">L'hôte peut proposer une revanche.</p>}

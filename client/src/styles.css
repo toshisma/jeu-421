@@ -1110,3 +1110,7 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .ref-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .ref-actions .btn { flex: 1 1 140px; }
 .ref-link { flex-basis: 100%; word-break: break-all; margin: 0; }
+.welcome-back { display: flex; gap: 10px; align-items: center; width: 100%; margin: 10px 0; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(212,175,55,.5); background: rgba(212,175,55,.14); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.welcome-back > span:first-child { font-size: 1.6rem; }
+.end-share { margin: 10px 0 4px; padding: 10px; border-radius: 10px; background: rgba(212,175,55,.1); border: 1px dashed rgba(212,175,55,.45); }
+.end-share p { margin: 0 0 8px; }

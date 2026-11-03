@@ -142,6 +142,11 @@ export function Home(props: {
           </section>
         )}
         <HappyHourBanner />
+        {props.pa.welcomeBack && (
+          <button className="welcome-back" onClick={() => { props.pa.dismissWelcome(); props.onCollection(); }}>
+            <span aria-hidden>🎒</span><span><b>Content de vous revoir !</b> Un sac de dés vous attend : ouvrez-le dans la Collection.</span>
+          </button>
+        )}
         <EventBanner onShop={props.onShop} />
         <DailyStreak pa={props.pa} />
         <ChallengeCard onOpen={props.onChallenge} />

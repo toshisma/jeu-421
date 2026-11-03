@@ -519,7 +519,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
       {s && s.phase === 'fini' && !animating && (
         <EndOverlay reward={endReward} state={s} meta={meta} meId={controller.meId} canRematch={controller.canRematch()}
           online={controller.mode === 'online'} onRematch={() => controller.rematch()} onExit={leave}
-          exitLabel={tableExit?.label} note={tableExit?.note?.(s)} />
+          exitLabel={tableExit?.label} note={tableExit?.note?.(s)} referral={pa?.isAccount ? pa.user?.username : undefined} />
       )}
       {/* Bulles et réactions : calque au-dessus de tout, à l'aplomb de la carte du joueur. */}
       <div className="float-layer" aria-live="polite">

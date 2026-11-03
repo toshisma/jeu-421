@@ -6,7 +6,7 @@
 import express from 'express';
 import { createServer } from 'node:http';
 import { randomInt, randomUUID } from 'node:crypto';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Server, type Socket } from 'socket.io';
@@ -229,6 +229,19 @@ export async function startServer(opts: ServerOptions) {
   const clientDir = join(here, '..', 'dist', 'client');
   if (existsSync(clientDir)) {
     // sw.js et index.html ne doivent jamais rester en cache : sinon les mises à jour n'arrivent pas.
+    // Lien de parrainage : l'aperçu partagé dit qui invite.
+    let indexHtml: string | null = null;
+    app.get('/', (req, res, next) => {
+      const who = typeof req.query.parrain === 'string' ? req.query.parrain.replace(/[^\p{L}\p{N}_ .-]/gu, '').slice(0, 20) : '';
+      if (!who) return next();
+      indexHtml ??= readFileSync(join(clientDir, 'index.html'), 'utf8');
+      const t = `${who} vous invite à jouer au 421`;
+      res.setHeader('Cache-Control', 'no-cache');
+      res.type('html').send(indexHtml
+        .replace(/(<meta property="og:title" content=")[^"]*/, `$1${t}`)
+        .replace(/(<meta name="twitter:title" content=")[^"]*/, `$1${t}`)
+        .replace(/(<meta property="og:description" content=")[^"]*/, '$1Rejoignez la partie : le 421 du comptoir, en ligne et gratuit. Lancez les dés dans un vrai bac en 3D.'));
+    });
     app.use(express.static(clientDir, {
       extensions: ['html'], // /regles-du-421 → regles-du-421.html (pages lisibles par les moteurs de recherche)
       setHeaders: (res, path) => {

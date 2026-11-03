@@ -16,7 +16,7 @@ import { challengeReward, playChallenge } from '../shared/challenge';
 import { PHRASES } from '../shared/protocol';
 import {
   adjustCoins, applyGameEnd, applyPot, applyTournament, buy, claimDaily, claimPassTier, completeTutorial, setTitle, titleLabel, addSeasonPoints, REWARDS,
-  LEAGUES, LEAGUE_DEMOTE, LEAGUE_PRIZES, ALBUM_KEYS, CLUB_CHEST, CLUB_COST, CLUB_EMBLEMS, CLUB_MAX, doPrestige, PRESTIGE_LEVEL, LEAGUE_PROMOTE, LEAGUE_SIZE, REFERRAL_BONUS, REFERRAL_GAMES, REFERRAL_BAGS_MAX, claimQuest, equip, levelInfo, rewardFor, sanitizeProfile, newProfile,
+  LEAGUES, LEAGUE_DEMOTE, LEAGUE_PRIZES, ALBUM_KEYS, CLUB_CHEST, CLUB_COST, CLUB_EMBLEMS, CLUB_MAX, doPrestige, PRESTIGE_LEVEL, LEAGUE_PROMOTE, LEAGUE_SIZE, REFERRAL_BONUS, REFERRAL_GAMES, REFERRAL_BAGS_MAX, RETURN_DAYS, claimQuest, equip, levelInfo, rewardFor, sanitizeProfile, newProfile,
   openBag, craftDie, setShowcase, collectionCount, equipFx, BAGS_MAX,
   type Profile, type RewardContext,
 } from '../shared/progress/profile';
@@ -137,7 +137,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   const importGuest = (p: Profile): Profile => {
     const owned = p.owned.filter((id) => !collectionDie(id));
     const equipped = collectionDie(p.equipped.dice) ? { ...p.equipped, dice: DEFAULT_APPEARANCE.dice } : p.equipped;
-    return { ...p, owned, equipped, shards: undefined, showcase: undefined, referralBags: undefined, refBase: undefined, bags: Math.min(10, p.bags ?? 0) };
+    return { ...p, owned, equipped, shards: undefined, showcase: undefined, referralBags: undefined, refBase: undefined, lastVisit: undefined, bags: Math.min(10, p.bags ?? 0) };
   };
   router.post('/register', async (req, res) => {
     if (limited(req)) return fail(res, 429, 'Trop de tentatives, réessayez dans quelques minutes.');
@@ -194,7 +194,15 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   router.get('/me', auth, (req, res) => {
     rollSeasons(); // fin de saison éventuelle : récompenses versées avant de renvoyer le profil
     const u = store.userById(userOf(req).id)!;
-    res.json({ ok: true, ...publicProfile(u, store.profileOf(u)), rank: store.rankOf(u) });
+    let p = store.profileOf(u);
+    // Retour après quelques jours d'absence : un sac de dés offert. La visite est notée au plus une fois par heure.
+    const t = opts.now?.() ?? Date.now();
+    const welcomeBack = !!p.lastVisit && t - p.lastVisit >= RETURN_DAYS * 86400_000;
+    if (welcomeBack || !p.lastVisit || t - p.lastVisit > 3600_000) {
+      p = { ...p, lastVisit: t, ...(welcomeBack ? { bags: Math.min(BAGS_MAX, (p.bags ?? 0) + 1) } : {}) };
+      store.saveProfile(u.id, p);
+    }
+    res.json({ ok: true, ...publicProfile(u, p), rank: store.rankOf(u), welcomeBack });
   });
 
   /** Suppression définitive et immédiate du compte et de toutes ses données. */
