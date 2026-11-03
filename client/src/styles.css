@@ -1179,3 +1179,10 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 @keyframes toast-life { 0% { opacity: 0; transform: translateY(8px); } 8%, 85% { opacity: 1; transform: none; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .friend-toast { animation: none; } }
 .link-btn { background: none; border: 0; padding: 0; color: inherit; font: inherit; text-decoration: underline dotted; cursor: pointer; } .recent-games { margin-top: 16px; }
+.changelog { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.changelog > li { padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.05); }
+.changelog header { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: .85rem; }
+.changelog header time { opacity: .7; }
+.changelog h3 { margin: 6px 0; }
+.changelog ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.new-dot { display: inline-block; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%; background: #e04a3a; vertical-align: middle; }

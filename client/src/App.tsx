@@ -1,4 +1,5 @@
 import { api } from './account/api';
+import { ChangelogScreen } from './ui/Changelog';
 import { FriendOnlineToast, FriendsScreen, InviteBanner } from './ui/Friends';
 import { useEffect, useMemo, useState } from 'react';
 import type { GameConfig } from '../../shared/config';
@@ -42,6 +43,7 @@ type Screen =
   | { name: 'solo'; controller: LocalController; personas: Record<string, Persona> }
   | { name: 'hub'; tab: HubTab }
   | { name: 'friends' }
+  | { name: 'changelog' }
   | { name: 'online'; mode: OnlineMode }
   | { name: 'tournament'; mode: TournamentMode }
   | { name: 'rules' }
@@ -162,6 +164,7 @@ export function App() {
         onCollection={() => setScreen({ name: 'collection' })}
         onDuels={() => setScreen({ name: 'duels' })}
         onFriends={() => setScreen({ name: 'friends' })}
+        onChangelog={() => setScreen({ name: 'changelog' })}
         onJoinRoom={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
         onDuelPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }}
         openNotifs={openNotifs}
@@ -221,6 +224,8 @@ export function App() {
       return <ChallengeScreen pa={pa} settings={settings} appearance={profile.equipped} onBack={home} />;
     case 'pass':
       return <PassScreen pa={pa} onBack={home} />;
+    case 'changelog':
+      return <ChangelogScreen onBack={home} />;
     case 'friends':
       return <FriendsScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} onJoin={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
         onInvite={(username) => setScreen({ name: 'online', mode: { kind: 'create', invite: username } })} />;

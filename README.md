@@ -113,6 +113,7 @@ points de jeu.
   tapis, dés et titre exclusifs).
 - **Ligues hebdomadaires** (comptes) : groupes de 20 joueurs ; les 3 premiers montent et gagnent
   60 / 40 / 25 pièces, les 3 derniers descendent. Bronze → Argent → Or → Saphir → Rubis → Diamant.
+- **Nouveautés** : écran listant les versions (`shared/changelog.ts`). À chaque mise à jour, ajouter une entrée en tête avec la version, la date et l'heure de publication ; ne jamais y mettre les outils réservés aux administrateurs.
 - **Retour** : un sac de dés offert à un compte qui revient après 3 jours d'absence.
 - **Parrainage** : lien `?parrain=Pseudo` copiable depuis l'accueil ; quand le filleul crée son compte et joue 10 parties avec, le parrain reçoit un sac de dés (3 sacs au plus par compte) et le filleul 75 pièces. Les parties jouées en invité avant l'inscription ne comptent pas.
 - **Rivalités** : bilan contre chaque compte croisé en ligne, affiché sur son profil.

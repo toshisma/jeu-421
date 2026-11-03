@@ -19,6 +19,8 @@ import { LiveStrip } from './StatsScreen';
 import { CollectionPromo } from './DiceCollection';
 import { ReferralCard } from './Referral';
 import { FriendsButton, OpenLobbies } from './Friends';
+import { changelogUnseen } from './Changelog';
+import { CURRENT_VERSION } from '../../../shared/changelog';
 import { fxDef, fxGlows } from '../../../shared/progress/dice-collection';
 import { NotifBell, NotifPanel, useNotifications } from './Social';
 import type { DuelPlay } from './ChallengeScreen';
@@ -67,7 +69,7 @@ export function ProfileChip({ profile, onClick, photo, emoji }: { profile: Profi
 
 export function Home(props: {
   profile: Profile; pa: ProfileApi; avatar: string; displayName: string; onShop: () => void; onAccount: () => void; onLeaderboard: () => void;
-  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onParty: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void; onLogin: () => void; onCollection: () => void; onDuels: () => void; onFriends: () => void; onJoinRoom: (code: string) => void; onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
+  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onParty: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void; onLogin: () => void; onCollection: () => void; onDuels: () => void; onFriends: () => void; onChangelog: () => void; onJoinRoom: (code: string) => void; onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
   resume: { code: string; tournament?: boolean } | null; onResume: () => void;
 }) {
   const [online, setOnline] = useState(navigator.onLine);
@@ -180,6 +182,7 @@ export function Home(props: {
               : <button className="link" onClick={props.onLogin}>Déjà un compte ? Se connecter</button>
           )}
           <div className="foot-links">
+            <button className="link small-link" onClick={props.onChangelog}>Nouveautés (v{CURRENT_VERSION}){changelogUnseen() && <i className="new-dot" aria-label="nouvelle version" />}</button>
             <a className="link small-link" href={reportUrl()}>Signaler un problème</a>
             <button className="link small-link" onClick={props.onLegal}>Confidentialité et mentions légales</button>
           </div>
