@@ -85,6 +85,12 @@ export function ProfileView({ pa, username, displayName, avatar, onClose }: {
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const file = useRef<HTMLInputElement>(null);
+  const [isFriend, setIsFriend] = useState(false);
+  useEffect(() => {
+    if (!other || !pa.token) return;
+    api<{ friends: { username: string }[] }>('/friends', { token: pa.token })
+      .then((r) => setIsFriend(r.friends.some((f) => f.username.toLowerCase() === username!.toLowerCase()))).catch(() => {});
+  }, [other, username, pa.token]);
 
   useEffect(() => {
     if (!other) return;
@@ -107,6 +113,17 @@ export function ProfileView({ pa, username, displayName, avatar, onClose }: {
           </div>
         </div>
         <XpCard level={pub.level} xp={pub.xp} into={pub.into} need={pub.need} />
+        <div className="pv-friend">
+          {!pa.isAccount ? <p className="muted small">Créez un compte pour ajouter {pub.username} en ami.</p>
+            : isFriend ? <span className="ok small">✓ Vous êtes amis</span>
+              : <button className="btn primary small" onClick={async () => {
+                try {
+                  const r = await api<{ result: string }>('/friends', { body: { username: pub.username }, token: pa.token });
+                  if (r.result === 'accepted') setIsFriend(true);
+                  setMsg(r.result === 'accepted' ? 'Vous êtes maintenant amis.' : 'Demande d’ami envoyée.');
+                } catch (e) { setMsg((e as Error).message); }
+              }}><Icon name="plus" size={18} /> Ajouter en ami</button>}
+        </div>
         <div className="pv-stats">
           <div><b>{pub.onlineWins}</b><small>victoires en ligne</small></div>
           <div><b>{pub.onlineGames}</b><small>parties en ligne</small></div>
@@ -117,13 +134,6 @@ export function ProfileView({ pa, username, displayName, avatar, onClose }: {
         <Achievements unlocked={pub.achievements} />
         {pa.isAccount && (
           <div className="row">
-            <button className="btn small" onClick={async () => {
-              try {
-                const r = await api<{ result: string }>('/friends', { body: { username: pub.username }, token: pa.token });
-                setMsg(r.result === 'accepted' ? 'Vous êtes maintenant amis.' : 'Demande d’ami envoyée.');
-              }
-              catch (e) { setMsg((e as Error).message); }
-            }}><Icon name="plus" size={18} /> Ajouter en ami</button>
             <button className="btn ghost small danger" onClick={async () => {
               const on = !pa.isBlocked(pub.username);
               if (on && !(await askConfirm(`Bloquer ${pub.username} ? Sa photo et ses réactions seront masquées, et il ne pourra plus s'asseoir à vos tables.`, 'Bloquer'))) return;

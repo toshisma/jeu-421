@@ -1,3 +1,5 @@
+import { api } from './account/api';
+import { FriendsScreen } from './ui/Friends';
 import { useEffect, useMemo, useState } from 'react';
 import type { GameConfig } from '../../shared/config';
 import { sound } from './audio/sound';
@@ -39,6 +41,7 @@ type Screen =
   | { name: 'solo-setup' }
   | { name: 'solo'; controller: LocalController; personas: Record<string, Persona> }
   | { name: 'hub'; tab: HubTab }
+  | { name: 'friends' }
   | { name: 'online'; mode: OnlineMode }
   | { name: 'tournament'; mode: TournamentMode }
   | { name: 'rules' }
@@ -93,6 +96,12 @@ export function App() {
   const [resume, setResume] = useState(loadSession);
   // Profil : invité (sur l'appareil) ou compte (sur le serveur). Pas de comptes sans serveur.
   const pa = useProfile(!STANDALONE);
+  // Signe de vie : un compte avec le jeu ouvert apparaît « en ligne » chez ses amis.
+  useEffect(() => {
+    if (!pa.token) return;
+    const ping = () => { if (document.visibilityState === 'visible') api('/notifications', { token: pa.token! }).catch(() => {}); };
+    ping(); const t = setInterval(ping, 45_000); return () => clearInterval(t);
+  }, [pa.token]);
   const { profile } = pa;
 
   const setSettings = (s: Settings) => { setSettingsState(s); saveSettings(s); };
@@ -152,6 +161,8 @@ export function App() {
         onStats={() => setScreen({ name: 'stats' })}
         onCollection={() => setScreen({ name: 'collection' })}
         onDuels={() => setScreen({ name: 'duels' })}
+        onFriends={() => setScreen({ name: 'friends' })}
+        onJoinRoom={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
         onDuelPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }}
         openNotifs={openNotifs}
         resume={resume} onResume={() => setScreen(resume?.tournament ? { name: 'tournament', mode: { kind: 'resume' } } : { name: 'online', mode: { kind: 'resume' } })} />;
@@ -210,6 +221,8 @@ export function App() {
       return <ChallengeScreen pa={pa} settings={settings} appearance={profile.equipped} onBack={home} />;
     case 'pass':
       return <PassScreen pa={pa} onBack={home} />;
+    case 'friends':
+      return <FriendsScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} onJoin={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })} />;
     case 'duels':
       return <DuelsScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} onPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }} />;
     case 'duel':

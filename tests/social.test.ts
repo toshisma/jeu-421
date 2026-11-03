@@ -40,6 +40,10 @@ describe('amis et défis', () => {
     expect((await api('/friends', { username: 'Alice' }, b)).result).toBe('accepted'); // il demandait aussi : amis
     expect((await api('/friends', undefined, a)).friends.map((f: { username: string }) => f.username).sort()).toEqual(['Alice', 'Bob']);
     expect((await api('/friends', undefined, b)).friends.map((f: { username: string }) => f.username).sort()).toEqual(['Alice', 'Bob']);
+    // Présence : Alice vient d'utiliser l'API, elle est en ligne, sans salon.
+    const al = (await api('/friends', undefined, b)).friends.find((f: { username: string }) => f.username === 'Alice');
+    expect(al).toMatchObject({ online: true, room: null });
+    expect(al.lastSeen).toBeGreaterThan(0);
   });
 
   it('défi avec mise : mêmes dés, score caché tant qu’on n’a pas joué, cagnotte au gagnant', async () => {

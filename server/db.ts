@@ -277,6 +277,11 @@ export class Store {
   removeFriend(userId: string, friendId: string) {
     this.db.prepare('DELETE FROM friends WHERE user_id = ? AND friend_id = ?').run(userId, friendId);
   }
+  /** Dernière activité d'un compte (toutes sessions confondues). */
+  lastSeenOf(userId: string): number {
+    const r = this.db.prepare('SELECT MAX(last_seen) AS t FROM sessions WHERE user_id = ?').get(userId) as { t: number | null } | undefined;
+    return r?.t ?? 0;
+  }
   friendsOf(userId: string): UserRow[] {
     return this.db.prepare('SELECT u.* FROM friends f JOIN users u ON u.id = f.friend_id WHERE f.user_id = ? ORDER BY u.online_wins DESC, u.username').all(userId) as unknown as UserRow[];
   }

@@ -1134,3 +1134,22 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .welcome-back > span:first-child { font-size: 1.6rem; }
 .end-share { margin: 10px 0 4px; padding: 10px; border-radius: 10px; background: rgba(212,175,55,.1); border: 1px dashed rgba(212,175,55,.45); }
 .end-share p { margin: 0 0 8px; }
+
+/* Amis et salons ouverts */
+.friends-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.friends-list li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: rgba(255,255,255,.04); }
+.friends-list li:not(.on) { opacity: .7; }
+.fr-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; background: none; border: 0; color: inherit; font: inherit; text-align: left; padding: 4px 0; cursor: pointer; }
+.fr-name { min-width: 0; display: grid; }
+.fr-name b, .fr-name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fr-name small { opacity: .75; }
+.fr-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #6b7378; }
+.fr-dot.on { background: #4cd07a; box-shadow: 0 0 8px #4cd07a; }
+.fr-dot.play { background: #f2b632; box-shadow: 0 0 8px #f2b632; animation: aura-pulse .8s ease-in-out infinite alternate; }
+.open-lobbies { margin: 12px 0; padding: 12px; border-radius: 14px; border: 2px solid #f2b632; background: rgba(242,182,50,.12); display: grid; gap: 8px; }
+.open-lobbies header { display: flex; align-items: center; gap: 8px; }
+.ol-row { display: flex; align-items: center; gap: 10px; }
+.ol-row span { flex: 1; min-width: 0; display: grid; }
+.ol-row b, .ol-row small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ol-row small { opacity: .8; }
+.pv-friend { margin: 10px 0; display: flex; justify-content: center; }

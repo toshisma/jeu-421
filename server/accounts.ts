@@ -338,6 +338,11 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     res.json({ ok: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
   });
 
+  /** Où se trouve un compte en ce moment (fourni par le serveur de jeu). */
+  let presence: (userId: string) => { code: string; status: 'salon' | 'partie'; joinable: boolean } | null = () => null;
+  const setPresence = (f: typeof presence) => { presence = f; };
+  const ONLINE_MS = 90_000;
+
   // --- Classement et amis -----------------------------------------------------------------------
   const row = (u: UserRow, rank: number | null) => ({
     rank, username: u.username, onlineWins: u.online_wins, onlineGames: u.online_games,
@@ -350,9 +355,15 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   });
   router.get('/friends', auth, (req, res) => {
     const me = userOf(req);
+    const t = Date.now(); // même horloge que les sessions
     const list = [me, ...store.friendsOf(me.id)]
       .sort((a, b) => b.online_wins - a.online_wins || a.online_games - b.online_games)
-      .map((u, i) => ({ ...row(u, i + 1), me: u.id === me.id }));
+      .map((u, i) => {
+        // Présence façon Steam : en partie / dans un salon (qu'on peut rejoindre) / en ligne / vu il y a…
+        const room = presence(u.id);
+        const lastSeen = store.lastSeenOf(u.id);
+        return { ...row(u, i + 1), me: u.id === me.id, lastSeen, online: !!room || t - lastSeen < ONLINE_MS, room };
+      });
     res.json({ ok: true, friends: list });
   });
 
@@ -755,5 +766,5 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   };
   const social = createSocial({ router, store, auth, userOf, fail, adjust, coinsOf, brusselsDate, brusselsHour, now: () => opts.now?.() ?? Date.now() });
 
-  return { social, router, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
+  return { social, router, setPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
 }

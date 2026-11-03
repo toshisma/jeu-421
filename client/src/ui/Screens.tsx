@@ -18,6 +18,7 @@ import { InstallPrompt } from './InstallPrompt';
 import { LiveStrip } from './StatsScreen';
 import { CollectionPromo } from './DiceCollection';
 import { ReferralCard } from './Referral';
+import { OpenLobbies } from './Friends';
 import { fxDef, fxGlows } from '../../../shared/progress/dice-collection';
 import { NotifBell, NotifPanel, useNotifications } from './Social';
 import type { DuelPlay } from './ChallengeScreen';
@@ -66,7 +67,7 @@ export function ProfileChip({ profile, onClick, photo, emoji }: { profile: Profi
 
 export function Home(props: {
   profile: Profile; pa: ProfileApi; avatar: string; displayName: string; onShop: () => void; onAccount: () => void; onLeaderboard: () => void;
-  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onParty: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void; onLogin: () => void; onCollection: () => void; onDuels: () => void; onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
+  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onParty: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void; onLogin: () => void; onCollection: () => void; onDuels: () => void; onFriends: () => void; onJoinRoom: (code: string) => void; onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
   resume: { code: string; tournament?: boolean } | null; onResume: () => void;
 }) {
   const [online, setOnline] = useState(navigator.onLine);
@@ -135,6 +136,7 @@ export function Home(props: {
             </div>
           </section>
         )}
+        {!STANDALONE && <OpenLobbies onJoin={props.onJoinRoom} onAll={props.onOnline} />}
         {!props.profile.tutorial && (
           <section className="tuto-card">
             <div><b>Nouveau au 421 ?</b><span>Une partie guidée de quelques minutes pour apprendre les règles en jouant. 50 pièces à la clé.</span></div>
@@ -161,6 +163,7 @@ export function Home(props: {
           <button onClick={props.onAlbum}><Icon name="album" /><span>Album</span></button>
           {!STANDALONE && <button onClick={props.onLeaderboard}><Icon name="trophy" /><span>Classement</span></button>}
           {!STANDALONE && <button onClick={props.onClub}><Icon name="club" /><span>Club</span></button>}
+          {!STANDALONE && <button onClick={props.onFriends}><Icon name="user" /><span>Amis</span></button>}
           {!STANDALONE && <button onClick={props.onDuels} className="tile-coll"><Icon name="dice" /><span>Défis</span>{(notifs?.toPlay.filter((d) => !d.sent).length ?? 0) > 0 && <i className="tile-badge">{notifs!.toPlay.filter((d) => !d.sent).length}</i>}</button>}
           <button onClick={props.onRecap}><Icon name="chart" /><span>Récap</span></button>
           {!STANDALONE && <button onClick={props.onStats}><Icon name="stats" /><span>Statistiques</span></button>}

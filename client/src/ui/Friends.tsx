@@ -1,0 +1,92 @@
+import { useEffect, useState } from 'react';
+import { api } from '../account/api';
+import type { ProfileApi } from '../account/useProfile';
+import type { LobbyEntry } from '../../../shared/tournament';
+import { Shell } from './Screens';
+import { ProfileView } from './ProfileView';
+
+interface Friend {
+  username: string; level: number; me?: boolean; lastSeen: number; online: boolean;
+  room: { code: string; status: 'salon' | 'partie'; joinable: boolean } | null;
+}
+
+/** « Vu il y a 3 h », comme sur Steam. */
+export function seenAgo(t: number, now = Date.now()): string {
+  if (!t) return 'Jamais vu en ligne';
+  const m = Math.max(1, Math.round((now - t) / 60_000));
+  if (m < 60) return `En ligne il y a ${m} min`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `En ligne il y a ${h} h`;
+  const d = Math.round(h / 24);
+  return d < 30 ? `En ligne il y a ${d} jour${d > 1 ? 's' : ''}` : 'En ligne il y a plus d’un mois';
+}
+
+/** Écran Amis : qui est en ligne, qui joue, rejoindre son salon d'un clic, voir son profil. */
+export function FriendsScreen({ pa, onBack, onAccount, onJoin }: { pa: ProfileApi; onBack: () => void; onAccount: () => void; onJoin: (code: string) => void }) {
+  const [list, setList] = useState<Friend[] | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [msg, setMsg] = useState<{ ok?: string; err?: string }>({});
+  const load = () => { if (pa.token) api<{ friends: Friend[] }>('/friends', { token: pa.token }).then((r) => setList(r.friends.filter((f) => !f.me))).catch(() => {}); };
+  useEffect(() => { load(); const t = setInterval(load, 20_000); return () => clearInterval(t); }, [pa.token]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!pa.isAccount) {
+    return <Shell title="Amis" onBack={onBack}><p>Créez un compte pour ajouter des amis, voir qui est en ligne et rejoindre leurs parties.</p><button className="btn primary" onClick={onAccount}>Créer mon compte</button></Shell>;
+  }
+  const rank = (f: Friend) => (f.room?.joinable ? 0 : f.room ? 1 : f.online ? 2 : 3);
+  const sorted = [...(list ?? [])].sort((a, b) => rank(a) - rank(b) || b.lastSeen - a.lastSeen);
+  const onlineCount = sorted.filter((f) => f.online).length;
+  return (
+    <Shell title="Amis" onBack={onBack}>
+      <form className="friend-add" onSubmit={async (e) => {
+        e.preventDefault(); setMsg({});
+        try {
+          const r = await api<{ result: string }>('/friends', { token: pa.token!, body: { username: name.trim() } });
+          setMsg({ ok: r.result === 'accepted' ? `Vous êtes maintenant amis avec ${name}.` : `Demande envoyée à ${name}.` }); setName(''); load();
+        } catch (x) { setMsg({ err: (x as Error).message }); }
+      }}>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Pseudo d'un ami" maxLength={20} />
+        <button className="btn small primary" disabled={name.trim().length < 3}>Ajouter</button>
+      </form>
+      {msg.err && <p className="error small">{msg.err}</p>}
+      {msg.ok && <p className="ok small">{msg.ok}</p>}
+      {list && <p className="muted small">{onlineCount > 0 ? `${onlineCount} ami${onlineCount > 1 ? 's' : ''} en ligne` : 'Aucun ami en ligne pour le moment.'}</p>}
+      {list?.length === 0 && <p className="muted">Pas encore d'amis : ajoutez un pseudo ci-dessus, ou partagez votre lien de parrainage depuis l'accueil.</p>}
+      <ul className="friends-list">
+        {sorted.map((f) => (
+          <li key={f.username} className={f.online ? 'on' : ''}>
+            <button className="fr-main" onClick={() => setOpen(f.username)}>
+              <i className={`fr-dot ${f.room ? 'play' : f.online ? 'on' : ''}`} aria-hidden />
+              <span className="fr-name"><b>{f.username}</b><small>
+                {f.room ? (f.room.status === 'salon' ? 'Dans un salon, en attente de joueurs' : 'En pleine partie') : f.online ? 'En ligne' : seenAgo(f.lastSeen)}
+                {' · '}niv. {f.level}</small></span>
+            </button>
+            {f.room?.joinable && <button className="btn small primary" onClick={() => onJoin(f.room!.code)}>Rejoindre</button>}
+          </li>
+        ))}
+      </ul>
+      {open && <ProfileView pa={pa} username={open} onClose={() => setOpen(null)} />}
+    </Shell>
+  );
+}
+
+/** Accueil : les salons en attente de joueurs, à rejoindre d'un clic. */
+export function OpenLobbies({ onJoin, onAll }: { onJoin: (code: string) => void; onAll: () => void }) {
+  const [lobbies, setLobbies] = useState<LobbyEntry[]>([]);
+  useEffect(() => {
+    const load = () => api<{ lobbies: LobbyEntry[] }>('/lobbies').then((r) => setLobbies(r.lobbies)).catch(() => {});
+    load(); const t = setInterval(load, 8000); return () => clearInterval(t);
+  }, []);
+  if (!lobbies.length) return null;
+  return (
+    <section className="open-lobbies" aria-live="polite">
+      <header><i className="fr-dot play" aria-hidden /><b>{lobbies.length > 1 ? `${lobbies.length} parties attendent des joueurs` : 'Une partie attend des joueurs'}</b></header>
+      {lobbies.slice(0, 3).map((l) => (
+        <div key={l.code} className="ol-row">
+          <span><b>{l.title}</b><small>{l.players}/{l.max} joueurs{l.stake ? ` · mise ${l.stake} pièces` : ''}</small></span>
+          <button className="btn primary small" onClick={() => onJoin(l.code)}>Rejoindre</button>
+        </div>
+      ))}
+      {lobbies.length > 3 && <button className="btn ghost small" onClick={onAll}>Voir toutes les tables</button>}
+    </section>
+  );
+}

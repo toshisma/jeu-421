@@ -188,6 +188,16 @@ export async function startServer(opts: ServerOptions) {
   });
   app.use('/api', stats.router);
 
+  accounts.setPresence((userId) => {
+    for (const r of rooms.values()) {
+      const m = r.members.find((x) => x.userId === userId && x.socketId != null);
+      if (!m) continue;
+      const lobby = r.status === 'lobby';
+      return { code: r.code, status: lobby ? 'salon' : 'partie', joinable: lobby && !r.tournament && r.members.length < r.table.maxPlayers };
+    }
+    return null;
+  });
+
   // Listes publiques : salons en attente de joueurs et tournois ouverts aux inscriptions.
   app.get('/api/lobbies', (_req, res) => {
     const lobbies: LobbyEntry[] = [...rooms.values()]
