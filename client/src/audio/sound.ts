@@ -136,6 +136,13 @@ class SoundEngine {
     o.connect(lp).connect(g).connect(this.master!);
     o.start(t); o.stop(t + dur + 0.1);
   }
+  /** Trésor trouvé : petite montée scintillante puis accord triomphal (composition originale). */
+  treasure() {
+    [392, 440, 494, 523, 587, 659, 740, 784].forEach((f, i) => this.tone(f * 2, i * 0.055, 0.12, 0.06, 'square'));
+    [[523, 0.5], [659, 0.5], [784, 0.5], [1046, 0.5]].forEach(([f, s0]) => this.tone(f, s0, 1.1, 0.1));
+    this.tone(1568, 0.62, 0.9, 0.05, 'sine');
+    this.tone(131, 0.5, 1.2, 0.12, 'sine');
+  }
   /** Ouverture d'un sac : roulement de tambour qui accélère et montée de tension (durée en secondes). */
   bagBuild(dur: number) {
     let t = 0, gap = 0.16;

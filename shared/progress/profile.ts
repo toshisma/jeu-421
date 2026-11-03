@@ -65,8 +65,8 @@ export interface Profile {
   refBase?: number;
   /** Dernière visite d'un compte (sac de retour après RETURN_DAYS jours d'absence). */
   lastVisit?: number;
-  /** Jour (Bruxelles) du dernier coffre du soir ouvert. */
-  chestDay?: string;
+  /** Moment de la dernière ouverture du coffre (le suivant s'ouvre 24 h après). */
+  chestAt?: number;
   /** Scores contre les habitués de l'ordinateur : nom → victoires / défaites. */
   vsAi?: Record<string, { w: number; l: number }>;
 }
@@ -187,7 +187,7 @@ export function sanitizeProfile(raw: unknown): Profile {
   if (num(r.bags)) p.bags = Math.min(BAGS_MAX, num(r.bags));
   if (num(r.refBase)) p.refBase = num(r.refBase);
   if (num(r.lastVisit)) p.lastVisit = num(r.lastVisit);
-  if (typeof r.chestDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.chestDay)) p.chestDay = r.chestDay;
+  if (num(r.chestAt)) p.chestAt = num(r.chestAt);
   if (num(r.referralBags)) p.referralBags = Math.min(REFERRAL_BAGS_MAX, num(r.referralBags));
   if (num(r.shards)) p.shards = num(r.shards);
   if (num(r.pity)) p.pity = Math.min(BAG_PITY, num(r.pity));
@@ -751,23 +751,16 @@ export function saveProfile(p: Profile) {
   try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* stockage indisponible */ }
 }
 
-// --- Coffre du soir : un petit coffre gratuit chaque soir, de 19 h à minuit (heure de Bruxelles) ---
-export const CHEST_HOUR = 19;
+// --- Coffre du comptoir : un coffre gratuit, qui se recharge 24 h après chaque ouverture ---
+export const CHEST_COOLDOWN = 24 * 3600_000;
 export const CHEST_BAG_CHANCE = 0.1;
-const brussels = (t: number) => {
-  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Brussels', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(t));
-  const g = (k: string) => parts.find((x) => x.type === k)?.value ?? '';
-  return { day: `${g('year')}-${g('month')}-${g('day')}`, hour: Number(g('hour')) };
-};
-/** État du coffre : ouvrable maintenant, déjà ouvert ce soir, ou heure d'ouverture à venir. */
-export function chestStatus(p: Profile, t = Date.now()): 'ready' | 'done' | 'later' {
-  const b = brussels(t);
-  if (p.chestDay === b.day) return 'done';
-  return b.hour >= CHEST_HOUR ? 'ready' : 'later';
+/** Temps restant avant le prochain coffre (0 : il est prêt). */
+export function chestWait(p: Profile, t = Date.now()): number {
+  return p.chestAt ? Math.max(0, p.chestAt + CHEST_COOLDOWN - t) : 0;
 }
 export function openChest(p: Profile, t = Date.now(), rnd = Math.random): { profile: Profile; coins: number; bag: boolean } | null {
-  if (chestStatus(p, t) !== 'ready') return null;
+  if (chestWait(p, t) > 0) return null;
   const coins = 15 + Math.floor(rnd() * 26);
   const bag = rnd() < CHEST_BAG_CHANCE;
-  return { coins, bag, profile: { ...p, chestDay: brussels(t).day, coins: p.coins + coins, bags: bag ? Math.min(BAGS_MAX, (p.bags ?? 0) + 1) : p.bags } };
+  return { coins, bag, profile: { ...p, chestAt: t, coins: p.coins + coins, bags: bag ? Math.min(BAGS_MAX, (p.bags ?? 0) + 1) : p.bags } };
 }

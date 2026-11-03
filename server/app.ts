@@ -876,6 +876,21 @@ export async function startServer(opts: ServerOptions) {
       reply({ ok: true });
       io.to(c.r.code).emit('game:emote', { playerId: c.m.id, emote: p.emote });
     });
+    // Tchat de table : 200 caractères, un message par seconde, liens et contrôles retirés.
+    let lastChat = 0;
+    socket.on('room:chat', (p: any, ack: unknown) => {
+      const reply = safeAck(ack);
+      const c = ctx();
+      if (!c) return reply({ ok: false, error: 'Aucune table' });
+      const text = String(p?.text ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/https?:\/\/\S+/gi, '[lien]').trim().slice(0, 200);
+      if (!text) return reply({ ok: false, error: 'Message vide' });
+      const now = Date.now();
+      if (now - lastChat < 1000) return reply({ ok: false, error: 'Doucement !' });
+      lastChat = now;
+      reply({ ok: true });
+      const account = c.m.userId ? accounts.publicInfo(c.m.userId)?.account ?? null : null;
+      io.to(c.r.code).emit('room:chat', { playerId: c.m.id, name: c.m.name, account, text, at: now });
+    });
     socket.on('game:roll', gameAction('roll'));
     socket.on('game:stop', gameAction('stop'));
 

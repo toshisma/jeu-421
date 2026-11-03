@@ -1,4 +1,5 @@
 import { api } from '../account/api';
+import { Chat } from './Chat';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { DEFAULT_CONFIG, describeConfig, type GameConfig } from '../../../shared/config';
 import { AVATARS } from '../../../shared/protocol';
@@ -89,10 +90,11 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
         <GameScreen controller={controller} settings={settings} onSettings={onSettings} onExit={onExit}
           appearance={appearance} pa={pa} onGameEnd={(st, ctx) => onGameEnd(st, controller.meId, ctx)} />
         <Notices session={session} />
+        <Chat session={session} pa={pa} />
       </>
     );
   }
-  if (session?.room) return <><Lobby session={session} onExit={exit} pa={pa} /><Notices session={session} /></>;
+  if (session?.room) return <><Lobby session={session} onExit={exit} pa={pa} /><Notices session={session} /><Chat session={session} pa={pa} /></>;
 
   const isJoin = mode.kind === 'join';
   return (

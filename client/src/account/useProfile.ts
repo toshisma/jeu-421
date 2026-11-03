@@ -194,7 +194,7 @@ export function useProfile(enabled: boolean) {
     const s = ref.current.session;
     if (!s) {
       const r = openChest(ref.current.profile);
-      if (!r) return { error: 'Le coffre du soir s’ouvre à partir de 19 h, une fois par soir.' };
+      if (!r) return { error: 'Le coffre se recharge 24 h après chaque ouverture.' };
       setProfile(r.profile);
       return { coins: r.coins, bag: r.bag };
     }

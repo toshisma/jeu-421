@@ -272,7 +272,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   router.post('/chest/open', auth, (req, res) => {
     const u = userOf(req);
     const r = openChest(store.profileOf(u));
-    if (!r) return fail(res, 409, 'Le coffre du soir s’ouvre à partir de 19 h, une fois par soir.');
+    if (!r) return fail(res, 409, 'Le coffre se recharge 24 h après chaque ouverture.');
     store.saveProfile(u.id, r.profile);
     res.json({ ok: true, coins: r.coins, bag: r.bag, profile: store.profileOf(store.userById(u.id)!) });
   });

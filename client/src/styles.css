@@ -1199,3 +1199,15 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .chest-text span { font-size: .88rem; opacity: .85; }
 .news-ticker { margin: -4px auto 8px; max-width: 100%; text-align: center; font-size: .78rem; opacity: .72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: fade .6s; }
 .news-ticker small { opacity: .7; }
+/* Tchat de table */
+.chat-fab { position: fixed; z-index: 90; right: 12px; bottom: max(84px, calc(env(safe-area-inset-bottom) + 84px)); width: 46px; height: 46px; border-radius: 50%; border: 0; background: var(--ardoise, #2b3237); color: #fff; font-size: 1.3rem; box-shadow: 0 4px 14px rgba(0,0,0,.4); cursor: pointer; }
+.chat-fab .bell-badge { top: -4px; right: -4px; }
+.chat-panel { position: fixed; z-index: 95; right: 10px; bottom: max(140px, calc(env(safe-area-inset-bottom) + 140px)); width: min(340px, calc(100% - 20px)); max-height: 50vh; display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 14px; background: rgba(18,24,29,.96); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.chat-panel header { display: flex; align-items: center; gap: 6px; }
+.chat-panel header b { flex: 1; }
+.chat-panel ul { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; min-height: 60px; display: grid; gap: 4px; align-content: start; font-size: .9rem; overflow-wrap: anywhere; }
+.chat-panel li.me b { color: #f2b632; }
+.chat-panel form { display: flex; gap: 6px; }
+.chat-panel input { flex: 1; min-width: 0; }
+.chat-peek { position: fixed; z-index: 89; right: 66px; bottom: max(90px, calc(env(safe-area-inset-bottom) + 90px)); max-width: min(260px, calc(100% - 90px)); padding: 6px 10px; border-radius: 12px; background: rgba(18,24,29,.88); font-size: .82rem; pointer-events: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; animation: toast-life 6s ease both; }
+.chest-timer { font-variant-numeric: tabular-nums; }

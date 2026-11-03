@@ -1,4 +1,4 @@
-import { CHEST_HOUR, chestStatus } from '../../../shared/progress/profile';
+import { chestWait } from '../../../shared/progress/profile';
 import { useEffect, useState } from 'react';
 import { activeEvent, coinBoost, eventEnd, happyHour, shortDate } from '../../../shared/progress/events';
 import { getItem } from '../../../shared/progress/catalog';
@@ -177,29 +177,31 @@ export function BossCard({ pa, onPlay }: { pa: ProfileApi; onPlay: () => void })
   );
 }
 
-/** Coffre du soir : visible toute la journée, s'ouvre à partir de 19 h. */
+/** Coffre du comptoir : toujours sur l'accueil, avec le décompte jusqu'au prochain. */
 export function EveningChest({ pa }: { pa: ProfileApi }) {
   const [now, setNow] = useState(Date.now());
   const [res, setRes] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(t); }, []);
-  const st = chestStatus(pa.profile, now);
-  if (st === 'done' && !res) return null;
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const wait = chestWait(pa.profile, now);
+  const ready = wait === 0;
+  const h = Math.floor(wait / 3600_000), m = Math.floor((wait % 3600_000) / 60_000), sec = Math.floor((wait % 60_000) / 1000);
+  const left = `${h} h ${String(m).padStart(2, '0')} min ${String(sec).padStart(2, '0')} s`;
   return (
-    <section className={`chest-card ${st}${opening ? ' opening' : ''}`}>
-      <span className="chest-ico" aria-hidden>{res ? '✨' : '🧰'}</span>
+    <section className={`chest-card ${ready ? 'ready' : 'later'}${opening ? ' opening' : ''}`}>
+      <span className="chest-ico" aria-hidden>{res && !ready ? '✨' : '🧰'}</span>
       <div className="chest-text">
-        <b>Coffre du soir</b>
-        <span>{res ?? (st === 'ready' ? 'Il est l’heure de l’apéro : votre coffre est prêt !' : `Il s’ouvrira ce soir à ${CHEST_HOUR} h. Pièces, et parfois un sac de dés.`)}</span>
+        <b>Coffre du comptoir</b>
+        <span>{ready ? 'Votre coffre est prêt : des pièces, et parfois un sac de dés !' : <>{res && <>{res} · </>}Prochain coffre dans <b className="chest-timer">{left}</b></>}</span>
       </div>
-      {st === 'ready' && !res && (
+      {ready && (
         <button className="btn primary small" disabled={opening} onClick={async () => {
           setOpening(true); sound.unlock(); sound.rattle();
           await new Promise((ok) => setTimeout(ok, 700));
           const r = await pa.openEveningChest();
           setOpening(false);
           if ('error' in r) { setRes(r.error); return; }
-          sound.chips(6);
+          sound.treasure();
           setRes(`+${r.coins} pièces${r.bag ? ' et un sac de dés !' : ''}`);
         }}>Ouvrir</button>
       )}

@@ -26,6 +26,8 @@ export class OnlineSession {
   game: GameState | null = null;
   connected = false;
   notices: (Notice & { id: number })[] = [];
+  /** Tchat de la table (50 derniers messages). */
+  chat: { playerId: string; name: string; account: string | null; text: string; at: number }[] = [];
   private noticeId = 0;
   private metaL = new Set<() => void>();
   private evL = new Set<(e: GameEvent) => void>();
@@ -79,6 +81,7 @@ export class OnlineSession {
     this.socket.on('tournament:state', (t: PublicTournament) => { this.tournament = t; this.emitMeta(); });
     this.socket.on('tournament:removed', ({ reason }: { reason: string }) => { this.removed = reason; this.tcode = ''; saveSession(null); this.emitMeta(); });
     this.socket.on('game:emote', (m: { playerId: string; emote: string }) => { for (const cb of this.emoteL) cb(m.playerId, m.emote); });
+    this.socket.on('room:chat', (m: OnlineSession['chat'][number]) => { this.chat = [...this.chat.slice(-49), m]; this.emitMeta(); });
     this.socket.on('room:notice', (n: Notice) => {
       this.notices = [...this.notices.slice(-4), { ...n, id: ++this.noticeId }];
       this.emitMeta();
@@ -194,6 +197,9 @@ export class OnlineSession {
 
   get isHost() { return this.room?.hostId === this.playerId; }
 
+  sendChat(text: string): Promise<string | null> {
+    return new Promise((ok) => this.socket.emit('room:chat', { text }, (r: { ok: boolean; error?: string }) => ok(r?.ok ? null : r?.error ?? 'Envoi impossible')));
+  }
   subscribe(cb: () => void) { this.metaL.add(cb); return () => this.metaL.delete(cb); }
   subscribeEvents(cb: (e: GameEvent) => void) {
     this.evL.add(cb);
