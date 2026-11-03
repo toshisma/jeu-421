@@ -49,17 +49,34 @@ export function FxBadge({ fx, size = 64, locked = false }: { fx: FxDef; size?: n
 }
 
 /** Ouverture d'un sac : le sac s'agite, s'ouvre, le dé apparaît dans la couleur de sa rareté. */
+const TIER: Record<Rarity, number> = { commun: 0, rare: 1, epique: 2, legendaire: 3 };
+/** Étincelles projetées à la révélation (positions tirées une fois). */
+const SPARKS = Array.from({ length: 28 }, (_, i) => {
+  const a = (i / 28) * Math.PI * 2 + Math.random() * 0.3, d = 120 + Math.random() * 110;
+  return { '--dx': `${Math.cos(a) * d}px`, '--dy': `${Math.sin(a) * d}px`, animationDelay: `${Math.random() * 0.15}s` } as CSSProperties;
+});
+
 function BagOpening({ pa, onClose }: { pa: ProfileApi; onClose: () => void }) {
-  const [phase, setPhase] = useState<'shake' | 'reveal' | 'error'>('shake');
+  const [phase, setPhase] = useState<'shake' | 'flash' | 'reveal' | 'error'>('shake');
   const [res, setRes] = useState<BagResult | null>(null);
   const [err, setErr] = useState('');
+  const [tint, setTint] = useState<string | null>(null);
   const go = async () => {
-    setPhase('shake'); setRes(null);
+    setPhase('shake'); setRes(null); setTint(null);
     sound.unlock(); sound.rattle();
-    const [r] = await Promise.all([pa.openBag(), new Promise((ok) => setTimeout(ok, 1300))]);
+    const r = await pa.openBag();
     if (r.error || !r.result) { setErr(r.error ?? 'Ouverture impossible.'); setPhase('error'); return; }
+    // Montée de tension : plus le dé est rare, plus elle dure ; la lueur prend la couleur de la rareté à mi-chemin.
+    const tier = r.result.shiny ? 3 : TIER[r.result.rarity];
+    const build = 1.6 + tier * 0.45;
+    sound.bagBuild(build);
+    setTimeout(() => setTint(RARITY_COLOR[r.result!.rarity]), build * 500);
+    await new Promise((ok) => setTimeout(ok, build * 1000));
+    setPhase('flash');
+    sound.bagReveal(tier);
+    navigator.vibrate?.(tier >= 2 ? [60, 40, 120] : 40);
+    await new Promise((ok) => setTimeout(ok, 180));
     setRes(r.result); setPhase('reveal');
-    if (r.result.rarity === 'legendaire' || r.result.shiny) sound.win(); else sound.validate();
   };
   const started = useRef(false);
   useEffect(() => { if (!started.current) { started.current = true; void go(); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -68,13 +85,20 @@ function BagOpening({ pa, onClose }: { pa: ProfileApi; onClose: () => void }) {
   const left = pa.profile.bags ?? 0;
   const series = res?.series ? SERIES.find((x) => x.id === res.series) : undefined;
   return (
-    <div className="bag-open" role="dialog" aria-label="Ouverture d'un sac de dés" style={res ? ({ '--rc': RARITY_COLOR[res.rarity] } as CSSProperties) : undefined}>
+    <div className="bag-open" role="dialog" aria-label="Ouverture d'un sac de dés" style={res || tint ? ({ '--rc': res ? RARITY_COLOR[res.rarity] : tint } as CSSProperties) : undefined}>
+      {phase === 'flash' && <div className="bag-flash" aria-hidden />}
       <div className={`bag-stage ${phase}${res ? ` r-${res.rarity}` : ''}${res?.shiny ? ' is-shiny' : ''}`}>
-        {phase === 'shake' && <div className="bag" aria-hidden>🎒</div>}
+        {phase === 'shake' && (
+          <div className={`bag-build${tint ? ' tinted' : ''}`} aria-hidden>
+            <div className="bag-aura" />
+            <div className="bag">🎒</div>
+          </div>
+        )}
         {phase === 'error' && <p className="error">{err}</p>}
         {phase === 'reveal' && res && (it || fx) && (
           <>
             <div className="burst" aria-hidden />
+            <div className="bag-sparks" aria-hidden>{SPARKS.map((sp, i) => <i key={i} style={sp} />)}</div>
             {fx ? <FxBadge fx={fx} size={150} /> : <DieCube id={res.id} size={150} spin />}
             <RarityTag rarity={res.rarity} shiny={res.shiny} />
             <h2>{fx?.name ?? it!.name}</h2>
@@ -89,8 +113,8 @@ function BagOpening({ pa, onClose }: { pa: ProfileApi; onClose: () => void }) {
         {phase === 'reveal' && res && !res.duplicate && (
           <button className="btn secondary" onClick={() => { void (fx ? pa.equipFx(fx.kind, fx.id) : pa.equipItem(res.id)); onClose(); }}>{fx ? 'Utiliser' : 'Jouer avec'}</button>
         )}
-        {phase !== 'shake' && left > 0 && <button className="btn primary" onClick={() => void go()}>Ouvrir le suivant ({left})</button>}
-        {phase !== 'shake' && <button className="btn ghost" onClick={onClose}>Fermer</button>}
+        {(phase === 'reveal' || phase === 'error') && left > 0 && <button className="btn primary" onClick={() => void go()}>Ouvrir le suivant ({left})</button>}
+        {(phase === 'reveal' || phase === 'error') && <button className="btn ghost" onClick={onClose}>Fermer</button>}
       </div>
     </div>
   );

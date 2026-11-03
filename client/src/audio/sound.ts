@@ -111,6 +111,59 @@ class SoundEngine {
   tick() { this.tone(1250, 0, 0.04, 0.05, 'square'); }
   turn() { this.tone(880, 0, 0.08, 0.05, 'sine'); }
 
+  /** Coup de bruit filtré (caisse claire, souffle, cymbale). */
+  private hit(start: number, dur: number, gain: number, freq: number, q = 1) {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const t = ctx.currentTime + start;
+    const src = ctx.createBufferSource(); src.buffer = this.noise!;
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(f).connect(g).connect(this.master!);
+    src.start(t); src.stop(t + dur + 0.05);
+  }
+  /** Note qui glisse d'une fréquence à l'autre (montée de tension). */
+  private sweep(f0: number, f1: number, start: number, dur: number, gain: number, type: OscillatorType = 'sawtooth') {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const t = ctx.currentTime + start;
+    const o = ctx.createOscillator(); o.type = type;
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(400, t); lp.frequency.exponentialRampToValueAtTime(3200, t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(gain, t + dur * 0.9); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.08);
+    o.connect(lp).connect(g).connect(this.master!);
+    o.start(t); o.stop(t + dur + 0.1);
+  }
+  /** Ouverture d'un sac : roulement de tambour qui accélère et montée de tension (durée en secondes). */
+  bagBuild(dur: number) {
+    let t = 0, gap = 0.16;
+    while (t < dur) { this.hit(t, 0.07, 0.05 + 0.13 * (t / dur), 1800, 0.8); t += gap; gap = Math.max(0.035, gap * 0.9); }
+    this.sweep(110, 880, 0, dur, 0.06);
+    this.sweep(55, 220, 0, dur, 0.05, 'triangle');
+    [0, dur * 0.5, dur * 0.8].forEach((s) => this.tone(55, s, 0.4, 0.18, 'sine'));
+  }
+  /** Révélation : coup de cymbale et fanfare d'autant plus longue que le dé est rare (0 commun → 3 légendaire). */
+  bagReveal(tier: number) {
+    this.hit(0, 1.4, 0.22, 6000, 0.4);
+    this.tone(65, 0, 0.9, 0.3, 'sine');
+    const C = [523, 659, 784, 1046];
+    C.forEach((f, i) => this.tone(f, 0.05 + i * 0.08, 0.5, 0.12));
+    if (tier >= 1) [587, 740, 880, 1175].forEach((f, i) => this.tone(f, 0.45 + i * 0.08, 0.55, 0.12));
+    if (tier >= 2) {
+      [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, 0.85 + i * 0.08, 0.7, 0.12));
+      [262, 392, 523].forEach((f) => this.tone(f, 0.85, 1.4, 0.07, 'sawtooth'));
+    }
+    if (tier >= 3) {
+      // Fanfare finale et pluie d'étincelles.
+      [[1046, 0], [1046, 0.12], [1046, 0.24], [1318, 0.4], [1568, 0.7]].forEach(([f, s]) => this.tone(f, 1.35 + s, s === 0.7 ? 1.4 : 0.14, 0.13));
+      [262, 330, 392, 523].forEach((f) => this.tone(f, 2.05, 1.8, 0.06, 'sawtooth'));
+      for (let i = 0; i < 14; i++) this.tone(2000 + Math.random() * 2500, 2.05 + i * 0.07, 0.25, 0.035, 'sine');
+      this.hit(2.05, 1.8, 0.16, 7000, 0.4);
+    }
+  }
+
 }
 
 export const sound = new SoundEngine();

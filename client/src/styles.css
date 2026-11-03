@@ -931,7 +931,27 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .bag-open { position: fixed; inset: 0; z-index: 80; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 24px 16px;
   background: radial-gradient(70% 60% at 50% 40%, color-mix(in srgb, var(--rc, #d4ad2f) 26%, #0d1114) 0%, #07090b 80%); animation: fade 0.2s; text-align: center; }
 .bag-stage { display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 280px; justify-content: center; position: relative; }
-.bag-stage .bag { font-size: 110px; animation: bag-shake 0.45s ease-in-out infinite; }
+.bag-stage .bag { font-size: 110px; position: relative; animation: bag-shake 0.45s ease-in-out infinite, bag-grow 3s ease-in both; }
+@keyframes bag-grow { from { scale: 0.85; } to { scale: 1.25; } }
+.bag-build { position: relative; display: grid; place-items: center; }
+.bag-aura { position: absolute; width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--rc, #fff) 70%, transparent) 0%, transparent 65%);
+  opacity: .25; transition: opacity 0.6s, scale 0.6s; animation: aura-pulse 0.5s ease-in-out infinite alternate; }
+.bag-build.tinted .bag-aura { opacity: 1; scale: 1.5; }
+.bag-build.tinted .bag { animation-duration: 0.18s, 3s; filter: drop-shadow(0 0 18px var(--rc)); }
+@keyframes aura-pulse { to { transform: scale(1.12); } }
+.bag-flash { position: fixed; inset: 0; z-index: 2; pointer-events: none; background: radial-gradient(circle at 50% 40%, #fff 0%, color-mix(in srgb, var(--rc, #fff) 60%, #fff) 40%, transparent 100%); animation: bag-flash 0.5s ease-out both; }
+@keyframes bag-flash { from { opacity: 1; } to { opacity: 0; } }
+.bag-sparks { position: absolute; top: 150px; left: 50%; width: 0; height: 0; z-index: 3; pointer-events: none; }
+.bag-stage.reveal > .bag-sparks { animation: none; }
+.bag-sparks i { position: absolute; width: 8px; height: 8px; margin: -4px; border-radius: 50%; background: var(--rc); box-shadow: 0 0 12px var(--rc), 0 0 4px #fff; animation: bag-spark 1.1s cubic-bezier(.1,.8,.3,1) both; }
+@keyframes bag-spark { from { transform: translate(0, 0) scale(1.4); opacity: 1; } to { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; } }
+.bag-stage.reveal > :nth-child(3) { animation-delay: 0.05s; }
+.bag-stage.reveal > :nth-child(4) { animation-delay: 0.25s; }
+.bag-stage.reveal > :nth-child(5) { animation-delay: 0.4s; }
+.bag-stage.reveal > :nth-child(n+6) { animation-delay: 0.55s; }
+.bag-stage.r-epique .burst, .bag-stage.r-legendaire .burst, .bag-stage.is-shiny .burst { width: 380px; height: 380px; top: -40px; animation-duration: 5s; }
+.bag-stage.r-legendaire, .bag-stage.is-shiny { animation: bag-quake 0.5s ease-out; }
+@keyframes bag-quake { 0%, 100% { transform: none; } 20% { transform: translate(-6px, 3px); } 40% { transform: translate(5px, -4px); } 60% { transform: translate(-3px, 2px); } 80% { transform: translate(2px, -1px); } }
 @keyframes bag-shake { 0%, 100% { transform: rotate(0) translateY(0); } 25% { transform: rotate(-9deg) translateY(-4px); } 75% { transform: rotate(9deg) translateY(-2px); } }
 .bag-stage.reveal > * { animation: pop-in 0.5s cubic-bezier(.2,1.4,.4,1) both; }
 @keyframes pop-in { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
@@ -942,7 +962,7 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .bag-stage.r-legendaire h2, .bag-stage.is-shiny h2 { color: var(--rc); text-shadow: 0 0 18px color-mix(in srgb, var(--rc) 60%, transparent); }
 .bag-note { margin: 0; font-weight: 700; }
 .bag-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
-@media (prefers-reduced-motion: reduce) { .bag-stage .bag, .bag-stage .burst { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .bag-stage .bag, .bag-stage .burst, .bag-aura, .bag-sparks i, .bag-stage.r-legendaire, .bag-stage.is-shiny { animation: none; } }
 
 .coll-promo { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; width: 100%; padding: 16px; border: 0; border-radius: 14px; cursor: pointer; text-align: left; color: var(--blanc); font: inherit;
   background: radial-gradient(90% 140% at 0% 50%, rgba(178,107,255,0.28) 0%, transparent 60%), radial-gradient(90% 140% at 100% 50%, rgba(242,182,50,0.24) 0%, transparent 60%), var(--ardoise-grad); box-shadow: inset 0 0 0 1px rgba(242,182,50,0.35), var(--relief); }
