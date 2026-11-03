@@ -1189,3 +1189,11 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .connected ul { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 4px; }
 .connected li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,.04); }
 .connected small { opacity: .75; }
+.chest-card { display: flex; align-items: center; gap: 12px; margin: 10px 0; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); }
+.chest-card.ready { background: linear-gradient(120deg, rgba(242,182,50,.22), rgba(192,88,58,.18)); border-color: rgba(242,182,50,.6); }
+.chest-card.later { opacity: .8; }
+.chest-ico { font-size: 1.9rem; }
+.chest-card.ready .chest-ico { animation: bag-shake 1.6s ease-in-out infinite; }
+.chest-card.opening .chest-ico { animation: bag-shake .25s ease-in-out infinite; }
+.chest-text { flex: 1; min-width: 0; display: grid; }
+.chest-text span { font-size: .88rem; opacity: .85; }

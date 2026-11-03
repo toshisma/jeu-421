@@ -7,6 +7,9 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.21', date: '2026-11-03T20:58:00+01:00', title: 'Coffre du soir', items: [
+    'Chaque soir à partir de 19 h, un coffre gratuit à ouvrir sur l’accueil : des pièces, et parfois un sac de dés.',
+  ] },
   { version: '0.19', date: '2026-11-03T20:03:00+01:00', title: 'Mon historique', items: [
     'Votre historique des dernières parties s’affiche sur votre propre profil.',
   ] },

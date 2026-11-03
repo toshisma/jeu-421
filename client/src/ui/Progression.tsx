@@ -1,3 +1,4 @@
+import { CHEST_HOUR, chestStatus } from '../../../shared/progress/profile';
 import { useEffect, useState } from 'react';
 import { activeEvent, coinBoost, eventEnd, happyHour, shortDate } from '../../../shared/progress/events';
 import { getItem } from '../../../shared/progress/catalog';
@@ -172,6 +173,36 @@ export function BossCard({ pa, onPlay }: { pa: ProfileApi; onPlay: () => void })
         <span className="boss-prize">{beaten ? 'Battu cette semaine. Revanche possible, sans récompense.' : `Première victoire : ${BOSS_COINS} pièces, un trophée et le titre « ${titleLabel(`patron:${b.id}`)} ».`}</span>
       </div>
       <button className={`btn ${beaten ? '' : 'primary'}`} onClick={onPlay}>Défier</button>
+    </section>
+  );
+}
+
+/** Coffre du soir : visible toute la journée, s'ouvre à partir de 19 h. */
+export function EveningChest({ pa }: { pa: ProfileApi }) {
+  const [now, setNow] = useState(Date.now());
+  const [res, setRes] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 60_000); return () => clearInterval(t); }, []);
+  const st = chestStatus(pa.profile, now);
+  if (st === 'done' && !res) return null;
+  return (
+    <section className={`chest-card ${st}${opening ? ' opening' : ''}`}>
+      <span className="chest-ico" aria-hidden>{res ? '✨' : '🧰'}</span>
+      <div className="chest-text">
+        <b>Coffre du soir</b>
+        <span>{res ?? (st === 'ready' ? 'Il est l’heure de l’apéro : votre coffre est prêt !' : `Il s’ouvrira ce soir à ${CHEST_HOUR} h. Pièces, et parfois un sac de dés.`)}</span>
+      </div>
+      {st === 'ready' && !res && (
+        <button className="btn primary small" disabled={opening} onClick={async () => {
+          setOpening(true); sound.unlock(); sound.rattle();
+          await new Promise((ok) => setTimeout(ok, 700));
+          const r = await pa.openEveningChest();
+          setOpening(false);
+          if ('error' in r) { setRes(r.error); return; }
+          sound.chips(6);
+          setRes(`+${r.coins} pièces${r.bag ? ' et un sac de dés !' : ''}`);
+        }}>Ouvrir</button>
+      )}
     </section>
   );
 }

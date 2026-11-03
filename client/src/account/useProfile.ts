@@ -7,8 +7,7 @@ import type { GameState } from '../../../shared/engine';
 import {
   applyGameEnd, buy, claimDaily, claimPassTier, claimQuest, completeTutorial, computeReward, didWin, equip, loadProfile, saveProfile, sanitizeProfile, setTitle, addSeasonPoints, doPrestige,
   craftDie, setShowcase, equipFx,
-  type Applied, type BagResult, type Profile, type Reward, type RewardContext,
-} from '../../../shared/progress/profile';
+  type Applied, type BagResult, type Profile, type Reward, type RewardContext, openChest } from '../../../shared/progress/profile';
 import { api, ApiError, loadSession, saveAccountSession, type Session } from './api';
 import { challengeReward, playChallenge, type ChallengeResult } from '../../../shared/challenge';
 import { today } from '../../../shared/progress/quests';
@@ -190,6 +189,21 @@ export function useProfile(enabled: boolean) {
       return (e as Error).message;
     }
   }, [setProfile, dropSession]);
+  /** Coffre du soir : pièces au hasard, parfois un sac de dés. */
+  const openEveningChest = useCallback(async (): Promise<{ coins: number; bag: boolean } | { error: string }> => {
+    const s = ref.current.session;
+    if (!s) {
+      const r = openChest(ref.current.profile);
+      if (!r) return { error: 'Le coffre du soir s’ouvre à partir de 19 h, une fois par soir.' };
+      setProfile(r.profile);
+      return { coins: r.coins, bag: r.bag };
+    }
+    try {
+      const r = await api<{ profile: Profile; coins: number; bag: boolean }>('/chest/open', { body: {}, token: s.token });
+      setProfile(sanitizeProfile(r.profile));
+      return { coins: r.coins, bag: r.bag };
+    } catch (e) { return { error: (e as Error).message }; }
+  }, []);
   const claimDailyReward = useCallback(() => act2('/daily/claim', {}, (p) => claimDaily(p)?.profile ?? null), [act2]);
   const claimPass = useCallback((tier: number) => act2('/season/claim', { tier }, (p) => claimPassTier(p, tier)?.profile ?? null), [act2]);
   const chooseTitle = useCallback((id: string | null) => act2('/title', { id }, (p) => setTitle(p, id)), [act2]);
@@ -315,7 +329,7 @@ export function useProfile(enabled: boolean) {
     profile, session, user, isAccount: !!session, welcomeBack, dismissWelcome: () => setWelcomeBack(false), photo, setPhoto, removePhoto,
     register, login, recover, logout, deleteAccount,
     submitChallenge,
-    buyItem, equipItem, claim, blocked, block, isBlocked, claimDailyReward, claimPass, chooseTitle, finishTutorial, prestige,
+    buyItem, equipItem, claim, blocked, block, isBlocked, claimDailyReward, openEveningChest, claimPass, chooseTitle, finishTutorial, prestige,
     onSoloStart, onGameEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
     token: session?.token ?? null,
   };

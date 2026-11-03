@@ -1,4 +1,4 @@
-import { BossCard, DailyStreak, EventBanner, HappyHourBanner, PassSummary } from './Progression';
+import { BossCard, DailyStreak, EveningChest, EventBanner, HappyHourBanner, PassSummary } from './Progression';
 import { reportUrl } from '../legal';
 import { ChallengeCard } from './ChallengeScreen';
 import { accessoryEmoji } from '../../../shared/progress/catalog';
@@ -154,6 +154,7 @@ export function Home(props: {
         )}
         <EventBanner onShop={props.onShop} />
         <DailyStreak pa={props.pa} />
+        <EveningChest pa={props.pa} />
         <ChallengeCard onOpen={props.onChallenge} />
         <BossCard pa={props.pa} onPlay={props.onBoss} />
         <PassSummary pa={props.pa} onOpen={props.onPass} />

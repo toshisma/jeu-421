@@ -17,7 +17,7 @@ import { challengeReward, playChallenge } from '../shared/challenge';
 import { PHRASES } from '../shared/protocol';
 import {
   adjustCoins, applyGameEnd, applyPot, applyTournament, buy, claimDaily, claimPassTier, completeTutorial, setTitle, titleLabel, addSeasonPoints, REWARDS,
-  LEAGUES, LEAGUE_DEMOTE, LEAGUE_PRIZES, ALBUM_KEYS, CLUB_CHEST, CLUB_COST, CLUB_EMBLEMS, CLUB_MAX, doPrestige, PRESTIGE_LEVEL, LEAGUE_PROMOTE, LEAGUE_SIZE, REFERRAL_BONUS, REFERRAL_GAMES, REFERRAL_BAGS_MAX, RETURN_DAYS, claimQuest, equip, levelInfo, rewardFor, sanitizeProfile, newProfile,
+  LEAGUES, LEAGUE_DEMOTE, LEAGUE_PRIZES, ALBUM_KEYS, CLUB_CHEST, CLUB_COST, CLUB_EMBLEMS, CLUB_MAX, doPrestige, PRESTIGE_LEVEL, LEAGUE_PROMOTE, LEAGUE_SIZE, REFERRAL_BONUS, REFERRAL_GAMES, REFERRAL_BAGS_MAX, RETURN_DAYS, openChest, claimQuest, equip, levelInfo, rewardFor, sanitizeProfile, newProfile,
   openBag, craftDie, setShowcase, collectionCount, equipFx, BAGS_MAX,
   type Profile, type RewardContext,
 } from '../shared/progress/profile';
@@ -252,6 +252,13 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     mutate(req, res, (p) => doPrestige(p), `Le prestige s'ouvre au niveau ${PRESTIGE_LEVEL}.`));
 
   // --- Série de connexions, pass de saison, titres, partie guidée ---------------------------------
+  router.post('/chest/open', auth, (req, res) => {
+    const u = userOf(req);
+    const r = openChest(store.profileOf(u));
+    if (!r) return fail(res, 409, 'Le coffre du soir s’ouvre à partir de 19 h, une fois par soir.');
+    store.saveProfile(u.id, r.profile);
+    res.json({ ok: true, coins: r.coins, bag: r.bag, profile: store.profileOf(store.userById(u.id)!) });
+  });
   router.post('/daily/claim', auth, (req, res) =>
     mutate(req, res, (p) => claimDaily(p, clientDay(req.headers['x-day']))?.profile ?? null, 'Récompense du jour déjà récupérée.'));
   router.post('/season/claim', auth, (req, res) =>
