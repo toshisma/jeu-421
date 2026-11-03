@@ -7,12 +7,11 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.27', date: '2026-11-03T21:21:00+01:00', title: 'Retour aux grands coups classiques', items: [
+    'Seuls le 4-2-1 et les trois as ont leur mise en scène, comme avant.',
+  ] },
   { version: '0.26', date: '2026-11-03T21:17:00+01:00', title: 'Son et musique à portée de main', items: [
     'Boutons son et musique sur l’accueil et pendant les parties.',
-  ] },
-  { version: '0.25', date: '2026-11-03T21:12:00+01:00', title: 'Moments forts', items: [
-    'Les grands coups sont mis en scène : ralenti, gros plan, roulement de tambour, flash et secousse.',
-    'Les brelans et les « deux as » ont aussi droit à leur petit moment de gloire.',
   ] },
   { version: '0.24', date: '2026-11-03T21:10:00+01:00', title: 'Musique d’ambiance', items: [
     'Trois morceaux lofi originaux en boucle, réglables de 0 à 100 % dans les réglages.',

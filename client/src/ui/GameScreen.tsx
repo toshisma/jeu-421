@@ -84,8 +84,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
     sound.click();
     setTimeout(() => setEmotes((m) => { if (m[pid]?.k !== k) return m; const n = { ...m }; delete n[pid]; return n; }), 2200);
   }), [controller]);
-  const [bigShot, setBigShot] = useState<{ text: string; who: string; id: number; fete?: string; mid?: boolean } | null>(null);
-  const [impact, setImpact] = useState<'big' | 'mid' | null>(null);
+  const [bigShot, setBigShot] = useState<{ text: string; who: string; id: number; fete?: string } | null>(null);
   useEffect(() => { if (!bigShot) return; const t = setTimeout(() => setBigShot(null), 2400); return () => clearTimeout(t); }, [bigShot]);
   const [now, setNow] = useState(Date.now());
   const [endReward, setEndReward] = useState<EndReward | null>(null);
@@ -176,21 +175,14 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
       }
       if (ev.type === 'roll') {
         tray.current?.setInteractive(false);
-        const kind = ev.roll.combo.kind;
-        const big = kind === '421' || kind === '111';
-        // Moments forts : ralenti, gros plan et tension aussi pour les brelans et les « deux as ».
-        const strong = big || kind === 'brelan' || kind === '11x';
-        tray.current?.setOnDramatic(() => sound.bagBuild(big ? 1.4 : 0.9));
+        const big = ev.roll.combo.kind === '421' || ev.roll.combo.kind === '111';
         tray.current?.setDiceSkin(skinOf(ev.roll.playerId));
         { const t = fxOf(ev.roll.playerId, 'trail'); tray.current?.setTrail(fxDef(t)?.colors ?? null, fxGlows(t)); }
-        await tray.current?.roll(ev.roll.dice, ev.roll.kept, ev.seed, ev.gesture, strong);
-        if (strong) {
-          if (big) sound.jackpot(); else sound.win();
-          navigator.vibrate?.(big ? [80, 50, 160] : 60);
-          setImpact(big ? 'big' : 'mid');
-          setTimeout(() => setImpact(null), 700);
-          setBigShot({ text: kind === '421' ? '4-2-1 !' : kind === '111' ? 'Trois as !' : `${ev.roll.combo.label} !`, who: ev.roll.playerId, id: ev.roll.seq, fete: big ? fxOf(ev.roll.playerId, 'fete') : undefined, mid: !big });
-          await wait(big ? 900 : 600);
+        await tray.current?.roll(ev.roll.dice, ev.roll.kept, ev.seed, ev.gesture, big);
+        if (big) {
+          sound.jackpot();
+          setBigShot({ text: ev.roll.combo.kind === '421' ? '4-2-1 !' : 'Trois as !', who: ev.roll.playerId, id: ev.roll.seq, fete: fxOf(ev.roll.playerId, 'fete') });
+          await wait(900);
         }
         const p = personas?.[ev.roll.playerId];
         if (p) say(ev.roll.playerId, reaction(p, ev.roll.combo, ev.roll.throwIndex >= ev.roll.throwLimit));
@@ -400,7 +392,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   const currentCombo = s && s.throwsUsed > 0 ? evaluate(s.dice, s.config.values) : null;
 
   return (
-    <div className={`game${impact ? ` impact-${impact}` : ''}`} onPointerDown={() => { sound.unlock(); if (settings.shake && needsMotionPermission()) void requestMotionPermission(); }}>
+    <div className="game" onPointerDown={() => { sound.unlock(); if (settings.shake && needsMotionPermission()) void requestMotionPermission(); }}>
       <DiceTray ref={tray} appearance={appearance} quality={settings.quality} insets={insets} onDieClick={toggleDie} onSwipe={onGestureThrow} cup={settings.cup} />
       <div className="vignette" />
 
@@ -542,8 +534,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
         })}
       </div>
       {bigShot && (
-        <div key={bigShot.id} className={`bigshot${bigShot.mid ? ' mid' : ''}`} aria-live="assertive">
-          {!bigShot.mid && <div className="bs-flash" aria-hidden />}
+        <div key={bigShot.id} className="bigshot" aria-live="assertive">
           {bigShot.fete && <Celebration id={bigShot.fete} />}
           <div className="bs-rays" />
           <div className="bs-text">{bigShot.text}</div>
