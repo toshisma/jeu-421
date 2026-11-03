@@ -25,7 +25,8 @@ interface Props {
 export function PlayerCard({ p, meta, state, active, thinking, leader, struggling, order, onOpen, cardRef }: Props) {
   const points = state.config.variant === 'manches';
   const roundResult = state.results[p.id];
-  const shown = roundResult ?? p.lastResult;
+  // Seulement la main du tour en cours : celles des tours précédents ne s'affichent plus.
+  const shown = roundResult;
   // Dés de collection du joueur (rare et au-delà, ou brillants) : on les signale.
   const di = meta?.dice ? getItem(meta.dice) : undefined;
   const rare = di && di.category === 'dice' && di.rarity && (di.rarity !== 'commun' || di.shiny) ? (di as DiceItem) : null;

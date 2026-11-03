@@ -16,7 +16,7 @@ import { decide, type Difficulty } from '../shared/ai';
 import { AVATARS, isReaction, type Ack, type PublicRoom } from '../shared/protocol';
 import { sanitizeGesture, type ThrowGesture } from '../shared/gesture';
 import {
-  MIN_TOURNAMENT_PLAYERS, prizes, qualifiersOf, sanitizeTable, sanitizeTournament, splitPot, splitTables,
+  MIN_TOURNAMENT_PLAYERS, prizes, qualifiersOf, sanitizeTable, sanitizeTournament, splitTables,
   type LobbyEntry, type PublicTournament, type TableSettings, type TournamentEntry, type TournamentSettings,
 } from '../shared/tournament';
 import { Store } from './db';
@@ -51,6 +51,8 @@ interface Room {
   code: string;
   title: string;
   hostId: string;
+  /** Comptes retirés par l'hôte : ils ne peuvent pas revenir. */
+  kicked?: Set<string>;
   members: Member[];
   config: GameConfig;
   table: TableSettings;
@@ -408,9 +410,14 @@ export async function startServer(opts: ServerOptions) {
     }
   }
 
-  /** Gagnants d'une partie (ex æquo possibles aux points). */
-  const winnersOf = (g: GameState) => g.players.filter((p) => didWin(g, p.id)).map((p) => p.id)
-    .sort((a, b) => g.ranking.indexOf(a) - g.ranking.indexOf(b));
+  /** Parts de cagnotte selon la place (poids n, n-1, …, 1), le reste d'arrondi au premier. */
+  const rankShares = (pot: number, n: number) => {
+    if (n <= 0) return [];
+    const total = (n * (n + 1)) / 2;
+    const out = Array.from({ length: n }, (_, i) => Math.floor((pot * (n - i)) / total));
+    out[0] += pot - out.reduce((a, b) => a + b, 0);
+    return out;
+  };
 
   /**
    * Fin de partie en ligne : la cagnotte éventuelle va au(x) gagnant(s), puis chaque joueur
@@ -420,14 +427,16 @@ export async function startServer(opts: ServerOptions) {
     r.rewarded = true;
     const g = r.game!;
     if (r.pot > 0) {
-      const winners = winnersOf(g);
-      const shares = splitPot(r.pot, winners.length);
-      winners.forEach((id, i) => {
-        const m = r.members.find((x) => x.id === id);
-        if (m?.userId) sendProfile(m.socketId, accounts.winPot(m.userId, shares[i])?.profile);
+      // Cagnotte répartie entre tous sauf le dernier, selon la place : le premier touche le plus,
+      // les suivants moins (parfois moins que leur mise). À deux, le gagnant rafle tout.
+      const ranked = g.ranking.slice(0, -1).filter((id) => r.members.find((x) => x.id === id)?.userId);
+      const shares = rankShares(r.pot, ranked.length);
+      ranked.forEach((id, i) => {
+        const m = r.members.find((x) => x.id === id)!;
+        sendProfile(m.socketId, accounts.winPot(m.userId!, shares[i])?.profile);
       });
-      const names = winners.map((id) => r.members.find((x) => x.id === id)?.name).join(' et ');
-      notice(r, `${names} remporte${winners.length > 1 ? 'nt' : ''} la cagnotte de ${r.pot} pièces.`);
+      const nameOf = (id: string) => r.members.find((x) => x.id === id)?.name ?? '?';
+      notice(r, ranked.length ? `Cagnotte de ${r.pot} pièces : ${ranked.map((id, i) => `${nameOf(id)} +${shares[i]}`).join(', ')}.` : 'Cagnotte rendue impossible : aucun gagnant avec un compte.');
       r.pot = 0;
     }
     accounts.release(`R:${r.code}:${r.games}`);
@@ -754,6 +763,14 @@ export async function startServer(opts: ServerOptions) {
       const problem = stakeProblem(userId, r.table.stake);
       if (problem) return { ok: false, error: problem };
       if (blockedAt(userId, r.members)) return { ok: false, error: 'Impossible de rejoindre cette table.' };
+      if (userId && r.kicked?.has(userId)) return { ok: false, error: 'L’hôte vous a retiré de cette table.' };
+      // Même compte déjà assis (autre onglet, double clic, invitation) : on reprend sa place, pas de doublon.
+      const same = userId ? r.members.find((x) => x.userId === userId && !x.left && !x.bot) : undefined;
+      if (same) {
+        attach(r, same);
+        broadcastRoom(r);
+        return { ok: true, code: r.code, playerId: same.id, token: same.token };
+      }
       let finalName = name;
       for (let k = 2; r.members.some((m) => m.name === finalName); k++) finalName = `${name} ${k}`;
       const m: Member = { id: randomUUID(), token: randomUUID(), name: finalName, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), ready: false, socketId: null, left: false, disconnectedAt: null, userId, day: clientDay(p?.day) };
@@ -928,6 +945,24 @@ export async function startServer(opts: ServerOptions) {
       removeIfEmpty(r);
     }
     socket.on('room:leave', (_p: unknown, ack: unknown) => { leave(); safeAck(ack)({ ok: true }); });
+    // L'hôte retire un joueur du salon (avant le début de la partie). Un compte retiré ne peut pas revenir.
+    socket.on('room:kick', (p: any, ack: unknown) => {
+      const reply = safeAck(ack);
+      const c = ctx();
+      if (!c) return reply({ ok: false, error: 'Aucune table' });
+      const { r, m } = c;
+      if (m.id !== r.hostId) return reply({ ok: false, error: 'Seul l’hôte peut retirer un joueur.' });
+      if (r.status !== 'lobby') return reply({ ok: false, error: 'La partie a déjà commencé.' });
+      const target = r.members.find((x) => x.id === String(p?.playerId ?? ''));
+      if (!target || target.id === m.id) return reply({ ok: false, error: 'Joueur introuvable.' });
+      r.members = r.members.filter((x) => x.id !== target.id);
+      if (target.userId) (r.kicked ??= new Set()).add(target.userId);
+      const ts = target.socketId && io.sockets.sockets.get(target.socketId);
+      if (ts) { ts.emit('room:kicked', { text: 'L’hôte vous a retiré de la table.' }); ts.leave(r.code); ts.data.code = null; }
+      reply({ ok: true });
+      notice(r, `${target.name} a été retiré de la table.`);
+      broadcastRoom(r);
+    });
 
     // --- Tournois -------------------------------------------------------------------------------
     function tAttach(t: Tournament, p: TPlayer) {

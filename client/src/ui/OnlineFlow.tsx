@@ -94,6 +94,7 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
       </>
     );
   }
+  if (session?.kicked) return <Shell title="Table" onBack={onExit}><p>{session.kicked}</p><button className="btn primary" onClick={onExit}>Retour à l’accueil</button></Shell>;
   if (session?.room) return <><Lobby session={session} onExit={exit} pa={pa} /><Notices session={session} /><Chat session={session} pa={pa} /></>;
 
   const isJoin = mode.kind === 'join';
@@ -201,6 +202,9 @@ function Lobby({ session, onExit, pa }: { session: OnlineSession; onExit: () => 
                 {m.bot && isHost
                   ? <button className="btn ghost small ready" onClick={() => void session.removeBot(m.id)}>Retirer</button>
                   : <span className={`ready ${m.ready ? 'yes' : ''}`}>{m.ready ? 'Prêt' : 'Pas prêt'}</span>}
+                {isHost && !m.bot && m.id !== session.playerId && (
+                  <button className="btn ghost small danger" aria-label={`Retirer ${m.name}`} onClick={async () => { const a = await session.kick(m.id); if (!a.ok) setErr(a.error); }}>Exclure</button>
+                )}
               </li>
             ))}
           </ol>
@@ -212,6 +216,7 @@ function Lobby({ session, onExit, pa }: { session: OnlineSession; onExit: () => 
               <button className="btn small" onClick={addBot}><Icon name="plus" size={18} />Ajouter un ordinateur</button>
             </div>
           )}
+          {pa.isAccount && count < max && <InviteFriends pa={pa} inRoom={room.members.map((m) => m.name)} />}
           {isHost && humans === 1 && count < 2 && <p className="muted small">Personne pour l'instant : ajoutez un ordinateur pour jouer tout de suite, ou partagez le code.</p>}
           {!session.connected && <p className="error">Connexion perdue, reconnexion en cours…</p>}
           <div className="lobby-actions">
@@ -257,5 +262,35 @@ function Notices({ session }: { session: OnlineSession }) {
     <div className="notices">
       {n.filter((x) => !hidden.has(x.id)).map((x) => <div key={x.id} className={`notice ${x.kind}`}>{x.text}</div>)}
     </div>
+  );
+}
+
+/** Inviter ses amis en ligne directement depuis le salon. */
+function InviteFriends({ pa, inRoom }: { pa: ProfileApi; inRoom: string[] }) {
+  const [friends, setFriends] = useState<{ username: string; online: boolean; me?: boolean; room: unknown }[]>([]);
+  const [sent, setSent] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const load = () => api<{ friends: typeof friends }>('/friends', { token: pa.token! }).then((r) => setFriends(r.friends.filter((f) => !f.me))).catch(() => {});
+    load(); const t = setInterval(load, 20_000); return () => clearInterval(t);
+  }, [pa.token]);
+  const list = friends.filter((f) => !inRoom.includes(f.username)).sort((a, b) => Number(b.online) - Number(a.online));
+  if (!list.length) return null;
+  return (
+    <section className="lobby-invite">
+      <h3>Inviter des amis</h3>
+      <ul>
+        {list.slice(0, 8).map((f) => (
+          <li key={f.username}>
+            <i className={`fr-dot ${f.online ? 'on' : ''}`} aria-hidden /><b>{f.username}</b>
+            {sent[f.username] ? <small className="muted">{sent[f.username]}</small> : (
+              <button className="btn small" onClick={async () => {
+                try { await api('/invites', { token: pa.token!, body: { username: f.username } }); setSent((x) => ({ ...x, [f.username]: 'Invitation envoyée' })); }
+                catch (e) { setSent((x) => ({ ...x, [f.username]: (e as Error).message })); }
+              }}>Inviter</button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

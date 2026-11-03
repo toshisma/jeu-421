@@ -7,6 +7,14 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.28', date: '2026-11-03T22:25:00+01:00', title: 'Salons et cagnottes', items: [
+    'Inviter ses amis directement depuis le salon.',
+    'L’hôte peut exclure un joueur du salon.',
+    'Un même compte ne peut plus apparaître deux fois dans un salon.',
+    'Tables avec mise : la cagnotte est partagée entre tous les joueurs sauf le dernier, selon la place.',
+    'Les dés du joueur précédent gardent leur apparence tant qu’ils sont sur le tapis.',
+    'Les mains des tours précédents ne s’affichent plus sur les cartes des joueurs.',
+  ] },
   { version: '0.27', date: '2026-11-03T21:21:00+01:00', title: 'Retour aux grands coups classiques', items: [
     'Seuls le 4-2-1 et les trois as ont leur mise en scène, comme avant.',
   ] },

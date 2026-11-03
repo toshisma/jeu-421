@@ -43,6 +43,8 @@ export class OnlineSession {
   tcode = '';
   tournament: PublicTournament | null = null;
   removed: string | null = null;
+  /** Retiré de la table par l'hôte. */
+  kicked: string | null = null;
 
   constructor(auth: string | null = null, onReward: ((r: EndReward) => void) | null = null, onProfile: ((p: Profile) => void) | null = null) {
     this.auth = auth;
@@ -82,6 +84,9 @@ export class OnlineSession {
     this.socket.on('tournament:removed', ({ reason }: { reason: string }) => { this.removed = reason; this.tcode = ''; saveSession(null); this.emitMeta(); });
     this.socket.on('game:emote', (m: { playerId: string; emote: string }) => { for (const cb of this.emoteL) cb(m.playerId, m.emote); });
     this.socket.on('room:chat', (m: OnlineSession['chat'][number]) => { this.chat = [...this.chat.slice(-49), m]; this.emitMeta(); });
+    this.socket.on('room:kicked', ({ text }: { text: string }) => {
+      this.kicked = text; this.code = ''; this.room = null; saveSession(null); this.emitMeta();
+    });
     this.socket.on('room:notice', (n: Notice) => {
       this.notices = [...this.notices.slice(-4), { ...n, id: ++this.noticeId }];
       this.emitMeta();
@@ -174,6 +179,7 @@ export class OnlineSession {
 
   addBot(difficulty: string) { return this.call('room:addBot', { difficulty }); }
   removeBot(id: string) { return this.call('room:removeBot', { id }); }
+  kick(playerId: string) { return this.call('room:kick', { playerId }); }
   tFillBots(difficulty: string) { return this.call('tournament:fillBots', { difficulty }); }
 
   setReady(ready: boolean) { return this.call('room:ready', { ready }); }

@@ -293,7 +293,10 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   const turnKey = s ? `${s.round}|${currentId}|${s.isRolloff}|${s.throwsUsed === 0 ? 'new' : 'on'}` : '';
   useEffect(() => { setKeep(NO_KEEP); }, [turnKey]);
   // Au repos, le bac montre les dés du joueur dont c'est le tour.
-  useEffect(() => { if (!animating) tray.current?.setDiceSkin(skinOf(currentId)); }, [currentId, animating, meta]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Les dés du joueur précédent restent sur le tapis avec leur apparence jusqu'au lancer suivant :
+  // on ne change d'apparence que si le bac est vide (le lancer suivant applique la sienne).
+  const trayEmpty = !s || s.dice.every((d) => d === 0);
+  useEffect(() => { if (!animating && trayEmpty) tray.current?.setDiceSkin(skinOf(currentId)); }, [currentId, animating, meta, trayEmpty]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (animating) return;
     tray.current?.setKept(canKeepNow ? keep : NO_KEEP);
