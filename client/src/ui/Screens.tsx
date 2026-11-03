@@ -18,7 +18,7 @@ import { InstallPrompt } from './InstallPrompt';
 import { LiveStrip } from './StatsScreen';
 import { CollectionPromo } from './DiceCollection';
 import { ReferralCard } from './Referral';
-import { FriendsButton, OpenLobbies } from './Friends';
+import { FriendsButton, NewsTicker, OpenLobbies } from './Friends';
 import { changelogUnseen } from './Changelog';
 import { CURRENT_VERSION } from '../../../shared/changelog';
 import { fxDef, fxGlows } from '../../../shared/progress/dice-collection';
@@ -111,6 +111,7 @@ export function Home(props: {
         <p className="tagline">Trois dés, un bac, et le dernier paie la tournée.</p>
 
         {!STANDALONE && <LiveStrip onOpen={props.onStats} />}
+        {!STANDALONE && <NewsTicker />}
         {!STANDALONE && <OpenLobbies onJoin={props.onJoinRoom} onAll={props.onOnline} />}
         <nav className="home-actions">
           {props.resume && !STANDALONE && (

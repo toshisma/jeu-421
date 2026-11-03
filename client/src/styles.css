@@ -1197,3 +1197,5 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .chest-card.opening .chest-ico { animation: bag-shake .25s ease-in-out infinite; }
 .chest-text { flex: 1; min-width: 0; display: grid; }
 .chest-text span { font-size: .88rem; opacity: .85; }
+.news-ticker { margin: -4px auto 8px; max-width: 100%; text-align: center; font-size: .78rem; opacity: .72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; animation: fade .6s; }
+.news-ticker small { opacity: .7; }

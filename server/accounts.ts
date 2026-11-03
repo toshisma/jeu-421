@@ -229,11 +229,28 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   router.post('/shop/equip', auth, (req, res) => mutate(req, res, (p) => equip(p, String(req.body?.id ?? '')), 'Objet non possédé.'));
 
   // --- Dés de collection : tirage fait ici (hasard cryptographique), jamais par le navigateur ---
+  // --- Fil d'actualité : les beaux moments du comptoir, gardés en base (30 derniers). -------------
+  let feed: { text: string; at: number }[] = (() => { try { return JSON.parse(store.getMeta('feed') ?? '[]'); } catch { return []; } })();
+  const news = (text: string) => {
+    feed = [{ text, at: Date.now() }, ...feed].slice(0, 30);
+    store.setMeta('feed', JSON.stringify(feed));
+  };
+  router.get('/feed', (_req, res) => { res.setHeader('Cache-Control', 'no-store'); res.json({ ok: true, feed: feed.slice(0, 12) }); });
+  const gameNews = (name: string, won: boolean, mode: 'solo' | 'online', count421: number, boss?: string) => {
+    if (boss && won) news(`🏆 ${name} a battu le Patron de la semaine !`);
+    else if (count421 >= 2) news(`🎲 ${name} a sorti ${count421} fois 4-2-1 dans la même partie !`);
+    else if (count421 === 1 && won) news(`🎲 ${name} a gagné avec un 4-2-1 !`);
+    else if (won && mode === 'online') news(`🍻 ${name} a remporté une partie en ligne`);
+  };
+
   router.post('/bags/open', auth, (req, res) => {
     const u = userOf(req);
     const r = openBag(store.profileOf(u));
     if (!r) return fail(res, 400, 'Aucun sac à ouvrir.');
     store.saveProfile(u.id, r.profile);
+    if (r.result.shiny) news(`✨ ${u.username} a trouvé un dé brillant !`);
+    else if (r.result.rarity === 'legendaire') news(`🎒 ${u.username} a sorti un dé légendaire d’un sac !`);
+    else if (r.result.rarity === 'epique') news(`🎒 ${u.username} a sorti un dé épique`);
     res.json({ ok: true, profile: r.profile, result: r.result });
   });
   router.post('/collection/craft', auth, (req, res) =>
@@ -343,6 +360,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const applied = applyGameEnd(store.profileOf(u), reward, ctx, day);
     store.saveProfile(u.id, applied.profile);
     if (!ctx.suddenDeath) { leagueGain(u.id, reward.xp); checkReferral(u.id); if (b.won) clubWin(u.id); }
+    gameNews(u.username, !!b.won, 'solo', ctx.count421 ?? 0, ctx.boss);
     res.json({ ok: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
   });
 
@@ -612,6 +630,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const applied = applyGameEnd(store.profileOf(u), reward, { ...ctx, day, hour: brusselsHour() }, day);
     store.saveProfile(userId, applied.profile);
     if (!ctx.suddenDeath) { leagueGain(userId, reward.xp); checkReferral(userId); if (won && !abandoned) clubWin(userId); }
+    gameNews(u.username, won, 'online', ctx.count421 ?? 0);
     return { reward, applied: { ...applied, profile: store.profileOf(store.userById(userId)!) } };
   }
 

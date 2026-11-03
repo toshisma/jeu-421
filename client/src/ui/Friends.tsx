@@ -187,3 +187,18 @@ export function RecentGames({ onOpen }: { onOpen?: (username: string) => void })
     </section>
   );
 }
+
+/** Fil d'actualité discret : une ligne qui défile doucement sous le compteur de joueurs. */
+export function NewsTicker() {
+  const [feed, setFeed] = useState<{ text: string; at: number }[]>([]);
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const load = () => api<{ feed: { text: string; at: number }[] }>('/feed').then((r) => setFeed(r.feed.filter((f) => Date.now() - f.at < 3 * 86400_000))).catch(() => {});
+    load(); const t = setInterval(load, 60_000); return () => clearInterval(t);
+  }, []);
+  useEffect(() => { if (feed.length < 2) return; const t = setInterval(() => setI((x) => x + 1), 6000); return () => clearInterval(t); }, [feed.length]);
+  if (!feed.length) return null;
+  const f = feed[i % feed.length];
+  const m = Math.round((Date.now() - f.at) / 60_000);
+  return <p className="news-ticker" aria-live="off" key={f.at}>{f.text} <small>{m < 60 ? `il y a ${Math.max(1, m)} min` : m < 1440 ? `il y a ${Math.round(m / 60)} h` : 'hier'}</small></p>;
+}
