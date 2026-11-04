@@ -1267,8 +1267,7 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .pm-left { position: absolute; right: 64px; top: -18px; font-size: 0.75rem; color: var(--texte-3); }
 .home-social { display: flex; gap: 12px; flex: none; }
 
-/* =============================================================================================
- * Accueil v0.30 : tout ce qui compte visible sans défiler (vitrine 3D, jouer, collection,
+/* ====================================================================================== * Accueil v0.30 : tout ce qui compte visible sans défiler (vitrine 3D, jouer, collection,
  * parrainage, « Aujourd'hui » en tuiles), barre de navigation en bas, menu « Plus » rangé.
  * ============================================================================================= */
 .home2 {
@@ -1455,3 +1454,16 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .h2-news { position: absolute; left: 12px; right: 12px; top: 64px; z-index: 2; pointer-events: none; display: flex; }
 .h2-news .news-ticker { margin: 0; max-width: 100%; padding: 5px 10px; border-radius: 999px; background: rgba(0,0,0,0.5); font-size: 12px; line-height: 1.2; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-height: 700px) { .h2-news { display: none; } }
+=======
+/* --- Mode spectateur ------------------------------------------------------------------------- */
+.spectate-banner { display: flex; align-items: center; gap: 8px; justify-content: space-between;
+  padding: 6px 6px 6px 12px; border-radius: 12px; background: rgba(29, 60, 143, 0.92); color: var(--blanc);
+  font-weight: 700; font-size: 14px; box-shadow: 0 4px 14px rgba(0,0,0,0.35); }
+.spectate-banner span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spectate-banner .btn { flex: none; }
+.spectators-count { align-self: center; margin: -4px 0; pointer-events: none; padding: 2px 10px; border-radius: 999px;
+  background: rgba(0,0,0,0.5); color: var(--texte-2); font-size: 12px; font-weight: 600; }
+.chat-spec { color: var(--texte-3); font-weight: 500; }
+.chat-panel li.spec b { color: #8fb3ff; }
+.live-games { margin-top: 18px; }
+.live-games .live-players { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

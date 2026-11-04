@@ -115,6 +115,7 @@ function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void })
       { label: 'Club', icon: 'club', go: p.onClub, show: !STANDALONE },
       { label: 'Défis entre amis', icon: 'target', go: p.onDuels, show: !STANDALONE, keys: 'duels' },
       { label: 'Tournois', icon: 'trophy', go: p.onTournaments, show: !STANDALONE },
+      { label: 'Regarder une partie', icon: 'eye', go: p.onOnline, show: !STANDALONE, keys: 'spectateur parties en cours' },
       { label: 'Soirée (un téléphone)', icon: 'cheers', go: p.onParty, keys: 'vrais des arbitre' },
     ] },
     { title: 'Apprendre et régler', items: [

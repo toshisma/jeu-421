@@ -276,7 +276,7 @@ function LobbyTable({ room, meId, isHost, max, onInvite, onKick, onRemoveBot }: 
   );
 }
 
-function Notices({ session }: { session: OnlineSession }) {
+export function Notices({ session }: { session: OnlineSession }) {
   const n = useSyncExternalStore((cb) => session.subscribe(cb), () => session.notices);
   const [hidden, setHidden] = useState<Set<number>>(new Set());
   useEffect(() => {

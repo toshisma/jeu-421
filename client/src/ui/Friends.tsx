@@ -8,7 +8,7 @@ import { Icon } from './Icon';
 
 interface Friend {
   username: string; level: number; me?: boolean; lastSeen: number; online: boolean;
-  room: { code: string; status: 'salon' | 'partie'; joinable: boolean } | null;
+  room: { code: string; status: 'salon' | 'partie'; joinable: boolean; watchable?: boolean } | null;
 }
 
 /** « Vu il y a 3 h », comme sur Steam. */
@@ -23,7 +23,7 @@ export function seenAgo(t: number, now = Date.now()): string {
 }
 
 /** Écran Amis : qui est en ligne, qui joue, rejoindre son salon d'un clic, voir son profil. */
-export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessage }: { pa: ProfileApi; onBack: () => void; onAccount: () => void; onJoin: (code: string) => void; onInvite: (username: string) => void; onMessage?: (username: string) => void }) {
+export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessage, onWatch }: { pa: ProfileApi; onBack: () => void; onAccount: () => void; onJoin: (code: string) => void; onInvite: (username: string) => void; onMessage?: (username: string) => void; onWatch?: (code: string) => void }) {
   const [list, setList] = useState<Friend[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -62,11 +62,12 @@ export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessa
                 {' · '}niv. {f.level}</small></span>
             </button>
             {f.room?.joinable ? <button className="btn small primary" onClick={() => onJoin(f.room!.code)}>Rejoindre</button>
+              : f.room?.watchable && onWatch ? <button className="btn small" onClick={() => onWatch(f.room!.code)}>👁 Regarder</button>
               : f.online && !f.room ? <button className="btn small" onClick={() => onInvite(f.username)}>Inviter</button> : null}
           </li>
         ))}
       </ul>
-      {open && <ProfileView pa={pa} username={open} onClose={() => setOpen(null)} onInvite={onInvite} onMessage={onMessage} />}
+      {open && <ProfileView pa={pa} username={open} onClose={() => setOpen(null)} onInvite={onInvite} onMessage={onMessage} onWatch={onWatch} />}
     </Shell>
   );
 }
