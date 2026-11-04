@@ -10,7 +10,7 @@ import { GameScreen, type EndReward } from './GameScreen';
 import type { Appearance } from '../../../shared/progress/catalog';
 import type { RewardContext } from '../../../shared/progress/profile';
 import type { GameState } from '../../../shared/engine';
-import { Shell } from './Screens';
+import { BigAction, Choices, Shell } from './kit';
 import { publicUrl } from '../platform';
 import type { ProfileApi } from '../account/useProfile';
 import { DEFAULT_TABLE, STAKES, stakeLabel, type TableSettings } from '../../../shared/tournament';
@@ -99,32 +99,37 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
   if (session?.room) return <><Lobby session={session} onExit={exit} pa={pa} /><Notices session={session} /><Chat session={session} pa={pa} /></>;
 
   const isJoin = mode.kind === 'join';
+  const waiting = mode.kind === 'resume' || mode.kind === 'quick';
+  const canGo = !busy && !!name.trim() && (!isJoin || code.length === 5);
+  const submit = () => { if (canGo) void connect(isJoin ? 'join' : 'create'); };
   return (
-    <Shell title={mode.kind === 'resume' || mode.kind === 'quick' ? 'Connexion…' : isJoin ? 'Rejoindre une table' : 'Créer une table'} onBack={cancel}>
-      {mode.kind === 'resume' || mode.kind === 'quick' ? (
-        <div className="form">
-          {busy && <p>{mode.kind === 'quick' ? 'Recherche d’une table…' : 'Reconnexion au salon…'}</p>}
+    <Shell title={waiting ? 'Connexion…' : isJoin ? 'Rejoindre une table' : 'Créer une table'} onBack={cancel} icon={isJoin ? 'key' : 'plus'}
+      foot={waiting ? undefined : <BigAction type="button" icon={isJoin ? 'people' : 'dice'} disabled={!canGo} onClick={submit}
+        label={busy ? 'Connexion…' : isJoin ? 'Rejoindre la table' : 'Ouvrir la table'}
+        sub={isJoin ? undefined : 'Vous choisirez les règles dans le salon'} />}>
+      {waiting ? (
+        <div className="k-wait">
+          {busy && <><span className="k-spinner" aria-hidden /><p>{mode.kind === 'quick' ? 'Recherche d’une table…' : 'Reconnexion au salon…'}</p></>}
           {error && <><p className="error">{error}</p><button className="btn" onClick={onExit}>Retour à l'accueil</button></>}
         </div>
       ) : (
-        <form className="form" onSubmit={(e) => { e.preventDefault(); void connect(isJoin ? 'join' : 'create'); }}>
+        <form className="k-form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
           {isJoin && (
-            <label className="field"><span>Code de la partie</span>
-              <input className="code-input" value={code} maxLength={5} autoFocus placeholder="ABCDE"
+            <label className="k-field"><span className="k-label">Code de la partie</span>
+              <input className="code-input k-input" value={code} maxLength={5} autoFocus placeholder="ABCDE"
                 onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} /></label>
           )}
-          <label className="field"><span>Votre nom</span>
-            <input value={name} maxLength={20} placeholder="Votre nom" autoFocus={!isJoin} onChange={(e) => setName(e.target.value)} /></label>
-          <details className="values">
-            <summary>Changer d'avatar ({avatar})</summary>
-            <div className="avatars">{AVATARS.map((a) => <button type="button" key={a} className={a === avatar ? 'on' : ''} onClick={() => setAvatar(a)}>{a}</button>)}</div>
-          </details>
+          <div className="hub-me">
+            <details className="hub-av">
+              <summary aria-label="Changer d'avatar"><Avatar emoji={avatar} size={46} /><i className="hub-me-edit" aria-hidden>✎</i></summary>
+              <div className="avatars hub-avatars">{AVATARS.map((a) => <button type="button" key={a} className={a === avatar ? 'on' : ''} onClick={(e) => { setAvatar(a); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }} aria-label={`Avatar ${a}`}>{a}</button>)}</div>
+            </details>
+            <label className="hub-me-name"><small>Votre nom</small>
+              <input value={name} maxLength={20} placeholder="Votre nom" autoFocus={!isJoin} onChange={(e) => setName(e.target.value)} /></label>
+          </div>
           {!isJoin && <TableFields table={table} onChange={setTable} pa={pa} />}
           {error && <p className="error">{error}</p>}
-          <button className="btn primary big" disabled={busy || !name.trim() || (isJoin && code.length !== 5)}>
-            {busy ? 'Connexion…' : isJoin ? 'Rejoindre' : 'Créer la table'}
-          </button>
-          {!isJoin && <p className="muted small">Vous choisirez les règles dans le salon, une fois vos amis arrivés.</p>}
+          <button type="submit" hidden aria-hidden tabIndex={-1} />
         </form>
       )}
     </Shell>
@@ -135,13 +140,14 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
 function TableFields({ table, onChange, pa, minPlayers = 2 }: { table: TableSettings; onChange: (t: TableSettings) => void; pa: ProfileApi; minPlayers?: number }) {
   return (
     <>
-      <Seg label="Qui peut rejoindre ?" value={table.visibility} onChange={(v) => onChange({ ...table, visibility: v })}
-        hint={table.visibility === 'public' ? 'La table apparaît dans la liste des tables publiques.' : 'Seuls ceux qui ont le code ou le lien peuvent entrer.'}
-        options={[{ v: 'private', label: 'Sur invitation' }, { v: 'public', label: 'Tout le monde' }]} />
+      <div className="k-field"><span className="k-label">Qui peut rejoindre ?</span>
+        <Choices value={table.visibility} onChange={(v) => onChange({ ...table, visibility: v })}
+          options={[{ v: 'private', label: 'Sur invitation', hint: 'Avec le code ou le lien', icon: 'key' }, { v: 'public', label: 'Tout le monde', hint: 'Visible dans la liste', icon: 'people' }]} />
+      </div>
       <Seg label="Nombre de places" value={table.maxPlayers} onChange={(v) => onChange({ ...table, maxPlayers: v })}
         options={[2, 3, 4, 5, 6].filter((n) => n >= minPlayers).map((n) => ({ v: n, label: String(n) }))} />
       <StakePicker value={table.stake} onChange={(v) => onChange({ ...table, stake: v })} pa={pa} stakes={STAKES} />
-      {table.stake > 0 && <p className="muted small">Chaque joueur mise {table.stake} pièces au lancement de la partie. Le gagnant remporte la cagnotte (partagée en cas d'égalité).</p>}
+      {table.stake > 0 && <p className="k-hint">Chaque joueur mise {table.stake} pièces au lancement de la partie. Le gagnant remporte la cagnotte (partagée en cas d'égalité).</p>}
     </>
   );
 }

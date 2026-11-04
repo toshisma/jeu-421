@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
 import { Icon } from './Icon';
-import { Shell } from './Screens';
+import { Shell } from './kit';
 
 /** Réponse de GET /api/stats : uniquement des totaux anonymes, calculés par le serveur. */
 export interface PublicStats {
@@ -119,13 +119,13 @@ export function StatsScreen({ pa, onBack, onAdmin }: { pa: ProfileApi; onBack: (
   }, [pa.token]);
 
   return (
-    <Shell title="Statistiques du jeu" onBack={onBack} wide>
+    <Shell title="Statistiques" onBack={onBack} icon="stats" wide sub="Chiffres du jeu, mis à jour toutes les 12 s">
       {!s && !error && <p className="muted">Chargement…</p>}
       {!s && error && <p className="error">Statistiques indisponibles pour l'instant : {error}</p>}
       {s && (
         <div className="stats">
           <section className="stats-live" aria-live="polite">
-            <div className="live-head"><span className="live-dot" aria-hidden /> En direct <small className="muted">mis à jour toutes les 12 secondes</small></div>
+            <div className="live-head"><span className="live-dot" aria-hidden /> En direct</div>
             <div className="stat-row big">
               <Counter value={nf(s.live.online)} label={s.live.online > 1 ? 'joueurs en ligne' : 'joueur en ligne'} hint="Appareils avec le jeu ouvert et reliés au serveur en ce moment" />
               <Counter value={nf(s.live.gamesInProgress)} label={s.live.gamesInProgress > 1 ? 'parties en cours' : 'partie en cours'} hint="Parties en ligne en cours, et parties solo en cours sur un appareil relié" />
@@ -135,7 +135,7 @@ export function StatsScreen({ pa, onBack, onAdmin }: { pa: ProfileApi; onBack: (
 
           <div className="cols">
             <section>
-              <h3>Aujourd'hui <small className="muted">{dayLabel(s.today.day, true)}</small></h3>
+              <h3>Aujourd'hui <small className="k-count">{dayLabel(s.today.day, true)}</small></h3>
               <div className="stat-row">
                 <Counter value={nf(s.today.games)} label="parties jouées" />
                 <Counter value={nf(s.today.players)} label="joueurs différents" />
