@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { FloatingPop } from './FloatingPop';
 import { Icon } from './Icon';
 import { sound } from '../audio/sound';
 import type { Settings } from '../settings';
@@ -10,12 +11,7 @@ export function VolumeControl({ settings, onSettings }: { settings: Settings; on
   const pct = settings.muted ? 0 : Math.round(settings.volume * 100);
   const icon = pct === 0 ? 'mute' : pct < 50 ? 'soundLow' : 'sound';
 
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
-    window.addEventListener('pointerdown', close);
-    return () => window.removeEventListener('pointerdown', close);
-  }, [open]);
+  const close = useCallback(() => setOpen(false), []);
 
   const setPct = (v: number) => {
     sound.unlock();
@@ -28,7 +24,7 @@ export function VolumeControl({ settings, onSettings }: { settings: Settings; on
     <div className="volume" ref={box}>
       <button className="icon-btn" title={`Volume : ${pct} %`} aria-label={`Volume ${pct} %`} onClick={() => { sound.unlock(); setOpen((o) => !o); }}><Icon name={icon} /></button>
       {open && (
-        <div className="volume-pop" role="dialog" aria-label="Volume">
+        <FloatingPop anchor={box} onClose={close} className="volume-pop" label="Volume">
           <button className="icon-btn small" title={pct === 0 ? 'Remettre le son' : 'Couper le son'}
             onClick={() => (pct === 0 ? setPct(Math.max(10, Math.round(settings.volume * 100) || 60)) : onSettings({ ...settings, muted: true }))}>
             <Icon name={pct === 0 ? 'mute' : 'sound'} size={18} />
@@ -36,7 +32,7 @@ export function VolumeControl({ settings, onSettings }: { settings: Settings; on
           <input type="range" min={0} max={100} step={1} value={pct} aria-label="Volume"
             onChange={(e) => setPct(Number(e.target.value))} onPointerUp={preview} onKeyUp={preview} />
           <span className="vol-pct">{pct} %</span>
-        </div>
+        </FloatingPop>
       )}
     </div>
   );
@@ -47,12 +43,7 @@ export function MusicControl({ settings, onSettings }: { settings: Settings; onS
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const pct = Math.round(settings.music * 100);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
-    window.addEventListener('pointerdown', close);
-    return () => window.removeEventListener('pointerdown', close);
-  }, [open]);
+  const close = useCallback(() => setOpen(false), []);
   const set = (v: number) => onSettings({ ...settings, music: v / 100, ...(v > 0 && settings.muted ? { muted: false } : {}) });
   return (
     <div className="volume" ref={box}>
@@ -60,13 +51,13 @@ export function MusicControl({ settings, onSettings }: { settings: Settings; onS
         <span aria-hidden>♫</span>
       </button>
       {open && (
-        <div className="volume-pop" role="dialog" aria-label="Musique">
+        <FloatingPop anchor={box} onClose={close} className="volume-pop" label="Musique">
           <button className="icon-btn small" title={pct === 0 ? 'Remettre la musique' : 'Couper la musique'} onClick={() => set(pct === 0 ? 40 : 0)}>
             <span aria-hidden>{pct === 0 ? '♫' : '⏸'}</span>
           </button>
           <input type="range" min={0} max={100} step={1} value={pct} aria-label="Musique" onChange={(e) => set(Number(e.target.value))} />
           <span className="vol-pct">{pct} %</span>
-        </div>
+        </FloatingPop>
       )}
     </div>
   );

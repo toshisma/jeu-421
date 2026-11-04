@@ -1686,3 +1686,13 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .ref-progress i .bag-icon { width: 34px; height: 34px; }
 .promo-bag .bag-icon { width: 58px; height: 58px; }
 .bag-ico .bag-icon { width: 56px; height: 56px; }
+
+/* Fenêtres flottantes (volume, musique, réactions, aide) : à la racine de la page, au-dessus de tout,
+ * toujours entièrement dans l'écran. Annule l'ancien placement « sous le bouton » qui se faisait couper. */
+.floating-pop, .floating-pop.volume-pop, .floating-pop.emote-pop, .floating-pop.install-pop,
+.home-audio .floating-pop.volume-pop { position: fixed; right: auto; bottom: auto; z-index: 200; margin: 0; }
+.floating-pop.volume-pop { width: min(340px, calc(100vw - 24px)); }
+.floating-pop.volume-pop input[type=range] { flex: 1; width: auto; min-width: 0; }
+.floating-pop.install-pop { width: min(280px, calc(100vw - 24px)); }
+.floating-pop.install-pop p { margin: 0; }
+.floating-pop.emote-pop { max-height: calc(100vh - 24px); overflow-y: auto; }

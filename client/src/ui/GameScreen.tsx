@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { FloatingPop } from './FloatingPop';
 import { askConfirm } from './confirm';
 import { Icon } from './Icon';
 import { flyTokens } from './flyTokens';
@@ -70,6 +71,8 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   const [profileOf, setProfileOf] = useState<{ username: string | null } | null>(null);
   const [emotes, setEmotes] = useState<Record<string, { e: string; k: number }>>({});
   const [emoteOpen, setEmoteOpen] = useState(false);
+  const emoteRef = useRef<HTMLDivElement>(null);
+  const closeEmote = useCallback(() => setEmoteOpen(false), []);
   const cardEls = useRef<Record<string, HTMLDivElement | null>>({});
   const sayRef = useRef<(id: string, text: string | null) => void>(() => {});
   // Joueurs bloqués : photo et réactions masquées.
@@ -415,17 +418,17 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
           </div>
           <div className="top-actions">
             <button className="icon-btn hide-desktop" onClick={() => setHistoryOpen((o) => !o)} aria-label="Historique"><Icon name="history" /></button>
-            {!spectator && <div className="emote-wrap">
+            {!spectator && <div className="emote-wrap" ref={emoteRef}>
               <button className="icon-btn" aria-label="Réagir" onClick={() => setEmoteOpen((o) => !o)}><Icon name="react" /></button>
               {emoteOpen && (
-                <div className="emote-pop">
+                <FloatingPop anchor={emoteRef} onClose={closeEmote} className="emote-pop" label="Réactions">
                   <div className="emote-grid">
                     {EMOTES.map((e) => <button key={e} onClick={() => { controller.sendEmote(e); setEmoteOpen(false); }}>{e}</button>)}
                   </div>
                   <div className="phrase-list">
                     {PHRASES.map((p) => <button key={p} onClick={() => { controller.sendEmote(p); setEmoteOpen(false); }}>{p}</button>)}
                   </div>
-                </div>
+                </FloatingPop>
               )}
             </div>}
             <button className="icon-btn" onClick={() => setRulesOpen(true)} aria-label="Règles du jeu"><Icon name="rules" /></button>

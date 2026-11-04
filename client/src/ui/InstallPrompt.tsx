@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { FloatingPop } from './FloatingPop';
 import { isNativeApp } from '../platform';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -32,6 +33,7 @@ const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.
 export function InstallPrompt({ compact = false }: { compact?: boolean }) {
   const [, force] = useState(0);
   const [iosHelp, setIosHelp] = useState(false);
+  const wrap = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     const l = () => force((n) => n + 1);
     listeners.add(l);
@@ -52,9 +54,11 @@ export function InstallPrompt({ compact = false }: { compact?: boolean }) {
   }
   if (isIos()) {
     return (
-      <span className={compact ? 'install-wrap' : undefined}>
+      <span className={compact ? 'install-wrap' : undefined} ref={wrap}>
         <button className={compact ? 'install-chip' : 'btn ghost'} aria-expanded={iosHelp} onClick={() => setIosHelp((v) => !v)}>📲 {compact ? 'Installer' : "Installer sur l'iPhone"}</button>
-        {iosHelp && <p className={compact ? 'install-pop' : 'muted small center'}>Dans Safari, touchez <b>Partager</b> (le carré avec une flèche), puis <b>Sur l'écran d'accueil</b>.</p>}
+        {iosHelp && (compact
+          ? <FloatingPop anchor={wrap} onClose={() => setIosHelp(false)} className="install-pop" label="Installer"><p>Dans Safari, touchez <b>Partager</b> (le carré avec une flèche), puis <b>Sur l'écran d'accueil</b>.</p></FloatingPop>
+          : <p className="muted small center">Dans Safari, touchez <b>Partager</b> (le carré avec une flèche), puis <b>Sur l'écran d'accueil</b>.</p>)}
       </span>
     );
   }
