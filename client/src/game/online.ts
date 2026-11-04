@@ -5,9 +5,9 @@
 import { io, type Socket } from 'socket.io-client';
 import type { GameConfig } from '../../../shared/config';
 import { currentPlayerId, type GameState } from '../../../shared/engine';
-import type { Ack, Notice, PublicRoom, RollMessage } from '../../../shared/protocol';
+import type { Ack, ChatMessage, Notice, PublicRoom, RollMessage } from '../../../shared/protocol';
 import { saveSession } from '../settings';
-import { SERVER_URL } from '../platform';
+import { SERVER_URL, publicUrl } from '../platform';
 import { today } from '../../../shared/progress/quests';
 import type { EndReward } from '../account/useProfile';
 import type { GameController, GameEvent, MetaPlayer } from './controller';
@@ -27,7 +27,12 @@ export class OnlineSession {
   connected = false;
   notices: (Notice & { id: number })[] = [];
   /** Tchat de la table (50 derniers messages). */
-  chat: { playerId: string; name: string; account: string | null; text: string; at: number }[] = [];
+  chat: ChatMessage[] = [];
+  /** Mode spectateur : on regarde la partie sans y jouer. */
+  spectating = false;
+  /** Fin du mode spectateur imposée par le serveur (table fermée). */
+  watchClosed: string | null = null;
+  private watchName = '';
   private noticeId = 0;
   private metaL = new Set<() => void>();
   private evL = new Set<(e: GameEvent) => void>();
@@ -55,7 +60,8 @@ export class OnlineSession {
     this.socket.on('connect', () => {
       this.connected = true;
       // Reconnexion automatique au salon après une coupure réseau.
-      if (this.tcode && this.token) void this.tJoin(this.tcode, '', '', this.token).catch(() => {});
+      if (this.spectating && this.code) void this.call('spectate:join', { code: this.code, name: this.watchName, auth: this.auth });
+      else if (this.tcode && this.token) void this.tJoin(this.tcode, '', '', this.token).catch(() => {});
       else if (this.code && this.token) void this.join(this.code, '', '', this.token).catch(() => {});
       this.emitMeta();
     });
@@ -64,7 +70,7 @@ export class OnlineSession {
     this.socket.on('room:state', (r: PublicRoom) => {
       const wasPlaying = this.room?.status === 'playing' && this.room.code === r.code;
       // Tournoi : le serveur nous installe à une nouvelle table.
-      if (r.tournament && r.code !== this.code) { this.code = r.code; this.game = null; }
+      if (r.tournament && r.code !== this.code && !this.spectating) { this.code = r.code; this.game = null; }
       this.room = r;
       if (r.status === 'lobby' && wasPlaying) this.game = null;
       this.emitMeta();
@@ -83,7 +89,8 @@ export class OnlineSession {
     this.socket.on('tournament:state', (t: PublicTournament) => { this.tournament = t; this.emitMeta(); });
     this.socket.on('tournament:removed', ({ reason }: { reason: string }) => { this.removed = reason; this.tcode = ''; saveSession(null); this.emitMeta(); });
     this.socket.on('game:emote', (m: { playerId: string; emote: string }) => { for (const cb of this.emoteL) cb(m.playerId, m.emote); });
-    this.socket.on('room:chat', (m: OnlineSession['chat'][number]) => { this.chat = [...this.chat.slice(-49), m]; this.emitMeta(); });
+    this.socket.on('spectate:closed', ({ text }: { text: string }) => { this.watchClosed = text; this.emitMeta(); });
+    this.socket.on('room:chat', (m: ChatMessage) => { this.chat = [...this.chat.slice(-49), m]; this.emitMeta(); });
     this.socket.on('room:kicked', ({ text }: { text: string }) => {
       this.kicked = text; this.code = ''; this.room = null; saveSession(null); this.emitMeta();
     });
@@ -141,6 +148,19 @@ export class OnlineSession {
     this.remember(a);
   }
 
+  /** Regarder une partie en cours (aucune place occupée, aucune action de jeu). */
+  async watch(code: string, name: string) {
+    if (!(await this.waitConnected())) throw new Error('Impossible de joindre le serveur de jeu');
+    const a = await this.call<{ code: string }>('spectate:join', { code, name, auth: this.auth });
+    if (!a.ok) throw new Error(a.error);
+    this.spectating = true;
+    this.watchName = name;
+    this.code = a.code;
+    this.playerId = '';
+  }
+  /** Identifiant de mes messages de tchat quand je regarde. */
+  get chatId() { return this.spectating ? `spectateur:${this.socket.id}` : this.playerId; }
+
   // --- Tournoi ---
   private rememberT(a: { code: string; playerId: string; token: string }) {
     this.tcode = a.code;
@@ -195,6 +215,13 @@ export class OnlineSession {
   leave() {
     if (this.closed) return;
     this.closed = true;
+    if (this.spectating) {
+      // Le spectateur n'a pas de partie à reprendre : on ne touche pas à la session sauvegardée.
+      if (this.socket.connected) this.socket.emit('spectate:leave', {}, () => this.socket.disconnect());
+      else this.socket.disconnect();
+      setTimeout(() => this.socket.disconnect(), 800);
+      return;
+    }
     saveSession(null);
     if (this.socket.connected) this.socket.emit('room:leave', {}, () => this.socket.disconnect());
     else this.socket.disconnect();
@@ -245,12 +272,18 @@ export class OnlineSession {
 export class OnlineController implements GameController {
   readonly mode = 'online' as const;
   constructor(private s: OnlineSession) {}
+  /** Mode spectateur : aucune commande de jeu. */
+  get spectator() { return this.s.spectating; }
+  spectatorCount() { return this.s.room?.spectators ?? 0; }
+  watchLink() { return `${publicUrl()}/?regarder=${this.s.code}`; }
   get meId() { return this.s.playerId; }
   getMeta() { return this.s.metaPlayers(); }
   subscribeEvents(cb: (e: GameEvent) => void) { return this.s.subscribeEvents(cb); }
   subscribeMeta(cb: () => void) { return this.s.subscribe(cb); }
-  roll(keep: boolean[], version: number, gesture?: ThrowGesture) { return this.s.act('roll', { keep, version, gesture }); }
-  stop(version: number) { return this.s.act('stop', { version }); }
+  roll(keep: boolean[], version: number, gesture?: ThrowGesture) {
+    return this.s.spectating ? Promise.resolve('Vous regardez la partie.') : this.s.act('roll', { keep, version, gesture });
+  }
+  stop(version: number) { return this.s.spectating ? Promise.resolve('Vous regardez la partie.') : this.s.act('stop', { version }); }
   notifyIdle() {}
   /** Un ordinateur est en train de jouer : on l'indique comme en solo. */
   thinkingId() {
@@ -261,10 +294,10 @@ export class OnlineController implements GameController {
   }
   turnDeadline() { return this.s.room?.turnDeadline ?? null; }
   turnSeconds() { return this.s.room?.config.turnSeconds ?? 0; }
-  sendEmote(emote: string) { void this.s.act('emote', { emote }); }
+  sendEmote(emote: string) { if (!this.s.spectating) void this.s.act('emote', { emote }); }
   subscribeEmotes(cb: (playerId: string, emote: string) => void) { this.s.emoteL.add(cb); return () => { this.s.emoteL.delete(cb); }; }
-  canRematch() { return this.s.isHost && !this.s.room?.tournament; }
+  canRematch() { return !this.s.spectating && this.s.isHost && !this.s.room?.tournament; }
   rematch() { void this.s.rematch(); }
   /** En tournoi, quitter l'écran de la table ne quitte pas le tournoi (on revient au tableau). */
-  leave() { if (!this.s.tcode) this.s.leave(); }
+  leave() { if (!this.s.tcode || this.s.spectating) this.s.leave(); }
 }

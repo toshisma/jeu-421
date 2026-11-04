@@ -365,7 +365,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   });
 
   /** Où se trouve un compte en ce moment (fourni par le serveur de jeu). */
-  let presence: (userId: string) => { code: string; status: 'salon' | 'partie'; joinable: boolean } | null = () => null;
+  let presence: (userId: string) => { code: string; status: 'salon' | 'partie'; joinable: boolean; watchable?: boolean } | null = () => null;
   const setPresence = (f: typeof presence) => { presence = f; };
   const ONLINE_MS = 90_000;
 

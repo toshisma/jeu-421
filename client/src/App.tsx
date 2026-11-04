@@ -13,6 +13,7 @@ import { useProfile } from './account/useProfile';
 import { GameScreen } from './ui/GameScreen';
 import { OnlineFlow, type OnlineMode } from './ui/OnlineFlow';
 import { OnlineHub, type HubTab } from './ui/OnlineHub';
+import { SpectateFlow } from './ui/SpectateFlow';
 import { TournamentFlow, type TournamentMode } from './ui/TournamentFlow';
 import { LegalScreen } from './ui/LegalScreen';
 import { PassScreen } from './ui/Progression';
@@ -46,6 +47,7 @@ type Screen =
   | { name: 'friends' }
   | { name: 'changelog' }
   | { name: 'online'; mode: OnlineMode }
+  | { name: 'watch'; code: string; back: Screen }
   | { name: 'tournament'; mode: TournamentMode }
   | { name: 'rules' }
   | { name: 'settings' }
@@ -83,6 +85,8 @@ export function App() {
   const [settings, setSettingsState] = useState<Settings>(loadSettings);
   const invite = useMemo(() => new URLSearchParams(location.search).get('rejoindre'), []);
   const tInvite = useMemo(() => new URLSearchParams(location.search).get('tournoi'), []);
+  // Lien direct pour regarder une partie : /?regarder=CODE
+  const watchLink = useMemo(() => new URLSearchParams(location.search).get('regarder'), []);
   // Clic sur une notification : l'accueil s'ouvre sur le panneau des notifications.
   const openNotifs = useMemo(() => { const v = new URLSearchParams(location.search).has('notifs'); if (v) cleanUrl(); return v; }, []);
   // Lien de parrainage : le pseudo du parrain est retenu pour la création du compte.
@@ -93,6 +97,7 @@ export function App() {
   const [screen, setScreen] = useState<Screen>(() =>
     location.pathname.startsWith('/confidentialite') ? { name: 'legal', back: { name: 'home' } }
     : STANDALONE ? { name: 'home' }
+      : watchLink ? { name: 'watch', code: watchLink.toUpperCase(), back: { name: 'home' } }
       : invite ? { name: 'online', mode: { kind: 'join', code: invite.toUpperCase() } }
         : tInvite && settings.name ? { name: 'tournament', mode: { kind: 'join', code: tInvite.toUpperCase() } }
           : tInvite ? { name: 'hub', tab: 'tournois' } : { name: 'home' });
@@ -128,7 +133,7 @@ export function App() {
   }, [screen.name]);
 
   const home = () => {
-    if (invite || tInvite || location.pathname.startsWith('/confidentialite')) cleanUrl();
+    if (invite || tInvite || watchLink || location.pathname.startsWith('/confidentialite')) cleanUrl();
     setResume(loadSession());
     setScreen({ name: 'home' });
   };
@@ -188,7 +193,11 @@ export function App() {
         onJoinTournament={(code) => setScreen({ name: 'tournament', mode: { kind: 'join', code } })}
         onCreateRoom={() => setScreen({ name: 'online', mode: { kind: 'create' } })}
         onQuick={() => setScreen({ name: 'online', mode: { kind: 'quick' } })}
-        onCreateTournament={() => setScreen({ name: 'tournament', mode: { kind: 'create' } })} />;
+        onCreateTournament={() => setScreen({ name: 'tournament', mode: { kind: 'create' } })}
+        onWatch={(code) => setScreen({ name: 'watch', code, back: { name: 'hub', tab: 'tables' } })} />;
+    case 'watch':
+      return <SpectateFlow key={screen.code} code={screen.code} settings={settings} onSettings={setSettings} pa={pa}
+        onExit={() => (screen.back.name === 'home' ? home() : setScreen(screen.back))} />;
     case 'tournament':
       return <TournamentFlow mode={screen.mode} settings={settings} onSettings={setSettings} onExit={home} onCancel={() => setScreen({ name: 'hub', tab: 'tournois' })}
         appearance={profile.equipped} onGameEnd={pa.onGameEnd} pa={pa} />;
@@ -241,7 +250,8 @@ export function App() {
       return <ChangelogScreen onBack={home} />;
     case 'friends':
       return <FriendsScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} onJoin={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
-        onInvite={(username) => setScreen({ name: 'online', mode: { kind: 'create', invite: username } })} />;
+        onInvite={(username) => setScreen({ name: 'online', mode: { kind: 'create', invite: username } })}
+        onWatch={(code) => setScreen({ name: 'watch', code, back: { name: 'friends' } })} />;
     case 'duels':
       return <DuelsScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} onPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }} />;
     case 'duel':
@@ -258,7 +268,7 @@ export function App() {
       return <LeaderboardScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} />;
   } })();
   // Invitation d'un ami : bandeau partout, sauf quand on est déjà à une table en ligne.
-  const atTable = screen.name === 'online' || screen.name === 'tournament';
+  const atTable = screen.name === 'online' || screen.name === 'tournament' || screen.name === 'watch';
   return (
     <>
       {view}

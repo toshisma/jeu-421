@@ -382,6 +382,8 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
     }
   }, [secondsLeft, myTurn]);
 
+  const spectator = !!controller.spectator;
+  const watchers = controller.spectatorCount?.() ?? 0;
   const leave = async () => {
     if (s && s.phase !== 'fini' && !tableExit && !(await askConfirm('Quitter la partie en cours ?', 'Quitter'))) return;
     controller.leave();
@@ -409,7 +411,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
           </div>
           <div className="top-actions">
             <button className="icon-btn hide-desktop" onClick={() => setHistoryOpen((o) => !o)} aria-label="Historique"><Icon name="history" /></button>
-            <div className="emote-wrap">
+            {!spectator && <div className="emote-wrap">
               <button className="icon-btn" aria-label="Réagir" onClick={() => setEmoteOpen((o) => !o)}><Icon name="react" /></button>
               {emoteOpen && (
                 <div className="emote-pop">
@@ -421,12 +423,23 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
                   </div>
                 </div>
               )}
-            </div>
+            </div>}
             <button className="icon-btn" onClick={() => setRulesOpen(true)} aria-label="Règles du jeu"><Icon name="rules" /></button>
             <MusicControl settings={settings} onSettings={onSettings} />
             <VolumeControl settings={settings} onSettings={onSettings} />
           </div>
         </div>
+        {spectator ? (
+          <div className="spectate-banner" role="status">
+            <span>👁 Vous regardez la partie{watchers > 1 ? ` (${watchers} spectateurs)` : ''}</span>
+            {controller.watchLink && <button className="icon-btn small" aria-label="Copier le lien pour regarder" title="Copier le lien pour regarder"
+              onClick={() => { const l = controller.watchLink!(); navigator.clipboard?.writeText(l).then(() => setToast({ text: 'Lien copié : envoyez-le pour faire regarder la partie.', kind: 'round', id: Date.now() }), () => window.prompt('Copiez :', l)); }}>
+              <Icon name="share" size={18} /></button>}
+            <button className="btn small primary" onClick={leave}>Quitter</button>
+          </div>
+        ) : watchers > 0 && (
+          <div className="spectators-count" aria-label={`${watchers} spectateur${watchers > 1 ? 's' : ''}`}>👁 {watchers} spectateur{watchers > 1 ? 's' : ''}</div>
+        )}
         {s && (
           <div className="players">
             {s.players.map((p) => (

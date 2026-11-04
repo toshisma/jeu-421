@@ -59,6 +59,12 @@ export interface GameController {
   sendEmote(emote: string): void;
   subscribeEmotes(cb: (playerId: string, emote: string) => void): () => void;
   canRematch(): boolean;
+  /** Mode spectateur (en ligne) : on regarde sans jouer. */
+  readonly spectator?: boolean;
+  /** Nombre de spectateurs de la partie (en ligne). */
+  spectatorCount?(): number;
+  /** Lien direct pour regarder cette partie. */
+  watchLink?(): string;
   rematch(): void;
   leave(): void;
 }

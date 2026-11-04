@@ -44,7 +44,25 @@ export interface PublicRoom {
   tournament: string | null;
   /** Horodatage (ms) auquel le serveur jouera automatiquement pour le joueur actif. */
   turnDeadline: number | null;
+  /** Nombre de spectateurs qui regardent la partie. */
+  spectators?: number;
 }
+
+/** Mode spectateur : nombre maximal de spectateurs par partie. */
+export const MAX_SPECTATORS = 30;
+/** Partie en cours que l'on peut regarder (liste « Parties en cours »). */
+export interface LiveEntry {
+  code: string;
+  title: string;
+  players: { name: string; avatar: string; bot?: boolean }[];
+  spectators: number;
+  round: number;
+  /** Titre du tournoi si c'est une table de tournoi. */
+  tournament: string | null;
+  startedAt: number;
+}
+/** Message de tchat de table (un spectateur est signalé comme tel). */
+export interface ChatMessage { playerId: string; name: string; account: string | null; text: string; at: number; spectator?: boolean }
 
 export interface RollMessage { roll: RollRecord; seed: number; gesture?: ThrowGesture; state: GameState }
 export interface Notice { kind: 'info' | 'warning'; text: string }

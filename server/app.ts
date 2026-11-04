@@ -13,7 +13,7 @@ import { Server, type Socket } from 'socket.io';
 import { DEFAULT_CONFIG, isSuddenDeath, sanitizeConfig, type GameConfig } from '../shared/config';
 import { createGame, currentPlayerId, rollAction, stopAction, type GameState } from '../shared/engine';
 import { decide, type Difficulty } from '../shared/ai';
-import { AVATARS, isReaction, type Ack, type PublicRoom } from '../shared/protocol';
+import { AVATARS, MAX_SPECTATORS, isReaction, type Ack, type LiveEntry, type PublicRoom } from '../shared/protocol';
 import { sanitizeGesture, type ThrowGesture } from '../shared/gesture';
 import {
   MIN_TOURNAMENT_PLAYERS, prizes, qualifiersOf, sanitizeTable, sanitizeTournament, splitTables,
@@ -77,7 +77,11 @@ interface Room {
   tournament: string | null;
   /** Numéro de partie (référence du séquestre des mises). */
   games: number;
+  /** Spectateurs (par socket) : ils voient tout, ne jouent pas, ne comptent pas comme joueurs. */
+  spectators: Map<string, Spectator>;
 }
+
+interface Spectator { name: string; userId?: string }
 
 interface TPlayer {
   id: string;
@@ -201,7 +205,7 @@ export async function startServer(opts: ServerOptions) {
       const m = r.members.find((x) => x.userId === userId && x.socketId != null);
       if (!m) continue;
       const lobby = r.status === 'lobby';
-      return { code: r.code, status: lobby ? 'salon' : 'partie', joinable: lobby && !r.tournament && r.members.length < r.table.maxPlayers };
+      return { code: r.code, status: lobby ? 'salon' : 'partie', joinable: lobby && !r.tournament && r.members.length < r.table.maxPlayers, watchable: !lobby && !!r.game && r.game.phase !== 'fini' };
     }
     return null;
   });
@@ -229,6 +233,25 @@ export async function startServer(opts: ServerOptions) {
     res.setHeader('Cache-Control', 'no-store');
     res.json({ ok: true, lobbies, tournaments: tours });
   });
+  // Parties en cours qu'on peut regarder (tables publiques et tournois publics).
+  app.get('/api/live', (_req, res) => {
+    const games: LiveEntry[] = [...rooms.values()]
+      .filter((r) => {
+        if (r.status !== 'playing' || !r.game || r.game.phase === 'fini' || !r.members.some((m) => m.socketId != null)) return false;
+        const t = r.tournament ? tournaments.get(r.tournament) : undefined;
+        return (t ? t.settings.visibility : r.table.visibility) === 'public';
+      })
+      .sort((a, b) => b.spectators.size - a.spectators.size || b.startedAt - a.startedAt)
+      .slice(0, 30)
+      .map((r) => ({
+        code: r.code, title: r.title, spectators: r.spectators.size, round: r.game!.round, startedAt: r.startedAt,
+        tournament: r.tournament ? tournaments.get(r.tournament)?.settings.title ?? null : null,
+        players: r.members.filter((m) => r.game!.players.some((p) => p.id === m.id))
+          .map((m) => ({ name: m.name, avatar: m.avatar, ...(m.bot ? { bot: true } : {}) })),
+      }));
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ok: true, games });
+  });
   // Historique global : les dernières parties jouées sur le site.
   app.get('/api/recent-games', (_req, res) => {
     res.setHeader('Cache-Control', 'no-store');
@@ -240,7 +263,9 @@ export async function startServer(opts: ServerOptions) {
     const kind = code && rooms.has(code) && !rooms.get(code)!.tournament ? 'room' : code && tournaments.has(code) ? 'tournament' : null;
     res.setHeader('Cache-Control', 'no-store');
     if (!kind) return res.status(404).json({ ok: false, error: 'Aucune table ni aucun tournoi avec ce code. Vérifiez-le.' });
-    res.json({ ok: true, kind });
+    // Table déjà en partie : on propose de la regarder (mode spectateur).
+    const playing = kind === 'room' && rooms.get(code!)!.status === 'playing';
+    res.json({ ok: true, kind, ...(playing ? { playing: true } : {}) });
   });
   app.use('/api', accounts.router);
   const http = createServer(app);
@@ -287,6 +312,7 @@ export async function startServer(opts: ServerOptions) {
       code: newCode(), title: o.title, hostId: o.host.id, members: o.members, config: o.config, table: o.table, status: 'lobby',
       game: null, turnTimer: null, turnDeadline: null, autoTurnOf: null, timeoutEnd: null, hostTimer: null, stats: new Map(),
       rewarded: false, startedAt: Date.now(), lastSummarySeq: -1, lastActivity: Date.now(), pot: 0, tournament: o.tournament ?? null, games: 0,
+      spectators: new Map(),
     };
     rooms.set(r.code, r);
     return r;
@@ -303,6 +329,7 @@ export async function startServer(opts: ServerOptions) {
     table: r.table,
     pot: r.pot,
     tournament: r.tournament,
+    spectators: r.spectators.size,
     members: r.members.map((m) => ({
       id: m.id, name: m.name, avatar: m.avatar, ready: m.ready,
       connected: m.socketId != null || !!m.bot, left: m.left, isHost: m.id === r.hostId, ...(m.bot ? { bot: m.bot } : {}),
@@ -524,12 +551,57 @@ export async function startServer(opts: ServerOptions) {
     if (r.members.every((m) => m.socketId == null || m.left)) {
       if (r.turnTimer) clearTimeout(r.turnTimer);
       if (r.hostTimer) clearTimeout(r.hostTimer);
+      closeSpectators(r, 'Tous les joueurs ont quitté la table.');
       rooms.delete(r.code);
     }
   }
 
+  // --- Spectateurs ---------------------------------------------------------------------------
+  /** Détache un socket de la partie qu'il regardait (s'il en regardait une). */
+  function unwatch(socket: Socket) {
+    const code = socket.data.watch as string | undefined;
+    if (!code) return;
+    socket.data.watch = null;
+    const r = rooms.get(code);
+    // Le socket peut aussi être joueur de cette table (cas limite) : on ne le retire alors pas du canal.
+    if (socket.data.code !== code) socket.leave(code);
+    if (r && r.spectators.delete(socket.id)) broadcastRoom(r);
+  }
+  /** La table disparaît : les spectateurs sont prévenus et détachés. */
+  function closeSpectators(r: Room, text: string) {
+    for (const sid of r.spectators.keys()) {
+      const sock = io.sockets.sockets.get(sid);
+      if (!sock) continue;
+      sock.emit('spectate:closed', { text });
+      sock.data.watch = null;
+      if (sock.data.code !== r.code) sock.leave(r.code);
+    }
+    r.spectators.clear();
+  }
+  const friendsEither = (a: string, b: string) => store.isFriend(a, b) || store.isFriend(b, a);
+  /**
+   * Qui peut regarder une table en partie ? Tables publiques : tout le monde. Tables privées
+   * (sur invitation) et tournois privés : seulement les comptes amis d'un des joueurs.
+   * Renvoie un message d'erreur, ou null.
+   */
+  function watchProblem(r: Room, userId: string | undefined): string | null {
+    if (r.status !== 'playing' || !r.game) return 'Aucune partie en cours à cette table pour l’instant.';
+    const t = r.tournament ? tournaments.get(r.tournament) : undefined;
+    const isPrivate = t ? t.settings.visibility === 'private' : r.table.visibility === 'private';
+    if (userId && r.members.some((m) => m.userId === userId && !m.left && !m.bot)) return 'Vous êtes joueur à cette table.';
+    if (blockedAt(userId, r.members)) return 'Impossible de regarder cette partie.';
+    if (userId && r.kicked?.has(userId)) return 'Impossible de regarder cette partie.';
+    if (isPrivate) {
+      if (!userId) return 'Partie privée : seuls les amis des joueurs peuvent la regarder (connectez-vous à votre compte).';
+      if (!r.members.some((m) => m.userId && friendsEither(m.userId, userId))) return 'Partie privée : seuls les amis des joueurs peuvent la regarder.';
+    }
+    if (r.spectators.size >= MAX_SPECTATORS) return `Trop de spectateurs pour cette partie (${MAX_SPECTATORS} au maximum).`;
+    return null;
+  }
+
   /** Branche un socket sur un membre de salon (en le détachant de son salon précédent). */
   function attachSocket(socket: Socket, r: Room, m: Member) {
+    unwatch(socket); // un joueur ne regarde pas en même temps
     const prev = m.socketId && io.sockets.sockets.get(m.socketId);
     if (prev && prev.id !== socket.id) prev.disconnect(true); // un seul onglet par joueur
     const oldCode = socket.data.code as string | undefined;
@@ -671,7 +743,7 @@ export async function startServer(opts: ServerOptions) {
     broadcastT(t);
     // Les tables restent consultables un moment, puis tout est rangé.
     setTimeout(() => {
-      for (const rd of t.rounds) for (const tb of rd.tables) { const r = rooms.get(tb.code); if (r?.turnTimer) clearTimeout(r.turnTimer); rooms.delete(tb.code); }
+      for (const rd of t.rounds) for (const tb of rd.tables) { const r = rooms.get(tb.code); if (r?.turnTimer) clearTimeout(r.turnTimer); if (r) closeSpectators(r, 'Le tournoi est terminé.'); rooms.delete(tb.code); }
       tournaments.delete(t.code);
     }, 15 * 60_000).unref?.();
   }
@@ -682,6 +754,7 @@ export async function startServer(opts: ServerOptions) {
     for (const r of rooms.values())
       if (!r.tournament && r.members.every((m) => m.socketId == null) && now - r.lastActivity > 10 * 60_000) {
         if (r.turnTimer) clearTimeout(r.turnTimer);
+        closeSpectators(r, 'La table a été fermée.');
         rooms.delete(r.code);
       }
     for (const t of tournaments.values())
@@ -869,6 +942,7 @@ export async function startServer(opts: ServerOptions) {
     // Actions de jeu : vérification du tour, de la version d'état (double clic), des entrées.
     const gameAction = (kind: 'roll' | 'stop') => (p: any, ack: unknown) => {
       const reply = safeAck(ack);
+      if (socket.data.watch && socket.data.code !== socket.data.watch) return reply({ ok: false, error: 'Vous regardez la partie : les spectateurs ne jouent pas.' });
       const c = ctx();
       if (!c || c.r.status !== 'playing' || !c.r.game) return reply({ ok: false, error: 'Aucune partie en cours' });
       const g = c.r.game;
@@ -898,18 +972,56 @@ export async function startServer(opts: ServerOptions) {
     socket.on('room:chat', (p: any, ack: unknown) => {
       const reply = safeAck(ack);
       const c = ctx();
-      if (!c) return reply({ ok: false, error: 'Aucune table' });
+      const sp = !c && socket.data.watch ? rooms.get(socket.data.watch as string) : undefined;
+      const spec = sp?.spectators.get(socket.id);
+      if (!c && !(sp && spec)) return reply({ ok: false, error: 'Aucune table' });
       const text = String(p?.text ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/https?:\/\/\S+/gi, '[lien]').trim().slice(0, 200);
       if (!text) return reply({ ok: false, error: 'Message vide' });
       const now = Date.now();
       if (now - lastChat < 1000) return reply({ ok: false, error: 'Doucement !' });
       lastChat = now;
       reply({ ok: true });
+      if (!c) {
+        // Spectateur : son message est signalé comme tel.
+        const account = spec!.userId ? accounts.publicInfo(spec!.userId)?.account ?? null : null;
+        io.to(sp!.code).emit('room:chat', { playerId: `spectateur:${socket.id}`, name: spec!.name, account, text, at: now, spectator: true });
+        return;
+      }
       const account = c.m.userId ? accounts.publicInfo(c.m.userId)?.account ?? null : null;
       io.to(c.r.code).emit('room:chat', { playerId: c.m.id, name: c.m.name, account, text, at: now });
     });
     socket.on('game:roll', gameAction('roll'));
     socket.on('game:stop', gameAction('stop'));
+
+    // --- Mode spectateur ---------------------------------------------------------------------
+    // Regarder une partie en cours : le spectateur reçoit l'état et les lancers, n'a aucune
+    // action de jeu, n'occupe aucune place et ne reçoit aucune récompense.
+    socket.on('spectate:join', (p: any, ack: unknown) => {
+      const reply = safeAck(ack);
+      const code = cleanCode(p?.code);
+      const r = code ? rooms.get(code) : undefined;
+      if (!r) return reply({ ok: false, error: 'Partie introuvable. Elle est peut-être déjà terminée.' });
+      if (socket.data.code) return reply({ ok: false, error: 'Quittez d’abord votre table pour regarder une partie.' });
+      const user = accounts.userFromToken(p?.auth);
+      // Reconnexion du même spectateur : déjà compté.
+      if (socket.data.watch === r.code && r.spectators.has(socket.id)) {
+        reply({ ok: true, code: r.code });
+        socket.emit('room:state', publicRoom(r));
+        if (r.game) socket.emit('game:state', { state: r.game });
+        return;
+      }
+      const problem = watchProblem(r, user?.id);
+      if (problem) return reply({ ok: false, error: problem });
+      unwatch(socket);
+      const name = user?.username ?? cleanName(p?.name) ?? 'Spectateur';
+      r.spectators.set(socket.id, { name, userId: user?.id });
+      socket.data.watch = r.code;
+      socket.join(r.code);
+      reply({ ok: true, code: r.code });
+      broadcastRoom(r);
+      socket.emit('game:state', { state: r.game });
+    });
+    socket.on('spectate:leave', (_p: unknown, ack: unknown) => { unwatch(socket); safeAck(ack)({ ok: true }); });
 
     socket.on('room:rematch', (_p: unknown, ack: unknown) => {
       const reply = safeAck(ack);
@@ -1110,6 +1222,7 @@ export async function startServer(opts: ServerOptions) {
 
     socket.on('disconnect', () => {
       clearInterval(refill);
+      unwatch(socket);
       const tc = tctx();
       if (tc && tc.p.socketId === socket.id) {
         tc.p.socketId = null;

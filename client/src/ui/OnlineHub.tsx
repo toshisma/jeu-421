@@ -9,6 +9,7 @@ import { Icon } from './Icon';
 import { Shell } from './Screens';
 import { RecentGames } from './Friends';
 import { ProfileView } from './ProfileView';
+import { LiveGames } from './SpectateFlow';
 
 export type HubTab = 'tables' | 'tournois';
 const VARIANT: Record<string, string> = { classique: 'Partie classique', manches: 'Aux points', 'sans-charge': 'Sans charge' };
@@ -17,9 +18,11 @@ const VARIANT: Record<string, string> = { classique: 'Partie classique', manches
  * Jouer en ligne : rejoindre avec un code, créer une table ou un tournoi, ou choisir dans les
  * listes publiques (rafraîchies toutes les 4 secondes).
  */
-export function OnlineHub({ tab: initial, settings, onSettings, pa, onBack, onJoinRoom, onJoinTournament, onCreateRoom, onCreateTournament, onQuick }: {
+export function OnlineHub({ tab: initial, settings, onSettings, pa, onBack, onJoinRoom, onJoinTournament, onCreateRoom, onCreateTournament, onQuick, onWatch }: {
   tab: HubTab; settings: Settings; onSettings: (s: Settings) => void; pa: ProfileApi; onBack: () => void;
   onJoinRoom: (code: string) => void; onJoinTournament: (code: string) => void; onCreateRoom: () => void; onCreateTournament: () => void; onQuick: () => void;
+  /** Regarder une partie en cours (mode spectateur). */
+  onWatch?: (code: string) => void;
 }) {
   const [profile, setProfile] = useState<string | null>(null);
   const [tab, setTab] = useState<HubTab>(initial);
@@ -47,7 +50,8 @@ export function OnlineHub({ tab: initial, settings, onSettings, pa, onBack, onJo
   const joinCode = async () => {
     setCodeErr(null);
     try {
-      const r = await api<{ kind: 'room' | 'tournament' }>(`/code/${code}`);
+      const r = await api<{ kind: 'room' | 'tournament'; playing?: boolean }>(`/code/${code}`);
+      if (r.playing && onWatch) { onWatch(code); return; }
       go(() => (r.kind === 'room' ? onJoinRoom(code) : onJoinTournament(code)));
     } catch (e) { setCodeErr((e as Error).message); }
   };
@@ -106,6 +110,7 @@ export function OnlineHub({ tab: initial, settings, onSettings, pa, onBack, onJo
                 </li>
               ))}
             </ul>
+            {onWatch && <LiveGames onWatch={onWatch} />}
           </section>
         ) : (
           <section>

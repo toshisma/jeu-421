@@ -249,7 +249,7 @@ function Lobby({ session, onExit, pa }: { session: OnlineSession; onExit: () => 
   );
 }
 
-function Notices({ session }: { session: OnlineSession }) {
+export function Notices({ session }: { session: OnlineSession }) {
   const n = useSyncExternalStore((cb) => session.subscribe(cb), () => session.notices);
   const [hidden, setHidden] = useState<Set<number>>(new Set());
   useEffect(() => {

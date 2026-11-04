@@ -22,8 +22,8 @@ export function Chat({ session, pa }: { session: OnlineSession; pa: ProfileApi }
   const last = visible[visible.length - 1];
   return (
     <>
-      {!open && !muted && last && Date.now() - last.at < 6000 && last.playerId !== session.playerId && (
-        <div className="chat-peek" key={last.at}><b>{last.name}</b> {last.text}</div>
+      {!open && !muted && last && Date.now() - last.at < 6000 && last.playerId !== session.chatId && (
+        <div className="chat-peek" key={last.at}><b>{last.name}</b>{last.spectator && <small className="chat-spec"> (spectateur)</small>} {last.text}</div>
       )}
       <button className="chat-fab" onClick={() => setOpen((o) => !o)} aria-label={unread ? `Tchat, ${unread} nouveaux messages` : 'Tchat'}>
         <span aria-hidden>💬</span>{unread > 0 && <i className="bell-badge">{unread > 9 ? '9+' : unread}</i>}
@@ -38,12 +38,12 @@ export function Chat({ session, pa }: { session: OnlineSession; pa: ProfileApi }
           {muted ? <p className="muted small">Le tchat est coupé : vous ne voyez plus les messages. Touchez « Tchat coupé » pour le réactiver.</p> : (
             <ul ref={list}>
               {visible.length === 0 && <li className="muted small">Pas encore de message. Dites bonjour à la table !</li>}
-              {visible.map((m, i) => <li key={i} className={m.playerId === session.playerId ? 'me' : ''}><b>{m.name}</b> {m.text}</li>)}
+              {visible.map((m, i) => <li key={i} className={`${m.playerId === session.chatId ? 'me' : ''}${m.spectator ? ' spec' : ''}`}><b>{m.name}</b>{m.spectator && <small className="chat-spec"> (spectateur)</small>} {m.text}</li>)}
             </ul>
           )}
           {err && <p className="error small">{err}</p>}
           <form onSubmit={async (e) => { e.preventDefault(); if (!text.trim()) return; const r = await session.sendChat(text); setErr(r); if (!r) setText(''); }}>
-            <input value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder="Votre message…" enterKeyHint="send" />
+            <input value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder={session.spectating ? 'Message (en tant que spectateur)…' : 'Votre message…'} enterKeyHint="send" />
             <button className="btn primary small" disabled={!text.trim()}>Envoyer</button>
           </form>
         </section>
