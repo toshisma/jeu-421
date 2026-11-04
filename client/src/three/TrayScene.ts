@@ -523,6 +523,9 @@ export class TrayScene {
   }
 
   /** Cadre la caméra pour que tout le bac tienne dans la zone libre (entre les panneaux). */
+  /** Orientation retenue pour le bac (null : pas encore décidée). */
+  private portrait: boolean | null = null;
+
   private resize() {
     const w = this.thumbSize?.[0] ?? (this.container.clientWidth || 1);
     const h = this.thumbSize?.[1] ?? (this.container.clientHeight || 1);
@@ -534,7 +537,13 @@ export class TrayScene {
     const tanV = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * (freeH / h);
     const tanH = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * (w / h) * (freeW / w);
     // En portrait, la caméra tourne de 90° : le grand côté du bac suit la hauteur de l'écran.
-    const portrait = freeW < freeH * 0.95;
+    // L'orientation dépend de l'écran entier (pas de la zone libre, qui change quand un bandeau
+    // apparaît en partie), avec une marge : le bac ne bascule plus d'horizontal à vertical en jeu.
+    if (this.thumbSize) this.portrait = freeW < freeH * 0.95; // vignettes : chaque image a son cadre
+    else if (this.portrait === null) this.portrait = w < h;
+    else if (this.portrait && w > h * 1.15) this.portrait = false;
+    else if (!this.portrait && w < h * 0.87) this.portrait = true;
+    const portrait = this.portrait;
     const elev = THREE.MathUtils.degToRad(this.elevOverride ?? (portrait ? 62 : 57));
     const longHalf = this.shape.halfX + TRAY.wall + 0.6;
     const shortHalf = this.shape.halfZ + TRAY.wall + 0.4;
