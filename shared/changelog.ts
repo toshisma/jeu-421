@@ -7,7 +7,7 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
-  { version: '0.30', date: '2026-11-04T21:00:00+01:00', title: 'Grand rafraîchissement du comptoir', items: [
+  { version: '0.30', date: '2026-11-04T21:15:00+01:00', title: 'Grand rafraîchissement du comptoir', items: [
     'Nouvel accueil : votre bac en 3D en vitrine (touchez-le pour lancer), et tout ce qui compte visible d’un coup d’œil, sans faire défiler.',
     'Coffre, cadeau du jour, tournoi, patron, défi, missions et pass rassemblés dans « Aujourd’hui » ; ce qui est prêt brille en doré.',
     'Barre de navigation en bas (Accueil, Collection, Boutique, Classement) et menu « Plus » rangé par thème, avec une recherche.',
