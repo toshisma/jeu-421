@@ -14,9 +14,9 @@ const dayShort = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('f
 const dayLong = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 const dateTime = (t: number | null) => (t ? new Date(t).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–');
 
-type Tab = 'apercu' | 'joueurs' | 'visiteurs' | 'retention' | 'activite' | 'economie' | 'journal';
+type Tab = 'apercu' | 'personnes' | 'joueurs' | 'visiteurs' | 'retention' | 'activite' | 'economie' | 'journal';
 const TABS: [Tab, string][] = [
-  ['apercu', 'Vue d’ensemble'], ['joueurs', 'Joueurs'], ['visiteurs', 'Visiteurs'], ['retention', 'Rétention'],
+  ['apercu', 'Vue d’ensemble'], ['personnes', 'Personnes'], ['joueurs', 'Joueurs'], ['visiteurs', 'Visiteurs'], ['retention', 'Rétention'],
   ['activite', 'Activité'], ['economie', 'Économie'], ['journal', 'Journal admin'],
 ];
 
@@ -189,10 +189,11 @@ function VisitorsTab({ token }: { token: string | null }) {
         <Kpi value={pct(v.conversion.converted, v.conversion.newVisitors)} label={`ont créé un compte (${nf(v.conversion.converted)})`} hint="Nouveaux visiteurs de la période qui ont ensuite créé leur compte" />
       </div>
       <section className="adm-card"><Bars title="Visiteurs par jour" rows={v.days} series={[{ key: 'visitors', label: 'Visiteurs', cls: 's2' }]} /></section>
+      <AudienceBlock token={token} range={range} />
       <div className="adm-grid">
         <TopList title="Provenance" rows={v.referrers} />
         <TopList title="Pages d’arrivée" rows={v.landings} />
-        {v.countries.length ? <TopList title="Pays" rows={v.countries} /> : <TopList title="Langue du navigateur" rows={v.langs} />}
+        <TopList title="Langue du navigateur" rows={v.langs} />
         <TopList title="Appareil" rows={v.devices} />
       </div>
       <section className="adm-card">
@@ -201,14 +202,147 @@ function VisitorsTab({ token }: { token: string | null }) {
           <ul className="list compact">{v.utm.map((u, i) => <li key={i}><b>{u.source}</b><small>{[u.medium, u.campaign].filter(Boolean).join(' · ') || '—'} · {nf(u.n)} visites</small></li>)}</ul>
         )}
       </section>
-      <p className="muted small">Suivi anonyme : ni cookie, ni adresse IP conservée (identifiant d’appareil haché avec un sel secret). {v.countries.length ? '' : 'Le pays n’est pas fourni par l’hébergeur : la langue du navigateur le remplace.'}</p>
+      <p className="muted small">Suivi anonyme : ni cookie, ni adresse IP conservée (identifiant d’appareil haché avec un sel secret). Pays d’après le fuseau horaire de l’appareil (à défaut, la langue du navigateur). Temps passé : seulement onglet visible, plafonné par le serveur.</p>
+    </>
+  );
+}
+
+
+/** Durée lisible : « 45 s », « 12 min », « 3 h 05 ». */
+const dur = (s: number) => {
+  if (s < 60) return `${Math.round(s)} s`;
+  const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
+  return h ? `${h} h ${String(m).padStart(2, '0')}` : `${m} min`;
+};
+const shortDate = (t: number) => new Date(t).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const ratio = (x: number | null) => (x == null ? '–' : `${Math.round(x * 100)} %`);
+
+interface Audience {
+  totals: { seconds: number; visitors: number; avgPerVisitorDay: number; avgPerVisitor: number; avgPerVisit: number };
+  days: { day: string; avg: number; minutes: number }[];
+  countries: { code: string | null; name: string; flag: string; visitors: number; accounts: number; seconds: number; avgSeconds: number; d1: number | null; d7: number | null; method: string | null }[];
+}
+function AudienceBlock({ token, range }: { token: string | null; range: number }) {
+  const { data: a } = useAdmin<Audience>(`/admin/audience?days=${range}`, token);
+  if (!a) return null;
+  const methods = [...new Set(a.countries.map((c) => c.method).filter(Boolean))];
+  return (
+    <>
+      <div className="stat-row">
+        <Kpi value={dur(a.totals.avgPerVisitorDay)} label="par visiteur et par jour" hint="Temps moyen passé (onglet visible) un jour donné, par visiteur actif ce jour-là" />
+        <Kpi value={dur(a.totals.avgPerVisit)} label="en moyenne par visite" />
+        <Kpi value={dur(a.totals.avgPerVisitor)} label="par visiteur sur la période" />
+        <Kpi value={dur(a.totals.seconds)} label="de temps passé au total" />
+      </div>
+      <section className="adm-card"><Bars title="Minutes passées sur le site par jour" unit="min" rows={a.days} series={[{ key: 'minutes', label: 'Minutes', cls: 's1' }]} /></section>
+      <section className="adm-card">
+        <h3>Par pays <small className="muted">{methods.length ? methods.join(', ') : 'd’après le fuseau horaire'}</small></h3>
+        {!a.countries.length ? <p className="empty">Aucun visiteur sur la période.</p> : (
+          <div className="adm-table-wrap">
+            <table className="adm-table adm-countries">
+              <thead><tr><th>Pays</th><th>Visiteurs</th><th>Comptes</th><th>Temps</th><th>Moy.</th><th>J1</th><th>J7</th></tr></thead>
+              <tbody>{a.countries.map((c) => (
+                <tr key={c.code ?? '-'}><th><span aria-hidden>{c.flag}</span> {c.name}</th><td>{nf(c.visitors)}</td><td>{nf(c.accounts)}</td><td>{dur(c.seconds)}</td><td>{dur(c.avgSeconds)}</td><td>{ratio(c.d1)}</td><td>{ratio(c.d7)}</td></tr>
+              ))}</tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </>
+  );
+}
+
+interface PersonRow {
+  key: string; label: string; userId: string | null; username: string | null; country: string | null; countryName: string; flag: string; countrySrc: string | null;
+  device: string | null; source: string; firstAt: number; lastAt: number; visits: number; activeDays: number; seconds: number; avgSeconds: number; games: number;
+  back: { d1: boolean | null; d7: boolean | null; d30: boolean | null };
+}
+const DEVICE_ICON: Record<string, string> = { mobile: '📱', ordinateur: '💻', tablette: '📲' };
+function Dots({ back }: { back: PersonRow['back'] }) {
+  return (
+    <span className="adm-dots" aria-label={`Retour J1 ${back.d1 == null ? 'trop tôt' : back.d1 ? 'oui' : 'non'}, J7 ${back.d7 == null ? 'trop tôt' : back.d7 ? 'oui' : 'non'}, J30 ${back.d30 == null ? 'trop tôt' : back.d30 ? 'oui' : 'non'}`}>
+      {(['d1', 'd7', 'd30'] as const).map((k) => (
+        <span key={k} className={`adm-dot ${back[k] == null ? 'na' : back[k] ? 'yes' : 'no'}`} title={`${k.toUpperCase()} : ${back[k] == null ? 'trop tôt' : back[k] ? 'revenu' : 'pas revenu'}`}>
+          {back[k] == null ? '·' : back[k] ? '✓' : '✗'}<small>{k.slice(1)}</small>
+        </span>
+      ))}
+    </span>
+  );
+}
+function PeopleTab({ token, onOpen }: { token: string | null; onOpen: (userId: string) => void }) {
+  const [sort, setSort] = useState('last');
+  const [kind, setKind] = useState('');
+  const [country, setCountry] = useState('');
+  const [device, setDevice] = useState('');
+  const [q, setQ] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  useEffect(() => setPage(0), [sort, kind, country, device, search]);
+  const size = 20;
+  const { data, error } = useAdmin<{ total: number; people: PersonRow[]; countries: { code: string; name: string; flag: string }[] }>(
+    `/admin/people?sort=${sort}&kind=${kind}&country=${encodeURIComponent(country)}&device=${device}&q=${encodeURIComponent(search)}&page=${page}&size=${size}`, token, 30_000);
+  const pages = data ? Math.max(1, Math.ceil(data.total / size)) : 1;
+  const who = (p: PersonRow) => p.username
+    ? <button className="linkish" onClick={() => onOpen(p.userId!)}>{p.username}</button>
+    : <b>{p.label}</b>;
+  return (
+    <>
+      <form className="adm-search" onSubmit={(e) => { e.preventDefault(); setSearch(q.trim()); }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pseudo ou n° de visiteur (#a3f9)" aria-label="Recherche" autoCapitalize="off" />
+        <button className="btn small primary" type="submit">Chercher</button>
+        {search && <button className="btn small ghost" type="button" onClick={() => { setQ(''); setSearch(''); }}>Effacer</button>}
+      </form>
+      <div className="adm-filters">
+        <label><span>Tri</span><select value={sort} onChange={(e) => setSort(e.target.value)}>
+          <option value="last">Dernière visite</option><option value="time">Temps passé</option><option value="first">Première visite</option>
+          <option value="visits">Nombre de visites</option><option value="days">Jours actifs</option></select></label>
+        <label><span>Qui</span><select value={kind} onChange={(e) => setKind(e.target.value)}>
+          <option value="">Tout le monde</option><option value="comptes">Avec un compte</option><option value="visiteurs">Visiteurs sans compte</option></select></label>
+        <label><span>Pays</span><select value={country} onChange={(e) => setCountry(e.target.value)}>
+          <option value="">Tous</option>{data?.countries.map((c) => <option key={c.code || '-'} value={c.code || '-'}>{c.flag} {c.name}</option>)}</select></label>
+        <label><span>Appareil</span><select value={device} onChange={(e) => setDevice(e.target.value)}>
+          <option value="">Tous</option><option value="mobile">Mobile</option><option value="ordinateur">Ordinateur</option><option value="tablette">Tablette</option></select></label>
+      </div>
+      {error && <p className="error">{error}</p>}
+      {data && <p className="muted small">{nf(data.total)} personne{data.total > 1 ? 's' : ''} · pays d’après le fuseau horaire de l’appareil · pastilles : revenu à J1 / J7 / J30</p>}
+      {data && (!data.people.length ? <p className="empty">Personne ne correspond.</p> : (
+        <>
+          <ul className="adm-people" aria-label="Liste des visiteurs et joueurs">
+            {data.people.map((p) => (
+              <li key={p.key}>
+                <div className="adm-p-head">
+                  <span className="adm-p-flag" title={`${p.countryName}${p.countrySrc ? ` (${p.countrySrc})` : ''}`} aria-hidden>{p.flag}</span>
+                  <span className="adm-p-who">{who(p)}<small>{p.countryName}{p.device ? ` · ${DEVICE_ICON[p.device] ?? ''} ${p.device}` : ''}{p.username ? ` · ${p.label.startsWith('Visiteur') ? p.label : 'compte'}` : ''}</small></span>
+                  <Dots back={p.back} />
+                </div>
+                <dl className="adm-p-grid">
+                  <div><dt>Temps passé</dt><dd>{dur(p.seconds)}</dd></div>
+                  <div><dt>Moy./visite</dt><dd>{p.visits ? dur(p.avgSeconds) : '–'}</dd></div>
+                  <div><dt>Visites</dt><dd>{nf(p.visits)}</dd></div>
+                  <div><dt>Jours actifs</dt><dd>{nf(p.activeDays)}</dd></div>
+                  <div><dt>Parties</dt><dd>{nf(p.games)}</dd></div>
+                  <div className="wide"><dt>Provenance</dt><dd title={p.source}>{p.source}</dd></div>
+                  <div><dt>1re visite</dt><dd title={dateTime(p.firstAt)}>{shortDate(p.firstAt)}</dd></div>
+                  <div><dt>Dernière</dt><dd title={dateTime(p.lastAt)}>{shortDate(p.lastAt)}</dd></div>
+                </dl>
+              </li>
+            ))}
+          </ul>
+          <div className="adm-pager">
+            <button className="btn small" disabled={page === 0} onClick={() => setPage(page - 1)}>← Précédent</button>
+            <span>Page {page + 1} / {pages}</span>
+            <button className="btn small" disabled={page + 1 >= pages} onClick={() => setPage(page + 1)}>Suivant →</button>
+          </div>
+        </>
+      ))}
     </>
   );
 }
 
 function RetentionTab({ token }: { token: string | null }) {
   const [by, setBy] = useState<'day' | 'week'>('week');
-  const { data, error } = useAdmin<{ rows: { cohort: string; size: number; d1: number | null; d7: number | null; d30: number | null }[] }>(`/admin/retention?by=${by}`, token);
+  const [who, setWho] = useState<'comptes' | 'visiteurs'>('visiteurs');
+  const { data, error } = useAdmin<{ rows: { cohort: string; size: number; d1: number | null; d7: number | null; d30: number | null }[] }>(`/admin/retention?by=${by}&who=${who}`, token);
   const cell = (n: number | null, size: number) => {
     if (n == null) return <td className="na">–</td>;
     const p = size ? n / size : 0;
@@ -216,17 +350,22 @@ function RetentionTab({ token }: { token: string | null }) {
   };
   return (
     <>
-      <div className="seg"><button className={by === 'week' ? 'on' : ''} onClick={() => setBy('week')}>Par semaine</button><button className={by === 'day' ? 'on' : ''} onClick={() => setBy('day')}>Par jour</button></div>
+      <div className="adm-tools">
+        <div className="seg"><button className={who === 'visiteurs' ? 'on' : ''} onClick={() => setWho('visiteurs')}>Visiteurs</button><button className={who === 'comptes' ? 'on' : ''} onClick={() => setWho('comptes')}>Comptes</button></div>
+        <div className="seg"><button className={by === 'week' ? 'on' : ''} onClick={() => setBy('week')}>Par semaine</button><button className={by === 'day' ? 'on' : ''} onClick={() => setBy('day')}>Par jour</button></div>
+      </div>
       {error && <p className="error">{error}</p>}
-      {data && (!data.rows.length ? <p className="empty">Aucune inscription sur la période.</p> : (
+      {data && (!data.rows.length ? <p className="empty">{who === 'visiteurs' ? 'Aucune première visite sur la période.' : 'Aucune inscription sur la période.'}</p> : (
         <div className="adm-table-wrap">
           <table className="adm-table retention">
-            <thead><tr><th>{by === 'week' ? 'Semaine du' : 'Jour'}</th><th>Inscrits</th><th>J1</th><th>J7</th><th>J30</th></tr></thead>
+            <thead><tr><th>{by === 'week' ? 'Semaine du' : 'Jour'}</th><th>{who === 'visiteurs' ? 'Nouveaux' : 'Inscrits'}</th><th>J1</th><th>J7</th><th>J30</th></tr></thead>
             <tbody>{data.rows.map((r) => <tr key={r.cohort}><th>{dayShort(r.cohort)}</th><td>{nf(r.size)}</td>{cell(r.d1, r.size)}{cell(r.d7, r.size)}{cell(r.d30, r.size)}</tr>)}</tbody>
           </table>
         </div>
       ))}
-      <p className="muted small">JN : part des comptes revenus (jeu ouvert ou partie jouée) au moins N jours après leur inscription. « – » : trop tôt pour le savoir.</p>
+      <p className="muted small">{who === 'visiteurs'
+        ? 'Visiteurs (avec ou sans compte) regroupés selon leur première visite. JN : part de ceux revenus au moins N jours après. « – » : trop tôt pour le savoir.'
+        : 'JN : part des comptes revenus (jeu ouvert ou partie jouée) au moins N jours après leur inscription. « – » : trop tôt pour le savoir.'}</p>
     </>
   );
 }
@@ -326,11 +465,12 @@ interface PlayerSheet {
   achievements: number;
   ban: { reason: string; until: number | null; by: string; at: number; text: string } | null;
 }
-function PlayersTab({ token, onActivity, onChanged }: { token: string | null; onActivity: (u: string) => void; onChanged: () => void }) {
+function PlayersTab({ token, onActivity, onChanged, open }: { token: string | null; onActivity: (u: string) => void; onChanged: () => void; open?: string | null }) {
   const [q, setQ] = useState('');
   const [search, setSearch] = useState('');
   const { data: list } = useAdmin<{ players: { id: string; username: string; createdAt: number; coins: number; level: number; banned: boolean }[] }>(`/admin/players?q=${encodeURIComponent(search)}`, token);
-  const [sel, setSel] = useState<string | null>(null);
+  const [sel, setSel] = useState<string | null>(open ?? null);
+  useEffect(() => { if (open) setSel(open); }, [open]);
   return (
     <>
       <form className="adm-search" onSubmit={(e) => { e.preventDefault(); setSearch(q.trim()); }}>
@@ -473,6 +613,7 @@ export function AdminDashboard({ pa, onBack }: { pa: ProfileApi; onBack: () => v
   const [tab, setTab] = useState<Tab>(() => { try { return (sessionStorage.getItem('421.admin.tab') as Tab) || 'apercu'; } catch { return 'apercu'; } });
   useEffect(() => { try { sessionStorage.setItem('421.admin.tab', tab); } catch { /* */ } }, [tab]);
   const [activityUser, setActivityUser] = useState('');
+  const [openPlayer, setOpenPlayer] = useState<string | null>(null);
   const { data: o, error, reload } = useAdmin<Overview>('/admin/overview', token, 30_000);
   const { data: live } = useAdmin<Live>('/admin/stats', token, 20_000);
   return (
@@ -491,7 +632,8 @@ export function AdminDashboard({ pa, onBack }: { pa: ProfileApi; onBack: () => v
             {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
           </nav>
           {tab === 'apercu' && <OverviewTab o={o} live={live} />}
-          {tab === 'joueurs' && <PlayersTab token={token} onActivity={(u) => { setActivityUser(u); setTab('activite'); }} onChanged={reload} />}
+          {tab === 'personnes' && <PeopleTab token={token} onOpen={(id) => { setOpenPlayer(id); setTab('joueurs'); }} />}
+          {tab === 'joueurs' && <PlayersTab token={token} open={openPlayer} onActivity={(u) => { setActivityUser(u); setTab('activite'); }} onChanged={reload} />}
           {tab === 'visiteurs' && <VisitorsTab token={token} />}
           {tab === 'retention' && <RetentionTab token={token} />}
           {tab === 'activite' && <ActivityTab token={token} user={activityUser} setUser={setActivityUser} />}

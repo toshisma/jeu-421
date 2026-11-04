@@ -22,6 +22,7 @@ import { CATEGORY_LABELS, ITEMS, getItem } from '../shared/progress/catalog';
 import { FX, FX_KIND_LABEL, RARITY_LABEL, fxDef } from '../shared/progress/dice-collection';
 import { ACHIEVEMENTS } from '../shared/progress/achievements';
 import { BAGS_MAX, levelInfo, newProfile, sanitizeProfile, type Profile } from '../shared/progress/profile';
+import { COUNTRY_SOURCE_LABEL, countryName, flag, guessCountry, type CountrySource } from '../shared/geo';
 
 export const BANNED_MESSAGE = 'Votre compte est suspendu.';
 const DAY_MS = 86400_000;
@@ -41,6 +42,20 @@ const PATH_SOURCES: [RegExp, string][] = [
   [/^\/challenge\//, 'defi'], [/^\/duels/, 'duel'], [/^\/clubs/, 'club'], [/^\/tutorial\//, 'tutoriel'], [/^\/solo\//, 'solo'],
   [/^\/collection\//, 'fabrication'], [/^\/bags\//, 'sac'], [/^\/(me|league|referral)$/, 'saison'], [/^\/prestige/, 'autre'],
 ];
+
+/** Temps de présence : plafond par battement, tolérance, et plafond par visiteur et par jour. */
+export const BEAT_MAX_S = 60;
+export const DAY_MAX_S = 12 * 3600;
+/**
+ * Secondes créditées pour un battement : jamais plus que le temps réellement écoulé depuis le
+ * battement précédent (+5 s de marge), ni plus de BEAT_MAX_S, ni au-delà du plafond du jour.
+ */
+export function creditBeat(claimed: unknown, sincePrevS: number | null, dayTotalS: number): number {
+  const c = Math.floor(Number(claimed));
+  if (!Number.isFinite(c) || c <= 0) return 0;
+  const elapsed = sincePrevS == null ? 35 : Math.max(0, sincePrevS) + 5;
+  return Math.max(0, Math.min(c, BEAT_MAX_S, Math.floor(elapsed), DAY_MAX_S - dayTotalS));
+}
 
 export interface AdminOptions {
   isAdmin: (u: UserRow | undefined) => boolean;
@@ -85,10 +100,15 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     );
     CREATE INDEX IF NOT EXISTS idx_visits_day ON visits(day);
     CREATE INDEX IF NOT EXISTS idx_visits_visitor ON visits(visitor);
+    -- Temps passé sur le site (onglet visible), par visiteur et par jour.
+    CREATE TABLE IF NOT EXISTS visitor_time (visitor TEXT NOT NULL, day TEXT NOT NULL, seconds INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (visitor, day));
+    CREATE INDEX IF NOT EXISTS idx_visitor_time_day ON visitor_time(day);
   `);
+  for (const col of ['tz TEXT', 'country_src TEXT']) { try { db.exec(`ALTER TABLE visits ADD COLUMN ${col}`); } catch { /* déjà présente */ } }
   // Ménage : activité et visites gardées un an.
   db.prepare('DELETE FROM activity WHERE at < ?').run(now() - 365 * DAY_MS);
   db.prepare('DELETE FROM visits WHERE at < ?').run(now() - 365 * DAY_MS);
+  db.prepare('DELETE FROM visitor_time WHERE day < ?').run(addDays(brusselsDay(now()), -366));
 
   let salt = store.getMeta('visit_salt');
   if (!salt) { salt = randomBytes(24).toString('base64url'); store.setMeta('visit_salt', salt); }
@@ -170,7 +190,10 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     db.prepare('DELETE FROM activity WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM user_days WHERE user_id = ?').run(userId);
     db.prepare('DELETE FROM admin_bans WHERE user_id = ?').run(userId);
-    db.prepare('UPDATE visits SET user_id = NULL WHERE user_id = ?').run(userId);
+    // Données de visite rattachées au compte : effacées avec lui.
+    db.prepare('DELETE FROM visitor_time WHERE visitor IN (SELECT DISTINCT visitor FROM visits WHERE user_id = ?)').run(userId);
+    db.prepare('DELETE FROM visits WHERE visitor IN (SELECT DISTINCT visitor FROM visits WHERE user_id = ?)').run(userId);
+    peopleCache = null;
   };
 
   // --- Sockets : coupure des sessions des comptes suspendus ---------------------------------------
@@ -281,6 +304,7 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     const userId = token ? userOfToken(token) : null;
     if (b.link) {
       if (userId) db.prepare('UPDATE visits SET user_id = ? WHERE visitor = ? AND user_id IS NULL').run(userId, visitor);
+      peopleCache = null;
       return res.json({ ok: true });
     }
     if (t - (lastVisit.get(visitor) ?? 0) < 30 * 60_000) return res.json({ ok: true, skipped: true });
@@ -300,13 +324,40 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     const cc = [req.headers['cf-ipcountry'], req.headers['x-vercel-ip-country'], req.headers['cloudfront-viewer-country'], req.headers['x-country-code']]
       .map((v) => (typeof v === 'string' ? v.toUpperCase() : '')).find((v) => /^[A-Z]{2}$/.test(v) && v !== 'XX') ?? null;
     const lang = clean(b.lang, 12);
+    const tz = typeof b.tz === 'string' && /^[A-Za-z_+\-/0-9]{1,40}$/.test(b.tz) ? b.tz : null;
+    const g = cc ? { country: cc, source: 'entete' as CountrySource } : guessCountry(tz, lang);
     const deviceKind = /iPad|Tablet/i.test(ua) ? 'tablette' : /Mobi|Android|iPhone|iPod/i.test(ua) ? 'mobile' : 'ordinateur';
     let landing = clean(b.landing, 80) ?? '/';
     if (!landing.startsWith('/')) landing = '/';
-    db.prepare(`INSERT INTO visits (at, day, visitor, referrer, utm_source, utm_medium, utm_campaign, country, lang, device, landing, user_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(t, day, visitor, referrer, clean(utm.utm_source, 60), clean(utm.utm_medium, 60), clean(utm.utm_campaign, 60),
-      cc, lang, deviceKind, landing, userId);
+    db.prepare(`INSERT INTO visits (at, day, visitor, referrer, utm_source, utm_medium, utm_campaign, country, lang, device, landing, user_id, tz, country_src)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(t, day, visitor, referrer, clean(utm.utm_source, 60), clean(utm.utm_medium, 60), clean(utm.utm_campaign, 60),
+      g.country, lang, deviceKind, landing, userId, tz, g.source);
+    lastBeat.set(visitor, t);
+    peopleCache = null;
     res.json({ ok: true });
+  });
+
+  // Battement de présence (onglet visible) : temps passé, plafonné côté serveur.
+  const lastBeat = new Map<string, number>();
+  const knownVisitor = db.prepare('SELECT 1 AS x FROM visits WHERE visitor = ? LIMIT 1');
+  const dayTime = db.prepare('SELECT seconds FROM visitor_time WHERE visitor = ? AND day = ?');
+  const addTime = db.prepare(`INSERT INTO visitor_time (visitor, day, seconds) VALUES (?, ?, ?)
+    ON CONFLICT(visitor, day) DO UPDATE SET seconds = seconds + excluded.seconds`);
+  router.post('/visit/beat', express.json({ limit: '1kb', type: () => true }), (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const b = (req.body ?? {}) as { device?: unknown; seconds?: unknown };
+    const device = typeof b.device === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(b.device) ? b.device : null;
+    if (!device) return fail(res, 400, 'Appareil inconnu.');
+    const visitor = hash(`d:${device}`);
+    if (!knownVisitor.get(visitor)) return res.json({ ok: true, credited: 0 });
+    const t = now(), day = brusselsDay(t);
+    const prev = lastBeat.get(visitor);
+    const total = (dayTime.get(visitor, day) as { seconds: number } | undefined)?.seconds ?? 0;
+    const credited = creditBeat(b.seconds, prev == null ? null : (t - prev) / 1000, total);
+    if (lastBeat.size > 50000) lastBeat.clear();
+    lastBeat.set(visitor, t);
+    if (credited > 0) { addTime.run(visitor, day, credited); peopleCache = null; }
+    res.json({ ok: true, credited });
   });
 
   // --- Administration -----------------------------------------------------------------------------
@@ -536,6 +587,25 @@ export function createAdmin(store: Store, opts: AdminOptions) {
   admin.get('/retention', (req, res) => {
     const byWeek = req.query.by === 'week';
     const today = brusselsDay(now());
+    if (req.query.who === 'visiteurs') {
+      // Cohortes de visiteurs (anonymes compris) : jour ou semaine de la première visite.
+      const ws = (d: string) => { const wd = (new Date(`${d}T12:00:00Z`).getUTCDay() + 6) % 7; return addDays(d, -wd); };
+      const fromDay = addDays(today, byWeek ? -7 * 12 : -30);
+      const cs = new Map<string, { size: number; d1: number; d7: number; d30: number; ok: [number, number, number] }>();
+      for (const p of people()) {
+        if (!p.visits || p.firstDay < fromDay) continue;
+        const k = byWeek ? ws(p.firstDay) : p.firstDay;
+        const c = cs.get(k) ?? { size: 0, d1: 0, d7: 0, d30: 0, ok: [0, 0, 0] };
+        c.size++;
+        ([[1, 'd1', 0], [7, 'd7', 1], [30, 'd30', 2]] as const).forEach(([kk, key, i]) => { const b = backAt(p, kk, today); if (b != null) { c.ok[i]++; if (b) c[key]++; } });
+        cs.set(k, c);
+      }
+      // Une colonne n'apparaît que si toute la cohorte a eu le temps d'y arriver.
+      const rows = [...cs.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([k, c]) => ({
+        cohort: k, size: c.size, d1: c.ok[0] === c.size ? c.d1 : null, d7: c.ok[1] === c.size ? c.d7 : null, d30: c.ok[2] === c.size ? c.d30 : null,
+      }));
+      return res.json({ ok: true, by: byWeek ? 'week' : 'day', who: 'visiteurs', rows });
+    }
     const users = db.prepare('SELECT id, created_at FROM users WHERE created_at >= ?').all(brusselsMidnight(addDays(today, byWeek ? -7 * 12 : -30))) as { id: string; created_at: number }[];
     const active = new Map<string, Set<string>>();
     if (users.length) {
@@ -565,6 +635,143 @@ export function createAdmin(store: Store, opts: AdminOptions) {
       cohort: k, size: c.size, d1: age(k) >= 1 ? c.d1 : null, d7: age(k) >= 7 ? c.d7 : null, d30: age(k) >= 30 ? c.d30 : null,
     }));
     res.json({ ok: true, by: byWeek ? 'week' : 'day', rows });
+  });
+
+  // --- Personnes : une ligne par visiteur (anonyme ou lié à un compte), plus les comptes sans visite suivie ---
+  interface Person {
+    key: string; label: string; userId: string | null; username: string | null; country: string | null; countrySrc: string | null;
+    device: string | null; source: string; firstAt: number; lastAt: number; visits: number; activeDays: number; seconds: number;
+    games: number; firstDay: string; days: Set<string>;
+  }
+  let peopleCache: { at: number; rows: Person[] } | null = null;
+  function people(): Person[] {
+    if (peopleCache && now() - peopleCache.at < 15_000) return peopleCache.rows;
+    const visitors = db.prepare(`SELECT v.visitor, MIN(v.at) AS first, MAX(v.at) AS last, COUNT(*) AS visits, MAX(v.user_id) AS user_id,
+        (SELECT referrer FROM visits x WHERE x.visitor = v.visitor ORDER BY x.at LIMIT 1) AS referrer,
+        (SELECT utm_source FROM visits x WHERE x.visitor = v.visitor ORDER BY x.at LIMIT 1) AS utm,
+        (SELECT utm_campaign FROM visits x WHERE x.visitor = v.visitor ORDER BY x.at LIMIT 1) AS campaign,
+        (SELECT country FROM visits x WHERE x.visitor = v.visitor AND x.country IS NOT NULL ORDER BY x.at DESC LIMIT 1) AS country,
+        (SELECT country_src FROM visits x WHERE x.visitor = v.visitor AND x.country IS NOT NULL ORDER BY x.at DESC LIMIT 1) AS country_src,
+        (SELECT device FROM visits x WHERE x.visitor = v.visitor ORDER BY x.at DESC LIMIT 1) AS device
+      FROM visits v GROUP BY v.visitor`).all() as { visitor: string; first: number; last: number; visits: number; user_id: string | null; referrer: string; utm: string | null; campaign: string | null; country: string | null; country_src: string | null; device: string }[];
+    const days = new Map<string, Set<string>>();
+    const addDay = (k: string, d: string) => { let x = days.get(k); if (!x) days.set(k, (x = new Set())); x.add(d); };
+    for (const r of db.prepare('SELECT DISTINCT visitor, day FROM visits').all() as { visitor: string; day: string }[]) addDay(r.visitor, r.day);
+    const secs = new Map<string, number>();
+    for (const r of db.prepare('SELECT visitor, day, seconds FROM visitor_time').all() as { visitor: string; day: string; seconds: number }[]) {
+      secs.set(r.visitor, (secs.get(r.visitor) ?? 0) + r.seconds);
+      if (r.seconds >= 10) addDay(r.visitor, r.day);
+    }
+    const userDays = new Map<string, Set<string>>();
+    for (const r of db.prepare(`SELECT user_id, day FROM (${activeUnion})`).all() as { user_id: string; day: string }[]) {
+      let x = userDays.get(r.user_id); if (!x) userDays.set(r.user_id, (x = new Set())); x.add(r.day);
+    }
+    const userGames = new Map((db.prepare('SELECT user_id, COUNT(*) AS n FROM game_players WHERE user_id IS NOT NULL GROUP BY user_id').all() as { user_id: string; n: number }[]).map((r) => [r.user_id, r.n]));
+    // Parties d'invité : clé « d:<appareil> », rattachée au visiteur par la même empreinte.
+    const guestGames = new Map<string, number>();
+    for (const r of db.prepare(`SELECT player_key, COUNT(*) AS n FROM game_players WHERE user_id IS NULL AND player_key LIKE 'd:%' GROUP BY player_key`).all() as { player_key: string; n: number }[]) {
+      const h = hash(`d:${r.player_key.slice(2)}`); guestGames.set(h, (guestGames.get(h) ?? 0) + r.n);
+    }
+    const users = new Map((db.prepare('SELECT id, username, created_at FROM users').all() as { id: string; username: string; created_at: number }[]).map((u) => [u.id, u]));
+    const rows: Person[] = [];
+    const linked = new Set<string>();
+    for (const v of visitors) {
+      const u = v.user_id ? users.get(v.user_id) : undefined;
+      if (u) linked.add(u.id);
+      const d = new Set(days.get(v.visitor) ?? []);
+      if (u) for (const x of userDays.get(u.id) ?? []) if (x >= brusselsDay(v.first)) d.add(x);
+      const source = v.utm ? `${v.utm}${v.campaign ? ` · ${v.campaign}` : ''} (campagne)` : v.referrer;
+      rows.push({
+        key: v.visitor, label: `Visiteur #${v.visitor.slice(0, 4)}`, userId: u?.id ?? null, username: u?.username ?? null,
+        country: v.country, countrySrc: v.country_src, device: v.device, source, firstAt: v.first, lastAt: v.last, visits: v.visits,
+        activeDays: d.size, seconds: secs.get(v.visitor) ?? 0, games: (guestGames.get(v.visitor) ?? 0) + (u ? userGames.get(u.id) ?? 0 : 0),
+        firstDay: brusselsDay(v.first), days: d,
+      });
+    }
+    // Comptes jamais vus par le suivi de visite (inscrits avant, ou appli sans suivi).
+    for (const u of users.values()) {
+      if (linked.has(u.id)) continue;
+      const d = new Set(userDays.get(u.id) ?? []);
+      const last = Math.max(u.created_at, store.lastSeenOf(u.id));
+      rows.push({ key: `u:${u.id}`, label: u.username, userId: u.id, username: u.username, country: null, countrySrc: null, device: null, source: '(non suivi)',
+        firstAt: u.created_at, lastAt: last, visits: 0, activeDays: d.size, seconds: 0, games: userGames.get(u.id) ?? 0, firstDay: brusselsDay(u.created_at), days: d });
+    }
+    peopleCache = { at: now(), rows };
+    return rows;
+  }
+  /** Retour à JN : actif au moins un jour ≥ premier jour + N ; null si c'est encore trop tôt pour le savoir. */
+  const backAt = (p: { firstDay: string; days: Set<string> }, k: number, today: string): boolean | null => {
+    if (addDays(p.firstDay, k) > today) return null;
+    const lim = addDays(p.firstDay, k);
+    for (const d of p.days) if (d >= lim) return true;
+    return false;
+  };
+
+  admin.get('/people', (req, res) => {
+    const today = brusselsDay(now());
+    const q = String(req.query.q ?? '').trim().toLowerCase().replace(/^#/, '').slice(0, 30);
+    const kind = String(req.query.kind ?? '');
+    const country = String(req.query.country ?? '');
+    const device = String(req.query.device ?? '');
+    const sort = String(req.query.sort ?? 'last');
+    const page = Math.max(0, Math.floor(Number(req.query.page) || 0));
+    const size = Math.min(100, Math.max(5, Math.floor(Number(req.query.size) || 25)));
+    let rows = people();
+    const countries = [...new Set(rows.map((r) => r.country ?? ''))].map((c) => ({ code: c, name: c ? countryName(c) : 'Inconnu', flag: flag(c) }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    if (kind === 'comptes') rows = rows.filter((r) => r.userId);
+    else if (kind === 'visiteurs') rows = rows.filter((r) => !r.userId);
+    if (country) rows = rows.filter((r) => (r.country ?? '-') === country);
+    if (device) rows = rows.filter((r) => r.device === device);
+    if (q) rows = rows.filter((r) => r.key.startsWith(q) || (r.username ?? '').toLowerCase().includes(q) || r.label.toLowerCase().includes(q));
+    const by: Record<string, (a: Person, b: Person) => number> = {
+      last: (a, b) => b.lastAt - a.lastAt, first: (a, b) => b.firstAt - a.firstAt, time: (a, b) => b.seconds - a.seconds || b.lastAt - a.lastAt,
+      visits: (a, b) => b.visits - a.visits || b.lastAt - a.lastAt, days: (a, b) => b.activeDays - a.activeDays || b.lastAt - a.lastAt,
+    };
+    rows = [...rows].sort(by[sort] ?? by.last);
+    res.json({
+      ok: true, total: rows.length, page, size, countries,
+      people: rows.slice(page * size, page * size + size).map((r) => ({
+        key: r.key, label: r.label, userId: r.userId, username: r.username, country: r.country, countryName: r.country ? countryName(r.country) : 'Inconnu',
+        flag: flag(r.country), countrySrc: r.countrySrc ? COUNTRY_SOURCE_LABEL[r.countrySrc as CountrySource] ?? null : null,
+        device: r.device, source: r.source, firstAt: r.firstAt, lastAt: r.lastAt, visits: r.visits, activeDays: r.activeDays,
+        seconds: r.seconds, avgSeconds: r.visits ? Math.round(r.seconds / r.visits) : 0, games: r.games,
+        back: { d1: backAt(r, 1, today), d7: backAt(r, 7, today), d30: backAt(r, 30, today) },
+      })),
+    });
+  });
+
+  // Synthèses : temps passé (moyennes, par jour) et répartition par pays.
+  admin.get('/audience', (req, res) => {
+    const n = Math.min(90, Math.max(7, Number(req.query.days) || 30));
+    const today = brusselsDay(now()), from = addDays(today, -(n - 1));
+    const perDay = new Map((db.prepare('SELECT day, SUM(seconds) AS s, COUNT(*) AS v FROM visitor_time WHERE day >= ? AND seconds > 0 GROUP BY day').all(from) as { day: string; s: number; v: number }[]).map((r) => [r.day, r]));
+    const tot = db.prepare('SELECT COALESCE(SUM(seconds), 0) AS s, COUNT(*) AS pairs, COUNT(DISTINCT visitor) AS v FROM visitor_time WHERE day >= ? AND seconds > 0').get(from) as { s: number; pairs: number; v: number };
+    const visitsN = (db.prepare('SELECT COUNT(*) AS n FROM visits WHERE day >= ?').get(from) as { n: number }).n;
+    const rows = people().filter((p) => p.lastAt >= brusselsMidnight(from));
+    const byCountry = new Map<string, { visitors: number; accounts: number; seconds: number; d1: [number, number]; d7: [number, number]; src: Map<string, number> }>();
+    for (const p of rows) {
+      const k = p.country ?? '';
+      const c = byCountry.get(k) ?? { visitors: 0, accounts: 0, seconds: 0, d1: [0, 0], d7: [0, 0], src: new Map() };
+      c.visitors++;
+      if (p.userId) c.accounts++;
+      c.seconds += p.seconds;
+      for (const [key, kk] of [['d1', 1], ['d7', 7]] as const) { const b = backAt(p, kk, today); if (b != null) { c[key][1]++; if (b) c[key][0]++; } }
+      if (p.countrySrc) c.src.set(p.countrySrc, (c.src.get(p.countrySrc) ?? 0) + 1);
+      byCountry.set(k, c);
+    }
+    const countries = [...byCountry.entries()].map(([k, c]) => ({
+      code: k || null, name: k ? countryName(k) : 'Inconnu', flag: flag(k), visitors: c.visitors, accounts: c.accounts, seconds: c.seconds,
+      avgSeconds: c.visitors ? Math.round(c.seconds / c.visitors) : 0,
+      d1: c.d1[1] ? c.d1[0] / c.d1[1] : null, d7: c.d7[1] ? c.d7[0] / c.d7[1] : null,
+      method: [...c.src.entries()].sort((a, b) => b[1] - a[1]).map(([m]) => COUNTRY_SOURCE_LABEL[m as CountrySource]).filter(Boolean)[0] ?? null,
+    })).sort((a, b) => b.visitors - a.visitors || b.seconds - a.seconds);
+    res.json({
+      ok: true,
+      totals: { seconds: tot.s, visitors: tot.v, avgPerVisitorDay: tot.pairs ? Math.round(tot.s / tot.pairs) : 0, avgPerVisitor: tot.v ? Math.round(tot.s / tot.v) : 0, avgPerVisit: visitsN ? Math.round(tot.s / visitsN) : 0 },
+      days: series(from, n).map((d) => { const r = perDay.get(d); return { day: d, avg: r && r.v ? Math.round(r.s / r.v / 60 * 10) / 10 : 0, minutes: r ? Math.round(r.s / 60) : 0 }; }),
+      countries,
+    });
   });
 
   admin.get('/economy', (req, res) => {

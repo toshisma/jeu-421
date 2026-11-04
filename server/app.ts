@@ -140,6 +140,8 @@ export interface ServerOptions {
   schedConfig?: GameConfig;
   accounts?: AccountsOptions;
   stats?: StatsOptions;
+  /** Administration (horloge des tests). */
+  admin?: { now?: () => number };
 }
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -222,7 +224,7 @@ export async function startServer(opts: ServerOptions) {
     },
   });
   // Administration (avant les autres routes : elle filtre aussi les comptes suspendus).
-  const admin = createAdmin(store, { isAdmin: stats.isAdmin, userFromToken: accounts.userFromToken });
+  const admin = createAdmin(store, { ...opts.admin, isAdmin: stats.isAdmin, userFromToken: accounts.userFromToken });
   app.use('/api', admin.router);
   app.use('/api', stats.router);
 

@@ -1507,7 +1507,7 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .sched-results.cancelled p { margin: 0; }
 .bag-text { color: var(--laiton) !important; font-weight: 700; }
 .sc-prize { margin: 0; color: var(--laiton); font-weight: 600; font-size: 0.9375rem; }
-=======
+
 /* Administration : tableau de bord et commandes (réservé ADMIN_USERS). */
 .adm { --adm-s1: #a8851a; --adm-s2: #5b87e0; gap: 16px; min-width: 0; }
 .adm > * { min-width: 0; }
@@ -1588,3 +1588,39 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .adm-eco em { font-style: normal; font-size: 0.8125rem; color: var(--texte-2); font-variant-numeric: tabular-nums; }
 .adm-ban > input { flex: none; }
 .adm-sheet > header .btn { flex: none; }
+
+/* Administration : liste des personnes (cartes sur téléphone, tableau dense sur ordinateur). */
+.adm-tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.adm-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.adm-filters label { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 0.8125rem; color: var(--texte-3); }
+.adm-filters select { min-height: 44px; min-width: 0; width: 100%; padding: 0 8px; border: 0; border-radius: 8px; background: var(--ardoise-2); color: var(--blanc); }
+@media (min-width: 760px) { .adm-filters { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.adm-people { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.adm-people > li { padding: 12px; border-radius: 12px; background: var(--ardoise); box-shadow: var(--relief); min-width: 0; }
+.adm-p-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.adm-p-flag { font-size: 1.75rem; line-height: 1; flex: none; }
+.adm-p-who { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow-wrap: anywhere; }
+.adm-p-who small { color: var(--texte-3); }
+.adm-dots { display: inline-flex; gap: 4px; flex: none; }
+.adm-dot { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; width: 30px; height: 34px; border-radius: 8px; font-weight: 800; line-height: 1; font-size: 0.875rem; }
+.adm-dot small { font-size: 0.625rem; font-weight: 600; opacity: 0.85; margin-top: 2px; }
+.adm-dot.yes { background: rgba(76, 175, 110, 0.25); color: #8fe0aa; box-shadow: inset 0 0 0 1px rgba(76, 175, 110, 0.6); }
+.adm-dot.no { background: rgba(200, 49, 43, 0.18); color: var(--tabac-hi); box-shadow: inset 0 0 0 1px rgba(200, 49, 43, 0.45); }
+.adm-dot.na { background: rgba(255,255,255,0.05); color: var(--texte-3); }
+.adm-p-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 10px; margin: 10px 0 0; }
+.adm-p-grid > div { min-width: 0; }
+.adm-p-grid .wide { grid-column: 1 / -1; }
+.adm-p-grid dt { color: var(--texte-3); font-size: 0.75rem; }
+.adm-p-grid dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (min-width: 900px) {
+  .adm-people { gap: 0; }
+  .adm-people > li { display: grid; grid-template-columns: minmax(220px, 1.3fr) 3fr; align-items: center; gap: 12px; border-radius: 0; box-shadow: none; background: none; border-bottom: 1px solid rgba(255,255,255,0.07); padding: 8px 4px; }
+  .adm-people > li:hover { background: var(--ardoise); }
+  .adm-p-grid { margin: 0; grid-template-columns: repeat(5, minmax(0, 0.7fr)) minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)); }
+  .adm-p-grid .wide { grid-column: auto; }
+}
+.adm-pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.adm-countries th { font-weight: 600; color: var(--blanc); }
+.adm-countries td { white-space: nowrap; }
+.adm-p-who .linkish { align-self: flex-start; text-align: left; font-size: 1rem; }
+.adm-p-grid .wide dd { white-space: normal; overflow-wrap: anywhere; }

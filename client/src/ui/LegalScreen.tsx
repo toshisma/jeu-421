@@ -28,6 +28,9 @@ export function LegalScreen({ onBack }: { onBack: () => void }) {
           identifiant d'appareil (gardé sur votre appareil, sans lien avec votre identité) et le serveur enregistre, pour chaque partie
           terminée : la date, la durée, le type de partie, le nombre de joueurs, qui a gagné (identifiant d'appareil ou de compte).
           Seuls des totaux sont affichés publiquement. Quand un compte est supprimé, ses parties restent comptées mais ne lui sont plus rattachées.</p>
+        <p><b>Mesure d'audience.</b> Avec ce même identifiant aléatoire (haché par le serveur, sans cookie ni adresse IP conservée), le serveur note vos visites
+          (date, site d'où vous venez, page d'arrivée, type d'appareil, langue et fuseau horaire pour estimer le pays) et le temps passé sur le jeu, onglet visible.
+          Ces données anonymes servent uniquement aux statistiques de l'éditeur, sont gardées un an au plus et sont effacées avec votre compte si vous en supprimez un.</p>
 
         <h3>Avec un compte</h3>
         <p>Le serveur enregistre :</p>
