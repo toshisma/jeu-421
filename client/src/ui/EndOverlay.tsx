@@ -5,6 +5,7 @@ import type { MetaPlayer } from '../game/controller';
 import { levelInfo } from '../../../shared/progress/profile';
 import type { EndReward } from './GameScreen';
 import { CopyReferral } from './Referral';
+import { VictoryBurst } from './illustrations';
 
 interface Props {
   reward: EndReward | null;
@@ -47,7 +48,8 @@ export function EndOverlay({ reward, state, meta, meId, canRematch, online, onRe
           <i key={i} style={{ left: `${c.left}%`, background: c.color, animationDelay: `${c.delay}s`, animationDuration: `${c.dur}s`, transform: `rotate(${c.rot}deg)` }} />
         ))}
       </div>
-      <div className="end-card">
+      <div className={`end-card${iWon ? ' won' : ''}`}>
+        {iWon && <VictoryBurst />}
         <h2>{tie ? 'Égalité !' : iWon ? 'Victoire !' : iLost ? 'Perdu…' : 'Partie terminée'}</h2>
         <p className="muted">
           {state.loserId ? <>C'est <b>{m(state.loserId)?.name}</b> qui garde les jetons{state.config.variant === 'classique' ? ' et paie la tournée' : ''}.</>

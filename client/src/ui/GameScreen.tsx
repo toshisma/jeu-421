@@ -8,7 +8,8 @@ import { albumKey, finalPlace } from '../../../shared/progress/profile';
 import { setPresence } from '../presence';
 import { fxDef, fxGlows } from '../../../shared/progress/dice-collection';
 import { Celebration } from './Celebration';
-import { currentPlayerId, standings, type GameState } from '../../../shared/engine';
+import { currentPlayerId, roundStatus, standings, type GameState } from '../../../shared/engine';
+import { Avatar } from './Avatar';
 import { evaluate } from '../../../shared/combos';
 import type { GameController, GameEvent, MetaPlayer } from '../game/controller';
 import { reaction, type Persona } from '../game/personas';
@@ -407,6 +408,14 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
       : s.phase === 'decharge' ? 'Décharge'
         : s.phase === 'manche' ? `Manche ${s.round}/${s.config.rounds}` : 'Partie terminée';
   const currentCombo = s && s.throwsUsed > 0 ? evaluate(s.dice, s.config.values) : null;
+  // Ce que le joueur actif doit battre (la plus mauvaise main de la manche), ou le meilleur coup aux points.
+  const target = useMemo(() => {
+    if (!s || s.phase === 'fini' || !currentId) return null;
+    const rs = roundStatus(s);
+    if (rs.points) return rs.best ? `meilleur : ${rs.best.combo.label}` : null;
+    if (rs.worst && !rs.worst.ids.includes(currentId)) return `doit battre ${rs.addition ? `total ${rs.worst.combo.dice.reduce((x, y) => x + y, 0)}` : rs.worst.combo.label}`;
+    return null;
+  }, [s, currentId]);
 
   return (
     <div className="game" onPointerDown={() => { sound.unlock(); if (settings.shake && needsMotionPermission()) void requestMotionPermission(); }}>
@@ -453,7 +462,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
           <div className="spectators-count" aria-label={`${watchers} spectateur${watchers > 1 ? 's' : ''}`}>👁 {watchers} spectateur{watchers > 1 ? 's' : ''}</div>
         )}
         {s && (
-          <div className="players">
+          <PlayersRow count={s.players.length} activeIndex={s.players.findIndex((p) => p.id === currentId)}>
             {s.players.map((p) => (
               <PlayerCard key={p.id} p={p} meta={metaOf(p.id)} state={s}
                 active={p.id === currentId}
@@ -463,7 +472,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
                 onOpen={pa && (metaOf(p.id)?.isMe || metaOf(p.id)?.account) ? () => setProfileOf({ username: metaOf(p.id)?.isMe ? null : metaOf(p.id)!.account! }) : undefined}
                 order={s.roundOrder.includes(p.id) ? s.roundOrder.indexOf(p.id) + 1 : null} />
             ))}
-          </div>
+          </PlayersRow>
         )}
         {s && <RoundTracker s={s} nameOf={nameOf} colorOf={(id) => metaOf(id)?.color} />}
       </div>
@@ -489,60 +498,68 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
 
       {toast && <div key={toast.id} className={`toast ${toast.kind}`}>{toast.text}</div>}
 
-      <div className="actionbar" ref={bottomRef}>
-        {s && s.phase !== 'fini' && (
+      <div className={`actionbar v2${s && s.phase !== 'fini' ? (myTurn ? ' mine' : ' other') : ' idle'}`} ref={bottomRef}
+        style={{ ['--pc' as string]: metaOf(currentId ?? '')?.color ?? '#8db4ff' }}>
+        {s && s.phase !== 'fini' && (myTurn ? (
           <>
-            <div className="status">
-              <div className="turn-line">
-                {myTurn ? <b className="your-turn">À vous de jouer</b>
-                  : <span>Au tour de <b style={{ color: metaOf(currentId ?? '')?.color }}>{nameOf(currentId ?? '')}</b>{thinking === currentId && ' réfléchit…'}</span>}
-                {secondsLeft != null && turnSecs > 0 && (
-                  <span className={`timer${secondsLeft <= 10 ? ' low' : ''}${myTurn ? ' mine' : ''}`} title="Temps pour jouer">
-                    <i style={{ width: `${(100 * secondsLeft) / turnSecs}%` }} />{secondsLeft} s
-                  </span>
-                )}
-              </div>
-              <div className="throws">
-                {Array.from({ length: s.throwLimit }, (_, i) => <i key={i} className={i < s.throwsUsed ? 'used' : ''} />)}
-                <span>{s.throwsUsed === 0 ? `${s.throwLimit} lancer${s.throwLimit > 1 ? 's' : ''} autorisé${s.throwLimit > 1 ? 's' : ''}`
-                  : `${s.throwLimit - s.throwsUsed} relance${s.throwLimit - s.throwsUsed > 1 ? 's' : ''} restante${s.throwLimit - s.throwsUsed > 1 ? 's' : ''}`}</span>
-              </div>
-            </div>
-
-            <div className="result">
-              {currentCombo && !animating ? (
-                <>
-                  <div className="keep-row">
-                    {s.dice.map((d, i) => (
-                      <button key={i} className={`keep-die${keep[i] && canKeepNow ? ' on' : ''}`} disabled={!canKeepNow}
-                        onClick={() => toggleDie(i)} title={canKeepNow ? (keep[i] ? 'Conservé : cliquer pour relancer' : 'Cliquer pour conserver') : ''}>
-                        <MiniDie value={d} size={30} kept={keep[i] && canKeepNow} />
-                        {canKeepNow && <small>{keep[i] ? 'gardé' : 'relancé'}</small>}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="combo-label">{currentCombo.label}<span>vaut {currentCombo.value}</span></div>
-                  <WhatIf s={s} meId={controller.meId} />
-                </>
-              ) : <div className="muted small">{animating ? 'Les dés roulent…' : myTurn ? 'Lancez les dés !' : ' '}</div>}
-            </div>
-
-            <div className="buttons">
-              {myTurn && s.throwsUsed === 0 && (
-                <button className="btn primary big" disabled={pending} onClick={() => act('roll')}><Icon name="dice" /> Lancer les dés</button>
+            <div className="ab-head">
+              <span className="ab-who">
+                <small className="your-turn">À vous de jouer</small>
+                {currentCombo && !animating
+                  ? <b className="combo-label">{currentCombo.label}<span>vaut {currentCombo.value} {s.config.variant === 'manches' ? 'point' : 'jeton'}{currentCombo.value > 1 ? 's' : ''}</span></b>
+                  : <b className="combo-label">{animating ? 'Les dés roulent…' : 'Lancez les dés !'}</b>}
+              </span>
+              <ThrowPips used={s.throwsUsed} limit={s.throwLimit} mine />
+              {secondsLeft != null && turnSecs > 0 && (
+                <span className={`ab-clock${secondsLeft <= 10 ? ' low' : ''}`} title="Temps pour jouer"
+                  style={{ ['--p' as string]: `${(100 * secondsLeft) / turnSecs}%` }}><span>{secondsLeft} s</span></span>
               )}
-              {myTurn && s.throwsUsed > 0 && s.throwsUsed < s.throwLimit && (
-                <button className="btn primary" disabled={pending || rerollCount === 0} onClick={() => act('roll')}>
-                  Relancer les dés ({rerollCount})
+            </div>
+            {currentCombo && !animating && (
+              <div className="result">
+                <div className="keep-row">
+                  {s.dice.map((d, i) => (
+                    <button key={i} className={`keep-die${keep[i] && canKeepNow ? ' on' : ''}`} disabled={!canKeepNow}
+                      onClick={() => toggleDie(i)} title={canKeepNow ? (keep[i] ? 'Conservé : cliquer pour relancer' : 'Cliquer pour conserver') : ''}>
+                      <MiniDie value={d} size={40} />
+                      {canKeepNow && <small>{keep[i] ? 'gardé' : 'relancé'}</small>}
+                    </button>
+                  ))}
+                </div>
+                <WhatIf s={s} meId={controller.meId} />
+              </div>
+            )}
+            <div className="buttons">
+              {s.throwsUsed === 0 && (
+                <button className="btn primary big ab-roll" disabled={pending} onClick={() => act('roll')}><Icon name="dice" /> Lancer les dés</button>
+              )}
+              {s.throwsUsed > 0 && s.throwsUsed < s.throwLimit && (
+                <button className="btn primary ab-roll" disabled={pending || rerollCount === 0} onClick={() => act('roll')}>
+                  {rerollCount === 0 ? 'Tout est gardé' : rerollCount === 3 ? 'Relancer les dés (3)' : `Relancer ${s.dice.filter((_, i) => !keep[i]).map((v) => `le ${v}`).join(' et ')}`}
                 </button>
               )}
-              {myTurn && s.throwsUsed > 0 && (
-                <button className="btn" disabled={pending} onClick={() => act('stop')}>✓ Valider mon tour</button>
+              {s.throwsUsed > 0 && (
+                <button className="btn ab-keep" disabled={pending} onClick={() => act('stop')}>✓ {s.throwsUsed < s.throwLimit ? <>Garder<span className="sr-only"> : valider mon tour</span></> : 'Valider mon tour'}</button>
               )}
-              {canThrowNow && <p className="hint">{canKeepNow ? 'Touchez un dé pour le garder. ' : ''}Glissez sur le bac{settings.shake ? ' ou secouez le téléphone' : ''} pour lancer.</p>}
+              {canThrowNow && <p className="hint">{canKeepNow ? 'Touchez un dé pour le garder · ' : ''}Glissez sur le bac{settings.shake ? ' ou secouez le téléphone' : ''} pour lancer</p>}
             </div>
           </>
-        )}
+        ) : (
+          <>
+            <div className="ab-head">
+              {currentId && <span className="ab-avatar"><Avatar photo={metaOf(currentId)?.photo} emoji={metaOf(currentId)?.avatar ?? '🎲'} size={50} color={metaOf(currentId)?.color} /></span>}
+              <span className="ab-who">
+                <small>Au tour de</small>
+                <b>{nameOf(currentId ?? '')}</b>
+                <span className="ab-line">{animating ? 'les dés roulent…' : thinking === currentId ? 'réfléchit…' : currentCombo ? `${currentCombo.label} pour l'instant` : 'va lancer'}{target ? ` · ${target}` : ''}</span>
+              </span>
+              <ThrowPips used={s.throwsUsed} limit={s.throwLimit} />
+            </div>
+            {secondsLeft != null && turnSecs > 0 && (
+              <div className={`ab-timebar${secondsLeft <= 10 ? ' low' : ''}`} title="Temps pour jouer"><i style={{ width: `${(100 * secondsLeft) / turnSecs}%` }} /><small>{secondsLeft} s</small></div>
+            )}
+          </>
+        ))}
       </div>
 
       {s && s.phase !== 'fini' && s.players.find((p) => p.id === controller.meId)?.out && controller.canSkipToEnd?.() && (
@@ -590,5 +607,55 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
         </div>
       )}
     </div>
+  );
+}
+
+/** Lancers du tour : un petit dé par lancer, blanc s'il reste à jouer. */
+function ThrowPips({ used, limit, mine }: { used: number; limit: number; mine?: boolean }) {
+  const left = limit - used;
+  return (
+    <span className="ab-throws throws" title="Lancers">
+      <span>{Array.from({ length: limit }, (_, i) => <i key={i} className={i < used ? 'used' : ''} />)}</span>
+      <small>{used === 0 ? `${limit} lancer${limit > 1 ? 's' : ''}` : left > 0 ? `${left} ${mine ? 'relance' : 'lancer'}${left > 1 ? 's' : ''}` : 'dernier lancer'}</small>
+    </span>
+  );
+}
+
+/** Rangée des joueurs : défile au doigt s'il y en a plus de trois, avec un indicateur de position. */
+function PlayersRow({ count, activeIndex, children }: { count: number; activeIndex: number; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ pages: 1, at: 0 });
+  const measure = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const pages = Math.max(1, Math.ceil((el.scrollWidth - 2) / Math.max(1, el.clientWidth)));
+    const max = el.scrollWidth - el.clientWidth;
+    const at = max > 0 ? Math.round((el.scrollLeft / max) * (pages - 1)) : 0;
+    setPos((p) => (p.pages === pages && p.at === at ? p : { pages, at }));
+  }, []);
+  useLayoutEffect(() => {
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (ref.current) ro.observe(ref.current);
+    return () => ro.disconnect();
+  }, [measure, count]);
+  // La carte du joueur actif reste visible : on fait défiler la rangée jusqu'à elle.
+  useEffect(() => {
+    const el = ref.current;
+    const card = el?.children[activeIndex] as HTMLElement | undefined;
+    if (!el || !card || el.scrollWidth <= el.clientWidth) return;
+    const l = card.offsetLeft - el.offsetLeft, r = l + card.offsetWidth;
+    if (l < el.scrollLeft) el.scrollTo({ left: l - 8, behavior: 'smooth' });
+    else if (r > el.scrollLeft + el.clientWidth) el.scrollTo({ left: r - el.clientWidth + 8, behavior: 'smooth' });
+  }, [activeIndex]);
+  return (
+    <>
+      <div className={`players v2${count > 3 ? ' many' : ''}`} ref={ref} onScroll={measure}>{children}</div>
+      {pos.pages > 1 && (
+        <div className="players-dots" aria-hidden>
+          {Array.from({ length: pos.pages }, (_, i) => <i key={i} className={i === pos.at ? 'on' : ''} />)}
+        </div>
+      )}
+    </>
   );
 }

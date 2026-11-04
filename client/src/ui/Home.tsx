@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BagIcon } from './BagIcon';
 import { accessoryEmoji } from '../../../shared/progress/catalog';
 import { DAILY_REWARDS, chestWait, dailyStatus, levelInfo, passProgress, seasonOf, titleLabel, type Profile } from '../../../shared/progress/profile';
@@ -29,6 +29,7 @@ import { changelogUnseen } from './Changelog';
 import { STANDALONE } from './Screens';
 import { MessagesButton } from './Messages';
 import { ScheduledCard } from './Scheduled';
+import { ChestArt, FriendsArt, GiftArt, Rays, RewardBurst, ScrollArt, TableArt, TargetArt, TicketArt, TopHatArt, TrophyArt } from './illustrations';
 import type { ProgrammeView } from '../../../shared/scheduled';
 
 export interface HomeProps {
@@ -81,6 +82,21 @@ function useProgramme(token: string | null) {
   }, [token]);
   return p;
 }
+
+/** Parties en cours (pour montrer qui joue en ce moment sur la carte « Jouer en ligne »). */
+function useLiveTables() {
+  const [v, setV] = useState<{ games: number; faces: { avatar: string }[] }>({ games: 0, faces: [] });
+  useEffect(() => {
+    if (STANDALONE) return;
+    const load = () => api<{ games: { players: { avatar: string; bot?: boolean }[] }[] }>('/live').then((r) => setV({
+      games: r.games.length,
+      faces: r.games.flatMap((g) => g.players.filter((x) => !x.bot)).slice(0, 8),
+    })).catch(() => {});
+    load(); const t = setInterval(load, 20_000); return () => clearInterval(t);
+  }, []);
+  return v;
+}
+const FACE_COLORS = ['#5b8cff', '#b06ad9', '#3fbf8a', '#e8964a', '#ef5a52'];
 
 function useOnlineCount() {
   const [n, setN] = useState<number | null>(null);
@@ -215,6 +231,10 @@ export function Home(props: HomeProps) {
   }, []);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
   const online = useOnlineCount();
+  const live = useLiveTables();
+  // Ouverture animée du coffre et du cadeau (le toast donne toujours le détail).
+  const [burst, setBurst] = useState<{ kind: 'chest' | 'gift'; phase: 'opening' | 'open'; title?: string; detail?: string } | null>(null);
+  const closeBurst = useCallback(() => setBurst(null), []);
   const lobbies = useOpenLobbies();
   const prog = useProgramme(pa.token);
   const referral = useReferral(pa);
@@ -243,16 +263,21 @@ export function Home(props: HomeProps) {
 
   const openChest = async () => {
     sound.unlock(); sound.rattle();
-    const r = await pa.openEveningChest();
-    if ('error' in r) { setToast(r.error); return; }
+    setBurst({ kind: 'chest', phase: 'opening' });
+    const [r] = await Promise.all([pa.openEveningChest(), new Promise((ok) => setTimeout(ok, 650))]);
+    if ('error' in r) { setBurst(null); setToast(r.error); return; }
     sound.treasure(); setToast(`Coffre : +${r.coins} pièces${r.bag ? ' et un sac de dés !' : ''}`);
+    setBurst({ kind: 'chest', phase: 'open', title: `+${r.coins} pièces`, detail: r.bag ? 'et un sac de dés !' : 'Coffre du comptoir' });
   };
   const claimDaily = async () => {
     const r = DAILY_REWARDS[daily.cycleDay - 1];
-    const err = await pa.claimDailyReward();
-    if (err) { setToast(err); return; }
+    sound.unlock();
+    setBurst({ kind: 'gift', phase: 'opening' });
+    const [err] = await Promise.all([pa.claimDailyReward(), new Promise((ok) => setTimeout(ok, 550))]);
+    if (err) { setBurst(null); setToast(err); return; }
     sound.chips(daily.cycleDay === 7 ? 8 : 3);
     setToast(`Cadeau du jour : +${r.coins} pièces${r.xp ? ` et +${r.xp} XP` : ''}`);
+    setBurst({ kind: 'gift', phase: 'open', title: `+${r.coins} pièces`, detail: r.xp ? `et +${r.xp} XP · jour ${daily.cycleDay}` : `Jour ${daily.cycleDay}` });
   };
 
   const tiles: Tile[] = [
@@ -301,9 +326,37 @@ export function Home(props: HomeProps) {
     return owned.size;
   }, [profile.owned]);
   const bags = profile.bags ?? 0;
+  const byId = Object.fromEntries(shown.map((t) => [t.id, t])) as Record<string, Tile>;
+  const tour = byId.tournoi as Tile | undefined;
+  // Événements : tournoi programmé, patron, défi du jour (cartes illustrées).
+  const events: { t: Tile; art: React.ReactNode; tone: string }[] = [
+    ...(tour ? [{ t: tour, art: <TrophyArt size={52} />, tone: 'blue' }] : []),
+    { t: byId.patron, art: <TopHatArt size={52} />, tone: 'felt' },
+    { t: byId.defi, art: <TargetArt size={52} />, tone: 'felt' },
+  ];
+  // Récompenses : médaillons sur l'étagère (ceux qui sont prêts brillent).
+  const rewardIds = ['coffre', 'cadeau', 'missions', 'pass', acc ? 'duels' : 'album'];
+  const rewards = rewardIds.map((id) => byId[id]).filter(Boolean);
+  const rewardArt = (id: string, hot: boolean) => {
+    switch (id) {
+      case 'coffre': return <ChestArt open={hot} size={40} />;
+      case 'cadeau': return <GiftArt size={38} />;
+      case 'missions': return <ScrollArt size={36} done={qDone + qReady} total={qDefs.length} />;
+      case 'pass': return <TicketArt size={40} label={pass.tier} />;
+      case 'duels': return <FriendsArt size={38} />;
+      default: return <span className="v2-album"><Icon name="album" size={24} /></span>;
+    }
+  };
+  const tourMins = (() => {
+    const sv = prog?.slots.find((x) => x.status === 'salon' || x.status === 'a-venir') ?? null;
+    return sv ? Math.ceil((sv.startsAt - now) / 60000) : slot.minutes;
+  })();
+  const liveLine = lobbies > 0 ? `${lobbies} table${lobbies > 1 ? 's' : ''} vous attend${lobbies > 1 ? 'ent' : ''}`
+    : live.games > 0 ? `${live.games} partie${live.games > 1 ? 's' : ''} en cours` : 'Ouvrez une table, on vous rejoint';
+  const extra = online != null ? Math.max(0, online - live.faces.length) : 0;
 
   return (
-    <div className="home2">
+    <div className="home2 v2">
       <header className="h2-bar">
         <button className="h2-me" onClick={() => setShowProfile(true)} aria-label="Mon profil">
           <Avatar photo={pa.photo} emoji={props.avatar} size={40} accessory={accessoryEmoji(profile.equipped.accessoire)} />
@@ -319,52 +372,83 @@ export function Home(props: HomeProps) {
       </header>
 
       <main className="h2-main">
+        {/* 1. Vitrine 3D et partie contre l'ordinateur */}
         <section className="h2-hero">
           <HeroTray pa={pa} settings={props.settings} />
           <h1 className="plaque h2-plaque"><span>421</span></h1>
-          {online !== null && <button className="h2-live" onClick={props.onStats}><i aria-hidden />{online} en ligne</button>}
+          {STANDALONE && online !== null && <button className="h2-live" onClick={props.onStats}><i aria-hidden />{online} en ligne</button>}
           {!STANDALONE && <div className="h2-news"><NewsTicker /></div>}
           {titleLabel(profile.title) && <span className="h2-title-chip">{titleLabel(profile.title)}</span>}
           <button className="h2-play" onClick={props.onSolo}><Icon name="dice" size={26} /><span>Jouer contre l'ordinateur</span><Icon name="back" size={20} /></button>
         </section>
 
+        {/* 2. Jeu en ligne : la grande carte rouge et or */}
         {STANDALONE ? <p className="note">Le jeu entre amis demande le serveur du projet. Cette version propose le solo et le bac d'essai.</p> : (
-          <div className="h2-pair">
-            <button className="h2-sec" onClick={props.onOnline} disabled={!netOk}><Icon name="people" size={18} /> En ligne</button>
-            <button className="h2-sec" onClick={props.onParty}><Icon name="cheers" size={18} /> Entre amis</button>
-          </div>
+          <section className="v2-multi" aria-label="Jouer en ligne">
+            <span className="v2-multi-art"><TableArt size={74} /></span>
+            <div className="v2-multi-body">
+              <div className="v2-multi-head">
+                <b>Jouer en ligne</b>
+                {online !== null && <button className="v2-live" onClick={props.onStats} aria-label={`${online} joueurs en ligne, voir les statistiques`}><i aria-hidden />{online}</button>}
+              </div>
+              <button className="v2-multi-who" onClick={() => (lobbies > 0 ? setSheet('lobbies') : props.onOnline())} disabled={!netOk}>
+                {live.faces.length > 0 && <span className="v2-faces" aria-hidden>
+                  {live.faces.slice(0, 3).map((f, i) => <span key={i} className="v2-face" style={{ background: FACE_COLORS[i % FACE_COLORS.length] }}>{f.avatar}</span>)}
+                  {extra > 0 && <span className="v2-face more">+{extra > 99 ? 99 : extra}</span>}
+                </span>}
+                <span>{liveLine}</span>
+              </button>
+              <div className="v2-multi-btns">
+                <button className="v2-mbtn gold" onClick={props.onOnline} disabled={!netOk}>Rejoindre une table</button>
+                <button className="v2-mbtn ghost" onClick={props.onParty}><Icon name="cheers" size={16} />Entre amis</button>
+              </div>
+            </div>
+          </section>
         )}
         {!netOk && !STANDALONE && <p className="note">Hors connexion : le jeu en ligne reviendra avec le réseau.</p>}
 
         {banner}
 
-        {!STANDALONE && (
-          <div className="h2-promos">
-            <button className="h2-promo coll" onClick={props.onCollection}>
-              <span className="promo-cubes" aria-hidden><DieCube id="dc-paillettes" size={34} spin /><DieCube id="dc-dragon" size={46} spin /><DieCube id="dc-galaxie" size={34} spin /></span>
-              <span className="promo-shine" aria-hidden />
-              {bags > 0 && <em className="promo-badge">{bags} sac{bags > 1 ? 's' : ''}</em>}
-              <b>Dés super rares</b>
-              <small>{coll > 0 ? `${coll}/25 trouvés` : '25 dés à trouver'}<span className="tile-bar"><i style={{ width: `${(100 * coll) / 25}%` }} /></span></small>
-            </button>
-            <button className="h2-promo ref" onClick={() => (acc ? setSheet('parrainage') : props.onAccount())}>
-              <span className="promo-bag" aria-hidden><BagIcon size="1em" /></span>
-              <span className="promo-shine late" aria-hidden />
-              {referral && <em className="promo-badge">{referral.bagsEarned}/{referral.bagsMax}</em>}
-              <b>Invitez un ami</b>
-              <small>{acc ? '1 sac de dés offert par ami' : 'Sac de dés offert · compte gratuit'}</small>
-            </button>
-          </div>
-        )}
-
-        <div className="h2-today-head"><b>Aujourd'hui</b>{ready > 0 && <span>{ready} à récupérer</span>}</div>
-        <section className="h2-tiles">
-          {shown.map((t) => (
-            <button key={t.id} className={`h2-tile${t.hot ? ' hot' : ''}`} onClick={t.go}>
-              {t.badge && <em className={`h2-badge${t.badgeKind === 'blue' ? ' blue' : ''}`}>{t.badge}</em>}
-              <span className="h2-ic"><Icon name={t.icon} size={18} /></span>
+        {/* 3. Événements */}
+        <div className="v2-sect"><b>Événements</b>{tour && <span>Tournoi {inTime(tourMins)}</span>}</div>
+        <section className="v2-events">
+          {events.map(({ t, art, tone }) => (
+            <button key={t.id} className={`v2-ev ${tone}${t.hot ? ' hot' : ''}`} onClick={t.go}>
+              {t.badge && <em className={`v2-tag${t.badgeKind === 'blue' ? ' gold' : ''}`}>{t.badge}</em>}
+              <span className="v2-ev-art">{art}</span>
               <b>{t.title}</b>
               <small>{t.sub}</small>
+            </button>
+          ))}
+        </section>
+
+        {/* 4. Collection et parrainage, plus compacts */}
+        {!STANDALONE && (
+          <section className="v2-promos">
+            <button className="v2-promo coll" onClick={props.onCollection}>
+              <span className="v2-promo-art cubes" aria-hidden><DieCube id="dc-galaxie" size={24} spin /><DieCube id="dc-dragon" size={34} spin /></span>
+              <span className="promo-shine" aria-hidden />
+              {bags > 0 && <em className="promo-badge">{bags} sac{bags > 1 ? 's' : ''}</em>}
+              <span className="v2-promo-text"><b>Collection</b><small>{coll > 0 ? `${coll}/25 dés` : '25 dés rares'}</small><span className="tile-bar"><i style={{ width: `${(100 * coll) / 25}%` }} /></span></span>
+            </button>
+            <button className="v2-promo ref" onClick={() => (acc ? setSheet('parrainage') : props.onAccount())}>
+              <span className="v2-promo-art bag" aria-hidden><BagIcon size={50} /></span>
+              <span className="promo-shine late" aria-hidden />
+              {referral && <em className="promo-badge">{referral.bagsEarned}/{referral.bagsMax}</em>}
+              <span className="v2-promo-text"><b>Parrainage</b><small>{acc ? '1 sac par ami' : 'Sac offert, compte gratuit'}</small></span>
+            </button>
+          </section>
+        )}
+
+        {/* 5. Récompenses : l'étagère en bois */}
+        <div className="v2-sect"><b>Récompenses</b>{ready > 0 && <span>{ready} à récupérer</span>}</div>
+        <section className="v2-shelf tex-wood">
+          {rewards.map((t) => (
+            <button key={t.id} className={`v2-rw${t.hot ? ' on' : ''}`} onClick={t.go} aria-label={`${t.title}${t.hot ? ' : prêt' : ''}`}>
+              <span className="v2-medal">{t.hot && <Rays />}{rewardArt(t.id, !!t.hot)}</span>
+              {t.badge && <em className="v2-cnt">{t.id === 'coffre' ? '!' : t.badge}</em>}
+              <b>{t.id === 'pass' ? 'Pass' : t.id === 'cadeau' ? 'Cadeau' : t.title}</b>
+              <small>{t.id === 'pass' ? `Palier ${pass.tier}` : t.sub}</small>
             </button>
           ))}
         </section>
@@ -379,6 +463,7 @@ export function Home(props: HomeProps) {
       </nav>
 
       {toast && <div className="h2-toast" role="status">{toast}</div>}
+      {burst && <RewardBurst kind={burst.kind} phase={burst.phase} title={burst.title} detail={burst.detail} onClose={closeBurst} />}
       {sheet === 'menu' && <PlusMenu {...props} onProfile={() => setShowProfile(true)} onClose={() => setSheet(null)} />}
       {sheet === 'tournoi' && props.onJoinScheduled && <Sheet title="Tournois de 11 h et 21 h" onClose={() => setSheet(null)}>
         <ScheduledCard pa={pa} onJoin={(c, pay) => { setSheet(null); props.onJoinScheduled!(c, pay); }} onAccount={() => { setSheet(null); props.onAccount(); }} />
