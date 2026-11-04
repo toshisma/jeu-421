@@ -174,9 +174,10 @@ export class OnlineSession {
     if (!a.ok) throw new Error(a.error);
     this.rememberT(a);
   }
-  async tJoin(code: string, name: string, avatar: string, token?: string) {
+  /** `pay` : tournoi programmé, inscription payée en entrant dans le salon (10 pièces, débitées par le serveur). */
+  async tJoin(code: string, name: string, avatar: string, token?: string, pay?: boolean) {
     if (!(await this.waitConnected())) throw new Error('Impossible de joindre le serveur de jeu');
-    const a = await this.call<{ code: string; playerId: string; token: string }>('tournament:join', { code, name, avatar, token, auth: this.auth, dice: this.dice, day: today() });
+    const a = await this.call<{ code: string; playerId: string; token: string }>('tournament:join', { code, name, avatar, token, auth: this.auth, dice: this.dice, day: today(), ...(pay ? { pay: true } : {}) });
     if (!a.ok) {
       if (token) saveSession(null);
       throw new Error(a.error);

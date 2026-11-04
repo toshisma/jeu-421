@@ -638,6 +638,71 @@ export class Store {
       return [{ other, last: msg.get(r.last_id) as unknown as PmRow, unread: (unread.get(meId, r.other) as { n: number }).n }];
     });
   }
+  // --- Tournois programmés (11h et 21h) ---
+  /** Exécute `fn` dans une transaction : tout ou rien (débit, inscription, remboursement). */
+  tx<T>(fn: () => T): T {
+    this.db.exec('BEGIN IMMEDIATE');
+    try { const out = fn(); this.db.exec('COMMIT'); return out; } catch (e) { this.db.exec('ROLLBACK'); throw e; }
+  }
+  private schedInit() {
+    if (this.schedReady) return;
+    this.schedReady = true;
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS sched_slots (
+        id TEXT PRIMARY KEY, starts_at INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'a-venir',
+        reminded INTEGER NOT NULL DEFAULT 0, players INTEGER, reason TEXT
+      );
+      CREATE TABLE IF NOT EXISTS sched_regs (
+        slot_id TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, paid INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'inscrit', place INTEGER, bags INTEGER NOT NULL DEFAULT 0, reason TEXT,
+        created_at INTEGER NOT NULL, seen INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (slot_id, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_sched_regs_user ON sched_regs(user_id, created_at);
+    `);
+  }
+  private schedReady = false;
+  schedSlot(id: string): SchedSlotRow | undefined { this.schedInit(); return this.db.prepare('SELECT * FROM sched_slots WHERE id = ?').get(id) as unknown as SchedSlotRow | undefined; }
+  schedEnsureSlot(id: string, startsAt: number) { this.schedInit(); this.db.prepare('INSERT OR IGNORE INTO sched_slots (id, starts_at) VALUES (?, ?)').run(id, startsAt); }
+  schedSlotsByStatus(statuses: string[]): SchedSlotRow[] {
+    this.schedInit();
+    return this.db.prepare(`SELECT * FROM sched_slots WHERE status IN (${statuses.map(() => '?').join(',')}) ORDER BY starts_at`).all(...statuses) as unknown as SchedSlotRow[];
+  }
+  schedSetSlot(id: string, patch: { status?: string; reminded?: number; players?: number | null; reason?: string | null }) {
+    this.schedInit();
+    for (const [k, v] of Object.entries(patch)) this.db.prepare(`UPDATE sched_slots SET ${k} = ? WHERE id = ?`).run(v as never, id);
+  }
+  schedRegs(slotId: string, status?: string): SchedRegRow[] {
+    this.schedInit();
+    return (status
+      ? this.db.prepare('SELECT * FROM sched_regs WHERE slot_id = ? AND status = ? ORDER BY created_at').all(slotId, status)
+      : this.db.prepare('SELECT * FROM sched_regs WHERE slot_id = ? ORDER BY created_at').all(slotId)) as unknown as SchedRegRow[];
+  }
+  schedCount(slotId: string): number {
+    this.schedInit();
+    return (this.db.prepare("SELECT COUNT(*) AS n FROM sched_regs WHERE slot_id = ? AND status IN ('inscrit', 'joue', 'fini')").get(slotId) as { n: number }).n;
+  }
+  schedReg(slotId: string, userId: string): SchedRegRow | undefined {
+    this.schedInit();
+    return this.db.prepare('SELECT * FROM sched_regs WHERE slot_id = ? AND user_id = ?').get(slotId, userId) as unknown as SchedRegRow | undefined;
+  }
+  schedAddReg(slotId: string, userId: string, paid: number, at: number) {
+    this.schedInit();
+    this.db.prepare('INSERT INTO sched_regs (slot_id, user_id, paid, created_at) VALUES (?, ?, ?, ?)').run(slotId, userId, paid, at);
+  }
+  schedDeleteReg(slotId: string, userId: string) { this.schedInit(); this.db.prepare('DELETE FROM sched_regs WHERE slot_id = ? AND user_id = ?').run(slotId, userId); }
+  schedSetReg(slotId: string, userId: string, patch: { status?: string; place?: number | null; bags?: number; reason?: string | null; seen?: number }) {
+    this.schedInit();
+    for (const [k, v] of Object.entries(patch)) this.db.prepare(`UPDATE sched_regs SET ${k} = ? WHERE slot_id = ? AND user_id = ?`).run(v as never, slotId, userId);
+  }
+  /** Dernier résultat non vu d'un joueur (tournoi joué, annulé ou remboursé). */
+  schedLastResult(userId: string): (SchedRegRow & { starts_at: number }) | undefined {
+    this.schedInit();
+    return this.db.prepare(`SELECT r.*, s.starts_at FROM sched_regs r JOIN sched_slots s ON s.id = r.slot_id
+      WHERE r.user_id = ? AND r.status IN ('fini', 'rembourse') AND r.seen = 0 ORDER BY s.starts_at DESC LIMIT 1`).get(userId) as unknown as (SchedRegRow & { starts_at: number }) | undefined;
+  }
 
   close() { this.db.close(); }
 }
+
+export interface SchedSlotRow { id: string; starts_at: number; status: string; reminded: number; players: number | null; reason: string | null }
+export interface SchedRegRow { slot_id: string; user_id: string; paid: number; status: string; place: number | null; bags: number; reason: string | null; created_at: number; seen: number }

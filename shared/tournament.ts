@@ -8,6 +8,7 @@
  */
 import { DEFAULT_CONFIG, sanitizeConfig, type GameConfig } from './config';
 import { MAX_PLAYERS } from './protocol';
+import type { ScheduledInfo } from './scheduled';
 
 export type Visibility = 'public' | 'private';
 export type Payout = 'winner' | 'podium';
@@ -151,6 +152,8 @@ export interface PublicTournament {
   standings: string[] | null;
   /** Début du tour suivant (ms), pendant la pause entre deux tours. */
   nextRoundAt: number | null;
+  /** Tournoi programmé (11h / 21h) : rendez-vous, compte à rebours et barème en sacs. */
+  sched?: ScheduledInfo;
 }
 
 /** Entrées des listes publiques. */

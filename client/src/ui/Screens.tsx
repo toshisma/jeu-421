@@ -20,6 +20,7 @@ import { CollectionPromo } from './DiceCollection';
 import { ReferralCard } from './Referral';
 import { FriendsButton, NewsTicker, OpenLobbies } from './Friends';
 import { MessagesButton } from './Messages';
+import { ScheduledCard } from './Scheduled';
 import { changelogUnseen } from './Changelog';
 import { CURRENT_VERSION } from '../../../shared/changelog';
 import { fxDef, fxGlows } from '../../../shared/progress/dice-collection';
@@ -70,7 +71,7 @@ export function ProfileChip({ profile, onClick, photo, emoji }: { profile: Profi
 
 export function Home(props: {
   profile: Profile; pa: ProfileApi; avatar: string; displayName: string; onShop: () => void; onAccount: () => void; onLeaderboard: () => void;
-  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onParty: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void; onLogin: () => void; onCollection: () => void; onDuels: () => void; onFriends: () => void; onMessages?: () => void; onChangelog: () => void; onJoinRoom: (code: string) => void; settings: Settings; onChangeSettings: (s: Settings) => void; onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
+  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onParty: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void; onLogin: () => void; onCollection: () => void; onDuels: () => void; onFriends: () => void; onMessages?: () => void; onJoinScheduled?: (code: string, pay: boolean) => void; onChangelog: () => void; onJoinRoom: (code: string) => void; settings: Settings; onChangeSettings: (s: Settings) => void; onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
   resume: { code: string; tournament?: boolean } | null; onResume: () => void;
 }) {
   const [online, setOnline] = useState(navigator.onLine);
@@ -117,6 +118,7 @@ export function Home(props: {
 
         {!STANDALONE && <LiveStrip onOpen={props.onStats} />}
         {!STANDALONE && <NewsTicker />}
+        {!STANDALONE && online && props.onJoinScheduled && <ScheduledCard pa={props.pa} onJoin={props.onJoinScheduled} onAccount={props.onAccount} compact />}
         {!STANDALONE && <OpenLobbies onJoin={props.onJoinRoom} onAll={props.onOnline} />}
         <nav className="home-actions">
           {props.resume && !STANDALONE && (

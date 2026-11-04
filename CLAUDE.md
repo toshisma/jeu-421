@@ -24,6 +24,7 @@ Tout le texte du jeu est **en français** (vouvoiement côté joueurs). Réponds
 | Serveur de jeu (salons, parties en ligne, tournois, tchat, exclusion, cagnottes) | `server/app.ts` |
 | Comptes, profils, solo, amis, parrainage, invitations, présence, fil d'actualité | `server/accounts.ts` |
 | Demandes d'amis, défis entre amis, notifications push | `server/social.ts` |
+| Tournois programmés 11h / 21h (inscription 10 pièces, sacs de dés, remboursements) | `shared/scheduled.ts`, `server/scheduled.ts`, `client/src/ui/Scheduled.tsx` ; essais : `SCHED_TEST_NOW=<date ISO>` et `SCHED_TEST_QUICK=1` (ignorés en production) |
 | Statistiques publiques et admin, alertes admin | `server/stats.ts` |
 | Base de données (tables, requêtes) | `server/db.ts` |
 | Navigation entre écrans | `client/src/App.tsx` |

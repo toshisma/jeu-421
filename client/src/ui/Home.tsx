@@ -27,6 +27,8 @@ import { DiceTray, type DiceTrayHandle } from './DiceTray';
 import { changelogUnseen } from './Changelog';
 import { STANDALONE } from './Screens';
 import { MessagesButton } from './Messages';
+import { ScheduledCard } from './Scheduled';
+import type { ProgrammeView } from '../../../shared/scheduled';
 
 export interface HomeProps {
   profile: Profile; pa: ProfileApi; avatar: string; displayName: string; settings: Settings; onChangeSettings: (s: Settings) => void;
@@ -37,11 +39,13 @@ export interface HomeProps {
   onCollection: () => void; onDuels: () => void; onFriends: () => void; onChangelog: () => void; onJoinRoom: (code: string) => void;
   onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
   resume: { code: string; tournament?: boolean } | null; onResume: () => void;
+  /** Tournois programmés de 11 h et 21 h : rejoindre le salon (pay = s'inscrire en entrant). */
+  onJoinScheduled?: (code: string, pay: boolean) => void;
   /** Messages privés (bulle à côté des amis). */
   onMessages?: () => void;
 }
 
-type SheetKind = 'menu' | 'coffre' | 'cadeau' | 'patron' | 'defi' | 'missions' | 'parrainage' | 'lobbies';
+type SheetKind = 'tournoi' | 'menu' | 'coffre' | 'cadeau' | 'patron' | 'defi' | 'missions' | 'parrainage' | 'lobbies';
 
 /** Prochain tournoi programmé (11 h et 21 h, heure de Bruxelles) : heure affichée et minutes restantes. */
 export function nextTournamentSlot(now = Date.now()): { label: string; minutes: number } {
@@ -62,6 +66,17 @@ function useOpenLobbies() {
     load(); const t = setInterval(load, 10_000); return () => clearInterval(t);
   }, []);
   return n;
+}
+
+/** Programme des tournois de 11 h et 21 h (pour la tuile). */
+function useProgramme(token: string | null) {
+  const [p, setP] = useState<ProgrammeView | null>(null);
+  useEffect(() => {
+    if (STANDALONE) return;
+    const load = () => api<ProgrammeView>('/tournois/programme', { token }).then(setP).catch(() => {});
+    load(); const t = setInterval(load, 30_000); return () => clearInterval(t);
+  }, [token]);
+  return p;
 }
 
 function useOnlineCount() {
@@ -195,6 +210,7 @@ export function Home(props: HomeProps) {
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
   const online = useOnlineCount();
   const lobbies = useOpenLobbies();
+  const prog = useProgramme(pa.token);
   const referral = useReferral(pa);
   const li = levelInfo(profile.xp);
   const name = pa.session?.username ?? (props.displayName || 'Invité');
@@ -238,7 +254,16 @@ export function Home(props: HomeProps) {
       sub: chestLeft === 0 ? 'Ouvrir' : `dans ${hLeft(chestLeft)}`, go: () => (chestLeft === 0 ? void openChest() : setSheet('coffre')) },
     { id: 'cadeau', title: 'Cadeau du jour', icon: 'gift', hot: daily.canClaim, badge: daily.canClaim ? `J${daily.cycleDay}` : undefined,
       sub: daily.canClaim ? (daily.cycleDay === 7 ? 'Coffre du 7e jour' : `+${DAILY_REWARDS[daily.cycleDay - 1].coins} pièces`) : 'Revenez demain', go: () => (daily.canClaim ? void claimDaily() : setSheet('cadeau')) },
-    { id: 'tournoi', title: 'Tournoi', icon: 'trophy', badge: slot.label, badgeKind: 'blue', sub: inTime(slot.minutes), go: props.onTournaments, show: !STANDALONE },
+    (() => {
+      // Tournoi programmé : données du serveur si disponibles, sinon l'horaire calculé ici.
+      const sv = prog?.slots.find((x) => x.status === 'salon' || x.status === 'a-venir') ?? null;
+      const open = sv?.status === 'salon';
+      const hh = sv ? `${String(sv.hour).padStart(2, '0')}:00` : slot.label;
+      const mins = sv ? Math.ceil((sv.startsAt - now) / 60000) : slot.minutes;
+      return { id: 'tournoi', title: 'Tournoi', icon: 'trophy', hot: open && !!sv?.registered, badge: sv?.registered ? (open ? 'Go !' : 'Inscrit') : hh, badgeKind: sv?.registered ? undefined : 'blue' as const,
+        sub: open ? `salon ouvert · ${sv!.count} joueurs` : `${inTime(mins)}${sv ? ` · ${sv.count} inscrit${sv.count > 1 ? 's' : ''}` : ''}`,
+        go: () => (props.onJoinScheduled ? setSheet('tournoi') : props.onTournaments()), show: !STANDALONE } satisfies Tile;
+    })(),
     { id: 'patron', title: 'Patron', icon: 'hat', sub: bossBeaten ? `${boss.name} · battu` : `${boss.name} · à battre`, go: () => setSheet('patron') },
     { id: 'defi', title: 'Défi du jour', icon: 'target', sub: chalDone ? `${chal!.points} points` : '1 essai', go: () => setSheet('defi') },
     { id: 'missions', title: 'Missions', icon: 'check', hot: qReady > 0, badge: qReady ? String(qReady) : undefined, sub: qReady ? 'à récupérer' : `${qDone}/${qDefs.length} faites`, go: () => setSheet('missions') },
@@ -254,6 +279,8 @@ export function Home(props: HomeProps) {
   const ev = activeEvent(day) || coinBoost(day);
   const banner = (() => {
     if (props.resume && !STANDALONE) return <button className="home-banner resume" onClick={props.onResume}><Icon name="resume" size={20} /><span><b>{props.resume.tournament ? 'Reprendre le tournoi' : 'Reprendre la partie'}</b><small>Table {props.resume.code}</small></span></button>;
+    const salon = prog?.slots.find((x) => x.status === 'salon' && x.registered && x.code);
+    if (salon && props.onJoinScheduled) return <button className="home-banner resume" onClick={() => props.onJoinScheduled!(salon.code!, false)}><Icon name="trophy" size={20} /><span><b>Votre tournoi de {salon.hour} h commence !</b><small>Le salon est ouvert : rejoignez-le avant le départ</small></span><em>Rejoindre</em></button>;
     if (pa.welcomeBack) return <button className="home-banner gift" onClick={() => { pa.dismissWelcome(); props.onCollection(); }}><Icon name="gift" size={20} /><span><b>Content de vous revoir !</b><small>Un sac de dés vous attend dans la Collection.</small></span></button>;
     if (!profile.tutorial) return <button className="home-banner tuto" onClick={props.onTutorial}><Icon name="resume" size={20} /><span><b>Nouveau ? Apprendre à jouer</b><small>Partie guidée de 3 minutes</small></span><em>+50 pièces</em></button>;
     if (lobbies > 0 && netOk) return <button className="home-banner lobbies" onClick={() => setSheet('lobbies')}><Icon name="people" size={20} /><span><b>{lobbies > 1 ? `${lobbies} parties attendent des joueurs` : 'Une partie attend des joueurs'}</b><small>Rejoignez une table ouverte</small></span><em>Voir</em></button>;
@@ -347,6 +374,10 @@ export function Home(props: HomeProps) {
 
       {toast && <div className="h2-toast" role="status">{toast}</div>}
       {sheet === 'menu' && <PlusMenu {...props} onProfile={() => setShowProfile(true)} onClose={() => setSheet(null)} />}
+      {sheet === 'tournoi' && props.onJoinScheduled && <Sheet title="Tournois de 11 h et 21 h" onClose={() => setSheet(null)}>
+        <ScheduledCard pa={pa} onJoin={(c, pay) => { setSheet(null); props.onJoinScheduled!(c, pay); }} onAccount={() => { setSheet(null); props.onAccount(); }} />
+        <button className="btn ghost small" onClick={() => { setSheet(null); props.onTournaments(); }}>Autres tournois</button>
+      </Sheet>}
       {sheet === 'coffre' && <Sheet title="Coffre du comptoir" onClose={() => setSheet(null)}><EveningChest pa={pa} /></Sheet>}
       {sheet === 'cadeau' && <Sheet title="Cadeau du jour" onClose={() => setSheet(null)}><DailyStreak pa={pa} /></Sheet>}
       {sheet === 'patron' && <Sheet title="Patron de la semaine" onClose={() => setSheet(null)}><BossCard pa={pa} onPlay={() => { setSheet(null); props.onBoss(); }} /></Sheet>}

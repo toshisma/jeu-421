@@ -91,6 +91,8 @@ export function App() {
   const tInvite = useMemo(() => new URLSearchParams(location.search).get('tournoi'), []);
   // Lien direct pour regarder une partie : /?regarder=CODE
   const watchLink = useMemo(() => new URLSearchParams(location.search).get('regarder'), []);
+  // Clic sur une notification de tournoi programmé : écran Tournois.
+  const tSched = useMemo(() => { const v = new URLSearchParams(location.search).has('tournois'); if (v) cleanUrl(); return v; }, []);
   // Clic sur une notification : l'accueil s'ouvre sur le panneau des notifications.
   // Clic sur une notification de message : la conversation s'ouvre.
   const openPm = useMemo(() => { const v = new URLSearchParams(location.search).get('messages'); if (v) cleanUrl(); return v ? v.slice(0, 20) : null; }, []);
@@ -106,7 +108,7 @@ export function App() {
       : watchLink ? { name: 'watch', code: watchLink.toUpperCase(), back: { name: 'home' } }
       : invite ? { name: 'online', mode: { kind: 'join', code: invite.toUpperCase() } }
         : tInvite && settings.name ? { name: 'tournament', mode: { kind: 'join', code: tInvite.toUpperCase() } }
-          : tInvite ? { name: 'hub', tab: 'tournois' } : openPm ? { name: 'messages', with: openPm } : { name: 'home' });
+          : tInvite || tSched ? { name: 'hub', tab: 'tournois' } : openPm ? { name: 'messages', with: openPm } : { name: 'home' });
   const [resume, setResume] = useState(loadSession);
   // Profil : invité (sur l'appareil) ou compte (sur le serveur). Pas de comptes sans serveur.
   const pa = useProfile(!STANDALONE);
@@ -193,6 +195,7 @@ export function App() {
         onChangelog={() => setScreen({ name: 'changelog' })}
         settings={settings} onChangeSettings={setSettings}
         onJoinRoom={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
+        onJoinScheduled={(code, pay) => setScreen({ name: 'tournament', mode: { kind: 'join', code, pay } })}
         onDuelPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }}
         openNotifs={openNotifs}
         resume={resume} onResume={() => setScreen(resume?.tournament ? { name: 'tournament', mode: { kind: 'resume' } } : { name: 'online', mode: { kind: 'resume' } })} />;
@@ -203,7 +206,9 @@ export function App() {
         onCreateRoom={() => setScreen({ name: 'online', mode: { kind: 'create' } })}
         onQuick={() => setScreen({ name: 'online', mode: { kind: 'quick' } })}
         onCreateTournament={() => setScreen({ name: 'tournament', mode: { kind: 'create' } })}
-        onWatch={(code) => setScreen({ name: 'watch', code, back: { name: 'hub', tab: 'tables' } })} />;
+        onWatch={(code) => setScreen({ name: 'watch', code, back: { name: 'hub', tab: 'tables' } })}
+        onJoinScheduled={(code, pay) => setScreen({ name: 'tournament', mode: { kind: 'join', code, pay } })}
+        onAccount={() => setScreen({ name: 'account' })} />;
     case 'watch':
       return <SpectateFlow key={screen.code} code={screen.code} settings={settings} onSettings={setSettings} pa={pa}
         onExit={() => (screen.back.name === 'home' ? home() : setScreen(screen.back))} />;
