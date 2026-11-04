@@ -1220,3 +1220,44 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .home-audio .volume-pop { position: fixed; left: 12px; right: 12px; top: calc(env(safe-area-inset-top) + 64px); z-index: 70; }
 .home-audio .volume-pop input[type=range] { flex: 1; width: auto; min-width: 0; }
 @media (min-width: 720px) { .home-audio .volume-pop { position: absolute; left: auto; right: 0; top: calc(100% + 8px); } .home-audio .volume-pop input[type=range] { width: 180px; flex: none; } }
+/* Tournois programmés (11h et 21h) : carte d'inscription, salon d'attente, résultats */
+.sched-card { margin: 12px 0; padding: 14px; border-radius: 14px; background: var(--ardoise); box-shadow: inset 4px 0 0 var(--laiton), var(--relief); display: grid; gap: 10px; text-align: left; min-width: 0; }
+.sched-card > header { display: flex; align-items: center; gap: 10px; color: var(--laiton); }
+.sched-card > header span { display: flex; flex-direction: column; color: var(--blanc); }
+.sched-card > header b { font: 800 1.25rem/1.1 var(--cond); }
+.sched-card > header small { color: var(--texte-3); font-size: 0.8125rem; }
+.sc-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 10px 12px; border-radius: 10px; background: var(--ardoise-2); }
+.sc-row.live { box-shadow: inset 0 0 0 2px var(--laiton); }
+.sc-info { flex: 1 1 180px; min-width: 0; display: flex; flex-direction: column; }
+.sc-title { font: 800 1.25rem/1.15 var(--cond); }
+.sc-info small { color: var(--texte-2); }
+.sc-live { color: var(--laiton); font-weight: 700; }
+.sc-row:not(.main) .sc-info b { font-weight: 600; }
+.sc-reg { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.tag.ok { color: var(--vert); display: inline-flex; align-items: center; gap: 4px; }
+.sc-toggle { justify-self: start; }
+.sc-rules ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+.sc-last { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 10px; background: rgba(212,173,47,.14); }
+.sc-last.annule, .sc-last.rembourse { background: rgba(200,49,43,.16); }
+.sc-last p { margin: 0; flex: 1; }
+.bag-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.bag-table th, .bag-table td { padding: 6px 4px; text-align: center; border-bottom: 1px solid var(--ardoise-3); white-space: nowrap; }
+.bag-table thead th { color: var(--texte-3); font-weight: 600; font-size: 0.8125rem; }
+.bag-table tbody th { text-align: left; font-weight: 600; }
+.bag-table td { color: var(--texte-2); }
+.bag-table tr.on { background: rgba(212,173,47,.16); }
+.bag-table tr.on th, .bag-table tr.on td { color: var(--laiton); font-weight: 700; }
+.bag-table.compact th, .bag-table.compact td { padding: 4px 2px; font-size: 0.875rem; }
+.sched-lobby { display: grid; gap: 10px; max-width: 640px; }
+.sched-lobby h3 { margin-top: 8px; }
+.sl-clock { display: flex; flex-direction: column; align-items: center; padding: 14px; border-radius: 14px; background: var(--email); box-shadow: inset 0 0 0 2px var(--email), inset 0 0 0 4px var(--blanc); }
+.sl-clock b { font: 800 3.5rem/1 var(--cond); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.sl-clock small { color: var(--texte-2); }
+.sl-status { margin: 0; font-weight: 600; }
+.sched-results { display: grid; gap: 8px; max-width: 640px; margin-bottom: 16px; }
+.sr-big { margin: 0; font: 800 1.75rem/1.15 var(--cond); }
+.sr-bags { margin: 0; padding: 10px 12px; border-radius: 10px; background: rgba(212,173,47,.16); color: var(--laiton); font-weight: 700; }
+.sched-results.cancelled { padding: 16px; border-radius: 14px; background: var(--ardoise); box-shadow: inset 4px 0 0 var(--tabac); }
+.sched-results.cancelled p { margin: 0; }
+.bag-text { color: var(--laiton) !important; font-weight: 700; }
+.sc-prize { margin: 0; color: var(--laiton); font-weight: 600; font-size: 0.9375rem; }

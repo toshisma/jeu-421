@@ -83,6 +83,8 @@ export function App() {
   const [settings, setSettingsState] = useState<Settings>(loadSettings);
   const invite = useMemo(() => new URLSearchParams(location.search).get('rejoindre'), []);
   const tInvite = useMemo(() => new URLSearchParams(location.search).get('tournoi'), []);
+  // Clic sur une notification de tournoi programmé : écran Tournois.
+  const tSched = useMemo(() => { const v = new URLSearchParams(location.search).has('tournois'); if (v) cleanUrl(); return v; }, []);
   // Clic sur une notification : l'accueil s'ouvre sur le panneau des notifications.
   const openNotifs = useMemo(() => { const v = new URLSearchParams(location.search).has('notifs'); if (v) cleanUrl(); return v; }, []);
   // Lien de parrainage : le pseudo du parrain est retenu pour la création du compte.
@@ -95,7 +97,7 @@ export function App() {
     : STANDALONE ? { name: 'home' }
       : invite ? { name: 'online', mode: { kind: 'join', code: invite.toUpperCase() } }
         : tInvite && settings.name ? { name: 'tournament', mode: { kind: 'join', code: tInvite.toUpperCase() } }
-          : tInvite ? { name: 'hub', tab: 'tournois' } : { name: 'home' });
+          : tInvite || tSched ? { name: 'hub', tab: 'tournois' } : { name: 'home' });
   const [resume, setResume] = useState(loadSession);
   // Profil : invité (sur l'appareil) ou compte (sur le serveur). Pas de comptes sans serveur.
   const pa = useProfile(!STANDALONE);
@@ -179,6 +181,7 @@ export function App() {
         onChangelog={() => setScreen({ name: 'changelog' })}
         settings={settings} onChangeSettings={setSettings}
         onJoinRoom={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
+        onJoinScheduled={(code, pay) => setScreen({ name: 'tournament', mode: { kind: 'join', code, pay } })}
         onDuelPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }}
         openNotifs={openNotifs}
         resume={resume} onResume={() => setScreen(resume?.tournament ? { name: 'tournament', mode: { kind: 'resume' } } : { name: 'online', mode: { kind: 'resume' } })} />;
@@ -188,7 +191,9 @@ export function App() {
         onJoinTournament={(code) => setScreen({ name: 'tournament', mode: { kind: 'join', code } })}
         onCreateRoom={() => setScreen({ name: 'online', mode: { kind: 'create' } })}
         onQuick={() => setScreen({ name: 'online', mode: { kind: 'quick' } })}
-        onCreateTournament={() => setScreen({ name: 'tournament', mode: { kind: 'create' } })} />;
+        onCreateTournament={() => setScreen({ name: 'tournament', mode: { kind: 'create' } })}
+        onJoinScheduled={(code, pay) => setScreen({ name: 'tournament', mode: { kind: 'join', code, pay } })}
+        onAccount={() => setScreen({ name: 'account' })} />;
     case 'tournament':
       return <TournamentFlow mode={screen.mode} settings={settings} onSettings={setSettings} onExit={home} onCancel={() => setScreen({ name: 'hub', tab: 'tournois' })}
         appearance={profile.equipped} onGameEnd={pa.onGameEnd} pa={pa} />;

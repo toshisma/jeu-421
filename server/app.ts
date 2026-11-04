@@ -26,6 +26,8 @@ import { albumKey, didWin, finalPlace } from '../shared/progress/profile';
 import type { ComboKind } from '../shared/combos';
 import { getItem } from '../shared/progress/catalog';
 import { COLLECTION } from '../shared/progress/dice-collection';
+import { SCHED_CONFIG, SCHED_LOBBY_MS, SCHED_MAX, bagPrizes, bagsLabel, hourLabel, nextSlots, schedTables, type SlotStatus } from '../shared/scheduled';
+import { createScheduled, slotLabel } from './scheduled';
 
 interface Member {
   id: string;
@@ -91,6 +93,8 @@ interface TPlayer {
   out: number | null;
   bot?: Difficulty;
   dice?: string;
+  /** Tournoi programmé : déconnecté depuis (salon d'attente). */
+  awayAt?: number | null;
 }
 interface TTable { code: string; ids: string[]; ranking: string[] | null; qualified: number }
 interface Tournament {
@@ -105,6 +109,8 @@ interface Tournament {
   nextRoundAt: number | null;
   timer: NodeJS.Timeout | null;
   lastActivity: number;
+  /** Tournoi programmé (11h / 21h) : rendez-vous, départ, partants, annulation. */
+  sched?: { slot: string; hour: number; startsAt: number; beginsAt: number; starters: number | null; cancelled: string | null };
 }
 
 export interface ServerOptions {
@@ -122,6 +128,11 @@ export interface ServerOptions {
   tournamentFullStartMs?: number;
   /** Base de données des comptes (fichier SQLite, ':memory:' pour les tests). */
   dbPath?: string;
+  /** Horloge des tournoi programmés (tests), et intervalle de vérification (ms, 0 = manuel). */
+  now?: () => number;
+  schedTickMs?: number;
+  /** Règles des parties de tournoi programmé (tests : parties courtes). */
+  schedConfig?: GameConfig;
   accounts?: AccountsOptions;
   stats?: StatsOptions;
 }
@@ -166,6 +177,17 @@ export async function startServer(opts: ServerOptions) {
   const STOP_GRACE = opts.stopGraceMs ?? 1_500;
   const T_PAUSE = opts.tournamentPauseMs ?? 12_000;
   const T_FULL_START = opts.tournamentFullStartMs ?? 6_000;
+  /**
+   * Horloge des tournois programmés. Pour les essais, SCHED_TEST_NOW (date ISO) fait croire au
+   * serveur qu'il est cette heure-là au démarrage ; ignoré en production (NODE_ENV=production ou Render).
+   */
+  const testNow = process.env.SCHED_TEST_NOW && process.env.NODE_ENV !== 'production' && !process.env.RENDER ? Date.parse(process.env.SCHED_TEST_NOW) : NaN;
+  const clockOffset = Number.isFinite(testNow) ? testNow - Date.now() : 0;
+  if (clockOffset && !process.env.VITEST) console.log(`Horloge de test des tournois programmés : ${new Date(Date.now() + clockOffset).toISOString()}`);
+  const clock = opts.now ?? (() => Date.now() + clockOffset);
+  const testing = process.env.NODE_ENV !== 'production' && !process.env.RENDER;
+  // SCHED_TEST_QUICK=1 (essais seulement) : parties de tournoi programmé en une manche aux points.
+  const schedConfig = opts.schedConfig ? sanitizeConfig({ ...SCHED_CONFIG, ...opts.schedConfig }) : (testing && process.env.SCHED_TEST_QUICK ? sanitizeConfig({ ...SCHED_CONFIG, variant: 'manches', rounds: 1, turnSeconds: 10 }) : SCHED_CONFIG);
 
   const app = express();
   app.set('trust proxy', 1); // adresse IP réelle derrière l'hébergeur (limite de tentatives)
@@ -242,6 +264,35 @@ export async function startServer(opts: ServerOptions) {
     if (!kind) return res.status(404).json({ ok: false, error: 'Aucune table ni aucun tournoi avec ce code. Vérifiez-le.' });
     res.json({ ok: true, kind });
   });
+  // Tournois programmés : routes de l'API (inscription, désinscription, programme).
+  const schedRouter = express.Router();
+  schedRouter.use('/tournois', express.json({ limit: '8kb' }));
+  const profileTo = (userId: string) => {
+    const u = store.userById(userId);
+    if (!u) return;
+    const profile = store.profileOf(u);
+    const ids = new Set<string>();
+    for (const t of tournaments.values()) for (const p of t.players) if (p.userId === userId && p.socketId) ids.add(p.socketId);
+    for (const r of rooms.values()) for (const m of r.members) if (m.userId === userId && m.socketId) ids.add(m.socketId);
+    for (const id of ids) sendProfile(id, profile);
+  };
+  const schedLive = (slot: string) => {
+    for (const t of tournaments.values()) if (t.sched?.slot === slot) {
+      const status: SlotStatus = t.sched.cancelled ? 'annule' : t.status === 'inscriptions' ? 'salon' : t.status === 'en-cours' ? 'en-cours' : 'termine';
+      return { code: t.code, status };
+    }
+    return null;
+  };
+  const sched = createScheduled({
+    store, router: schedRouter, now: clock, userFromToken: accounts.userFromToken,
+    push: (u, title, body, url) => void accounts.social.push(u, title, body, url), onProfile: (u) => profileTo(u), live: schedLive,
+    mine: (userId) => {
+      for (const t of tournaments.values()) if (t.sched && !t.sched.cancelled && t.status === 'en-cours' && t.players.some((p) => p.userId === userId))
+        return { code: t.code, hour: t.sched.hour, status: 'en-cours' };
+      return null;
+    },
+  });
+  app.use('/api', schedRouter);
   app.use('/api', accounts.router);
   const http = createServer(app);
   const io = new Server(http, { cors: { origin: true } });
@@ -556,6 +607,11 @@ export async function startServer(opts: ServerOptions) {
     prizes: prizes(t.pot, t.players.length, t.settings.payout),
     standings: t.standings,
     nextRoundAt: t.nextRoundAt,
+    ...(t.sched ? { sched: {
+      slot: t.sched.slot, hour: t.sched.hour, startsAt: t.sched.startsAt, beginsAt: t.sched.beginsAt, serverNow: clock(),
+      registered: store.schedCount(t.sched.slot), cancelled: t.sched.cancelled, starters: t.sched.starters,
+      bags: bagPrizes(t.sched.starters ?? t.players.length),
+    } } : {}),
     rounds: t.rounds.map((rd) => ({ tables: rd.tables.map((tb) => ({ code: tb.code, ids: tb.ids, ranking: tb.ranking, qualified: tb.qualified })) })),
     players: t.players.map((p) => ({
       id: p.id, name: p.name, avatar: p.avatar, connected: p.socketId != null || !!p.bot, left: p.left, out: p.out, ...(p.bot ? { bot: true } : {}),
@@ -603,7 +659,7 @@ export async function startServer(opts: ServerOptions) {
 
   function startRound(t: Tournament, ids: string[]) {
     t.nextRoundAt = null;
-    const groups = splitTables(ids, t.settings.tableSize);
+    const groups = t.sched ? schedTables(ids) : splitTables(ids, t.settings.tableSize);
     const final = groups.length === 1;
     const tables: TTable[] = [];
     for (const g of groups) {
@@ -667,6 +723,16 @@ export async function startServer(opts: ServerOptions) {
     });
     accounts.release(`T:${t.code}`);
     const champ = t.players.find((p) => p.id === standings[0])!;
+    if (t.sched) {
+      // Tournoi programmé : sacs de dés selon la place et le nombre de partants (enregistré en base).
+      const bags = sched.finish(t.sched.slot, standings.map((id) => t.players.find((x) => x.id === id)!.userId!));
+      tNotice(t, `${champ.name} remporte le ${slotLabel(t.sched.slot)}${bags[0] ? ` et ${bagsLabel(bags[0])} de dés` : ''} !`);
+      standings.forEach((id, place) => {
+        const p = t.players.find((x) => x.id === id)!;
+        if (p.userId && !p.bot) void accounts.social.push(p.userId, `Tournoi de ${hourLabel(t.sched!.hour)} terminé`,
+          `Vous finissez ${place === 0 ? '1er' : `${place + 1}e`} sur ${standings.length}${bags[place] ? ` : ${bagsLabel(bags[place])} de dés gagnés !` : '.'}`, '/?tournois=1');
+      });
+    } else
     tNotice(t, `${champ.name} remporte le tournoi${gains[0] ? ` et ${gains[0]} pièces` : ''} !`);
     broadcastT(t);
     // Les tables restent consultables un moment, puis tout est rangé.
@@ -675,6 +741,72 @@ export async function startServer(opts: ServerOptions) {
       tournaments.delete(t.code);
     }, 15 * 60_000).unref?.();
   }
+
+  // --- Tournois programmés : ouverture du salon, départ, annulation ----------------------------
+  /** Un inscrit est « présent » au départ s'il est dans le salon (connecté, ou coupé depuis moins de 30 s). */
+  const PRESENT_GRACE = 30_000;
+  const schedOf = (slot: string) => [...tournaments.values()].find((t) => t.sched?.slot === slot);
+
+  function openSalon(slot: { id: string; hour: number; startsAt: number }) {
+    const t: Tournament = {
+      code: newCode(), hostId: '', status: 'inscriptions', players: [], rounds: [], pot: 0, standings: null, nextRoundAt: null, timer: null, lastActivity: Date.now(),
+      settings: { title: `Tournoi de ${hourLabel(slot.hour)}`, visibility: 'private', maxPlayers: SCHED_MAX, tableSize: 4, stake: 0, payout: 'winner', config: schedConfig },
+      sched: { slot: slot.id, hour: slot.hour, startsAt: slot.startsAt, beginsAt: slot.startsAt + SCHED_LOBBY_MS, starters: null, cancelled: null },
+    };
+    tournaments.set(t.code, t);
+    sched.markSlot(slot.id, 'salon');
+    return t;
+  }
+
+  /** Fin d'un tournoi programmé annulé : tout le monde est prévenu, les tables sont rangées plus tard. */
+  function schedCancelled(t: Tournament, reason: string) {
+    t.sched!.cancelled = reason;
+    t.status = 'termine';
+    t.standings = [];
+    tNotice(t, reason, 'warning');
+    broadcastT(t);
+    setTimeout(() => tournaments.delete(t.code), 15 * 60_000).unref?.();
+  }
+
+  /** H+5 min : départ avec les présents (les absents sont retirés et remboursés), ou annulation. */
+  function schedBegin(t: Tournament) {
+    const now = Date.now();
+    const present = t.players.filter((p) => p.userId && (p.socketId != null || (p.awayAt != null && now - p.awayAt < PRESENT_GRACE)));
+    for (const p of t.players) if (!present.includes(p) && p.socketId) io.to(p.socketId).emit('tournament:removed', { reason: 'Absent au départ : vous êtes remboursé.' });
+    t.players = present;
+    const res = sched.begin(t.sched!.slot, present.map((p) => p.userId!));
+    if (!res.ok) return schedCancelled(t, `${res.reason} Tous les inscrits sont remboursés.`);
+    t.sched!.starters = present.length;
+    t.status = 'en-cours';
+    const order = present.map((p) => p.id);
+    for (let i = order.length - 1; i > 0; i--) { const j = randomInt(i + 1); [order[i], order[j]] = [order[j], order[i]]; }
+    const bags = bagPrizes(present.length);
+    tNotice(t, `Départ avec ${present.length} joueurs. À gagner : ${bags.map((b, i) => `${i === 0 ? '1er' : `${i + 1}e`} ${bagsLabel(b)}`).join(', ')}.`);
+    startRound(t, order);
+  }
+
+  /** Horloge des tournois programmés (appelée régulièrement, et directement par les tests). */
+  function schedTick() {
+    const now = clock();
+    for (const s of nextSlots(now, 2)) {
+      sched.remind(s.id, s.startsAt, now);
+      const row = store.schedSlot(s.id);
+      if (now >= s.startsAt && now < s.startsAt + SCHED_LOBBY_MS && (!row || row.status === 'a-venir' || row.status === 'salon') && !schedOf(s.id)) {
+        store.schedEnsureSlot(s.id, s.startsAt);
+        openSalon(s);
+      }
+    }
+    for (const t of [...tournaments.values()]) {
+      if (t.sched && t.status === 'inscriptions' && !t.sched.cancelled && now >= t.sched.beginsAt) schedBegin(t);
+    }
+    // Départ manqué (serveur arrêté à ce moment-là) : annulé et remboursé.
+    for (const row of store.schedSlotsByStatus(['a-venir', 'salon']))
+      if (now >= row.starts_at + SCHED_LOBBY_MS && !schedOf(row.id))
+        sched.cancel(row.id, `Le ${slotLabel(row.id)} n’a pas pu avoir lieu (serveur indisponible).`);
+  }
+  sched.recover();
+  schedTick();
+  const schedTimer = opts.schedTickMs === 0 ? null : setInterval(schedTick, opts.schedTickMs ?? 2000);
 
   // Ménage des salons et tournois abandonnés.
   const sweeper = setInterval(() => {
@@ -685,7 +817,7 @@ export async function startServer(opts: ServerOptions) {
         rooms.delete(r.code);
       }
     for (const t of tournaments.values())
-      if (t.status === 'inscriptions' && t.players.every((p) => p.socketId == null) && now - t.lastActivity > 10 * 60_000) {
+      if (!t.sched && t.status === 'inscriptions' && t.players.every((p) => p.socketId == null) && now - t.lastActivity > 10 * 60_000) {
         if (t.timer) clearTimeout(t.timer);
         tournaments.delete(t.code);
       }
@@ -969,6 +1101,7 @@ export async function startServer(opts: ServerOptions) {
       const prev = p.socketId && io.sockets.sockets.get(p.socketId);
       if (prev && prev.id !== socket.id) prev.disconnect(true);
       p.socketId = socket.id;
+      p.awayAt = null;
       socket.data.tcode = t.code;
       socket.data.tplayerId = p.id;
       socket.join(tRoom(t.code));
@@ -1016,6 +1149,7 @@ export async function startServer(opts: ServerOptions) {
         broadcastT(t);
         return;
       }
+      if (t.sched) return reply(schedJoin(t, p));
       const name = cleanName(p?.name);
       if (!name) return reply({ ok: false, error: 'Choisissez un nom' });
       if (t.status !== 'inscriptions') return reply({ ok: false, error: 'Les inscriptions sont closes.' });
@@ -1035,6 +1169,34 @@ export async function startServer(opts: ServerOptions) {
       autoStartIfFull(t);
       broadcastT(t);
     });
+
+    /**
+     * Salon d'un tournoi programmé : comptes inscrits seulement. Pendant les 5 minutes, un compte
+     * non inscrit peut s'inscrire ici (avec `pay: true` : 10 pièces débitées par le serveur).
+     */
+    function schedJoin(t: Tournament, p: any): Ack<{ code: string; playerId: string; token: string }> {
+      const u = accounts.userFromToken(p?.auth);
+      if (!u) return { ok: false, error: 'Les tournois programmés demandent un compte (gratuit). Créez-en un depuis l’accueil.' };
+      const same = t.players.find((x) => x.userId === u.id);
+      if (same) {
+        same.awayAt = null;
+        tAttach(t, same);
+        broadcastT(t);
+        return { ok: true, code: t.code, playerId: same.id, token: same.token };
+      }
+      if (t.status !== 'inscriptions' || t.sched!.cancelled) return { ok: false, error: 'Le tournoi a déjà commencé.' };
+      if (!sched.registered(t.sched!.slot).includes(u.id)) {
+        if (!p?.pay) return { ok: false, error: 'Inscrivez-vous d’abord (10 pièces).' };
+        const err = sched.register(u.id, t.sched!.slot);
+        if (err) return { ok: false, error: err };
+      }
+      const player: TPlayer = { id: randomUUID(), token: randomUUID(), name: u.username, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), userId: u.id, day: clientDay(p?.day), socketId: null, left: false, out: null };
+      t.players.push(player);
+      tAttach(t, player);
+      tNotice(t, `${player.name} a rejoint le salon.`);
+      broadcastT(t);
+      return { ok: true, code: t.code, playerId: player.id, token: player.token };
+    }
 
     socket.on('tournament:fillBots', (p: any, ack: unknown) => {
       const reply = safeAck(ack);
@@ -1084,7 +1246,11 @@ export async function startServer(opts: ServerOptions) {
       socket.leave(tRoom(t.code));
       socket.data.tcode = null;
       p.socketId = null;
-      if (t.status === 'inscriptions') {
+      if (t.sched && t.status === 'inscriptions') {
+        // Salon programmé : on quitte le salon mais on reste inscrit (absent au départ = remboursé).
+        t.players = t.players.filter((x) => x !== p);
+        tNotice(t, `${p.name} a quitté le salon.`);
+      } else if (t.status === 'inscriptions') {
         t.players = t.players.filter((x) => x !== p);
         tNotice(t, `${p.name} s'est désinscrit.`);
         if (t.timer) { clearTimeout(t.timer); t.timer = null; t.nextRoundAt = null; }
@@ -1113,6 +1279,7 @@ export async function startServer(opts: ServerOptions) {
       const tc = tctx();
       if (tc && tc.p.socketId === socket.id) {
         tc.p.socketId = null;
+        tc.p.awayAt = Date.now();
         if (tc.t.status === 'inscriptions' && tc.t.hostId === tc.p.id) {
           const next = tc.t.players.find((x) => x.socketId != null);
           if (next) tc.t.hostId = next.id;
@@ -1145,9 +1312,12 @@ export async function startServer(opts: ServerOptions) {
     rooms,
     tournaments,
     accounts,
+    store,
+    schedTick,
     close: () => new Promise<void>((resolve) => {
       accounts.social.close();
       clearInterval(sweeper);
+      if (schedTimer) clearInterval(schedTimer);
       for (const r of rooms.values()) { if (r.turnTimer) clearTimeout(r.turnTimer); if (r.hostTimer) clearTimeout(r.hostTimer); }
       for (const t of tournaments.values()) if (t.timer) clearTimeout(t.timer);
       rooms.clear();

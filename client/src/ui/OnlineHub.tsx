@@ -9,6 +9,7 @@ import { Icon } from './Icon';
 import { Shell } from './Screens';
 import { RecentGames } from './Friends';
 import { ProfileView } from './ProfileView';
+import { ScheduledCard } from './Scheduled';
 
 export type HubTab = 'tables' | 'tournois';
 const VARIANT: Record<string, string> = { classique: 'Partie classique', manches: 'Aux points', 'sans-charge': 'Sans charge' };
@@ -17,8 +18,9 @@ const VARIANT: Record<string, string> = { classique: 'Partie classique', manches
  * Jouer en ligne : rejoindre avec un code, créer une table ou un tournoi, ou choisir dans les
  * listes publiques (rafraîchies toutes les 4 secondes).
  */
-export function OnlineHub({ tab: initial, settings, onSettings, pa, onBack, onJoinRoom, onJoinTournament, onCreateRoom, onCreateTournament, onQuick }: {
+export function OnlineHub({ tab: initial, settings, onSettings, pa, onBack, onJoinRoom, onJoinTournament, onCreateRoom, onCreateTournament, onQuick, onJoinScheduled, onAccount }: {
   tab: HubTab; settings: Settings; onSettings: (s: Settings) => void; pa: ProfileApi; onBack: () => void;
+  onJoinScheduled?: (code: string, pay: boolean) => void; onAccount?: () => void;
   onJoinRoom: (code: string) => void; onJoinTournament: (code: string) => void; onCreateRoom: () => void; onCreateTournament: () => void; onQuick: () => void;
 }) {
   const [profile, setProfile] = useState<string | null>(null);
@@ -109,6 +111,8 @@ export function OnlineHub({ tab: initial, settings, onSettings, pa, onBack, onJo
           </section>
         ) : (
           <section>
+            {onJoinScheduled && <ScheduledCard pa={pa} onJoin={(c, pay) => go(() => onJoinScheduled(c, pay))} onAccount={onAccount ?? onBack} />}
+            <h3>Tournois entre amis</h3>
             <button className="btn primary wide" disabled={!ready} onClick={() => go(onCreateTournament)}><Icon name="trophy" /> Créer un tournoi</button>
             <p className="muted small hub-help">Plusieurs tables jouent en même temps ; la meilleure moitié de chaque table passe au tour suivant, jusqu'à la finale.</p>
             <h3>Tournois ouverts</h3>

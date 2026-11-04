@@ -18,8 +18,13 @@ import { GameScreen } from './GameScreen';
 import { Icon } from './Icon';
 import { Seg, StakePicker } from './OnlineHub';
 import { Shell } from './Screens';
+import { ScheduledLobby, ScheduledResults } from './Scheduled';
+import { schedRounds } from '../../../shared/scheduled';
 
-export type TournamentMode = { kind: 'create' } | { kind: 'join'; code: string } | { kind: 'resume' };
+export type TournamentMode = { kind: 'create' } | { kind: 'join'; code: string; pay?: boolean } | { kind: 'resume' };
+/** Nombre de tours prévus (tournoi programmé : format propre, finale de 4 à 6 joueurs). */
+const totalRounds = (t: PublicTournament) => Math.max(t.rounds.length,
+  t.sched ? schedRounds(t.sched.starters ?? t.players.length).rounds : roundsFor(t.players.length, t.settings.tableSize));
 const PLACE = (i: number) => (i === 0 ? '1er' : `${i + 1}e`);
 
 function useSession(session: OnlineSession | null) {
@@ -60,7 +65,7 @@ export function TournamentFlow({ mode, settings, onSettings, onExit, onCancel, a
     s.dice = pa.profile.equipped.dice;
     try {
       if (kind === 'create') await s.tCreate(name, settings.avatar, form);
-      else if (kind === 'join') await s.tJoin((mode as { code: string }).code, name, settings.avatar);
+      else if (kind === 'join') await s.tJoin((mode as { code: string }).code, name, settings.avatar, undefined, (mode as { pay?: boolean }).pay);
       else {
         const saved = loadSession();
         if (!saved?.tournament) throw new Error('Aucun tournoi à reprendre');
@@ -87,7 +92,7 @@ export function TournamentFlow({ mode, settings, onSettings, onExit, onCancel, a
     const atTable = room?.tournament === t.code && room.code === myTable?.code && session.game;
     if ((live || atTable) && !watchBracket) {
       const roundIdx = t.rounds.length - 1;
-      const total = Math.max(t.rounds.length, roundsFor(t.players.length, t.settings.tableSize));
+      const total = totalRounds(t);
       const note = (st: GameState) => {
         const rank = st.ranking.indexOf(session.playerId);
         const tb = currentTableOf(t, session.playerId);
@@ -159,7 +164,8 @@ function TournamentView({ session, t, pa, onExit, onBackToTable }: {
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const countdown = useCountdown(t.nextRoundAt);
-  const total = Math.max(t.rounds.length, roundsFor(t.players.length, t.settings.tableSize));
+  const total = totalRounds(t);
+  const sched = t.sched;
   const nameOf = (id: string) => t.players.find((p) => p.id === id)?.name ?? '?';
   const link = `${publicUrl()}/?tournoi=${t.code}`;
   const copy = async (text: string, what: string) => {
@@ -173,6 +179,8 @@ function TournamentView({ session, t, pa, onExit, onBackToTable }: {
   // Ce que le joueur doit savoir tout de suite.
   let headline: string;
   if (session.removed) headline = `Vous avez été désinscrit : ${session.removed}`;
+  else if (sched?.cancelled) headline = 'Tournoi annulé : tout le monde est remboursé.';
+  else if (sched && t.status === 'inscriptions') headline = 'Salon ouvert : le tournoi part dans quelques minutes.';
   else if (t.status === 'inscriptions') headline = countdown != null ? `Complet ! Départ dans ${countdown} s.` : `Inscriptions ouvertes : ${t.players.length} joueur${t.players.length > 1 ? 's' : ''} sur ${t.settings.maxPlayers}.`;
   else if (t.status === 'termine') {
     const place = t.standings!.indexOf(session.playerId);
@@ -182,7 +190,7 @@ function TournamentView({ session, t, pa, onExit, onBackToTable }: {
   else if (onBackToTable) headline = `Votre partie est en cours (${roundName(t.rounds.length - 1, total).toLowerCase()}).`;
   else headline = 'Qualifié ! En attente des autres tables.';
 
-  const leaveLabel = t.status === 'inscriptions' ? 'Me désinscrire' : t.status === 'en-cours' && me?.out == null ? 'Abandonner le tournoi' : null;
+  const leaveLabel = sched && t.status === 'inscriptions' ? null : t.status === 'inscriptions' ? 'Me désinscrire' : t.status === 'en-cours' && me?.out == null ? 'Abandonner le tournoi' : null;
   const leave = async () => {
     if (t.status === 'en-cours' && !(await askConfirm('Abandonner le tournoi ? Le serveur jouera vos parties à votre place.', 'Abandonner'))) return;
     session.tLeave();
@@ -190,25 +198,29 @@ function TournamentView({ session, t, pa, onExit, onBackToTable }: {
   };
 
   return (
-    <Shell title={t.settings.title} onBack={() => { if (t.status === 'inscriptions') session.tLeave(); else session.detach(); onExit(); }} wide>
+    <Shell title={t.settings.title} onBack={() => { if (t.status === 'inscriptions' && !sched) session.tLeave(); else session.detach(); onExit(); }} wide>
       <div className="t-head">
         <p className="t-headline">{headline}</p>
         {onBackToTable && <button className="btn primary" onClick={onBackToTable}><Icon name="dice" /> Revenir à ma table</button>}
-        {t.status === 'inscriptions' && isHost && (
+        {t.status === 'inscriptions' && isHost && !sched && (
           <button className="btn primary" disabled={t.players.length < MIN_TOURNAMENT_PLAYERS} onClick={start}>
             {t.players.length < MIN_TOURNAMENT_PLAYERS ? `Il faut ${MIN_TOURNAMENT_PLAYERS} inscrits pour lancer` : `Lancer le tournoi (${t.players.length} joueurs)`}
           </button>
         )}
-        {t.status === 'inscriptions' && isHost && t.settings.stake === 0 && t.players.length < t.settings.maxPlayers && (
+        {t.status === 'inscriptions' && isHost && !sched && t.settings.stake === 0 && t.players.length < t.settings.maxPlayers && (
           <button className="btn" onClick={async () => { setErr(null); const a = await session.tFillBots('normal'); if (!a.ok) setErr(a.error); }}>
             <Icon name="plus" /> Compléter avec des ordinateurs
           </button>
         )}
-        {t.status === 'inscriptions' && !isHost && <p className="muted small">L'organisateur lance le tournoi ; il démarre aussi tout seul quand il est complet.</p>}
+        {t.status === 'inscriptions' && !isHost && !sched && <p className="muted small">L'organisateur lance le tournoi ; il démarre aussi tout seul quand il est complet.</p>}
         {err && <p className="error">{err}</p>}
       </div>
 
-      {t.status === 'inscriptions' ? (
+      {sched && t.status === 'inscriptions' ? (
+        <ScheduledLobby t={t} meId={session.playerId} />
+      ) : sched?.cancelled ? (
+        <ScheduledResults t={t} meId={session.playerId} />
+      ) : t.status === 'inscriptions' ? (
         <div className="cols">
           <section>
             <div className="code-box">
@@ -241,7 +253,8 @@ function TournamentView({ session, t, pa, onExit, onBackToTable }: {
         </div>
       ) : (
         <>
-          {t.status === 'termine' && t.standings && (
+          {t.status === 'termine' && sched && <ScheduledResults t={t} meId={session.playerId} />}
+          {t.status === 'termine' && t.standings && !sched && (
             <section>
               <h3>Classement final</h3>
               <ol className="ranking t-standings">
@@ -282,13 +295,13 @@ function TournamentView({ session, t, pa, onExit, onBackToTable }: {
               );
             })}
           </div>
-          <TournamentRules t={t} gains={gains} pa={pa} compact />
+          {!sched && <TournamentRules t={t} gains={gains} pa={pa} compact />}
         </>
       )}
 
       <div className="row left t-actions">
         {leaveLabel && <button className="btn danger" onClick={leave}>{leaveLabel}</button>}
-        {t.status === 'termine' && <button className="btn" onClick={() => { session.detach(); onExit(); }}>Retour à l'accueil</button>}
+        {(t.status === 'termine' || sched?.cancelled) && <button className="btn" onClick={() => { session.detach(); onExit(); }}>Retour à l'accueil</button>}
       </div>
     </Shell>
   );
