@@ -19,7 +19,7 @@ import { ChallengeCard, type DuelPlay } from './ChallengeScreen';
 import { QuestsPanel } from './AccountScreens';
 import { DieCube } from './DiceCollection';
 import { ReferralCard, useReferral } from './Referral';
-import { FriendsButton, OpenLobbies } from './Friends';
+import { FriendsButton, NewsTicker, OpenLobbies } from './Friends';
 import { NotifBell, NotifPanel, useNotifications } from './Social';
 import { InstallPrompt } from './InstallPrompt';
 import { MusicControl, VolumeControl } from './VolumeControl';
@@ -52,6 +52,17 @@ export function nextTournamentSlot(now = Date.now()): { label: string; minutes: 
   return { label: '11:00', minutes: 24 * 60 - cur + 11 * 60 };
 }
 const inTime = (min: number) => (min <= 0 ? 'salon ouvert !' : min < 60 ? `dans ${min} min` : `dans ${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`);
+
+/** Salons publics qui attendent des joueurs (affichés seulement s'il y en a). */
+function useOpenLobbies() {
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (STANDALONE) return;
+    const load = () => api<{ lobbies: unknown[] }>('/lobbies').then((r) => setN(r.lobbies.length)).catch(() => {});
+    load(); const t = setInterval(load, 10_000); return () => clearInterval(t);
+  }, []);
+  return n;
+}
 
 function useOnlineCount() {
   const [n, setN] = useState<number | null>(null);
@@ -182,6 +193,7 @@ export function Home(props: HomeProps) {
   }, []);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
   const online = useOnlineCount();
+  const lobbies = useOpenLobbies();
   const referral = useReferral(pa);
   const li = levelInfo(profile.xp);
   const name = pa.session?.username ?? (props.displayName || 'Invité');
@@ -243,6 +255,7 @@ export function Home(props: HomeProps) {
     if (props.resume && !STANDALONE) return <button className="home-banner resume" onClick={props.onResume}><Icon name="resume" size={20} /><span><b>{props.resume.tournament ? 'Reprendre le tournoi' : 'Reprendre la partie'}</b><small>Table {props.resume.code}</small></span></button>;
     if (pa.welcomeBack) return <button className="home-banner gift" onClick={() => { pa.dismissWelcome(); props.onCollection(); }}><Icon name="gift" size={20} /><span><b>Content de vous revoir !</b><small>Un sac de dés vous attend dans la Collection.</small></span></button>;
     if (!profile.tutorial) return <button className="home-banner tuto" onClick={props.onTutorial}><Icon name="resume" size={20} /><span><b>Nouveau ? Apprendre à jouer</b><small>Partie guidée de 3 minutes</small></span><em>+50 pièces</em></button>;
+    if (lobbies > 0 && netOk) return <button className="home-banner lobbies" onClick={() => setSheet('lobbies')}><Icon name="people" size={20} /><span><b>{lobbies > 1 ? `${lobbies} parties attendent des joueurs` : 'Une partie attend des joueurs'}</b><small>Rejoignez une table ouverte</small></span><em>Voir</em></button>;
     if (!STANDALONE && !pa.isAccount) return <button className="home-banner account" onClick={props.onAccount}><Icon name="key" size={20} /><span><b>Gardez votre progression</b><small>Compte gratuit : classements, clubs, amis, tables avec mise</small></span><em>Créer</em></button>;
     if (happyHour(now)) return <HappyHourBanner />;
     if (ev) return <EventBanner onShop={props.onShop} />;
@@ -276,6 +289,7 @@ export function Home(props: HomeProps) {
           <HeroTray pa={pa} settings={props.settings} />
           <h1 className="plaque h2-plaque"><span>421</span></h1>
           {online !== null && <button className="h2-live" onClick={props.onStats}><i aria-hidden />{online} en ligne</button>}
+          {!STANDALONE && <div className="h2-news"><NewsTicker /></div>}
           {titleLabel(profile.title) && <span className="h2-title-chip">{titleLabel(profile.title)}</span>}
           <button className="h2-play" onClick={props.onSolo}><Icon name="dice" size={26} /><span>Jouer contre l'ordinateur</span><Icon name="back" size={20} /></button>
         </section>

@@ -1450,3 +1450,8 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 /* ---------- Écrans de menu : en-tête plus net, panneaux plus chaleureux ---------- */
 .panel-head h2 { font: 800 26px/1.05 var(--cond); letter-spacing: 0.01em; }
 .panel h3 { font: 700 15px/1.2 var(--cond); letter-spacing: 0.08em; text-transform: uppercase; color: #cfe0d6; }
+.home-banner.lobbies { border-color: rgba(141,180,255,0.5); background: linear-gradient(90deg, #26457f, #1b305c); box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 4px 0 #0c1a38; }
+.home-banner.lobbies small { color: #d8e3ff; }
+.h2-news { position: absolute; left: 12px; right: 12px; top: 64px; z-index: 2; pointer-events: none; display: flex; }
+.h2-news .news-ticker { margin: 0; max-width: 100%; padding: 5px 10px; border-radius: 999px; background: rgba(0,0,0,0.5); font-size: 12px; line-height: 1.2; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-height: 700px) { .h2-news { display: none; } }
