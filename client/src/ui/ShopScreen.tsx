@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Icon } from './Icon';
 import {
-  CATEGORY_LABELS, getItem, itemsOf, type Appearance, type Category, type Item,
+  CATEGORY_LABELS, getItem, itemsOf, resolveAppearance, type Appearance, type Category, type Item,
 } from '../../../shared/progress/catalog';
 import { canBuy, levelInfo, type Profile } from '../../../shared/progress/profile';
-import { TRAY_SHAPES } from '../physics/trayShapes';
 import { sound } from '../audio/sound';
 import type { Settings } from '../settings';
 import { DiceTray, type DiceTrayHandle } from './DiceTray';
-import { MiniDie } from './MiniDie';
+import { DieCube } from './DiceCollection';
+import { useThumb, useThumbHost } from '../three/shopThumbs';
 import { ProfileChip } from './Screens';
 import { Avatar } from './Avatar';
 import { activeEvent, eventEnd, shortDate } from '../../../shared/progress/events';
@@ -16,30 +16,53 @@ import { today } from '../../../shared/progress/quests';
 
 const CATS: Category[] = ['decor', 'felt', 'rim', 'shape', 'dice', 'accessoire'];
 
-/** Vignette d'un objet (couleurs, forme ou dé miniature). */
-function Swatch({ item }: { item: Item }) {
-  switch (item.category) {
-    case 'decor':
-      return <span className="sw" style={{ background: `linear-gradient(160deg, ${item.background} 0 45%, ${item.table.base} 45% 100%)`, boxShadow: `inset 0 0 0 3px ${item.accent}55` }} />;
-    case 'felt':
-      return <span className={`sw felt${item.pattern ? ` pat-${item.pattern}` : ''}`} style={{ backgroundColor: item.color }} />;
-    case 'rim':
-      return <span className="sw" style={{ background: `linear-gradient(180deg, ${item.cap} 0 18%, ${item.base} 18% 75%, ${item.dark} 100%)` }} />;
-    case 'shape': {
-      const sh = TRAY_SHAPES[item.shape];
-      const k = 36 / Math.max(sh.halfX, sh.halfZ);
-      const pts = sh.verts.map(([x, z]) => `${50 + x * k},${50 + z * k}`).join(' ');
-      return (
-        <svg className="sw" viewBox="0 0 100 100">
-          {sh.circleRadius ? <circle cx="50" cy="50" r={sh.circleRadius * k} /> : <polygon points={pts} />}
-        </svg>
-      );
-    }
-    case 'dice':
-      return <span className="sw dice"><MiniDie value={5} size={40} body={item.body} pip={item.pip} /></span>;
-    case 'accessoire':
-      return <span className="sw acc-sw">{item.emoji || '–'}</span>;
+/** Cadrage de la vignette 3D selon la catégorie : la salle pour un décor, le drap pour un tapis… */
+const VIEW: Partial<Record<Category, { elev: number; fit: number }>> = {
+  decor: { elev: 40, fit: 1.55 },
+  felt: { elev: 62, fit: 0.62 },
+  rim: { elev: 34, fit: 0.92 },
+  shape: { elev: 72, fit: 1.05 },
+};
+const THUMB_W = 344, THUMB_H = 200; // pixels rendus (affichés à moitié : nets sur écran haute densité)
+
+/** Vignette d'un objet : vrai rendu du bac avec l'objet installé, ou dé en volume, ou accessoire. */
+function Thumb({ item, base }: { item: Item; base: Appearance }) {
+  const view = VIEW[item.category];
+  // Rendu seulement quand la carte approche de l'écran : pas de travail pour les cartes jamais vues.
+  const ref = useRef<HTMLSpanElement>(null);
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !view || near) return;
+    if (typeof IntersectionObserver === 'undefined') { setNear(true); return; }
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { setNear(true); io.disconnect(); } }, { rootMargin: '200px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [view, near]);
+  const look = view && near ? { ...base, [item.category]: item.id } : null;
+  const url = useThumb(look && view ? { look, w: THUMB_W, h: THUMB_H, elev: view.elev, fit: view.fit } : null);
+  if (item.category === 'dice') {
+    return <span className="shop-thumb shop-thumb-dice" style={feltBg(base)}><DieCube id={item.id} size={44} /></span>;
   }
+  if (item.category === 'accessoire') {
+    return <span className="shop-thumb shop-thumb-acc" style={feltBg(base)}><span>{item.emoji || '–'}</span></span>;
+  }
+  return (
+    <span ref={ref} className={`shop-thumb${url ? ' ready' : ''}`} style={thumbBg({ ...base, [item.category]: item.id })}>
+      {url ? <img src={url} alt="" draggable={false} /> : <i className="shop-thumb-wait" aria-hidden />}
+    </span>
+  );
+}
+
+/** Tapis installé, éclairé par la lampe : fond des dés et accessoires. */
+function feltBg(a: Appearance): CSSProperties {
+  return { backgroundColor: resolveAppearance(a).felt.color };
+}
+
+/** Fond d'attente fidèle aux couleurs (salle, tapis) pendant le rendu de la vignette. */
+function thumbBg(a: Appearance): CSSProperties {
+  const L = resolveAppearance(a);
+  return { backgroundColor: L.felt.color, boxShadow: `inset 0 0 0 9px ${L.rim.base}, inset 0 0 0 22px ${L.decor.table.base}, inset 0 0 0 23px ${L.decor.background}` };
 }
 
 interface Props {
@@ -100,61 +123,65 @@ export function ShopScreen({ profile, settings, onBuy, onEquip, onBack }: Props)
     setRolling(false);
   };
 
+  useThumbHost();
+  const items = itemsOf(cat).filter(visible);
+  const action = equipped ? <button className="btn shop-buy" disabled>✓ Installé</button>
+    : owned ? <button className="btn primary shop-buy" disabled={busy} onClick={doEquip}>Installer</button>
+      : check.ok ? <button className="btn shop-buy shop-buy-gold" disabled={busy} onClick={doBuy}>{item.price === 0 ? 'Prendre' : `Acheter · ${item.price.toLocaleString('fr-BE')}`}</button>
+        : <button className="btn shop-buy" disabled>
+          {check.reason === 'level' ? `Niveau ${item.level} requis` : check.reason === 'pass' ? 'Se gagne avec le pass' : check.reason === 'event' ? 'Événement terminé' : `Il manque ${item.price - profile.coins} pièces`}
+        </button>;
+
   return (
-    <div className="shop">
+    <div className="shop shop-v2">
       <header className="shop-head">
         <button className="icon-btn" onClick={onBack} aria-label="Retour"><Icon name="back" /></button>
-        <h2>Personnaliser</h2>
+        <h2>Boutique</h2>
         <ProfileChip profile={profile} />
       </header>
 
-      <div className="shop-body">
-        <section className="shop-preview">
-          <DiceTray ref={tray} appearance={preview} quality={settings.quality} cup={settings.cup} insets={{ top: 8, bottom: 64, left: 0, right: 0 }} />
+      <div className="shop-main">
+        <section className="shop-hero">
+          <DiceTray ref={tray} appearance={preview} quality={settings.quality} cup={settings.cup} insets={{ top: 6, bottom: 6, left: 0, right: 0 }} />
           {cat === 'accessoire' && (
-            <div className="acc-preview"><Avatar emoji={settings.avatar} size={140} accessory={item.category === 'accessoire' ? item.emoji : undefined} /></div>
+            <div className="acc-preview"><Avatar emoji={settings.avatar} size={120} accessory={item.category === 'accessoire' ? item.emoji : undefined} /></div>
           )}
-          <button className="btn small preview-roll" disabled={rolling} onClick={tryRoll}>Lancer pour essayer</button>
+          <span className="shop-hero-tag">Aperçu</span>
+          {cat !== 'accessoire' && <button className="shop-hero-roll" disabled={rolling} onClick={tryRoll}><Icon name="dice" size={18} /> Lancer</button>}
         </section>
 
-        <section className="shop-side">
-          <nav className="tabs">
-            {CATS.map((c) => <button key={c} className={c === cat ? 'on' : ''} onClick={(e) => { setCat(c); e.currentTarget.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); }}>{CATEGORY_LABELS[c]}</button>)}
-          </nav>
-          <div className="items">
-            {itemsOf(cat).filter(visible).map((it) => {
-              const own = profile.owned.includes(it.id);
-              const eq = profile.equipped[cat] === it.id;
-              const locked = !own && level < it.level;
-              return (
-                <button key={it.id} className={`item${it.id === selected ? ' sel' : ''}${locked ? ' locked' : ''}`} onClick={() => { setSelected(it.id); setMsg(null); }}>
-                  <Swatch item={it} />
-                  <span className="it-name">{it.name}</span>
-                  <span className="it-state">
-                    {eq ? 'Installé' : own ? 'Possédé' : locked ? `Niveau ${it.level}` : it.price === 0 ? 'Gratuit' : `${it.price} pièces`}
-                  </span>
-                  <span className="it-tag">
-                    {it.event && !own ? `Jusqu'au ${shortDate(eventEnd(event!, day))}` : it.pass ? 'Pass de saison' : ''}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="item-detail">
-            <div>
-              <b>{item.name}</b>
-              {item.description && <p className="muted small">{item.description}</p>}
-              {msg && <p className="ok small">{msg}</p>}
-            </div>
-            {equipped ? <button className="btn" disabled>✓ Installé</button>
-              : owned ? <button className="btn primary" disabled={busy} onClick={doEquip}>Installer</button>
-                : check.ok ? <button className="btn primary" disabled={busy} onClick={doBuy}>Acheter pour {item.price} pièces</button>
-                  : <button className="btn" disabled>
-                    {check.reason === 'level' ? `Niveau ${item.level} requis` : check.reason === 'pass' ? 'Se gagne avec le pass' : check.reason === 'event' ? 'Événement terminé' : `Il manque ${item.price - profile.coins} pièces`}
-                  </button>}
-          </div>
-          <p className="muted small shop-note">Les pièces se gagnent en jouant (victoires, 4-2-1, niveaux). Elles ne s'achètent pas et ne valent rien hors du jeu.</p>
-        </section>
+        <nav className="shop-tabs" aria-label="Catégories">
+          {CATS.map((c) => <button key={c} className={c === cat ? 'on' : ''} aria-pressed={c === cat} onClick={(e) => { setCat(c); e.currentTarget.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); }}>{CATEGORY_LABELS[c]}</button>)}
+        </nav>
+
+        <div className="shop-grid">
+          {items.map((it) => {
+            const own = profile.owned.includes(it.id);
+            const eq = profile.equipped[cat] === it.id;
+            const locked = !own && level < it.level;
+            const tag = it.event && !own ? `Jusqu'au ${shortDate(eventEnd(event!, day))}` : it.pass ? 'Pass de saison' : '';
+            return (
+              <button key={it.id} className={`shop-card${it.id === selected ? ' sel' : ''}${locked ? ' locked' : ''}`} onClick={() => { setSelected(it.id); setMsg(null); }}>
+                <Thumb item={it} base={profile.equipped} />
+                <b className="shop-card-name">{it.name}</b>
+                <span className={`shop-card-state${eq ? ' eq' : own ? ' own' : locked ? ' lock' : ' price'}`}>
+                  {locked && <Icon name="lock" size={13} />}
+                  {eq ? 'Installé' : own ? 'Possédé' : locked ? `Niveau ${it.level}` : it.price === 0 ? 'Gratuit' : `${it.price.toLocaleString('fr-BE')} pièces`}
+                </span>
+                {tag && <span className="shop-card-tag">{tag}</span>}
+              </button>
+            );
+          })}
+          <p className="shop-fine">Les pièces se gagnent en jouant (victoires, 4-2-1, niveaux). Elles ne s'achètent pas et ne valent rien hors du jeu.</p>
+        </div>
+
+        <footer className="shop-foot">
+          <span className="shop-foot-text">
+            <b>{item.name}</b>
+            {msg ? <span className="ok small">{msg}</span> : item.description ? <span>{item.description}</span> : null}
+          </span>
+          {action}
+        </footer>
       </div>
     </div>
   );
