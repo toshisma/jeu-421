@@ -40,7 +40,7 @@ describe('dés de collection', () => {
     expect(p.bags ?? 0).toBe(0);
     const a = applyGameEnd(p, r, ctx, '2026-06-10', () => 0.99);
     expect(a.bagsFound).toBe(1);
-    expect(a.profile.bags).toBe(1);
+    expect(a.profile.bags).toBe(2); // 1 trouvé + 1 offert par « Légende vivante » (10 victoires d'affilée)
     expect(a.profile.pity).toBe(0);
     expect(applyGameEnd(newProfile(), r, ctx, '2026-06-10', () => 0).bagsFound).toBe(1);
     // Mort subite : rien.

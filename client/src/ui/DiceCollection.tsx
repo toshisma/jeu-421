@@ -1,3 +1,5 @@
+import { BAG_PRICE } from '../../../shared/progress/profile';
+import { today } from '../../../shared/progress/quests';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { getItem, type DiceItem } from '../../../shared/progress/catalog';
 import {
@@ -148,7 +150,7 @@ function DieSheet({ pa, id, onClose }: { pa: ProfileApi; id: string; onClose: ()
             </button>
           </div>
         ) : isShiny(id) || isSeasonDie(id) || isInviteDie(id) ? (
-          <p className="muted">{isInviteDie(id) ? `Set « Feu et Glace » : offert quand ${INVITE_SET_FRIENDS} amis invités avec votre lien ont créé leur compte et joué ${INVITE_SET_GAMES} parties chacun.` : isSeasonDie(id) ? 'Les dés de saison se gagnent seulement en fin de saison classée.' : 'Les dés brillants ne se fabriquent pas : on les trouve seulement dans les sacs.'}</p>
+          <p className="muted">{id === 'dl-collectionneur' ? 'Offert avec le succès « Tout le catalogue ».' : isInviteDie(id) ? `Set « Feu et Glace » : offert quand ${INVITE_SET_FRIENDS} amis invités avec votre lien ont créé leur compte et joué ${INVITE_SET_GAMES} parties chacun.` : isSeasonDie(id) ? 'Les dés de saison se gagnent seulement en fin de saison classée.' : 'Les dés brillants ne se fabriquent pas : on les trouve seulement dans les sacs.'}</p>
         ) : (
           <div className="row">
             <button className="btn primary" disabled={(p.shards ?? 0) < cost || !pa.isAccount} onClick={() => void run(() => pa.craft(id))}>Fabriquer pour {cost} éclats</button>
@@ -202,6 +204,8 @@ export function CollectionScreen({ pa, onBack, onAccount }: { pa: ProfileApi; on
   const seasonDice = p.owned.filter(isSeasonDie);
   const [open, setOpen] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
+  const [buying, setBuying] = useState(false);
+  const [buyErr, setBuyErr] = useState<string | null>(null);
   const count = collectionCount(p);
   const bags = p.bags ?? 0;
   // Les dés possédés d'abord (du plus rare au plus commun), puis ceux qui restent à trouver.
@@ -223,6 +227,15 @@ export function CollectionScreen({ pa, onBack, onAccount }: { pa: ProfileApi; on
             ? <button className="btn primary" disabled={bags < 1} onClick={() => setOpening(true)}>Ouvrir un sac</button>
             : <button className="btn primary" onClick={onAccount}>Créer un compte pour ouvrir</button>}
         </div>
+        {pa.isAccount && (
+          <div className="bag-buy">
+            <span>{p.bagBuyDay === today() ? 'Sac du jour déjà acheté : revenez demain.' : `Un sac par jour à la boutique du comptoir, ${BAG_PRICE} pièces.`}</span>
+            <button className="btn small" disabled={p.bagBuyDay === today() || p.coins < BAG_PRICE || buying} onClick={async () => {
+              setBuying(true); const e = await pa.buyDiceBag(); setBuying(false); if (e) setBuyErr(e);
+            }}>Acheter un sac</button>
+            {buyErr && <small className="error">{buyErr}</small>}
+          </div>
+        )}
         <div className="coll-stats">
           <span><b>{count.owned}</b>/{count.total} dés</span>
           <span><b>{count.shiny}</b> brillant{count.shiny > 1 ? 's' : ''}</span>

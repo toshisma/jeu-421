@@ -93,7 +93,11 @@ export const INVITE_DICE: CollectionDie[] = [
   { id: 'dl-loup-nord', name: 'Loup du Grand Nord', rarity: 'legendaire', body: '#2f3a44', body2: '#1a232b', pip: '#f4f8fb', accent: '#9fd8ff', pattern: 'craquele',
     roughness: 0.4, metalness: 0.15, clearcoat: 0.8, glow: true, flavor: 'L’hiver vient toujours avant la tournée suivante.' },
 ];
-const inviteById = new Map(INVITE_DICE.map((c) => [c.id, c]));
+/** Dé exclusif du succès « Tout le catalogue ». */
+export const COLLECTOR_DIE: CollectionDie = { id: 'dl-collectionneur', name: 'Le Collectionneur', rarity: 'legendaire', body: '#14213d', body2: '#0b1426', pip: '#f2c94c',
+  accent: '#c9a046', pattern: 'filigrane', roughness: 0.2, metalness: 0.3, clearcoat: 1, glow: true, flavor: 'Réservé à celles et ceux qui ont tout le catalogue. Il n’y en a pas d’autre.' };
+export const SPECIAL_DICE: CollectionDie[] = [...INVITE_DICE, COLLECTOR_DIE];
+const inviteById = new Map(SPECIAL_DICE.map((c) => [c.id, c]));
 export const isInviteDie = (id: string) => inviteById.has(baseIdOf(id));
 
 export function collectionDie(id: string): CollectionDie | undefined {

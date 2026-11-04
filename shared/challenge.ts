@@ -65,4 +65,4 @@ export function playChallenge(day: string, decisions: unknown): ChallengeResult 
 }
 
 /** Récompense du défi (une fois par jour) : pièces selon le score, un peu d'XP. */
-export const challengeReward = (points: number) => ({ coins: 10 + points, xp: 20 });
+export const challengeReward = (points: number) => ({ coins: 10 + Math.floor(points / 2), xp: 20 });

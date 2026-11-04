@@ -66,6 +66,9 @@ Captures mobiles : scripts `puppeteer-core` dans `scripts/` (Chrome : `/usr/bin/
 - Domaine 421online.com chez OVH (pas d'enregistrement AAAA : il cassait le site). Search Console validé, sitemap à `/sitemap.xml`.
 - Le site est classé à tort « Pornography » par certains filtres (écoles) : reclassification demandée via FortiGuard & co.
 
+## En attente
+- Branche `journal-visiteurs` (non publiée) : pays des visiteurs (fuseau horaire) et journal des actions dans l'administration, testée. Pour la publier : la fusionner dans `main` quand Sam donne son accord (pas de joueurs en ligne).
+
 ## Idées validées pour la suite
 - **Mode « 421 Magic »** (cartes à effets et combos, ressource « Tournées », familles Habitués / Ivresse / Pièges / Chaînes), d'abord contre les bots.
 - **Tournée des comptoirs** : carrière de bistrots (solo + réputation en multi), étoiles, règles maison.

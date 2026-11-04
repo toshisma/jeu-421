@@ -17,7 +17,7 @@ import { challengeReward, playChallenge } from '../shared/challenge';
 import { PHRASES } from '../shared/protocol';
 import {
   adjustCoins, applyGameEnd, applyPot, applyTournament, buy, claimDaily, claimPassTier, completeTutorial, setTitle, titleLabel, addSeasonPoints, REWARDS,
-  LEAGUES, LEAGUE_DEMOTE, LEAGUE_PRIZES, ALBUM_KEYS, CLUB_CHEST, CLUB_COST, CLUB_EMBLEMS, CLUB_MAX, doPrestige, PRESTIGE_LEVEL, LEAGUE_PROMOTE, LEAGUE_SIZE, REFERRAL_BONUS, REFERRAL_GAMES, REFERRAL_BAGS_MAX, RETURN_DAYS, openChest, claimQuest, equip, levelInfo, rewardFor, sanitizeProfile, newProfile,
+  LEAGUES, LEAGUE_DEMOTE, LEAGUE_PRIZES, ALBUM_KEYS, CLUB_CHEST, CLUB_COST, CLUB_EMBLEMS, CLUB_MAX, doPrestige, PRESTIGE_LEVEL, LEAGUE_PROMOTE, LEAGUE_SIZE, REFERRAL_BONUS, REFERRAL_GAMES, REFERRAL_BAGS_MAX, RETURN_DAYS, openChest, buyBag, BAG_PRICE, claimQuest, equip, levelInfo, rewardFor, sanitizeProfile, newProfile,
   openBag, craftDie, setShowcase, collectionCount, equipFx, BAGS_MAX,
   type Profile, type RewardContext,
 } from '../shared/progress/profile';
@@ -253,6 +253,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     else if (r.result.rarity === 'epique') news(`🎒 ${u.username} a sorti un dé épique`);
     res.json({ ok: true, profile: r.profile, result: r.result });
   });
+  router.post('/bags/buy', auth, (req, res) =>
+    mutate(req, res, (p) => buyBag(p, brusselsDate(Date.now())), `Un sac par jour, à ${BAG_PRICE} pièces.`));
   router.post('/collection/craft', auth, (req, res) =>
     mutate(req, res, (p) => craftDie(p, String(req.body?.id ?? '')), 'Pas assez d’éclats, ou dé déjà possédé.'));
   router.post('/collection/fx', auth, (req, res) => {

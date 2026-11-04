@@ -43,7 +43,7 @@ describe('défi du jour : serveur', () => {
     const r1 = await call('/challenge/submit', { decisions: none }, a.token);
     expect(r1.ok).toBe(true);
     expect(r1.rank).toBe(1);
-    expect(r1.profile.coins).toBe(10 + r1.result.points);
+    expect(r1.profile.coins).toBe(10 + Math.floor(r1.result.points / 2));
     expect((await call('/challenge/submit', { decisions: none }, a.token)).status).toBe(409);
     expect((await call('/challenge/submit', { decisions: [[]] }, b.token)).status).toBe(400);
     await call('/challenge/submit', { decisions: [[[true, false, false]], [], [], [], []] }, b.token);

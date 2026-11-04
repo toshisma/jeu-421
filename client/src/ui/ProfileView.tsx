@@ -57,7 +57,7 @@ function Achievements({ unlocked, progress }: { unlocked: Record<string, number>
               <li key={a.id} className="secret" title="Succès secret : à vous de le découvrir">
                 <span className="ach-icon">❔</span>
                 <span className="ach-name">Succès secret</span>
-                <span className="ach-desc">À découvrir en jouant… {a.coins} pièces</span>
+                <span className="ach-desc">À découvrir en jouant… {a.coins} pièces{a.bags ? ' + 1 sac' : ''}</span>
               </li>
             );
           }
@@ -67,8 +67,8 @@ function Achievements({ unlocked, progress }: { unlocked: Record<string, number>
               <span className="ach-name">{a.name}{a.rare && <em className="ach-rare"> difficile</em>}</span>
               <span className="ach-desc">{a.description}</span>
               {at ? <span className="ach-ok">✓ {date(at)}</span>
-                : progress ? <span className="ach-prog"><i style={{ width: `${(100 * v) / a.target}%` }} /><em>{v} sur {a.target}, {a.coins} pièces</em></span>
-                  : <span className="ach-desc">{a.coins} pièces</span>}
+                : progress ? <span className="ach-prog"><i style={{ width: `${(100 * v) / a.target}%` }} /><em>{v} sur {a.target}, {a.coins} pièces{a.bags ? ' + 1 sac' : ''}{a.item ? ' + dé exclusif' : ''}</em></span>
+                  : <span className="ach-desc">{a.coins} pièces{a.bags ? ' + 1 sac' : ''}{a.item ? ' + dé exclusif' : ''}</span>}
             </li>
           );
         })}

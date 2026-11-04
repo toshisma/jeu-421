@@ -204,6 +204,7 @@ export function useProfile(enabled: boolean) {
       return { coins: r.coins, bag: r.bag };
     } catch (e) { return { error: (e as Error).message }; }
   }, []);
+  const buyDiceBag = useCallback(() => act2('/bags/buy', {}, () => null), [act2]);
   const claimDailyReward = useCallback(() => act2('/daily/claim', {}, (p) => claimDaily(p)?.profile ?? null), [act2]);
   const claimPass = useCallback((tier: number) => act2('/season/claim', { tier }, (p) => claimPassTier(p, tier)?.profile ?? null), [act2]);
   const chooseTitle = useCallback((id: string | null) => act2('/title', { id }, (p) => setTitle(p, id)), [act2]);
@@ -329,7 +330,7 @@ export function useProfile(enabled: boolean) {
     profile, session, user, isAccount: !!session, welcomeBack, dismissWelcome: () => setWelcomeBack(false), photo, setPhoto, removePhoto,
     register, login, recover, logout, deleteAccount,
     submitChallenge,
-    buyItem, equipItem, claim, blocked, block, isBlocked, claimDailyReward, openEveningChest, claimPass, chooseTitle, finishTutorial, prestige,
+    buyItem, equipItem, claim, blocked, block, isBlocked, claimDailyReward, openEveningChest, buyDiceBag, claimPass, chooseTitle, finishTutorial, prestige,
     onSoloStart, onGameEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
     token: session?.token ?? null,
   };

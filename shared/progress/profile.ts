@@ -67,6 +67,8 @@ export interface Profile {
   lastVisit?: number;
   /** Moment de la dernière ouverture du coffre (le suivant s'ouvre 24 h après). */
   chestAt?: number;
+  /** Jour du dernier sac acheté en boutique. */
+  bagBuyDay?: string;
   /** Scores contre les habitués de l'ordinateur : nom → victoires / défaites. */
   vsAi?: Record<string, { w: number; l: number }>;
 }
@@ -102,7 +104,7 @@ export const REWARDS = {
   bonus421Coins: 1,
   bonus421Max: 3,
   difficulty: { facile: 0.5, normal: 1, difficile: 1.4 } as Record<Difficulty, number>,
-  online: 1.25,
+  online: 1.5,
   /** Durée (minutes) pour une récompense complète, et part minimale. */
   fullMinutes: 15,
   minDurationFactor: 0.2,
@@ -188,6 +190,7 @@ export function sanitizeProfile(raw: unknown): Profile {
   if (num(r.refBase)) p.refBase = num(r.refBase);
   if (num(r.lastVisit)) p.lastVisit = num(r.lastVisit);
   if (num(r.chestAt)) p.chestAt = num(r.chestAt);
+  if (typeof r.bagBuyDay === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.bagBuyDay)) p.bagBuyDay = r.bagBuyDay;
   if (num(r.referralBags)) p.referralBags = Math.min(REFERRAL_BAGS_MAX, num(r.referralBags));
   if (num(r.shards)) p.shards = num(r.shards);
   if (num(r.pity)) p.pity = Math.min(BAG_PITY, num(r.pity));
@@ -335,7 +338,10 @@ export function checkAchievements(p: Profile, now = Date.now()): { profile: Prof
   if (!unlocked.length) return { profile: p, unlocked };
   const achievements = { ...p.achievements };
   for (const a of unlocked) achievements[a.id] = now;
-  return { profile: { ...p, achievements, coins: p.coins + unlocked.reduce((n, a) => n + a.coins, 0) }, unlocked };
+  const bags = unlocked.reduce((n, a) => n + (a.bags ?? 0), 0);
+  const items = unlocked.map((a) => a.item).filter((x): x is string => !!x && !p.owned.includes(x));
+  return { profile: { ...p, achievements, coins: p.coins + unlocked.reduce((n, a) => n + a.coins, 0),
+    ...(bags ? { bags: Math.min(BAGS_MAX, (p.bags ?? 0) + bags) } : {}), ...(items.length ? { owned: [...p.owned, ...items] } : {}) }, unlocked };
 }
 
 /** Pièces gagnées ou dépensées hors partie (mise, cagnotte, gain de tournoi). Refuse un solde négatif. */
@@ -763,4 +769,11 @@ export function openChest(p: Profile, t = Date.now(), rnd = Math.random): { prof
   const coins = 15 + Math.floor(rnd() * 26);
   const bag = rnd() < CHEST_BAG_CHANCE;
   return { coins, bag, profile: { ...p, chestAt: t, coins: p.coins + coins, bags: bag ? Math.min(BAGS_MAX, (p.bags ?? 0) + 1) : p.bags } };
+}
+
+// --- Sac de dés en boutique : 150 pièces, un par jour au plus ---
+export const BAG_PRICE = 150;
+export function buyBag(p: Profile, day = today()): Profile | null {
+  if (p.bagBuyDay === day || p.coins < BAG_PRICE || (p.bags ?? 0) >= BAGS_MAX) return null;
+  return { ...p, coins: p.coins - BAG_PRICE, bags: (p.bags ?? 0) + 1, bagBuyDay: day };
 }
