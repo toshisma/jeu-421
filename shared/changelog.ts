@@ -7,6 +7,20 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.30', date: '2026-11-04T21:00:00+01:00', title: 'Grand rafraîchissement du comptoir', items: [
+    'Nouvel accueil : votre bac en 3D en vitrine (touchez-le pour lancer), et tout ce qui compte visible d’un coup d’œil, sans faire défiler.',
+    'Coffre, cadeau du jour, tournoi, patron, défi, missions et pass rassemblés dans « Aujourd’hui » ; ce qui est prêt brille en doré.',
+    'Barre de navigation en bas (Accueil, Collection, Boutique, Classement) et menu « Plus » rangé par thème, avec une recherche.',
+    'Dés gravés : les points sont de vrais creux, les arêtes sont arrondies, les ombres et la lampe du bar plus réalistes, et chaque matière brille à sa façon.',
+    'Boutique : chaque décor, tapis et rebord se voit en vrai avant l’achat.',
+    'Tournois tous les jours à 11 h et 21 h : inscription 10 pièces, à l’avance ou pendant les 5 minutes d’ouverture du salon. De 4 à 16 joueurs, jusqu’à 5 sacs de dés pour le vainqueur. Remboursé si moins de 4 joueurs.',
+    'Messages privés entre amis : la bulle à côté des amis, en direct ou à votre prochaine connexion.',
+    'Mode spectateur : regardez une partie en cours (salons, amis en partie, lien direct) et quittez quand vous voulez.',
+    'Salon : la table vue du dessus, avec les joueurs assis autour.',
+    'Contre l’ordinateur : une fois sorti, un bouton affiche directement le résultat de la partie.',
+    'En partie, les dés gardent les couleurs du dernier joueur qui a lancé jusqu’au lancer suivant.',
+    'Équilibrage : les succès rapportent moins de pièces, et le pass du mois demande plus de points (paliers de plus en plus longs).',
+  ] },
   { version: '0.29', date: '2026-11-03T22:38:00+01:00', title: 'Correction', items: [
     'Le réglage du son et de la musique sur l’accueil ne sort plus de l’écran sur téléphone.',
   ] },

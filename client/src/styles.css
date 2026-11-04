@@ -1401,7 +1401,7 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .plus-foot { display: flex; flex-wrap: wrap; gap: 6px 14px; padding-top: 4px; }
 @media (min-width: 720px) { .sheet-back { align-items: center; } .sheet { border-radius: 24px; max-height: 80vh; } }
 /* Petits téléphones (hauteur ≤ 700 px) : on resserre pour garder les tuiles visibles. */
-@media (max-height: 700px) {
+@media (max-height: 780px) {
   .h2-main { gap: 9px; }
   .h2-hero { height: 132px; }
   .h2-play { height: 50px; font-size: 20px; bottom: 8px; }
@@ -1413,8 +1413,8 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
   .promo-bag { font-size: 34px; top: 4px; }
   .h2-tiles { gap: 10px 6px; min-height: 0; }
   .h2-tile { min-height: 64px; padding: 7px 7px 6px; gap: 2px; }
-  .h2-tile .h2-ic { display: none; }
 }
+@media (max-height: 700px) { .h2-tile .h2-ic { display: none; } }
 
 /* ---------- Salon : table ronde vue du dessus ---------- */
 .ltable-wrap { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
@@ -1453,7 +1453,7 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .home-banner.lobbies small { color: #d8e3ff; }
 .h2-news { position: absolute; left: 12px; right: 12px; top: 64px; z-index: 2; pointer-events: none; display: flex; }
 .h2-news .news-ticker { margin: 0; max-width: 100%; padding: 5px 10px; border-radius: 999px; background: rgba(0,0,0,0.5); font-size: 12px; line-height: 1.2; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-height: 700px) { .h2-news { display: none; } }
+@media (max-height: 780px) { .h2-news { display: none; } }
 /* --- Mode spectateur ------------------------------------------------------------------------- */
 .spectate-banner { display: flex; align-items: center; gap: 8px; justify-content: space-between;
   padding: 6px 6px 6px 12px; border-radius: 12px; background: rgba(29, 60, 143, 0.92); color: var(--blanc);

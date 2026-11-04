@@ -28,7 +28,12 @@ Tout le texte du jeu est **en français** (vouvoiement côté joueurs). Réponds
 | Statistiques publiques et admin, alertes admin | `server/stats.ts` |
 | Base de données (tables, requêtes) | `server/db.ts` |
 | Navigation entre écrans | `client/src/App.tsx` |
-| Accueil, réglages, bac d'essai | `client/src/ui/Screens.tsx` |
+| Accueil (vitrine 3D, tuiles « Aujourd'hui », barre du bas, menu « Plus ») | `client/src/ui/Home.tsx` (l'ancien `Home` de `Screens.tsx` n'est plus utilisé) |
+| Réglages, bac d'essai, config solo | `client/src/ui/Screens.tsx` |
+| Messages privés entre amis | `server/messages.ts`, `client/src/messages.ts`, `client/src/ui/Messages.tsx` |
+| Mode spectateur | `client/src/ui/SpectateFlow.tsx`, `server/app.ts` (`spectate:*`) |
+| Admin : commandes (suspension, pièces, objets) et tableau de bord (visiteurs, pays, temps passé, rétention) | `server/admin.ts`, `client/src/ui/AdminDashboard.tsx`, `client/src/visit.ts`, `shared/geo.ts` |
+| Vignettes 3D de la boutique | `client/src/three/shopThumbs.ts` |
 | Écran de partie | `client/src/ui/GameScreen.tsx`, `PlayerCard.tsx`, `EndOverlay.tsx` |
 | Bac 3D | `client/src/three/TrayScene.ts`, `client/src/ui/DiceTray.tsx` |
 | Salon et partie en ligne | `client/src/ui/OnlineFlow.tsx`, `client/src/game/online.ts` |
@@ -40,12 +45,14 @@ Tout le texte du jeu est **en français** (vouvoiement côté joueurs). Réponds
 
 ## Principes à respecter
 - **Le serveur fait foi** pour les comptes : récompenses, sacs, mises et défis sont recalculés côté serveur. Les invités ont un profil local (`localStorage` `421.profil`).
-- **Gains volontairement bas** (Sam les a réduits deux fois). Ne pas les gonfler sans qu'il le demande.
+- **Gains volontairement bas** (Sam les a réduits trois fois : succès divisés par 4 en 0.30, pass à paliers croissants ≈ 10 700 points). Ne pas les gonfler sans qu'il le demande.
 - **Mises en scène** : seuls le 4-2-1 et les trois as ont le ralenti / gros plan. Sam a refusé l'extension aux brelans.
 - **Sacs de dés = pur hasard** (Sam ne veut pas de dé rare garanti).
 - **Pas de licence protégée** (Game of Thrones, etc.) : noms et visuels originaux uniquement.
 - **Lisibilité des dés** : un test vérifie le contraste points/dé (≥ 4). Tout nouveau dé doit le passer.
-- **Mobile d'abord** : vérifier à 360 px de large, sans débordement horizontal.
+- **Mobile d'abord** : vérifier à 360 px de large, sans débordement horizontal. L'accueil doit tenir sans défiler (360×640 compris).
+- **Ne jamais retirer une fonctionnalité** en refaisant un écran (Sam y tient) : la ranger ailleurs et le dire.
+- **La 3D est l'identité du jeu** : la garder et l'améliorer, ne pas la remplacer par du plat.
 - **Nouveautés** : à chaque mise à jour publiée, ajouter une entrée EN TÊTE de `shared/changelog.ts` (version suivante, date et heure de Bruxelles, changements visibles des joueurs). Jamais les outils admin.
 - Ne jamais créer de compte, saisir de mot de passe ou de paiement à la place de Sam.
 
