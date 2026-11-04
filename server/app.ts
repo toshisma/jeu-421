@@ -23,6 +23,7 @@ import { Store } from './db';
 import { clientDay, createAccounts, type AccountsOptions } from './accounts';
 import { createStats, type StatsOptions } from './stats';
 import { createAdmin } from './admin';
+import { serveClient } from './static';
 import { albumKey, didWin, finalPlace } from '../shared/progress/profile';
 import type { ComboKind } from '../shared/combos';
 import { getItem } from '../shared/progress/catalog';
@@ -349,14 +350,8 @@ export async function startServer(opts: ServerOptions) {
         .replace(/(<meta name="twitter:title" content=")[^"]*/, `$1${t}`)
         .replace(/(<meta property="og:description" content=")[^"]*/, '$1Rejoignez la partie : le 421 du comptoir, en ligne et gratuit. Lancez les dés dans un vrai bac en 3D.'));
     });
-    app.use(express.static(clientDir, {
-      extensions: ['html'], // /regles-du-421 → regles-du-421.html (pages lisibles par les moteurs de recherche)
-      setHeaders: (res, path) => {
-        if (path.endsWith('sw.js') || path.endsWith('index.html') || path.endsWith('.webmanifest')) res.setHeader('Cache-Control', 'no-cache');
-        if (path.endsWith('.webmanifest')) res.setHeader('Content-Type', 'application/manifest+json');
-      },
-    }));
-    app.get('*', (_req, res) => { res.setHeader('Cache-Control', 'no-cache'); res.sendFile(join(clientDir, 'index.html')); });
+    // Fichiers du jeu compressés, cache long pour /assets/ (noms versionnés), jamais pour les pages (voir static.ts).
+    serveClient(app, clientDir);
   }
 
   const newCode = () => {

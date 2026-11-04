@@ -6,7 +6,7 @@
  * - Polices : servies par le jeu lui-même (/assets/), donc mises en cache comme le reste.
  * - Le multijoueur (/socket.io) n'est jamais mis en cache.
  */
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = `421-${VERSION}`;
 const CORE = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/apple-touch-icon.png'];
 
@@ -16,8 +16,19 @@ self.addEventListener('install', (event) => {
     await cache.addAll(CORE);
     // Récupère les fichiers JS/CSS référencés par la page (leurs noms changent à chaque version).
     const html = await (await fetch('/', { cache: 'no-store' })).text();
-    const assets = [...new Set(html.match(/\/assets\/[^"')\s]+/g) || [])];
-    await cache.addAll(assets);
+    const assets = new Set(html.match(/\/assets\/[^"')\s]+/g) || []);
+    // Le jeu est découpé en morceaux chargés à la demande : on suit les références des fichiers JS
+    // (« assets/xxx.js ») pour garder aussi l'écran de partie et la 3D, nécessaires hors ligne.
+    const todo = [...assets].filter((a) => a.endsWith('.js'));
+    while (todo.length) {
+      const js = todo.pop();
+      const txt = await (await fetch(js)).text().catch(() => '');
+      for (const m of txt.match(/(?:assets\/|["'`]\.\/)[\w.-]+\.(?:js|css)/g) || []) {
+        const a = '/assets/' + m.replace(/^(?:assets\/|["'`]\.\/)/, '');
+        if (!assets.has(a)) { assets.add(a); if (a.endsWith('.js')) todo.push(a); }
+      }
+    }
+    await cache.addAll([...assets]);
     await self.skipWaiting();
   })());
 });
@@ -71,6 +82,15 @@ self.addEventListener('push', (event) => {
 });
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  // Alerte « À vous de jouer » : on remet simplement le jeu au premier plan, sans recharger la partie.
+  if (event.notification.data && event.notification.data.focus) {
+    event.waitUntil((async () => {
+      const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      const c = all.find((x) => 'focus' in x);
+      if (c) await c.focus(); else await self.clients.openWindow('/');
+    })());
+    return;
+  }
   const url = (event.notification.data && event.notification.data.url) || '/';
   event.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });

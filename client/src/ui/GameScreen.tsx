@@ -27,6 +27,8 @@ import type { ProfileApi } from '../account/useProfile';
 import { EMOTES, PHRASES } from '../../../shared/protocol';
 import type { ThrowGesture } from '../../../shared/gesture';
 import { requestMotionPermission, needsMotionPermission, useShakeToThrow } from '../game/shake';
+import { useTurnAlert } from '../turnAlert';
+import { PartyController } from '../game/party';
 import type { Appearance } from '../../../shared/progress/catalog';
 import type { RewardContext } from '../../../shared/progress/profile';
 import type { ComboKind } from '../../../shared/combos';
@@ -264,6 +266,9 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
     const t = setTimeout(() => setToast(null), 3200);
     return () => clearTimeout(t);
   }, [toast]);
+
+  // Onglet en arrière-plan : « À vous de jouer » (titre, icône, son, notification). Pas en spectateur ni à plusieurs sur un appareil.
+  useTurnAlert(controller, settings.turnAlert !== false && !controller.spectator && !(controller instanceof PartyController), settings.vibrate);
 
   // Téléphone : l'écran ne se met pas en veille pendant la partie (si le navigateur le permet).
   useEffect(() => {

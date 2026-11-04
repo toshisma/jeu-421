@@ -4,7 +4,7 @@
  * un identifiant d'appareil tiré au hasard (pour ne pas compter deux fois deux onglets) et
  * l'écran en cours (menu, partie solo, jeu en ligne).
  */
-import { io, type Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 import { SERVER_URL } from './platform';
 
 export type PresenceState = 'menu' | 'solo' | 'online';
@@ -23,8 +23,14 @@ export function deviceId(): string {
   } catch { return 'sans-stockage'; }
 }
 
+let starting = false;
+/** La bibliothèque Socket.IO est chargée à part (après l'affichage de l'accueil). */
 export function startPresence() {
-  if (socket) return;
+  if (socket || starting) return;
+  starting = true;
+  import('socket.io-client').then(({ io }) => { starting = false; if (!socket) openPresence(io); }, () => { starting = false; });
+}
+function openPresence(io: typeof import('socket.io-client').io) {
   try {
     const url = `${(SERVER_URL ?? '').replace(/\/$/, '')}/presence`;
     const token = (() => { try { return JSON.parse(localStorage.getItem('421.compte') ?? 'null')?.token; } catch { return undefined; } })();
@@ -42,7 +48,7 @@ export function setPresence(s: PresenceState) {
 
 /** Après connexion ou déconnexion d'un compte : la présence repart avec le bon compte. */
 export function restartPresence() {
-  if (!socket) return;
+  if (!socket) return; // pas encore connecté : la connexion lira le bon compte
   socket.disconnect(); socket = null;
   startPresence();
 }

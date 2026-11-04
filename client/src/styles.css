@@ -1696,8 +1696,7 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .floating-pop.install-pop { width: min(280px, calc(100vw - 24px)); }
 .floating-pop.install-pop p { margin: 0; }
 .floating-pop.emote-pop { max-height: calc(100vh - 24px); overflow-y: auto; }
-/* =============================================================================================
- * Écrans de menu v0.31 : même direction que l'accueil (feutre vert, laiton, relief).
+/* ====================================================================================== * Écrans de menu v0.31 : même direction que l'accueil (feutre vert, laiton, relief).
  * En-tête collé avec retour, action principale collée en bas, sections en capitales condensées,
  * pastilles, interrupteurs, compteurs, choix en cartes, toasts. Briques dans ui/kit.tsx.
  * ============================================================================================= */
@@ -2169,3 +2168,11 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .friend-search input::placeholder { letter-spacing: 0; }
 .k-details > summary span small { text-align: left; }
 .scr-head { backdrop-filter: none; -webkit-backdrop-filter: none; background: linear-gradient(180deg, #0b1d16, #0d2119); }
+=======
+/* Chargement à la demande : bac 3D en préparation (lueur du tapis et trois dés en ombre) et écran secondaire. */
+.tray-loading::before { content: ''; position: absolute; inset: 22% 18% 26%; border-radius: 50%; background: radial-gradient(closest-side, rgba(46,125,82,0.32), rgba(46,125,82,0.08) 65%, transparent); animation: pulse 1.6s ease-in-out infinite; }
+.tray-loading::after { content: ''; position: absolute; left: 50%; top: 52%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 8px; background: rgba(244,234,213,0.16); box-shadow: -48px 10px 0 rgba(244,234,213,0.12), 48px 6px 0 rgba(244,234,213,0.12); animation: pulse 1.6s ease-in-out infinite; }
+.tray-canvas { animation: fade 0.35s ease-out; }
+.screen-loading { position: fixed; inset: 0; display: grid; place-items: center; background: var(--fond); }
+.spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid rgba(255,255,255,0.15); border-top-color: #f6d36b; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

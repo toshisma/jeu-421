@@ -339,6 +339,7 @@ export function SettingsScreen({ settings, onChange, onBack }: { settings: Setti
               onChange={async (on) => { if (on && needsMotionPermission() && !(await requestMotionPermission())) return; set({ shake: on }); }} />
             <Toggle label="Lancer au gobelet" hint="Les dés partent d'un gobelet renversé" checked={settings.cup} onChange={(b) => set({ cup: b })} />
             <Toggle label="Vibrations" hint="Quand les dés frappent (téléphone)" checked={settings.vibrate} onChange={(b) => set({ vibrate: b })} />
+            <Toggle label="M'alerter quand c'est mon tour" hint="Onglet qui clignote et petit son quand le jeu est en arrière-plan" checked={settings.turnAlert} onChange={(b) => set({ turnAlert: b })} />
           </div>
         </Section>
         <Section title="Graphismes">
