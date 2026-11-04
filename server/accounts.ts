@@ -24,6 +24,7 @@ import {
 import { DEFAULT_APPEARANCE } from '../shared/progress/catalog';
 import { SEASONS, collectionDie } from '../shared/progress/dice-collection';
 import { createSocial } from './social';
+import { createMessages } from './messages';
 import { DIVISIONS, SEASON_DIE_FROM, SEASON_TITLE_FROM, divisionIndex, divisionOf, nextSeasonStart, seasonDelta, seasonOf } from '../shared/season';
 import { today } from '../shared/progress/quests';
 import type { ComboKind } from '../shared/combos';
@@ -404,6 +405,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
       progress: store.profileOf(u),
       friends: store.friendsOf(u.id).map((f) => f.username),
       blocked: store.blockedBy(u.id).map((f) => f.username),
+      privateMessages: store.pmConversations(u.id, 500).map((x) => ({ with: x.other.username, messages: store.pmThread(u.id, x.other.id, 500).map((m) => ({ mine: m.from_id === u.id, text: m.text, at: new Date(m.created_at).toISOString() })) })),
       note: 'Le mot de passe et le code de récupération ne sont conservés que sous forme d’empreinte (hachage) et ne peuvent pas être exportés.',
     });
   });
@@ -841,6 +843,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     return { account: u.username, photo: photoUrl(u), title: titleLabel(p.title) ?? undefined, accessory: accessoryEmoji(p.equipped.accessoire) || undefined, prestige: p.prestige || undefined, dice: p.equipped.dice, trail: p.fx?.trainee, fete: p.fx?.fete };
   };
   const social = createSocial({ router, store, auth, userOf, fail, adjust, coinsOf, brusselsDate, brusselsHour, now: () => opts.now?.() ?? Date.now() });
+  const messages = createMessages({ router, store, auth, userOf, fail, push: social.push, userFromToken, now: () => opts.now?.() ?? Date.now() });
 
-  return { social, router, setPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
+  return { social, messages, router, setPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
 }
