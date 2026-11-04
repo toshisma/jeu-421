@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
 import type { LobbyEntry } from '../../../shared/tournament';
-import { Shell } from './Screens';
+import { BigAction, Empty, Initial, Section, Shell, useToast } from './kit';
 import { ProfileView } from './ProfileView';
 import { Icon } from './Icon';
 
@@ -27,47 +27,54 @@ export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessa
   const [list, setList] = useState<Friend[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [name, setName] = useState('');
-  const [msg, setMsg] = useState<{ ok?: string; err?: string }>({});
+  const [toast, showToast] = useToast();
   const load = () => { if (pa.token) api<{ friends: Friend[] }>('/friends', { token: pa.token }).then((r) => setList(r.friends.filter((f) => !f.me))).catch(() => {}); };
   useEffect(() => { load(); const t = setInterval(load, 20_000); return () => clearInterval(t); }, [pa.token]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!pa.isAccount) {
-    return <Shell title="Amis" onBack={onBack}><p>Créez un compte pour ajouter des amis, voir qui est en ligne et rejoindre leurs parties.</p><button className="btn primary" onClick={onAccount}>Créer mon compte</button></Shell>;
+    return (
+      <Shell title="Amis" onBack={onBack} icon="people"
+        foot={<BigAction icon="key" tone="gold" label="Créer mon compte" sub="Gratuit, sans adresse e-mail" onClick={onAccount} />}>
+        <Empty icon="people">Avec un compte, ajoutez des amis, voyez qui est en ligne et rejoignez leurs parties d'un geste.</Empty>
+      </Shell>
+    );
   }
   const rank = (f: Friend) => (f.room?.joinable ? 0 : f.room ? 1 : f.online ? 2 : 3);
   const sorted = [...(list ?? [])].sort((a, b) => rank(a) - rank(b) || b.lastSeen - a.lastSeen);
   const onlineCount = sorted.filter((f) => f.online).length;
+  const active = sorted.filter((f) => f.online || f.room), away = sorted.filter((f) => !f.online && !f.room);
+  const add = async () => {
+    const n = name.trim();
+    try {
+      const r = await api<{ result: string }>('/friends', { token: pa.token!, body: { username: n } });
+      showToast(r.result === 'accepted' ? `Vous êtes maintenant amis avec ${n}.` : `Demande envoyée à ${n}.`); setName(''); load();
+    } catch (x) { showToast((x as Error).message, 'err'); }
+  };
+  const row = (f: Friend) => (
+    <li key={f.username} className={f.online ? 'on' : ''}>
+      <button className="fr-main" onClick={() => setOpen(f.username)} aria-label={`Profil de ${f.username}`}>
+        <Initial name={f.username} dot={f.room ? 'play' : f.online ? 'on' : 'off'} />
+        <span className="fr-name"><b>{f.username}</b><small>
+          {f.room ? (f.room.status === 'salon' ? 'Dans un salon, en attente' : 'En pleine partie') : f.online ? 'En ligne' : seenAgo(f.lastSeen)}
+          {' · '}niv. {f.level}</small></span>
+      </button>
+      {f.room?.joinable ? <button className="btn small primary" onClick={() => onJoin(f.room!.code)}>Rejoindre</button>
+        : f.room?.watchable && onWatch ? <button className="btn small" onClick={() => onWatch(f.room!.code)}><Icon name="eye" size={16} /> Regarder</button>
+        : f.online && !f.room ? <button className="btn small primary" onClick={() => onInvite(f.username)}>Inviter</button>
+        : onMessage ? <button className="icon-btn" onClick={() => onMessage(f.username)} aria-label={`Écrire à ${f.username}`}><Icon name="chat" size={20} /></button> : null}
+    </li>
+  );
   return (
-    <Shell title="Amis" onBack={onBack}>
-      <form className="friend-add" onSubmit={async (e) => {
-        e.preventDefault(); setMsg({});
-        try {
-          const r = await api<{ result: string }>('/friends', { token: pa.token!, body: { username: name.trim() } });
-          setMsg({ ok: r.result === 'accepted' ? `Vous êtes maintenant amis avec ${name}.` : `Demande envoyée à ${name}.` }); setName(''); load();
-        } catch (x) { setMsg({ err: (x as Error).message }); }
-      }}>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Pseudo d'un ami" maxLength={20} />
+    <Shell title="Amis" onBack={onBack} icon="people" sub={list ? (onlineCount > 0 ? `${onlineCount} ami${onlineCount > 1 ? 's' : ''} en ligne` : 'Aucun ami en ligne') : 'Chargement…'}>
+      <form className="hub-code friend-search" onSubmit={(e) => { e.preventDefault(); if (name.trim().length >= 3) void add(); }}>
+        <Icon name="plus" size={20} />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ajouter un ami par son pseudo" maxLength={20} aria-label="Pseudo d'un ami" />
         <button className="btn small primary" disabled={name.trim().length < 3}>Ajouter</button>
       </form>
-      {msg.err && <p className="error small">{msg.err}</p>}
-      {msg.ok && <p className="ok small">{msg.ok}</p>}
-      {list && <p className="muted small">{onlineCount > 0 ? `${onlineCount} ami${onlineCount > 1 ? 's' : ''} en ligne` : 'Aucun ami en ligne pour le moment.'}</p>}
-      {list?.length === 0 && <p className="muted">Pas encore d'amis : ajoutez un pseudo ci-dessus, ou partagez votre lien de parrainage depuis l'accueil.</p>}
-      <ul className="friends-list">
-        {sorted.map((f) => (
-          <li key={f.username} className={f.online ? 'on' : ''}>
-            <button className="fr-main" onClick={() => setOpen(f.username)}>
-              <i className={`fr-dot ${f.room ? 'play' : f.online ? 'on' : ''}`} aria-hidden />
-              <span className="fr-name"><b>{f.username}</b><small>
-                {f.room ? (f.room.status === 'salon' ? 'Dans un salon, en attente de joueurs' : 'En pleine partie') : f.online ? 'En ligne' : seenAgo(f.lastSeen)}
-                {' · '}niv. {f.level}</small></span>
-            </button>
-            {f.room?.joinable ? <button className="btn small primary" onClick={() => onJoin(f.room!.code)}>Rejoindre</button>
-              : f.room?.watchable && onWatch ? <button className="btn small" onClick={() => onWatch(f.room!.code)}>👁 Regarder</button>
-              : f.online && !f.room ? <button className="btn small" onClick={() => onInvite(f.username)}>Inviter</button> : null}
-          </li>
-        ))}
-      </ul>
+      {list?.length === 0 && <Empty icon="people">Pas encore d'amis : ajoutez un pseudo ci-dessus, ou partagez votre lien de parrainage depuis l'accueil.</Empty>}
+      {active.length > 0 && <Section title="En ligne" count={active.length}><ul className="friends-list">{active.map(row)}</ul></Section>}
+      {away.length > 0 && <Section title="Hors ligne" count={away.length}><ul className="friends-list">{away.map(row)}</ul></Section>}
       {open && <ProfileView pa={pa} username={open} onClose={() => setOpen(null)} onInvite={onInvite} onMessage={onMessage} onWatch={onWatch} />}
+      {toast}
     </Shell>
   );
 }

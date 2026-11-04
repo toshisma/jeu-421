@@ -11,7 +11,7 @@ import { PERSONAS } from '../game/personas';
 import type { ProfileApi } from '../account/useProfile';
 import { sound } from '../audio/sound';
 import { Icon } from './Icon';
-import { Shell } from './Screens';
+import { BigAction, Shell, useToast } from './kit';
 
 /** Bandeau de l'événement en cours (et des pièces boostées). */
 /** Happy hour en cours : bandeau avec le temps restant (vérifié chaque minute). */
@@ -107,18 +107,27 @@ const rewardText = (r: ReturnType<typeof passReward>) => {
 /** Écran du pass de saison : 20 paliers, gratuits, gagnés en jouant pendant le mois. */
 export function PassScreen({ pa, onBack }: { pa: ProfileApi; onBack: () => void }) {
   const s = seasonOf(pa.profile);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [toast, showToast] = useToast();
+  const { tier, into, need } = passProgress(s.points);
+  const ready = Array.from({ length: PASS_TIERS }, (_, i) => i + 1).filter((t) => s.points >= passThreshold(t) && !s.claimed.includes(t));
   const claim = async (t: number) => {
     const err = await pa.claimPass(t);
-    if (err) { setMsg(err); return; }
+    if (err) { showToast(err, 'err'); return; }
     sound.chips(4);
-    setMsg(`Palier ${t} : ${rewardText(passReward(t, s.id))}.`);
+    showToast(`Palier ${t} : ${rewardText(passReward(t, s.id))}.`);
   };
+  const claimAll = async () => { for (const t of ready) { const err = await pa.claimPass(t); if (err) { showToast(err, 'err'); return; } } sound.chips(6); showToast(`${ready.length} récompense${ready.length > 1 ? 's' : ''} récupérée${ready.length > 1 ? 's' : ''} !`); };
   return (
-    <Shell title={`Pass de ${monthName(s.id)}`} onBack={onBack}>
-      <p className="muted">Gratuit. Chaque point d'XP gagné ce mois-ci fait avancer le pass ; les objets marqués « pass » ne s'achètent pas. Tout repart à zéro le 1er du mois.</p>
-      <div className="pass-total"><b>{s.points}</b> points<span className="muted small"> sur {passThreshold(PASS_TIERS).toLocaleString('fr-FR')}</span></div>
-      {msg && <p className="ok">{msg}</p>}
+    <Shell title={`Pass de ${monthName(s.id)}`} onBack={onBack} icon="ticket" sub="Gratuit · repart à zéro le 1er du mois"
+      foot={ready.length > 0 ? <BigAction icon="gift" tone="gold" label={ready.length > 1 ? `Tout récupérer (${ready.length})` : `Récupérer le palier ${ready[0]}`} sub={rewardText(passReward(ready[0], s.id))} onClick={() => void claimAll()} /> : undefined}>
+      <div className="pass-hero">
+        <span className="pass-tier"><small>Palier</small><b>{tier}</b><small>sur {PASS_TIERS}</small></span>
+        <div className="pass-hero-main">
+          <div className="pass-total"><b>{s.points.toLocaleString('fr-FR')}</b> points<span> sur {passThreshold(PASS_TIERS).toLocaleString('fr-FR')}</span></div>
+          <span className="pv-lvl-bar"><i style={{ width: `${tier >= PASS_TIERS ? 100 : (100 * into) / need}%` }} /></span>
+          <small className="k-hint">Chaque point d'XP gagné ce mois-ci fait avancer le pass. Les objets « pass » ne s'achètent pas.</small>
+        </div>
+      </div>
       <ol className="pass-tiers">
         {Array.from({ length: PASS_TIERS }, (_, i) => i + 1).map((t) => {
           const r = passReward(t, s.id);
@@ -135,6 +144,7 @@ export function PassScreen({ pa, onBack }: { pa: ProfileApi; onBack: () => void 
           );
         })}
       </ol>
+      {toast}
     </Shell>
   );
 }

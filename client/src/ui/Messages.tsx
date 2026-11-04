@@ -6,7 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
 import { onPm, setUnread, useUnread, type PmMessage } from '../messages';
-import { Shell } from './Screens';
+import { BigAction, Empty, Initial, Section, Shell } from './kit';
 import { Icon } from './Icon';
 
 const PM_MAX = 500;
@@ -39,7 +39,11 @@ export function MessagesButton({ pa, onOpen }: { pa: ProfileApi; onOpen: () => v
 export function MessagesScreen({ pa, initial, onBack, onAccount }: { pa: ProfileApi; initial?: string; onBack: () => void; onAccount: () => void }) {
   const [open, setOpen] = useState<string | null>(initial ?? null);
   if (!pa.isAccount) {
-    return <Shell title="Messages" onBack={onBack}><p>Créez un compte pour écrire à vos amis : vos messages les attendront même s’ils ne sont pas en ligne.</p><button className="btn primary" onClick={onAccount}>Créer mon compte</button></Shell>;
+    return (
+      <Shell title="Messages" onBack={onBack} icon="chat" foot={<BigAction icon="key" tone="gold" label="Créer mon compte" sub="Gratuit, sans adresse e-mail" onClick={onAccount} />}>
+        <Empty icon="chat">Avec un compte, écrivez à vos amis : vos messages les attendront même s’ils ne sont pas en ligne.</Empty>
+      </Shell>
+    );
   }
   if (open) return <Thread pa={pa} username={open} onBack={() => (initial && open === initial ? onBack() : setOpen(null))} />;
   return <Conversations pa={pa} onBack={onBack} onOpen={setOpen} />;
@@ -57,17 +61,18 @@ function Conversations({ pa, onBack, onOpen }: { pa: ProfileApi; onBack: () => v
     return onPm((e) => { if (e.type === 'message') void load(); });
   }, [pa.token]); // eslint-disable-line react-hooks/exhaustive-deps
   const without = friends.filter((f) => !list?.some((c) => c.username === f));
+  const unread = list?.reduce((n, c) => n + c.unread, 0) ?? 0;
   return (
-    <Shell title="Messages" onBack={onBack}>
+    <Shell title="Messages" onBack={onBack} icon="chat" sub={list ? (unread ? `${unread} non lu${unread > 1 ? 's' : ''}` : `${list.length} conversation${list.length > 1 ? 's' : ''}`) : undefined}>
       {err && <p className="error small">{err}</p>}
       {!list && !err && <p className="muted">Chargement…</p>}
-      {list?.length === 0 && <p className="muted">Aucune conversation pour le moment. Écrivez à un ami ci-dessous.</p>}
+      {list?.length === 0 && <Empty icon="chat">{friends.length ? 'Aucune conversation pour le moment. Écrivez à un ami ci-dessous.' : 'Ajoutez d’abord des amis depuis l’écran Amis : vous pourrez ensuite leur écrire.'}</Empty>}
       {!!list?.length && (
         <ul className="pm-convs">
           {list.map((c) => (
             <li key={c.username}>
               <button className={`pm-conv${c.unread ? ' unread' : ''}`} onClick={() => onOpen(c.username)}>
-                <span className="pm-avatar" aria-hidden>{c.username.slice(0, 1).toUpperCase()}</span>
+                <Initial name={c.username} />
                 <span className="pm-conv-main">
                   <span className="pm-conv-top"><b>{c.username}</b><small>{pmWhen(c.last.at)}</small></span>
                   <span className="pm-conv-last">{c.last.mine ? 'Vous : ' : ''}{c.last.text}</span>
@@ -78,11 +83,11 @@ function Conversations({ pa, onBack, onOpen }: { pa: ProfileApi; onBack: () => v
           ))}
         </ul>
       )}
-      {without.length > 0 && <>
-        <h3>Écrire à un ami</h3>
-        <div className="pm-new">{without.map((f) => <button key={f} className="btn small" onClick={() => onOpen(f)}><Icon name="chat" size={16} /> {f}</button>)}</div>
-      </>}
-      {list && !friends.length && !list.length && <p className="muted small">Ajoutez d’abord des amis depuis l’écran Amis.</p>}
+      {without.length > 0 && (
+        <Section title="Écrire à un ami">
+          <div className="pm-new">{without.map((f) => <button key={f} className="pm-new-btn" onClick={() => onOpen(f)}><Initial name={f} /><span>{f}</span><Icon name="chat" size={18} /></button>)}</div>
+        </Section>
+      )}
     </Shell>
   );
 }
@@ -150,7 +155,7 @@ function Thread({ pa, username, onBack }: { pa: ProfileApi; username: string; on
     <div className="pm-thread" style={vh ? { height: vh } : undefined}>
       <header className="pm-head">
         <button className="icon-btn" onClick={onBack} aria-label="Retour"><Icon name="back" /></button>
-        <span className="pm-avatar" aria-hidden>{username.slice(0, 1).toUpperCase()}</span>
+        <Initial name={username} />
         <h2>{username}</h2>
       </header>
       <div className="pm-scroll" ref={box} aria-live="polite">

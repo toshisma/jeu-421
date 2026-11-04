@@ -1,7 +1,7 @@
 import { ALBUM, ALBUM_FULL_COINS, monthName, type MonthRecap } from '../../../shared/progress/profile';
 import type { ProfileApi } from '../account/useProfile';
 import { DiceRow } from './MiniDie';
-import { Shell } from './Screens';
+import { Empty, Shell } from './kit';
 
 /** Album des combinaisons : chaque combinaison réussie au moins une fois se colle dans l'album. */
 export function AlbumScreen({ pa, onBack }: { pa: ProfileApi; onBack: () => void }) {
@@ -9,10 +9,14 @@ export function AlbumScreen({ pa, onBack }: { pa: ProfileApi; onBack: () => void
   const pages = new Set(pa.profile.albumPages ?? []);
   const total = ALBUM.reduce((n, a) => n + a.keys.length, 0);
   return (
-    <Shell title="Album des combinaisons" onBack={onBack}>
-      <p className="muted">Réussissez chaque combinaison au moins une fois, en solo ou en ligne (la mort subite ne compte pas).
-        Chaque page complétée rapporte des pièces ; l'album complet débloque des dés « Collectionneur » et un titre, plus {ALBUM_FULL_COINS} pièces.</p>
-      <div className="pass-total"><b>{have.size}</b> sur {total}</div>
+    <Shell title="Album" onBack={onBack} icon="album" sub={`${have.size} combinaison${have.size > 1 ? 's' : ''} sur ${total}`}>
+      <div className="pass-hero">
+        <span className="pass-tier"><b>{have.size}</b><small>sur {total}</small></span>
+        <div className="pass-hero-main">
+          <span className="pv-lvl-bar gold"><i style={{ width: `${(100 * have.size) / total}%` }} /></span>
+          <small className="k-hint">Réussissez chaque combinaison au moins une fois, en solo ou en ligne (pas en mort subite). Chaque page complète rapporte des pièces ; l'album complet : dés « Collectionneur », un titre et {ALBUM_FULL_COINS} pièces.</small>
+        </div>
+      </div>
       {ALBUM.map((page) => (
         <section key={page.id} className={`album-page${pages.has(page.id) ? ' done' : ''}`}>
           <header><h3>{page.name}</h3><span>{pages.has(page.id) ? 'Complète' : `${page.keys.filter((k) => have.has(k)).length} sur ${page.keys.length}`}, {page.coins} pièces</span></header>
@@ -61,8 +65,8 @@ function MonthCard({ m }: { m: MonthRecap }) {
 export function RecapScreen({ pa, onBack }: { pa: ProfileApi; onBack: () => void }) {
   const { month, prevMonth } = pa.profile;
   return (
-    <Shell title="Votre récap" onBack={onBack}>
-      {!month && !prevMonth && <p className="empty">Jouez quelques parties : votre récap du mois se remplira au fil du jeu.</p>}
+    <Shell title="Votre récap" onBack={onBack} icon="chart" sub="Pour vous seul : rien n'est partagé">
+      {!month && !prevMonth && <Empty icon="chart">Jouez quelques parties : votre récap du mois se remplira au fil du jeu.</Empty>}
       {month && <MonthCard m={month} />}
       {prevMonth && <MonthCard m={prevMonth} />}
     </Shell>

@@ -4,7 +4,7 @@ import type { ProfileApi } from '../account/useProfile';
 import { enablePush, pushActive, pushSupported } from '../push';
 import { sound } from '../audio/sound';
 import { Icon } from './Icon';
-import { Shell } from './Screens';
+import { BigAction, Empty, Shell, Tabs } from './kit';
 import type { DuelPlay } from './ChallengeScreen';
 
 export interface DuelView {
@@ -142,17 +142,17 @@ export function DuelsScreen({ pa, onBack, onPlay, onAccount }: { pa: ProfileApi;
   const [stake, setStake] = useState(0);
   const [stakes, setStakes] = useState<number[]>([0, 10, 25, 50]);
   const [err, setErr] = useState<string | null>(null);
+  const [tab, setTab] = useState<'nouveau' | 'encours' | 'finis'>('nouveau');
   const load = () => {
     if (!pa.token) return;
-    api<{ duels: DuelView[]; stakes: number[] }>('/duels', { token: pa.token }).then((r) => { setDuels(r.duels); setStakes(r.stakes); }).catch((e) => setErr(e.message));
+    api<{ duels: DuelView[]; stakes: number[] }>('/duels', { token: pa.token }).then((r) => { setDuels(r.duels); setStakes(r.stakes); if (r.duels.some((d) => d.status === 'ouvert' && !d.mine)) setTab((t) => (t === 'nouveau' ? 'encours' : t)); }).catch((e) => setErr(e.message));
     api<{ friends: { username: string; me?: boolean }[] }>('/friends', { token: pa.token }).then((r) => setFriends(r.friends.filter((f) => !f.me).map((f) => f.username))).catch(() => {});
   };
   useEffect(load, [pa.token]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!pa.token) {
     return (
-      <Shell title="Défis entre amis" onBack={onBack}>
-        <div className="form"><p>Défiez vos amis à distance : mêmes dés pour vous deux, chacun joue quand il veut. Il faut un compte (gratuit).</p>
-          <button className="btn primary" onClick={onAccount}>Créer un compte ou se connecter</button></div>
+      <Shell title="Défis entre amis" onBack={onBack} icon="target" foot={<BigAction icon="key" tone="gold" label="Créer un compte ou se connecter" sub="Gratuit, sans adresse e-mail" onClick={onAccount} />}>
+        <Empty icon="target">Défiez vos amis à distance : mêmes dés pour vous deux, chacun joue quand il veut.</Empty>
       </Shell>
     );
   }
@@ -166,50 +166,53 @@ export function DuelsScreen({ pa, onBack, onPlay, onAccount }: { pa: ProfileApi;
   };
   const open = duels?.filter((d) => d.status === 'ouvert') ?? [];
   const done = duels?.filter((d) => d.status !== 'ouvert') ?? [];
+  const toPlay = open.filter((d) => !d.mine).length;
   return (
-    <Shell title="Défis entre amis" onBack={onBack} wide>
-      <div className="cols">
-        <section className="form">
-          <h3>Lancer un défi</h3>
-          <p className="muted small">5 coups, 3 lancers par coup, les mêmes dés pour vous deux. Chacun joue quand il veut (72 heures). Le plus de points gagne, puis le moins de lancers.</p>
-          {friends.length === 0 ? <p className="empty">Ajoutez d'abord des amis (Classement, onglet Amis) : une fois votre demande acceptée, vous pourrez les défier.</p> : (
+    <Shell title="Défis entre amis" onBack={onBack} icon="target" wide sub={toPlay ? `${toPlay} défi${toPlay > 1 ? 's' : ''} à jouer` : '5 coups, mêmes dés pour vous deux'}
+      foot={friends.length > 0 && tab === 'nouveau' ? <BigAction icon="dice" disabled={!who || pa.profile.coins < stake} onClick={() => void create()}
+        label={who ? `Défier ${who}` : 'Choisissez un ami'} sub={pa.profile.coins < stake ? 'Pas assez de pièces pour cette mise' : stake ? `Mise : ${stake} pièces, le gagnant prend tout` : 'Sans mise'} /> : undefined}>
+      <Tabs label="Défis" value={tab} onChange={setTab}
+        options={[{ v: 'nouveau', label: 'Nouveau', icon: 'plus' }, { v: 'encours', label: 'En cours', badge: toPlay || undefined }, { v: 'finis', label: 'Terminés' }]} />
+      {tab === 'nouveau' && (
+        <div className="k-form">
+          <p className="k-hint">5 coups, 3 lancers par coup, les mêmes dés pour vous deux. Chacun joue quand il veut (72 heures). Le plus de points gagne, puis le moins de lancers.</p>
+          {friends.length === 0 ? <Empty icon="people">Ajoutez d'abord des amis (écran Amis) : une fois votre demande acceptée, vous pourrez les défier.</Empty> : (
             <>
-              <div className="field"><span>Ami</span>
-                <div className="chips">{friends.map((f) => <button key={f} type="button" className={`chip${who === f ? ' on' : ''}`} onClick={() => setWho(f)}>{f}</button>)}</div>
+              <div className="k-field"><span className="k-label">Ami</span>
+                <div className="k-pills">{friends.map((f) => <button key={f} type="button" className={who === f ? 'on' : ''} onClick={() => setWho(f)}>{f}</button>)}</div>
               </div>
-              <div className="field"><span>Mise (le gagnant prend tout)</span>
-                <div className="seg">{stakes.map((x) => <button key={x} type="button" className={stake === x ? 'on' : ''} onClick={() => setStake(x)}>{x ? `${x} pièces` : 'Aucune'}</button>)}</div>
+              <div className="k-field"><span className="k-label">Mise <small>le gagnant prend tout</small></span>
+                <div className="k-pills coins">{stakes.map((x) => <button key={x} type="button" className={stake === x ? 'on' : ''} disabled={x > pa.profile.coins} onClick={() => setStake(x)}>{x ? x : 'Aucune'}</button>)}</div>
               </div>
-              <button className="btn primary big" disabled={!who || pa.profile.coins < stake} onClick={() => void create()}>Défier {who || '…'}</button>
             </>
           )}
-          {err && <p className="error">{err}</p>}
-        </section>
-        <section>
-          <h3>En cours</h3>
-          {duels && !open.length && <p className="empty">Aucun défi en cours.</p>}
-          <ul className="notif-list">
-            {open.map((d) => (
-              <li key={d.id}>
-                <span className="n-ico" aria-hidden>🎲</span>
-                <div className="n-main"><b>{d.sent ? `Contre ${d.opponent}` : `${d.opponent} vous défie`}</b>
-                  <small>{d.mine ? `Vous : ${d.mine.points} pts. ${d.theirsPlayed ? '' : `En attente de ${d.opponent}.`}` : d.theirsPlayed ? `${d.opponent} a joué, à vous !` : 'À vous de jouer.'}{d.stake ? ` Mise : ${d.stake}.` : ''}</small></div>
-                {!d.mine && <div className="n-actions"><button className="btn small primary" onClick={() => onPlay({ id: d.id, opponent: d.opponent, stake: d.stake })}>Jouer</button></div>}
-              </li>
-            ))}
-          </ul>
-          <h3>Terminés</h3>
-          {duels && !done.length && <p className="empty">Pas encore de résultat.</p>}
-          <ul className="notif-list">
-            {done.map((d) => (
-              <li key={d.id} className={d.winner === pa.session?.username ? 'won' : ''}>
-                <span className="n-ico" aria-hidden>{d.winner === pa.session?.username ? '🏆' : '🍺'}</span>
-                <div className="n-main"><b>{resultText(d, pa.session?.username)}</b><small>{ago(d.createdAt)}</small></div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
+        </div>
+      )}
+      {tab === 'encours' && <>
+        {duels && !open.length && <Empty icon="target" action={<button className="btn small" onClick={() => setTab('nouveau')}>Lancer un défi</button>}>Aucun défi en cours.</Empty>}
+        <ul className="notif-list">
+          {open.map((d) => (
+            <li key={d.id}>
+              <span className="n-ico" aria-hidden>🎲</span>
+              <div className="n-main"><b>{d.sent ? `Contre ${d.opponent}` : `${d.opponent} vous défie`}</b>
+                <small>{d.mine ? `Vous : ${d.mine.points} pts. ${d.theirsPlayed ? '' : `En attente de ${d.opponent}.`}` : d.theirsPlayed ? `${d.opponent} a joué, à vous !` : 'À vous de jouer.'}{d.stake ? ` Mise : ${d.stake}.` : ''}</small></div>
+              {!d.mine && <div className="n-actions"><button className="btn small primary" onClick={() => onPlay({ id: d.id, opponent: d.opponent, stake: d.stake })}>Jouer</button></div>}
+            </li>
+          ))}
+        </ul>
+      </>}
+      {tab === 'finis' && <>
+        {duels && !done.length && <Empty icon="trophy">Pas encore de résultat.</Empty>}
+        <ul className="notif-list">
+          {done.map((d) => (
+            <li key={d.id} className={d.winner === pa.session?.username ? 'won' : ''}>
+              <span className="n-ico" aria-hidden>{d.winner === pa.session?.username ? '🏆' : '🍺'}</span>
+              <div className="n-main"><b>{resultText(d, pa.session?.username)}</b><small>{ago(d.createdAt)}</small></div>
+            </li>
+          ))}
+        </ul>
+      </>}
+      {err && <p className="error">{err}</p>}
     </Shell>
   );
 }

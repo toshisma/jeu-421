@@ -17,7 +17,7 @@ import { ConfigEditor } from './ConfigEditor';
 import { GameScreen } from './GameScreen';
 import { Icon } from './Icon';
 import { Seg, StakePicker } from './OnlineHub';
-import { Shell } from './Screens';
+import { BigAction, Choices, Section, Shell } from './kit';
 import { ScheduledLobby, ScheduledResults } from './Scheduled';
 import { schedRounds } from '../../../shared/scheduled';
 
@@ -123,19 +123,22 @@ export function TournamentFlow({ mode, settings, onSettings, onExit, onCancel, a
   const set = (patch: Partial<TournamentSettings>) => setForm((f) => ({ ...f, ...patch }));
   const rounds = roundsFor(form.maxPlayers, form.tableSize);
   return (
-    <Shell title="Créer un tournoi" onBack={onCancel ?? onExit} wide>
+    <Shell title="Créer un tournoi" onBack={onCancel ?? onExit} wide icon="trophy" sub={`${form.maxPlayers} joueurs max., tables de ${form.tableSize}`}
+      foot={<>{error && <p className="error">{error}</p>}<BigAction icon="trophy" tone="gold" disabled={busy || !form.title.trim()} onClick={() => void connect('create')}
+        label={busy ? 'Création…' : 'Créer le tournoi'} sub={`${rounds} tour${rounds > 1 ? 's' : ''} une fois complet`} /></>}>
       <form className="cols" onSubmit={(e) => { e.preventDefault(); void connect('create'); }}>
-        <section className="form">
-          <label className="field"><span>Nom du tournoi</span>
-            <input value={form.title} maxLength={32} onChange={(e) => set({ title: e.target.value })} /></label>
-          <Seg label="Qui peut s'inscrire ?" value={form.visibility} onChange={(v) => set({ visibility: v })}
-            hint={form.visibility === 'public' ? 'Le tournoi apparaît dans la liste des tournois ouverts.' : 'Seuls ceux qui ont le code ou le lien peuvent s’inscrire.'}
-            options={[{ v: 'private', label: 'Sur invitation' }, { v: 'public', label: 'Tout le monde' }]} />
+        <section className="k-form">
+          <label className="k-field"><span className="k-label">Nom du tournoi</span>
+            <input className="k-input" value={form.title} maxLength={32} onChange={(e) => set({ title: e.target.value })} /></label>
+          <div className="k-field"><span className="k-label">Qui peut s'inscrire ?</span>
+            <Choices value={form.visibility} onChange={(v) => set({ visibility: v })}
+              options={[{ v: 'private', label: 'Sur invitation', hint: 'Avec le code ou le lien', icon: 'key' }, { v: 'public', label: 'Tout le monde', hint: 'Visible dans la liste', icon: 'people' }]} />
+          </div>
           <Seg label="Nombre de joueurs maximum" hint={`Le tournoi peut démarrer dès ${MIN_TOURNAMENT_PLAYERS} inscrits ; il démarre seul quand il est complet.`}
             value={form.maxPlayers} onChange={(v) => set({ maxPlayers: v })} options={TOURNAMENT_SIZES.map((n) => ({ v: n, label: String(n) }))} />
           <Seg label="Joueurs par table" value={form.tableSize} onChange={(v) => set({ tableSize: v })}
             options={TABLE_SIZES.map((n) => ({ v: n, label: String(n) }))} />
-          <p className="muted small">Complet, ce tournoi se joue en {rounds} tour{rounds > 1 ? 's' : ''} : la meilleure moitié de chaque table se qualifie, jusqu'à la finale.</p>
+          <p className="k-hint">Complet, ce tournoi se joue en {rounds} tour{rounds > 1 ? 's' : ''} : la meilleure moitié de chaque table se qualifie, jusqu'à la finale.</p>
           <StakePicker value={form.stake} onChange={(v) => set({ stake: v })} pa={pa} stakes={STAKES} />
           {form.stake > 0 && (
             <Seg label="Répartition de la cagnotte" value={form.payout} onChange={(v) => set({ payout: v })}
@@ -143,14 +146,10 @@ export function TournamentFlow({ mode, settings, onSettings, onExit, onCancel, a
               options={[{ v: 'podium', label: 'Podium' }, { v: 'winner', label: 'Tout au vainqueur' }]} />
           )}
         </section>
-        <section>
-          <h3>Règles des parties</h3>
+        <Section title="Règles des parties">
           <ConfigEditor config={form.config} onChange={(c) => set({ config: c })} />
-          <div className="panel-foot">
-            {error && <p className="error">{error}</p>}
-            <button className="btn primary big" disabled={busy || !form.title.trim()}>{busy ? 'Création…' : 'Créer le tournoi'}</button>
-          </div>
-        </section>
+          <button type="submit" hidden aria-hidden tabIndex={-1} />
+        </Section>
       </form>
     </Shell>
   );

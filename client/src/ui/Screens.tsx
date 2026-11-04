@@ -39,19 +39,9 @@ import { DiceTray, type DiceTrayHandle } from './DiceTray';
 
 export const STANDALONE = typeof __STANDALONE__ !== 'undefined' && __STANDALONE__;
 
-export function Shell({ title, onBack, children, wide }: { title: string; onBack: () => void; children: React.ReactNode; wide?: boolean }) {
-  return (
-    <div className="screen">
-      <div className={`panel${wide ? ' wide' : ''}`}>
-        <header className="panel-head">
-          <button className="icon-btn" onClick={onBack} aria-label="Retour"><Icon name="back" /></button>
-          <h2>{title}</h2>
-        </header>
-        {children}
-      </div>
-    </div>
-  );
-}
+/** En-tête commun des écrans de menu : voir kit.tsx (réexporté ici pour les imports existants). */
+import { BigAction, Choices, Section, Shell, Toggle } from './kit';
+export { Shell };
 
 // ---------------------------------------------------------------------------------------------
 
@@ -222,39 +212,36 @@ export function SoloSetup({ settings, onBack, onStart }: {
   const [cfg, setCfg] = useState<GameConfig>(DEFAULT_CONFIG);
   const [roster, setRoster] = useState(() => [...PERSONAS].sort(() => Math.random() - 0.5));
   const chosen = roster.slice(0, count);
+  const DIFFS: { v: Difficulty; label: string; hint: string }[] = [
+    { v: 'facile', label: 'Facile', hint: 'Pour apprendre' },
+    { v: 'normal', label: 'Normal', hint: 'Joue juste' },
+    { v: 'difficile', label: 'Difficile', hint: 'Ne pardonne rien' },
+  ];
   return (
-    <Shell title="Partie solo" onBack={onBack} wide>
-      <div className="cols">
-        <section>
-          <h3>Adversaires</h3>
-          <div className="seg">
-            {[1, 2, 3, 4, 5].map((n) => <button key={n} className={n === count ? 'on' : ''} onClick={() => setCount(n)}>{n}</button>)}
-          </div>
-          <h3>Difficulté</h3>
-          <div className="seg">
-            {(['facile', 'normal', 'difficile'] as Difficulty[]).map((d) => (
-              <button key={d} className={d === diff ? 'on' : ''} onClick={() => setDiff(d)}>{d[0].toUpperCase() + d.slice(1)}</button>
-            ))}
-          </div>
-          <ul className="roster">
-            {chosen.map((p) => (
-              <li key={p.id} style={{ ['--pc' as string]: p.color }}>
-                <span className="avatar"><span>{p.avatar}</span></span>
-                <div><b>{p.name}</b><small>{p.tagline}</small></div>
-              </li>
-            ))}
-          </ul>
-          <button className="btn ghost small" onClick={() => setRoster([...PERSONAS].sort(() => Math.random() - 0.5))}>Changer d'adversaires</button>
-        </section>
-        <section>
-          <h3>Règles</h3>
+    <Shell title="Partie solo" onBack={onBack} icon="dice" wide sub={`${count} adversaire${count > 1 ? 's' : ''}, niveau ${diff}`}
+      foot={<BigAction icon="dice" label="S'asseoir à la table" sub={describeConfig(cfg)[0]} onClick={() => onStart(cfg, chosen.map((persona) => ({ persona, difficulty: diff })))} />}>
+      <div className="cols solo">
+        <div>
+          <Section title="Adversaires" aside={<button className="btn ghost small" onClick={() => setRoster([...PERSONAS].sort(() => Math.random() - 0.5))}><Icon name="resume" size={18} /> Changer</button>}>
+            <div className="k-pills big" role="radiogroup" aria-label="Nombre d'adversaires">
+              {[1, 2, 3, 4, 5].map((n) => <button key={n} role="radio" aria-checked={n === count} className={n === count ? 'on' : ''} onClick={() => setCount(n)}>{n}</button>)}
+            </div>
+            <ul className="solo-roster">
+              {chosen.map((p) => (
+                <li key={p.id} style={{ ['--pc' as string]: p.color }}>
+                  <span className="avatar"><span>{p.avatar}</span></span>
+                  <b>{p.name}</b><small>{p.tagline}</small>
+                </li>
+              ))}
+            </ul>
+          </Section>
+          <Section title="Difficulté">
+            <Choices value={diff} onChange={setDiff} options={DIFFS} />
+          </Section>
+        </div>
+        <Section title="Règles">
           <ConfigEditor config={cfg} onChange={setCfg} />
-        </section>
-      </div>
-      <div className="panel-foot">
-        <button className="btn primary big" onClick={() => onStart(cfg, chosen.map((persona) => ({ persona, difficulty: diff })))}>
-          S'asseoir à la table
-        </button>
+        </Section>
       </div>
     </Shell>
   );
@@ -312,7 +299,7 @@ export function RulesContent({ current }: { current?: GameConfig }) {
 
 export function RulesScreen({ onBack }: { onBack: () => void }) {
   return (
-    <Shell title="Règles du jeu" onBack={onBack} wide>
+    <Shell title="Règles du jeu" onBack={onBack} icon="rules" sub="Le 421 en 2 minutes">
       <RulesContent />
     </Shell>
   );
@@ -322,33 +309,47 @@ export function RulesScreen({ onBack }: { onBack: () => void }) {
 
 export function SettingsScreen({ settings, onChange, onBack }: { settings: Settings; onChange: (s: Settings) => void; onBack: () => void }) {
   const set = (p: Partial<Settings>) => { sound.unlock(); onChange({ ...settings, ...p }); };
+  const vol = settings.muted ? 0 : Math.round(settings.volume * 100);
   return (
-    <Shell title="Paramètres" onBack={onBack}>
-      <div className="form">
-        <label className="field"><span>Votre nom</span>
-          <input value={settings.name} maxLength={20} placeholder="Votre nom" onChange={(e) => set({ name: e.target.value })} /></label>
-        <div className="field"><span>Avatar</span>
-          <div className="avatars">{AVATARS.map((a) => <button key={a} className={a === settings.avatar ? 'on' : ''} onClick={() => set({ avatar: a })}>{a}</button>)}</div>
-        </div>
-        <label className="field"><span>Qualité graphique</span>
-          <select value={settings.quality} onChange={(e) => set({ quality: e.target.value as Settings['quality'] })}>
-            <option value="haute">Haute (ombres fines)</option>
-            <option value="normale">Normale (plus léger)</option>
-          </select></label>
-        <label className="field"><span>Volume : {settings.muted ? 0 : Math.round(settings.volume * 100)} %</span>
-          <input type="range" min={0} max={100} step={1} value={settings.muted ? 0 : Math.round(settings.volume * 100)}
-            onChange={(e) => { const v = Number(e.target.value); set({ volume: v / 100, muted: v === 0 }); }} /></label>
-        <label className="field"><span>Musique d'ambiance : {Math.round(settings.music * 100)} %</span>
-          <input type="range" min={0} max={100} step={1} value={Math.round(settings.music * 100)} onChange={(e) => set({ music: Number(e.target.value) / 100 })} /></label>
-        <label className="field check"><input type="checkbox" checked={settings.muted} onChange={(e) => set({ muted: e.target.checked })} /><span>Couper tous les sons</span></label>
-        <label className="field check"><input type="checkbox" checked={settings.vibrate} onChange={(e) => set({ vibrate: e.target.checked })} /><span>Vibrations quand les dés frappent (téléphone)</span></label>
-        <label className="field check"><input type="checkbox" checked={settings.shake}
-          onChange={async (e) => { const on = e.target.checked; if (on && needsMotionPermission() && !(await requestMotionPermission())) return; set({ shake: on }); }} />
-          <span>Secouer le téléphone pour lancer</span></label>
-        <label className="field check"><input type="checkbox" checked={settings.cup} onChange={(e) => set({ cup: e.target.checked })} /><span>Lancer au gobelet</span></label>
-        <InstallPrompt />
-        <a className="btn ghost small" href={reportUrl()}>Signaler un problème</a>
-        <button className="btn ghost small" onClick={() => { sound.unlock(); sound.impact('paroi', 10); setTimeout(() => sound.impact('feutre', 9), 120); setTimeout(() => sound.impact('de', 8), 220); }}>Tester le son</button>
+    <Shell title="Réglages" onBack={onBack} icon="settings" sub="Enregistrés automatiquement sur cet appareil">
+      <div className="k-stack">
+        <Section title="Vous">
+          <div className="k-card">
+            <label className="k-field"><span className="k-label">Votre nom</span>
+              <input className="k-input" value={settings.name} maxLength={20} placeholder="Votre nom" onChange={(e) => set({ name: e.target.value })} /></label>
+            <div className="k-field"><span className="k-label">Avatar</span>
+              <div className="avatars">{AVATARS.map((a) => <button key={a} className={a === settings.avatar ? 'on' : ''} onClick={() => set({ avatar: a })} aria-label={`Avatar ${a}`}>{a}</button>)}</div>
+            </div>
+          </div>
+        </Section>
+        <Section title="Son" aside={<button className="btn ghost small" onClick={() => { sound.unlock(); sound.impact('paroi', 10); setTimeout(() => sound.impact('feutre', 9), 120); setTimeout(() => sound.impact('de', 8), 220); }}><Icon name="sound" size={18} /> Tester le son</button>}>
+          <div className="k-card">
+            <label className="k-range"><span><Icon name={vol ? 'sound' : 'mute'} size={20} /><b>Effets</b><em>{vol} %</em></span>
+              <input type="range" min={0} max={100} step={1} value={vol}
+                onChange={(e) => { const v = Number(e.target.value); set({ volume: v / 100, muted: v === 0 }); }} /></label>
+            <label className="k-range"><span><Icon name="cheers" size={20} /><b>Musique d'ambiance</b><em>{Math.round(settings.music * 100)} %</em></span>
+              <input type="range" min={0} max={100} step={1} value={Math.round(settings.music * 100)} onChange={(e) => set({ music: Number(e.target.value) / 100 })} /></label>
+            <Toggle label="Couper tous les sons" checked={settings.muted} onChange={(b) => set({ muted: b })} />
+          </div>
+        </Section>
+        <Section title="Lancer les dés">
+          <div className="k-card">
+            <Toggle label="Secouer le téléphone pour lancer" checked={settings.shake}
+              onChange={async (on) => { if (on && needsMotionPermission() && !(await requestMotionPermission())) return; set({ shake: on }); }} />
+            <Toggle label="Lancer au gobelet" hint="Les dés partent d'un gobelet renversé" checked={settings.cup} onChange={(b) => set({ cup: b })} />
+            <Toggle label="Vibrations" hint="Quand les dés frappent (téléphone)" checked={settings.vibrate} onChange={(b) => set({ vibrate: b })} />
+          </div>
+        </Section>
+        <Section title="Graphismes">
+          <Choices value={settings.quality} onChange={(q) => set({ quality: q })}
+            options={[{ v: 'haute', label: 'Haute', hint: 'Ombres fines' }, { v: 'normale', label: 'Normale', hint: 'Plus léger' }]} />
+        </Section>
+        <Section title="Aide">
+          <div className="k-links">
+            <InstallPrompt />
+            <a className="btn" href={reportUrl()}><Icon name="flag" size={18} /> Signaler un problème</a>
+          </div>
+        </Section>
       </div>
     </Shell>
   );

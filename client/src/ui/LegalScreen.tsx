@@ -1,5 +1,5 @@
 import { LEGAL } from '../legal';
-import { Shell } from './Screens';
+import { Shell } from './kit';
 
 const missing = (v: string, what: string) => v || <span className="todo">[{what} à compléter]</span>;
 
@@ -7,7 +7,7 @@ const missing = (v: string, what: string) => v || <span className="todo">[{what}
 export function LegalScreen({ onBack }: { onBack: () => void }) {
   const contact = LEGAL.contactEmail ? <a className="link" href={`mailto:${LEGAL.contactEmail}`}>{LEGAL.contactEmail}</a> : missing('', 'adresse e-mail de contact');
   return (
-    <Shell title="Confidentialité" onBack={onBack}>
+    <Shell title="Confidentialité" onBack={onBack} icon="lock" sub="Sans publicité, sans cookie, sans e-mail">
       <div className="rules legal">
         <p>Dernière mise à jour : {LEGAL.updated}.</p>
         <p>Le jeu de 421 est édité par <b>{LEGAL.owner}</b>, responsable du traitement des données. Contact : {contact}.</p>

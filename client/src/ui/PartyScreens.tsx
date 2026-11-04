@@ -12,7 +12,7 @@ import { GameScreen } from './GameScreen';
 import { Icon } from './Icon';
 import { MiniDie } from './MiniDie';
 import { RoundTracker } from './RoundTracker';
-import { Shell } from './Screens';
+import { BigAction, Choices, Section, Shell, Tile } from './kit';
 
 export type PartyKind = 'phone' | 'referee';
 
@@ -24,36 +24,37 @@ export function PartySetup({ settings, onBack, onStart }: { settings: Settings; 
   const clean = names.map((n) => n.trim()).filter(Boolean);
   const dup = new Set(clean).size !== clean.length;
   return (
-    <Shell title="Soirée entre amis" onBack={onBack} wide>
+    <Shell title="Soirée entre amis" onBack={onBack} icon="cheers" wide sub={`${clean.length} joueur${clean.length > 1 ? 's' : ''} · ${kind === 'phone' ? 'un seul téléphone' : 'vrais dés'}`}
+      foot={<BigAction icon="cheers" tone="gold" disabled={clean.length < 2 || dup} onClick={() => { sound.unlock(); onStart(kind, clean, cfg); }}
+        label="Commencer la soirée" sub={dup ? 'Deux joueurs ont le même nom' : clean.length < 2 ? 'Il faut au moins deux joueurs' : clean.join(', ')} />}>
       <div className="cols">
-        <section className="form">
-          <div className="seg wide-seg">
-            <button className={kind === 'phone' ? 'on' : ''} onClick={() => setKind('phone')}>Dés à l'écran</button>
-            <button className={kind === 'referee' ? 'on' : ''} onClick={() => setKind('referee')}>Vrais dés</button>
-          </div>
-          <p className="muted">{kind === 'phone'
-            ? 'Un seul téléphone pour tout le monde : chacun lance à son tour, puis passe le téléphone au suivant.'
-            : 'Sortez vos dés et votre piste : l’application arbitre. Chacun indique ses trois dés et son nombre de lancers, elle s’occupe des jetons, des manches et des barrages.'}</p>
-          <h3>Joueurs</h3>
-          <ol className="party-names">
-            {names.map((n, i) => (
-              <li key={i}>
-                <span className="ord">{i + 1}</span>
-                <input value={n} maxLength={16} aria-label={`Joueur ${i + 1}`} onChange={(e) => setNames(names.map((x, j) => (j === i ? e.target.value : x)))} />
-                {names.length > 2 && <button className="icon-btn small" aria-label="Retirer" onClick={() => setNames(names.filter((_, j) => j !== i))}><Icon name="close" size={18} /></button>}
-              </li>
-            ))}
-          </ol>
-          {names.length < 6 && <button className="btn small" onClick={() => setNames([...names, `Joueur ${names.length + 1}`])}><Icon name="plus" size={18} /> Ajouter un joueur</button>}
-          {dup && <p className="error">Deux joueurs ont le même nom.</p>}
-        </section>
-        <section>
-          <h3>Règles</h3>
+        <div>
+          <Section title="Comment jouer ?">
+            <Choices value={kind} onChange={setKind} options={[
+              { v: 'phone', label: "Dés à l'écran", hint: 'On se passe le téléphone', icon: 'dice' },
+              { v: 'referee', label: 'Vrais dés', hint: "L'appli arbitre", icon: 'rules' },
+            ]} />
+            <p className="k-hint">{kind === 'phone'
+              ? 'Chacun lance à son tour, puis passe le téléphone au suivant.'
+              : 'Sortez vos dés et votre piste : chacun indique ses trois dés et son nombre de lancers, l’application s’occupe des jetons, des manches et des barrages.'}</p>
+          </Section>
+          <Section title="Joueurs" count={`${names.length}/6`}>
+            <ol className="party-names">
+              {names.map((n, i) => (
+                <li key={i}>
+                  <span className="ord">{i + 1}</span>
+                  <input value={n} maxLength={16} aria-label={`Joueur ${i + 1}`} onChange={(e) => setNames(names.map((x, j) => (j === i ? e.target.value : x)))} />
+                  {names.length > 2 && <button className="icon-btn" aria-label={`Retirer ${n || `le joueur ${i + 1}`}`} onClick={() => setNames(names.filter((_, j) => j !== i))}><Icon name="close" size={18} /></button>}
+                </li>
+              ))}
+            </ol>
+            {names.length < 6 && <Tile icon="plus" label="Ajouter un joueur" onClick={() => setNames([...names, `Joueur ${names.length + 1}`])} />}
+            {dup && <p className="error">Deux joueurs ont le même nom.</p>}
+          </Section>
+        </div>
+        <Section title="Règles">
           <ConfigEditor config={cfg} onChange={(c) => setCfg({ ...c, turnSeconds: kind === 'referee' ? 0 : c.turnSeconds })} />
-          <div className="panel-foot">
-            <button className="btn primary big" disabled={clean.length < 2 || dup} onClick={() => { sound.unlock(); onStart(kind, clean, cfg); }}>Commencer la soirée</button>
-          </div>
-        </section>
+        </Section>
       </div>
     </Shell>
   );
@@ -117,7 +118,7 @@ export function RefereeScreen({ names, config, onExit }: { names: string[]; conf
   const ranked = useMemo(() => [...s.players].sort((a, b) => (points ? b.score - a.score : a.tokens - b.tokens)), [s, points]);
 
   return (
-    <Shell title="Soirée : l'arbitre" onBack={async () => { if (s.phase === 'fini' || await askConfirm('Quitter la soirée ?', 'Quitter')) onExit(); }} wide>
+    <Shell title="Soirée : l'arbitre" icon="rules" onBack={async () => { if (s.phase === 'fini' || await askConfirm('Quitter la soirée ?', 'Quitter')) onExit(); }} wide>
       <div className="referee">
         <RoundTracker s={s} nameOf={nameOf} colorOf={() => undefined} />
         {s.lastSummary && <p className="ref-summary">{s.lastSummary.text}</p>}
