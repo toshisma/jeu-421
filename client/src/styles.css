@@ -1438,7 +1438,8 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .seat.empty { cursor: pointer; }
 .seat.empty .seat-av { background: rgba(0,0,0,0.18); box-shadow: none; border: 2px dashed rgba(255,255,255,0.3); color: var(--texte-2); }
 .seat.empty .seat-name { color: var(--texte-2); }
-button.seat:not(.empty):not(.me) { cursor: pointer; }
+.seat-kick { margin-top: 2px; height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid rgba(239,90,82,0.6); background: rgba(200,49,43,0.25); color: #ffd6d3; font: 700 11px/1 var(--font); cursor: pointer; }
+.seat-kick:active { transform: translateY(1px); }
 .seat-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; padding: 8px 10px; border-radius: 12px; background: rgba(0,0,0,0.3); }
 .seat-actions > span { font-weight: 700; margin-right: 4px; }
 .lobby-code { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-radius: 12px; background: rgba(0,0,0,0.22); margin-bottom: 12px; }

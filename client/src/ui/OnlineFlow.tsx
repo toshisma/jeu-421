@@ -188,6 +188,7 @@ function Lobby({ session, onExit, pa }: { session: OnlineSession; onExit: () => 
               ? <button className="btn small" onClick={share}><Icon name="share" size={16} />Inviter</button>
               : <button className="btn small" onClick={() => copy(link, 'lien')}><Icon name="share" size={16} />{copied === 'lien' ? 'Copié' : 'Lien'}</button>}
           </div>
+          {pa.isAccount && count < max && <InviteFriends pa={pa} inRoom={room.members.map((m) => m.name)} />}
           {isHost && count < max && room.table.stake === 0 && (
             <div className="bot-add">
               <div className="seg" role="group" aria-label="Niveau de l'ordinateur">
@@ -196,7 +197,6 @@ function Lobby({ session, onExit, pa }: { session: OnlineSession; onExit: () => 
               <button className="btn small" onClick={addBot}><Icon name="plus" size={18} />Ajouter un ordinateur</button>
             </div>
           )}
-          {pa.isAccount && count < max && <InviteFriends pa={pa} inRoom={room.members.map((m) => m.name)} />}
           {isHost && humans === 1 && count < 2 && <p className="muted small">Personne pour l'instant : ajoutez un ordinateur pour jouer tout de suite, ou partagez le code.</p>}
           {!session.connected && <p className="error">Connexion perdue, reconnexion en cours…</p>}
           <div className="lobby-actions">
@@ -234,12 +234,10 @@ function LobbyTable({ room, meId, isHost, max, onInvite, onKick, onRemoveBot }: 
   room: NonNullable<OnlineSession['room']>; meId: string | null; isHost: boolean; max: number;
   onInvite: () => void; onKick: (id: string) => void; onRemoveBot: (id: string) => void;
 }) {
-  const [picked, setPicked] = useState<string | null>(null);
   const seats = Math.max(max, room.members.length);
   // Le joueur se voit toujours en haut de la table ; les autres suivent dans l'ordre.
   const meIdx = Math.max(0, room.members.findIndex((m) => m.id === meId));
   const ordered = [...room.members.slice(meIdx), ...room.members.slice(0, meIdx)];
-  const pickedM = room.members.find((m) => m.id === picked);
   const ready = room.members.filter((m) => !m.left && m.ready).length;
   return (
     <div className="ltable-wrap">
@@ -259,29 +257,21 @@ function LobbyTable({ room, meId, isHost, max, onInvite, onKick, onRemoveBot }: 
             </button>
           );
           const mine = m.id === meId;
-          const canAct = isHost && !mine;
           return (
-            <button key={m.id} className={`seat${mine ? ' me' : ''}${m.ready || m.bot ? ' ready' : ''}${picked === m.id ? ' picked' : ''}`} style={style}
-              onClick={() => canAct && setPicked(picked === m.id ? null : m.id)} aria-label={`${m.name}${m.ready ? ', prêt' : ', pas prêt'}`}>
+            <div key={m.id} className={`seat${mine ? ' me' : ''}${m.ready || m.bot ? ' ready' : ''}`} style={style}>
               <span className="seat-av"><Avatar photo={m.photo} emoji={m.avatar} size={46} accessory={m.accessory} />
                 {(m.ready || m.bot) && <i className="seat-ok"><Icon name="check" size={11} /></i>}
                 {!m.connected && !m.bot && <i className="seat-off" />}
                 {m.isHost && <i className="seat-host" title="Hôte">★</i>}</span>
               <span className="seat-name">{mine ? `${m.name} (vous)` : m.name}</span>
               <small>{m.bot ? `Ordi · ${m.bot}` : !m.connected ? 'hors ligne' : m.ready ? 'prêt' : 'pas prêt'}</small>
-            </button>
+              {isHost && !mine && (m.bot
+                ? <button className="seat-kick" onClick={() => onRemoveBot(m.id)} aria-label={`Retirer ${m.name}`}>Retirer</button>
+                : <button className="seat-kick" onClick={() => onKick(m.id)} aria-label={`Exclure ${m.name}`}>Exclure</button>)}
+            </div>
           );
         })}
       </div>
-      {pickedM && isHost && (
-        <div className="seat-actions">
-          <span>{pickedM.name}</span>
-          {pickedM.bot
-            ? <button className="btn small" onClick={() => { onRemoveBot(pickedM.id); setPicked(null); }}>Retirer l'ordinateur</button>
-            : <button className="btn small danger" onClick={() => { onKick(pickedM.id); setPicked(null); }}>Exclure</button>}
-          <button className="btn ghost small" onClick={() => setPicked(null)}>Annuler</button>
-        </div>
-      )}
     </div>
   );
 }
