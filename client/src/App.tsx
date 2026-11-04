@@ -2,7 +2,7 @@ import { api } from './account/api';
 import { music } from './audio/music';
 import { ChangelogScreen } from './ui/Changelog';
 import { FriendOnlineToast, FriendsScreen, InviteBanner } from './ui/Friends';
-import { useEffect, useRef, useMemo, useState } from 'react';
+import { Suspense, useEffect, useRef, useMemo, useState } from 'react';
 import type { GameConfig } from '../../shared/config';
 import { sound } from './audio/sound';
 import { setHaptics } from './audio/haptics';
@@ -10,32 +10,23 @@ import { LocalController, type Opponent } from './game/localController';
 import type { Persona } from './game/personas';
 import { loadSession, loadSettings, saveSettings, type Settings } from './settings';
 import { useProfile } from './account/useProfile';
-import { GameScreen } from './ui/GameScreen';
-import { OnlineFlow, type OnlineMode } from './ui/OnlineFlow';
-import { OnlineHub, type HubTab } from './ui/OnlineHub';
-import { SpectateFlow } from './ui/SpectateFlow';
-import { TournamentFlow, type TournamentMode } from './ui/TournamentFlow';
-import { LegalScreen } from './ui/LegalScreen';
+import type { OnlineMode } from './ui/OnlineFlow';
+import type { HubTab } from './ui/OnlineHub';
+import type { TournamentMode } from './ui/TournamentFlow';
 import { PassScreen } from './ui/Progression';
-import { TutorialScreen } from './ui/TutorialScreen';
 import { ChallengeScreen } from './ui/ChallengeScreen';
 import { BossController } from './game/boss';
 import { bossOfWeek } from '../../shared/progress/boss';
 import { today } from '../../shared/progress/quests';
 import { PERSONAS } from './game/personas';
 import { PartyController } from './game/party';
-import { PartyGame, PartySetup, RefereeScreen } from './ui/PartyScreens';
-import { ClubScreen } from './ui/ClubScreen';
-import { AlbumScreen, RecapScreen } from './ui/Collection';
 import { TutorialController } from './game/tutorial';
 import { titleLabel } from '../../shared/progress/profile';
 import { accessoryEmoji } from '../../shared/progress/catalog';
-import { ShopScreen } from './ui/ShopScreen';
 import { AccountScreen, LeaderboardScreen } from './ui/AccountScreens';
 import { RulesScreen, Sandbox, SettingsScreen, SoloSetup, STANDALONE } from './ui/Screens';
 import { Home } from './ui/Home';
 import { StatsScreen } from './ui/StatsScreen';
-import { AdminDashboard } from './ui/AdminDashboard';
 import { CollectionScreen } from './ui/DiceCollection';
 import { DuelsScreen } from './ui/Social';
 import type { DuelPlay } from './ui/ChallengeScreen';
@@ -44,6 +35,27 @@ import { MessagesScreen } from './ui/Messages';
 import { connectMessages } from './messages';
 import { linkVisitor, trackVisit } from './visit';
 import { askConfirm } from './ui/confirm';
+import { lazyScreen, saveData, whenIdle } from './lazy';
+import { loadTrayScene } from './ui/DiceTray';
+
+// Écrans secondaires : chargés à la demande (voir lazy.ts). L'accueil n'attend aucun d'eux.
+const GameScreen = lazyScreen(() => import('./ui/GameScreen'), 'GameScreen');
+const OnlineFlow = lazyScreen(() => import('./ui/OnlineFlow'), 'OnlineFlow');
+const OnlineHub = lazyScreen(() => import('./ui/OnlineHub'), 'OnlineHub');
+const SpectateFlow = lazyScreen(() => import('./ui/SpectateFlow'), 'SpectateFlow');
+const TournamentFlow = lazyScreen(() => import('./ui/TournamentFlow'), 'TournamentFlow');
+const LegalScreen = lazyScreen(() => import('./ui/LegalScreen'), 'LegalScreen');
+const TutorialScreen = lazyScreen(() => import('./ui/TutorialScreen'), 'TutorialScreen');
+const PartyGame = lazyScreen(() => import('./ui/PartyScreens'), 'PartyGame');
+const PartySetup = lazyScreen(() => import('./ui/PartyScreens'), 'PartySetup');
+const RefereeScreen = lazyScreen(() => import('./ui/PartyScreens'), 'RefereeScreen');
+const ClubScreen = lazyScreen(() => import('./ui/ClubScreen'), 'ClubScreen');
+const AlbumScreen = lazyScreen(() => import('./ui/Collection'), 'AlbumScreen');
+const RecapScreen = lazyScreen(() => import('./ui/Collection'), 'RecapScreen');
+const ShopScreen = lazyScreen(() => import('./ui/ShopScreen'), 'ShopScreen');
+const AdminDashboard = lazyScreen(() => import('./ui/AdminDashboard'), 'AdminDashboard');
+/** Préchargés en arrière-plan une fois l'accueil affiché (les plus utilisés d'abord). */
+const LIKELY = [GameScreen, OnlineHub, OnlineFlow, TournamentFlow, ShopScreen, SpectateFlow, TutorialScreen, PartySetup, ClubScreen, AlbumScreen];
 
 type Screen =
   | { name: 'home' }
@@ -159,6 +171,15 @@ export function App() {
   useEffect(() => {
     setPresence(screen.name === 'solo' || screen.name === 'boss' ? 'solo' : screen.name === 'online' || screen.name === 'tournament' ? 'online' : 'menu');
   }, [screen.name]);
+
+  // Une fois l'accueil affiché : la 3D puis les écrans les plus probables se chargent en arrière-plan.
+  useEffect(() => {
+    if (saveData()) return;
+    let i = 0;
+    const next = () => { if (i < LIKELY.length) { LIKELY[i++].preload(); whenIdle(next); } };
+    const t = setTimeout(() => whenIdle(() => { void loadTrayScene().catch(() => {}); whenIdle(next); }), 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   const home = () => {
     if (invite || tInvite || watchLink || location.pathname.startsWith('/confidentialite')) cleanUrl();
@@ -307,7 +328,7 @@ export function App() {
   const atTable = screen.name === 'online' || screen.name === 'tournament' || screen.name === 'watch';
   return (
     <>
-      {view}
+      <Suspense fallback={<div className="screen-loading" role="status" aria-label="Chargement…"><span className="spinner" aria-hidden /></div>}>{view}</Suspense>
       {!STANDALONE && <FriendOnlineToast pa={pa} />}
       {!STANDALONE && !atTable && <InviteBanner pa={pa} onJoin={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })} />}
     </>

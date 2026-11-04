@@ -2,7 +2,7 @@
  * Messages privés : une connexion Socket.IO légère (espace « /messages ») tant qu'un compte a le
  * jeu ouvert. Elle apporte les nouveaux messages en direct et le nombre de non-lus.
  */
-import { io, type Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 import { useEffect, useState } from 'react';
 import { SERVER_URL } from './platform';
 import { api } from './account/api';
@@ -25,6 +25,10 @@ export function connectMessages(token: string | null) {
   socket?.disconnect(); socket = null; current = token; unread = 0;
   emit({ type: 'unread', unread: 0 });
   if (!token) return;
+  // Socket.IO est chargé à part : la connexion s'ouvre dès qu'il est là (si le compte n'a pas changé).
+  import('socket.io-client').then(({ io }) => { if (current === token && !socket) openMessages(io, token); }, () => {});
+}
+function openMessages(io: typeof import('socket.io-client').io, token: string) {
   try {
     socket = io(`${(SERVER_URL ?? '').replace(/\/$/, '')}/messages`, { auth: { token }, transports: ['websocket', 'polling'] });
     socket.on('pm:message', (d) => emit({ type: 'message', ...d }));

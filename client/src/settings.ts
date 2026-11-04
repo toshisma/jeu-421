@@ -15,6 +15,8 @@ export interface Settings {
   difficulty: Difficulty;
   /** Lancer au gobelet (sinon, les dés partent de la main). */
   cup: boolean;
+  /** Alerte « À vous de jouer » quand l'onglet est en arrière-plan. */
+  turnAlert: boolean;
 }
 
 const KEY = '421.settings';
@@ -29,6 +31,7 @@ export const DEFAULT_SETTINGS: Settings = {
   quality: 'haute',
   difficulty: 'normal',
   cup: true,
+  turnAlert: true,
 };
 
 export function loadSettings(): Settings {

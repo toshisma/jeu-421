@@ -346,6 +346,7 @@ export function SettingsScreen({ settings, onChange, onBack }: { settings: Setti
           onChange={async (e) => { const on = e.target.checked; if (on && needsMotionPermission() && !(await requestMotionPermission())) return; set({ shake: on }); }} />
           <span>Secouer le téléphone pour lancer</span></label>
         <label className="field check"><input type="checkbox" checked={settings.cup} onChange={(e) => set({ cup: e.target.checked })} /><span>Lancer au gobelet</span></label>
+        <label className="field check"><input type="checkbox" checked={settings.turnAlert} onChange={(e) => set({ turnAlert: e.target.checked })} /><span>M'alerter quand c'est mon tour (onglet en arrière-plan)</span></label>
         <InstallPrompt />
         <a className="btn ghost small" href={reportUrl()}>Signaler un problème</a>
         <button className="btn ghost small" onClick={() => { sound.unlock(); sound.impact('paroi', 10); setTimeout(() => sound.impact('feutre', 9), 120); setTimeout(() => sound.impact('de', 8), 220); }}>Tester le son</button>
