@@ -111,6 +111,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   const nameOf = (id: string) => metaOf(id)?.name ?? shown?.players.find((p) => p.id === id)?.name ?? '?';
   // Dés de chaque joueur : quand quelqu'un lance, le bac montre ses dés à lui.
   const metaRef = useRef(meta);
+  const anyRoll = useRef(false);
   metaRef.current = meta;
   const skinOf = (id: string | null): string | null =>
     !id || id === controller.meId ? null : metaRef.current.find((m) => m.id === id)?.dice ?? null;
@@ -176,6 +177,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
       if (ev.type === 'roll') {
         tray.current?.setInteractive(false);
         const big = ev.roll.combo.kind === '421' || ev.roll.combo.kind === '111';
+        anyRoll.current = true;
         tray.current?.setDiceSkin(skinOf(ev.roll.playerId));
         { const t = fxOf(ev.roll.playerId, 'trail'); tray.current?.setTrail(fxDef(t)?.colors ?? null, fxGlows(t)); }
         await tray.current?.roll(ev.roll.dice, ev.roll.kept, ev.seed, ev.gesture, big);
@@ -296,7 +298,9 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   // Les dés du joueur précédent restent sur le tapis avec leur apparence jusqu'au lancer suivant :
   // on ne change d'apparence que si le bac est vide (le lancer suivant applique la sienne).
   const trayEmpty = !s || s.dice.every((d) => d === 0);
-  useEffect(() => { if (!animating && trayEmpty) tray.current?.setDiceSkin(skinOf(currentId)); }, [currentId, animating, meta, trayEmpty]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Les dés restent ceux du dernier joueur qui a lancé, jusqu'à ce que le suivant lance les siens
+  // (le changement se fait au lancer, plus haut). Seule exception : avant le tout premier lancer.
+  useEffect(() => { if (!animating && trayEmpty && !anyRoll.current) tray.current?.setDiceSkin(skinOf(currentId)); }, [currentId, animating, meta, trayEmpty]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (animating) return;
     tray.current?.setKept(canKeepNow ? keep : NO_KEEP);
