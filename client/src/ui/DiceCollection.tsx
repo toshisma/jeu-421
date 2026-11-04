@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { BagIcon } from './BagIcon';
 import { getItem, type DiceItem } from '../../../shared/progress/catalog';
 import {
   COLLECTION, CRAFT_COST, FX, FX_KIND_LABEL, FX_SHARE, RARITIES, RARITY_COLOR, RARITY_LABEL, RARITY_ODDS, SERIES, SHINY_ODDS, SHINY_SUFFIX,
@@ -91,7 +92,7 @@ function BagOpening({ pa, onClose }: { pa: ProfileApi; onClose: () => void }) {
         {phase === 'shake' && (
           <div className={`bag-build${tint ? ' tinted' : ''}`} aria-hidden>
             <div className="bag-aura" />
-            <div className="bag">🎒</div>
+            <div className="bag"><BagIcon size="1em" /></div>
           </div>
         )}
         {phase === 'error' && <p className="error">{err}</p>}
@@ -214,7 +215,7 @@ export function CollectionScreen({ pa, onBack, onAccount }: { pa: ProfileApi; on
     <Shell title="Collection de dés" onBack={onBack} wide>
       <section className="coll-head">
         <div className="bag-box">
-          <span className="bag-ico" aria-hidden>🎒</span>
+          <span className="bag-ico" aria-hidden><BagIcon size="1em" /></span>
           <div>
             <b>{bags} sac{bags > 1 ? 's' : ''} à ouvrir</b>
             <small>On en trouve en jouant : environ 1 partie gagnée sur 5, et au plus tard toutes les {BAG_PITY} parties. Aussi au 7e jour de la série et contre le patron de la semaine.</small>
@@ -353,7 +354,7 @@ export function CollectionPromo({ pa, onOpen }: { pa: ProfileApi; onOpen: () => 
         <b>Collectionne des dés super rares !</b>
         <span>{count.owned > 0 ? `${count.owned}/${count.total} dés dans votre collection.` : '25 dés à trouver, du commun au légendaire, et leurs versions brillantes.'} Les autres les voient quand vous lancez.</span>
       </span>
-      {bags > 0 && <span className="promo-bags">🎒 {bags} sac{bags > 1 ? 's' : ''} à ouvrir</span>}
+      {bags > 0 && <span className="promo-bags"><BagIcon size="1em" /> {bags} sac{bags > 1 ? 's' : ''} à ouvrir</span>}
     </button>
   );
 }

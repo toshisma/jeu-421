@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { BagIcon } from './BagIcon';
 import { accessoryEmoji } from '../../../shared/progress/catalog';
 import { DAILY_REWARDS, chestWait, dailyStatus, levelInfo, passProgress, seasonOf, titleLabel, type Profile } from '../../../shared/progress/profile';
 import { dailyQuests, questsFor, today } from '../../../shared/progress/quests';
@@ -347,11 +348,11 @@ export function Home(props: HomeProps) {
               <small>{coll > 0 ? `${coll}/25 trouvés` : '25 dés à trouver'}<span className="tile-bar"><i style={{ width: `${(100 * coll) / 25}%` }} /></span></small>
             </button>
             <button className="h2-promo ref" onClick={() => (acc ? setSheet('parrainage') : props.onAccount())}>
-              <span className="promo-bag" aria-hidden>🎒</span>
+              <span className="promo-bag" aria-hidden><BagIcon size="1em" /></span>
               <span className="promo-shine late" aria-hidden />
               {referral && <em className="promo-badge">{referral.bagsEarned}/{referral.bagsMax}</em>}
-              <b>Invitez, gagnez un sac</b>
-              <small>{acc ? '+ set « Feu et Glace » à 5 amis' : 'Avec un compte gratuit'}</small>
+              <b>Invitez un ami</b>
+              <small>{acc ? '1 sac de dés offert par ami' : 'Sac de dés offert · compte gratuit'}</small>
             </button>
           </div>
         )}

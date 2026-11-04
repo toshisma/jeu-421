@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { BagIcon } from './BagIcon';
 import type { GameState } from '../../../shared/engine';
 import type { MetaPlayer } from '../game/controller';
 import { levelInfo } from '../../../shared/progress/profile';
@@ -99,7 +100,7 @@ function RewardBox({ r }: { r: EndReward }) {
         {reward.lines.map((l) => (
           <li key={l.label}><span>{l.label}</span><span>{l.xp > 0 && <b>+{l.xp} XP</b>}{l.coins > 0 && <b className="c">+{l.coins} pièces</b>}</span></li>
         ))}
-        {!!applied.bagsFound && <li className="lvlup bag-found"><span>🎒 {applied.bagsFound > 1 ? `${applied.bagsFound} sacs de dés trouvés !` : 'Sac de dés trouvé !'}</span><span className="muted small">à ouvrir dans Collection</span></li>}
+        {!!applied.bagsFound && <li className="lvlup bag-found"><span><BagIcon size="1em" /> {applied.bagsFound > 1 ? `${applied.bagsFound} sacs de dés trouvés !` : 'Sac de dés trouvé !'}</span><span className="muted small">à ouvrir dans Collection</span></li>}
         {applied.achievementsDone?.map((x) => <li key={x.id} className="lvlup"><span>{x.icon} Succès : {x.name}</span><span><b className="c">+{x.coins} pièces</b></span></li>)}
         {applied.questsDone?.map((q) => <li key={q.id} className="lvlup"><span>🎯 Défi accompli : {q.text}</span><span className="muted small">à récupérer</span></li>)}
         {leveled && <li className="lvlup"><span>Niveau {applied.levelAfter} atteint !</span><span><b className="c">+{applied.levelBonusCoins} pièces</b></span></li>}

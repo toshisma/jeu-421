@@ -1,4 +1,5 @@
 import { BossCard, DailyStreak, EveningChest, EventBanner, HappyHourBanner, PassSummary } from './Progression';
+import { BagIcon } from './BagIcon';
 import { reportUrl } from '../legal';
 import { ChallengeCard } from './ChallengeScreen';
 import { accessoryEmoji } from '../../../shared/progress/catalog';
@@ -157,7 +158,7 @@ export function Home(props: {
         <HappyHourBanner />
         {props.pa.welcomeBack && (
           <button className="welcome-back" onClick={() => { props.pa.dismissWelcome(); props.onCollection(); }}>
-            <span aria-hidden>🎒</span><span><b>Content de vous revoir !</b> Un sac de dés vous attend : ouvrez-le dans la Collection.</span>
+            <span aria-hidden><BagIcon size="1em" /></span><span><b>Content de vous revoir !</b> Un sac de dés vous attend : ouvrez-le dans la Collection.</span>
           </button>
         )}
         <EventBanner onShop={props.onShop} />

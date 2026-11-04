@@ -2,6 +2,7 @@
  * Tournois programmés (11h et 21h, heure de Bruxelles) : carte d'inscription (accueil et écran
  * Tournois), salon d'attente avec compte à rebours, et résultats en sacs de dés.
  */
+import { BagIcon } from './BagIcon';
 import { useEffect, useMemo, useState } from 'react';
 import {
   BAG_TIERS, SCHED_FEE, SCHED_MAX, SCHED_MIN, bagPrizes, bagsLabel, brusselsDay, formatClock, formatDelay, hourLabel, nextTier,
@@ -45,7 +46,7 @@ export function BagTable({ players, compact }: { players: number; compact?: bool
         {BAG_TIERS.map((t) => (
           <tr key={t.from} className={t === cur ? 'on' : ''}>
             <th>{t.from === t.to ? t.from : `${t.from} à ${t.to}`}</th>
-            {[0, 1, 2, 3].map((i) => <td key={i}>{t.bags[i] ? `🎒 ${t.bags[i]}` : '·'}</td>)}
+            {[0, 1, 2, 3].map((i) => <td key={i}>{t.bags[i] ? <><BagIcon size="1em" /> {t.bags[i]}</> : '·'}</td>)}
           </tr>
         ))}
       </tbody>
@@ -153,7 +154,7 @@ export function ScheduledCard({ pa, onJoin, onAccount, compact }: {
           <Icon name="bell" size={18} /> Me prévenir 5 minutes avant
         </button>
       )}
-      {first && <p className="sc-prize">🎒 {first.count >= SCHED_MIN
+      {first && <p className="sc-prize"><BagIcon size="1em" /> {first.count >= SCHED_MIN
         ? <>À {first.count} joueurs : {bagPrizes(first.count).map((b, i) => `${placeLabel(i)} ${bagsLabel(b)}`).join(', ')}{nextTier(first.count) ? `. Dès ${first.count + nextTier(first.count)!.missing} : ${bagsLabel(nextTier(first.count)!.bags[0])} au 1er` : ''}.</>
         : <>Gains en sacs de dés : de 1 sac (4 joueurs) à 5 sacs au 1er (16 joueurs).</>}</p>}
       <button className="btn ghost small sc-toggle" aria-expanded={showBag} onClick={() => setShowBag((v) => !v)}>
@@ -231,13 +232,13 @@ export function ScheduledResults({ t, meId }: { t: PublicTournament; meId: strin
   return (
     <div className="sched-results">
       {mine >= 0 && <p className="sr-big">{mine === 0 ? 'Vous remportez le tournoi !' : `Vous finissez ${placeLabel(mine)} sur ${standings.length}`}</p>}
-      {mine >= 0 && s.bags[mine] ? <p className="sr-bags">🎒 {bagsLabel(s.bags[mine])} de dés gagné{s.bags[mine] > 1 ? 's : ouvrez-les' : ' : ouvrez-le'} dans votre collection.</p> : null}
+      {mine >= 0 && s.bags[mine] ? <p className="sr-bags"><BagIcon size="1em" /> {bagsLabel(s.bags[mine])} de dés gagné{s.bags[mine] > 1 ? 's : ouvrez-les' : ' : ouvrez-le'} dans votre collection.</p> : null}
       <ol className="ranking t-standings">
         {standings.map((id, i) => (
           <li key={id} className={id === meId ? 'me' : ''}>
             <span className="rk">{placeLabel(i)}</span>
             <span className="nm">{nameOf(id)}</span>
-            {s.bags[i] ? <span className="sc bag-text">🎒 {bagsLabel(s.bags[i])}</span> : null}
+            {s.bags[i] ? <span className="sc bag-text"><BagIcon size="1em" /> {bagsLabel(s.bags[i])}</span> : null}
           </li>
         ))}
       </ol>

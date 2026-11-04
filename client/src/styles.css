@@ -1677,3 +1677,12 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .shop-thumb-dice::before, .shop-thumb-acc::before { background: radial-gradient(55% 75% at 50% 40%, rgba(255,226,170,0.28), rgba(0,0,0,0.05) 60%, rgba(0,0,0,0.45)); }
 .shop-thumb-dice::after { content: ''; position: absolute; left: 50%; bottom: 16%; width: 40%; height: 12%; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(closest-side, rgba(0,0,0,0.55), transparent); z-index: 0; }
 .shop-thumb-dice .die-cube { z-index: 1; }
+
+/* Sac de dés (bourse en velours) : remplace l'émoji sac à dos */
+.bag-icon { display: inline-block; vertical-align: -0.18em; flex: none; }
+.bag-stage .bag .bag-icon, .bag-ico .bag-icon, .promo-bag .bag-icon, .ref-ico .bag-icon { vertical-align: top; }
+.ref-progress i .bag-icon { width: 1.5em; height: 1.5em; }
+.ref-ico .bag-icon { width: 52px; height: 52px; }
+.ref-progress i .bag-icon { width: 34px; height: 34px; }
+.promo-bag .bag-icon { width: 58px; height: 58px; }
+.bag-ico .bag-icon { width: 56px; height: 56px; }

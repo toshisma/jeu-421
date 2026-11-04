@@ -250,8 +250,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     if (!r) return fail(res, 400, 'Aucun sac à ouvrir.');
     store.saveProfile(u.id, r.profile);
     if (r.result.shiny) news(`✨ ${u.username} a trouvé un dé brillant !`);
-    else if (r.result.rarity === 'legendaire') news(`🎒 ${u.username} a sorti un dé légendaire d’un sac !`);
-    else if (r.result.rarity === 'epique') news(`🎒 ${u.username} a sorti un dé épique`);
+    else if (r.result.rarity === 'legendaire') news(`✨ ${u.username} a sorti un dé légendaire d’un sac !`);
+    else if (r.result.rarity === 'epique') news(`✨ ${u.username} a sorti un dé épique`);
     res.json({ ok: true, profile: r.profile, result: r.result });
   });
   router.post('/collection/craft', auth, (req, res) =>

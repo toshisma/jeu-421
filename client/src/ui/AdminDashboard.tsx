@@ -371,7 +371,7 @@ function RetentionTab({ token }: { token: string | null }) {
 }
 
 const KINDS: [string, string][] = [['', 'Tout'], ['connexion', 'Connexions'], ['partie', 'Parties'], ['achat', 'Achats'], ['sac', 'Sacs'], ['succes', 'Succès'], ['niveau', 'Niveaux'], ['gain', 'Gains'], ['admin', 'Admin']];
-const KIND_ICON: Record<string, string> = { connexion: '🔑', partie: '🎲', achat: '🛒', sac: '🎒', succes: '🏅', niveau: '⭐', gain: '🪙', admin: '🛡️' };
+const KIND_ICON: Record<string, string> = { connexion: '🔑', partie: '🎲', achat: '🛒', sac: '🎲', succes: '🏅', niveau: '⭐', gain: '🪙', admin: '🛡️' };
 function ActivityTab({ token, user, setUser }: { token: string | null; user: string; setUser: (u: string) => void }) {
   const [kind, setKind] = useState('');
   const [draft, setDraft] = useState(user);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BagIcon } from './BagIcon';
 import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
 import { publicUrl } from '../platform';
@@ -44,7 +45,7 @@ export function ReferralCard({ pa, onAccount }: { pa: ProfileApi; onAccount: () 
     return (
       <section className="ref-card ref-guest">
         <div className="ref-top">
-          <span className="ref-ico" aria-hidden>🎒</span>
+          <span className="ref-ico" aria-hidden><BagIcon size="1em" /></span>
           <div>
             <b>Parrainez vos amis, gagnez des sacs de dés</b>
             <span>Avec un compte, vous obtenez un lien à partager : un sac de dés par ami qui s'inscrit et joue 10 parties (jusqu'à 3 sacs).</span>
@@ -60,7 +61,7 @@ export function ReferralCard({ pa, onAccount }: { pa: ProfileApi; onAccount: () 
   return (
     <section className="ref-card">
       <div className="ref-top">
-        <span className="ref-ico" aria-hidden>🎒</span>
+        <span className="ref-ico" aria-hidden><BagIcon size="1em" /></span>
         <div>
           <b>{left > 0 ? 'Invitez un ami, gagnez un sac de dés' : 'Merci pour vos invitations !'}</b>
           <span>{left > 0
@@ -69,7 +70,7 @@ export function ReferralCard({ pa, onAccount }: { pa: ProfileApi; onAccount: () 
         </div>
       </div>
       <div className="ref-progress" aria-label={`${r.bagsEarned} sacs gagnés sur ${r.bagsMax}`}>
-        {Array.from({ length: r.bagsMax }, (_, i) => <i key={i} className={i < r.bagsEarned ? 'on' : ''}>🎒</i>)}
+        {Array.from({ length: r.bagsMax }, (_, i) => <i key={i} className={i < r.bagsEarned ? 'on' : ''}><BagIcon size="1em" /></i>)}
         <small>{r.bagsEarned}/{r.bagsMax} sacs gagnés</small>
       </div>
       {r.inviteSet && (
