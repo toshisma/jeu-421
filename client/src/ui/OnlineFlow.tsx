@@ -15,6 +15,7 @@ import { publicUrl } from '../platform';
 import type { ProfileApi } from '../account/useProfile';
 import { DEFAULT_TABLE, STAKES, stakeLabel, type TableSettings } from '../../../shared/tournament';
 import { Icon } from './Icon';
+import { Avatar } from './Avatar';
 import { Seg, StakePicker } from './OnlineHub';
 
 export type OnlineMode = { kind: 'create'; invite?: string } | { kind: 'join'; code?: string; auto?: boolean } | { kind: 'resume' } | { kind: 'quick' };
@@ -176,38 +177,17 @@ function Lobby({ session, onExit, pa }: { session: OnlineSession; onExit: () => 
     <Shell title={room.title} onBack={onExit} wide>
       <div className="cols">
         <section>
-          <div className="code-box">
-            <small>{room.table.visibility === 'public' ? 'Table publique. Code à partager :' : 'Code de la partie'}</small>
-            <div className="code">{room.code}</div>
-            <div className="code-actions">
-              <button className="btn small" onClick={() => copy(room.code, 'code')}><Icon name="copy" size={18} />{copied === 'code' ? 'Copié' : 'Copier le code'}</button>
-              {canShare
-                ? <button className="btn small" onClick={share}><Icon name="share" size={18} />Inviter des amis</button>
-                : <button className="btn small" onClick={() => copy(link, 'lien')}><Icon name="share" size={18} />{copied === 'lien' ? 'Copié' : "Copier le lien d'invitation"}</button>}
-            </div>
+          <LobbyTable room={room} meId={session.playerId} isHost={isHost} max={max}
+            onInvite={() => (canShare ? void share() : void copy(link, 'lien'))}
+            onKick={async (id) => { const a = await session.kick(id); if (!a.ok) setErr(a.error); }}
+            onRemoveBot={(id) => void session.removeBot(id)} />
+          <div className="lobby-code">
+            <span>{room.table.visibility === 'public' ? 'Table publique' : 'Sur invitation'} · code <b>{room.code}</b></span>
+            <button className="btn small" onClick={() => copy(room.code, 'code')}><Icon name="copy" size={16} />{copied === 'code' ? 'Copié' : 'Code'}</button>
+            {canShare
+              ? <button className="btn small" onClick={share}><Icon name="share" size={16} />Inviter</button>
+              : <button className="btn small" onClick={() => copy(link, 'lien')}><Icon name="share" size={16} />{copied === 'lien' ? 'Copié' : 'Lien'}</button>}
           </div>
-          {room.table.stake > 0 && (
-            <div className="pot"><span>Mise par joueur<br /><small className="muted">Le gagnant remporte la cagnotte</small></span><b>{room.table.stake} pièces</b></div>
-          )}
-          <h3>Joueurs ({count}/{max})</h3>
-          <ol className="members">
-            {room.members.map((m, i) => (
-              <li key={m.id} className={m.id === session.playerId ? 'me' : ''}>
-                <span className="ord">{i + 1}</span>
-                <span className="avatar"><span>{m.avatar}</span><i className={`dot ${m.connected ? 'on' : 'off'}`} /></span>
-                <b>{m.name}</b>
-                {m.isHost && <span className="tag">Hôte</span>}
-                {m.bot && <span className="tag bot">Ordinateur, {m.bot}</span>}
-                {!m.connected && <span className="tag warn">hors ligne</span>}
-                {m.bot && isHost
-                  ? <button className="btn ghost small ready" onClick={() => void session.removeBot(m.id)}>Retirer</button>
-                  : <span className={`ready ${m.ready ? 'yes' : ''}`}>{m.ready ? 'Prêt' : 'Pas prêt'}</span>}
-                {isHost && !m.bot && m.id !== session.playerId && (
-                  <button className="btn ghost small danger" aria-label={`Retirer ${m.name}`} onClick={async () => { const a = await session.kick(m.id); if (!a.ok) setErr(a.error); }}>Exclure</button>
-                )}
-              </li>
-            ))}
-          </ol>
           {isHost && count < max && room.table.stake === 0 && (
             <div className="bot-add">
               <div className="seg" role="group" aria-label="Niveau de l'ordinateur">
@@ -246,6 +226,63 @@ function Lobby({ session, onExit, pa }: { session: OnlineSession; onExit: () => 
         </section>
       </div>
     </Shell>
+  );
+}
+
+/** Salon : la table vue du dessus, les joueurs assis autour, les places libres pour inviter. */
+function LobbyTable({ room, meId, isHost, max, onInvite, onKick, onRemoveBot }: {
+  room: NonNullable<OnlineSession['room']>; meId: string | null; isHost: boolean; max: number;
+  onInvite: () => void; onKick: (id: string) => void; onRemoveBot: (id: string) => void;
+}) {
+  const [picked, setPicked] = useState<string | null>(null);
+  const seats = Math.max(max, room.members.length);
+  // Le joueur se voit toujours en haut de la table ; les autres suivent dans l'ordre.
+  const meIdx = Math.max(0, room.members.findIndex((m) => m.id === meId));
+  const ordered = [...room.members.slice(meIdx), ...room.members.slice(0, meIdx)];
+  const pickedM = room.members.find((m) => m.id === picked);
+  const ready = room.members.filter((m) => !m.left && m.ready).length;
+  return (
+    <div className="ltable-wrap">
+      <div className="ltable" style={{ ['--n' as string]: seats }}>
+        <div className="ltable-felt">
+          {room.table.stake > 0
+            ? <><b>{room.table.stake * room.members.length}</b><small>pièces en jeu</small><small className="muted">{room.table.stake} par joueur</small></>
+            : <><b>{room.members.length}/{max}</b><small>joueurs</small><small className="muted">{ready} prêt{ready > 1 ? 's' : ''}</small></>}
+        </div>
+        {Array.from({ length: seats }, (_, i) => {
+          const m = ordered[i];
+          const a = (i / seats) * Math.PI * 2 - Math.PI / 2;
+          const style = { left: `${50 + 40 * Math.cos(a)}%`, top: `${50 + 40 * Math.sin(a)}%` };
+          if (!m) return (
+            <button key={`v${i}`} className="seat empty" style={style} onClick={onInvite} aria-label="Inviter quelqu'un à cette place">
+              <span className="seat-av"><Icon name="plus" size={20} /></span><span className="seat-name">Inviter</span>
+            </button>
+          );
+          const mine = m.id === meId;
+          const canAct = isHost && !mine;
+          return (
+            <button key={m.id} className={`seat${mine ? ' me' : ''}${m.ready || m.bot ? ' ready' : ''}${picked === m.id ? ' picked' : ''}`} style={style}
+              onClick={() => canAct && setPicked(picked === m.id ? null : m.id)} aria-label={`${m.name}${m.ready ? ', prêt' : ', pas prêt'}`}>
+              <span className="seat-av"><Avatar photo={m.photo} emoji={m.avatar} size={46} accessory={m.accessory} />
+                {(m.ready || m.bot) && <i className="seat-ok"><Icon name="check" size={11} /></i>}
+                {!m.connected && !m.bot && <i className="seat-off" />}
+                {m.isHost && <i className="seat-host" title="Hôte">★</i>}</span>
+              <span className="seat-name">{mine ? `${m.name} (vous)` : m.name}</span>
+              <small>{m.bot ? `Ordi · ${m.bot}` : !m.connected ? 'hors ligne' : m.ready ? 'prêt' : 'pas prêt'}</small>
+            </button>
+          );
+        })}
+      </div>
+      {pickedM && isHost && (
+        <div className="seat-actions">
+          <span>{pickedM.name}</span>
+          {pickedM.bot
+            ? <button className="btn small" onClick={() => { onRemoveBot(pickedM.id); setPicked(null); }}>Retirer l'ordinateur</button>
+            : <button className="btn small danger" onClick={() => { onKick(pickedM.id); setPicked(null); }}>Exclure</button>}
+          <button className="btn ghost small" onClick={() => setPicked(null)}>Annuler</button>
+        </div>
+      )}
+    </div>
   );
 }
 

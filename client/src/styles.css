@@ -1416,3 +1416,36 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
   .h2-tile { min-height: 64px; padding: 7px 7px 6px; gap: 2px; }
   .h2-tile .h2-ic { display: none; }
 }
+
+/* ---------- Salon : table ronde vue du dessus ---------- */
+.ltable-wrap { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+.ltable { position: relative; width: min(100%, 360px); aspect-ratio: 1; margin: 6px auto 0; }
+.ltable-felt { position: absolute; inset: 27%; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center;
+  background: radial-gradient(circle at 45% 35%, #2a7a59, #17503b 60%, #0e3428);
+  box-shadow: 0 0 0 9px #5e3a1e, 0 0 0 11px #3a2312, 0 18px 30px rgba(0,0,0,0.55), inset 0 0 30px rgba(0,0,0,0.35); }
+.ltable-felt b { font: 800 30px/1 var(--cond); color: #f1cc7d; }
+.ltable-felt small { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: #cfe3d7; }
+.seat { position: absolute; transform: translate(-50%, -50%); width: 86px; display: flex; flex-direction: column; align-items: center; gap: 3px; background: none !important; box-shadow: none !important; border: 0; padding: 0; min-height: 0; cursor: default; color: var(--blanc); text-align: center; }
+.seat-av { position: relative; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; box-shadow: 0 0 0 3px rgba(255,255,255,0.15), 0 5px 12px rgba(0,0,0,0.45); background: #2b3a35; }
+.seat.me .seat-av { box-shadow: 0 0 0 3px #e0b155, 0 5px 12px rgba(0,0,0,0.45); }
+.seat.picked .seat-av { box-shadow: 0 0 0 3px var(--tabac-hi), 0 5px 12px rgba(0,0,0,0.45); }
+.seat-name { font: 600 12px/1.1 var(--font); max-width: 86px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seat small { font-size: 11px; color: var(--texte-3); }
+.seat.ready small { color: #7fe0b2; }
+.seat-ok { position: absolute; right: -3px; bottom: -3px; width: 20px; height: 20px; border-radius: 50%; background: #2fb36b; border: 2px solid #10211a; display: grid; place-items: center; color: #fff; }
+.seat-off { position: absolute; left: -2px; bottom: -2px; width: 14px; height: 14px; border-radius: 50%; background: #8a8f93; border: 2px solid #10211a; }
+.seat-host { position: absolute; top: -8px; left: 50%; transform: translateX(-50%); font-style: normal; font-size: 14px; color: #f1cc7d; text-shadow: 0 1px 2px rgba(0,0,0,0.7); }
+.seat.empty { cursor: pointer; }
+.seat.empty .seat-av { background: rgba(0,0,0,0.18); box-shadow: none; border: 2px dashed rgba(255,255,255,0.3); color: var(--texte-2); }
+.seat.empty .seat-name { color: var(--texte-2); }
+button.seat:not(.empty):not(.me) { cursor: pointer; }
+.seat-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: center; padding: 8px 10px; border-radius: 12px; background: rgba(0,0,0,0.3); }
+.seat-actions > span { font-weight: 700; margin-right: 4px; }
+.lobby-code { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border-radius: 12px; background: rgba(0,0,0,0.22); margin-bottom: 12px; }
+.lobby-code > span { flex: 1; min-width: 150px; font-size: 14px; color: var(--texte-2); }
+.lobby-code b { color: #f1cc7d; letter-spacing: 0.14em; font-size: 16px; }
+@media (max-width: 380px) { .seat { width: 72px; } .seat-av { width: 44px; height: 44px; } .seat-name { max-width: 72px; } }
+
+/* ---------- Écrans de menu : en-tête plus net, panneaux plus chaleureux ---------- */
+.panel-head h2 { font: 800 26px/1.05 var(--cond); letter-spacing: 0.01em; }
+.panel h3 { font: 700 15px/1.2 var(--cond); letter-spacing: 0.08em; text-transform: uppercase; color: #cfe0d6; }
