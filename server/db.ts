@@ -45,6 +45,8 @@ export interface DuelRow {
   status: 'ouvert' | 'fini' | 'refuse' | 'expire'; winner_id: string | null; from_seen: number; to_seen: number; ended_at: number | null;
 }
 
+export interface PmRow { id: number; from_id: string; to_id: string; text: string; created_at: number; read_at: number | null }
+
 export class Store {
   private db: DatabaseSync;
 
@@ -209,6 +211,19 @@ export class Store {
       'league INTEGER NOT NULL DEFAULT 0', 'referred_by TEXT', 'referral_paid INTEGER NOT NULL DEFAULT 0']) {
       try { this.db.exec(`ALTER TABLE users ADD COLUMN ${col}`); } catch { /* déjà présente */ }
     }
+    // Messages privés entre amis (read_at : lu par le destinataire, NULL sinon).
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS private_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        from_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        to_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        text TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        read_at INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_pm_pair ON private_messages(from_id, to_id, id);
+      CREATE INDEX IF NOT EXISTS idx_pm_unread ON private_messages(to_id, read_at);
+    `);
   }
 
   createUser(u: { id: string; username: string; passHash: string; recoveryHash: string; profile?: Profile }): UserRow {
@@ -587,6 +602,41 @@ export class Store {
       { id: string; mode: string; humans: number; bots: number; duration_s: number; ended_at: number }[];
     const names = this.db.prepare(`SELECT u.username AS username FROM game_players gp JOIN users u ON u.id = gp.user_id WHERE gp.game_id = ?`);
     return rows.map((r) => ({ ...r, accounts: (names.all(r.id) as unknown as { username: string }[]).map((x) => x.username) }));
+  }
+
+  // --- Messages privés ---
+  /** Nouveau message ; on garde au plus `keep` messages par conversation. */
+  pmAdd(fromId: string, toId: string, text: string, at: number, keep = 500): PmRow {
+    const r = this.db.prepare('INSERT INTO private_messages (from_id, to_id, text, created_at) VALUES (?, ?, ?, ?)').run(fromId, toId, text, at);
+    this.db.prepare(`DELETE FROM private_messages WHERE ((from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)) AND id <= (
+      SELECT id FROM private_messages WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?) ORDER BY id DESC LIMIT 1 OFFSET ?)`)
+      .run(fromId, toId, toId, fromId, fromId, toId, toId, fromId, keep);
+    return this.db.prepare('SELECT * FROM private_messages WHERE id = ?').get(Number(r.lastInsertRowid)) as unknown as PmRow;
+  }
+  /** Fil d'une conversation, du plus ancien au plus récent (les `limit` derniers avant `beforeId`). */
+  pmThread(a: string, b: string, limit = 50, beforeId = Number.MAX_SAFE_INTEGER): PmRow[] {
+    return (this.db.prepare(`SELECT * FROM private_messages WHERE ((from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)) AND id < ?
+      ORDER BY id DESC LIMIT ?`).all(a, b, b, a, beforeId, limit) as unknown as PmRow[]).reverse();
+  }
+  /** Marque comme lus les messages reçus de `fromId`. Renvoie le nombre de messages marqués. */
+  pmMarkRead(meId: string, fromId: string, at: number): number {
+    return Number(this.db.prepare('UPDATE private_messages SET read_at = ? WHERE to_id = ? AND from_id = ? AND read_at IS NULL').run(at, meId, fromId).changes);
+  }
+  pmUnread(meId: string): number {
+    return (this.db.prepare('SELECT COUNT(*) AS n FROM private_messages WHERE to_id = ? AND read_at IS NULL').get(meId) as { n: number }).n;
+  }
+  /** Conversations d'un compte : dernier message et non-lus par interlocuteur, la plus récente d'abord. */
+  pmConversations(meId: string, limit = 50): { other: UserRow; last: PmRow; unread: number }[] {
+    const rows = this.db.prepare(`SELECT other, MAX(id) AS last_id FROM (
+        SELECT CASE WHEN from_id = ? THEN to_id ELSE from_id END AS other, id FROM private_messages WHERE from_id = ? OR to_id = ?
+      ) GROUP BY other ORDER BY last_id DESC LIMIT ?`).all(meId, meId, meId, limit) as unknown as { other: string; last_id: number }[];
+    const msg = this.db.prepare('SELECT * FROM private_messages WHERE id = ?');
+    const unread = this.db.prepare('SELECT COUNT(*) AS n FROM private_messages WHERE to_id = ? AND from_id = ? AND read_at IS NULL');
+    return rows.flatMap((r) => {
+      const other = this.userById(r.other);
+      if (!other) return [];
+      return [{ other, last: msg.get(r.last_id) as unknown as PmRow, unread: (unread.get(meId, r.other) as { n: number }).n }];
+    });
   }
 
   close() { this.db.close(); }

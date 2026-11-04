@@ -19,6 +19,7 @@ import { LiveStrip } from './StatsScreen';
 import { CollectionPromo } from './DiceCollection';
 import { ReferralCard } from './Referral';
 import { FriendsButton, NewsTicker, OpenLobbies } from './Friends';
+import { MessagesButton } from './Messages';
 import { changelogUnseen } from './Changelog';
 import { CURRENT_VERSION } from '../../../shared/changelog';
 import { fxDef, fxGlows } from '../../../shared/progress/dice-collection';
@@ -69,7 +70,7 @@ export function ProfileChip({ profile, onClick, photo, emoji }: { profile: Profi
 
 export function Home(props: {
   profile: Profile; pa: ProfileApi; avatar: string; displayName: string; onShop: () => void; onAccount: () => void; onLeaderboard: () => void;
-  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onParty: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void; onLogin: () => void; onCollection: () => void; onDuels: () => void; onFriends: () => void; onChangelog: () => void; onJoinRoom: (code: string) => void; settings: Settings; onChangeSettings: (s: Settings) => void; onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
+  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onParty: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void; onLogin: () => void; onCollection: () => void; onDuels: () => void; onFriends: () => void; onMessages?: () => void; onChangelog: () => void; onJoinRoom: (code: string) => void; settings: Settings; onChangeSettings: (s: Settings) => void; onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
   resume: { code: string; tournament?: boolean } | null; onResume: () => void;
 }) {
   const [online, setOnline] = useState(navigator.onLine);
@@ -96,7 +97,10 @@ export function Home(props: {
         </button>
         {!STANDALONE && !props.pa.isAccount && <button className="install-chip login-chip" onClick={props.onLogin}>Connexion</button>}
         <div className="home-audio"><MusicControl settings={props.settings} onSettings={props.onChangeSettings} /><VolumeControl settings={props.settings} onSettings={props.onChangeSettings} /></div>
-        {!STANDALONE && props.pa.isAccount && <FriendsButton pa={props.pa} onOpen={props.onFriends} />}
+        {!STANDALONE && props.pa.isAccount && <div className="home-social">
+          <FriendsButton pa={props.pa} onOpen={props.onFriends} />
+          {props.onMessages && <MessagesButton pa={props.pa} onOpen={props.onMessages} />}
+        </div>}
         {!STANDALONE && props.pa.isAccount && <NotifBell count={notifs?.count ?? 0} onOpen={() => { setShowNotifs(true); reload(); }} />}
         <InstallPrompt compact />
         <div className="wallet" aria-label="Mon solde">

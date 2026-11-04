@@ -37,6 +37,8 @@ import { CollectionScreen } from './ui/DiceCollection';
 import { DuelsScreen } from './ui/Social';
 import type { DuelPlay } from './ui/ChallengeScreen';
 import { restartPresence, setPresence, startPresence } from './presence';
+import { MessagesScreen } from './ui/Messages';
+import { connectMessages } from './messages';
 
 type Screen =
   | { name: 'home' }
@@ -44,6 +46,7 @@ type Screen =
   | { name: 'solo'; controller: LocalController; personas: Record<string, Persona> }
   | { name: 'hub'; tab: HubTab }
   | { name: 'friends' }
+  | { name: 'messages'; with?: string }
   | { name: 'changelog' }
   | { name: 'online'; mode: OnlineMode }
   | { name: 'tournament'; mode: TournamentMode }
@@ -84,6 +87,8 @@ export function App() {
   const invite = useMemo(() => new URLSearchParams(location.search).get('rejoindre'), []);
   const tInvite = useMemo(() => new URLSearchParams(location.search).get('tournoi'), []);
   // Clic sur une notification : l'accueil s'ouvre sur le panneau des notifications.
+  // Clic sur une notification de message : la conversation s'ouvre.
+  const openPm = useMemo(() => { const v = new URLSearchParams(location.search).get('messages'); if (v) cleanUrl(); return v ? v.slice(0, 20) : null; }, []);
   const openNotifs = useMemo(() => { const v = new URLSearchParams(location.search).has('notifs'); if (v) cleanUrl(); return v; }, []);
   // Lien de parrainage : le pseudo du parrain est retenu pour la création du compte.
   useMemo(() => {
@@ -95,7 +100,7 @@ export function App() {
     : STANDALONE ? { name: 'home' }
       : invite ? { name: 'online', mode: { kind: 'join', code: invite.toUpperCase() } }
         : tInvite && settings.name ? { name: 'tournament', mode: { kind: 'join', code: tInvite.toUpperCase() } }
-          : tInvite ? { name: 'hub', tab: 'tournois' } : { name: 'home' });
+          : tInvite ? { name: 'hub', tab: 'tournois' } : openPm ? { name: 'messages', with: openPm } : { name: 'home' });
   const [resume, setResume] = useState(loadSession);
   // Profil : invité (sur l'appareil) ou compte (sur le serveur). Pas de comptes sans serveur.
   const pa = useProfile(!STANDALONE);
@@ -108,6 +113,8 @@ export function App() {
     ping(); const t = setInterval(ping, 45_000); return () => clearInterval(t);
   }, [pa.token]);
   const { profile } = pa;
+  // Messages privés : réception en direct tant que le compte a le jeu ouvert.
+  useEffect(() => { if (!STANDALONE) connectMessages(pa.token ?? null); }, [pa.token]);
 
   const setSettings = (s: Settings) => { setSettingsState(s); saveSettings(s); };
   useEffect(() => { sound.configure({ volume: settings.volume, muted: settings.muted }); }, [settings.volume, settings.muted]);
@@ -176,6 +183,7 @@ export function App() {
         onCollection={() => setScreen({ name: 'collection' })}
         onDuels={() => setScreen({ name: 'duels' })}
         onFriends={() => setScreen({ name: 'friends' })}
+        onMessages={() => setScreen({ name: 'messages' })}
         onChangelog={() => setScreen({ name: 'changelog' })}
         settings={settings} onChangeSettings={setSettings}
         onJoinRoom={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
@@ -241,7 +249,10 @@ export function App() {
       return <ChangelogScreen onBack={home} />;
     case 'friends':
       return <FriendsScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} onJoin={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
-        onInvite={(username) => setScreen({ name: 'online', mode: { kind: 'create', invite: username } })} />;
+        onInvite={(username) => setScreen({ name: 'online', mode: { kind: 'create', invite: username } })}
+        onMessage={(username) => setScreen({ name: 'messages', with: username })} />;
+    case 'messages':
+      return <MessagesScreen key={screen.with ?? ''} pa={pa} initial={screen.with} onBack={home} onAccount={() => setScreen({ name: 'account' })} />;
     case 'duels':
       return <DuelsScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} onPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }} />;
     case 'duel':

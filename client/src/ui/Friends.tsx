@@ -23,7 +23,7 @@ export function seenAgo(t: number, now = Date.now()): string {
 }
 
 /** Écran Amis : qui est en ligne, qui joue, rejoindre son salon d'un clic, voir son profil. */
-export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite }: { pa: ProfileApi; onBack: () => void; onAccount: () => void; onJoin: (code: string) => void; onInvite: (username: string) => void }) {
+export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessage }: { pa: ProfileApi; onBack: () => void; onAccount: () => void; onJoin: (code: string) => void; onInvite: (username: string) => void; onMessage?: (username: string) => void }) {
   const [list, setList] = useState<Friend[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -66,7 +66,7 @@ export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite }: { pa:
           </li>
         ))}
       </ul>
-      {open && <ProfileView pa={pa} username={open} onClose={() => setOpen(null)} onInvite={onInvite} />}
+      {open && <ProfileView pa={pa} username={open} onClose={() => setOpen(null)} onInvite={onInvite} onMessage={onMessage} />}
     </Shell>
   );
 }

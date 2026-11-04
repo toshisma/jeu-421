@@ -77,10 +77,12 @@ function Achievements({ unlocked, progress }: { unlocked: Record<string, number>
   );
 }
 
-export function ProfileView({ pa, username, displayName, avatar, onClose, onInvite }: {
+export function ProfileView({ pa, username, displayName, avatar, onClose, onInvite, onMessage }: {
   pa: ProfileApi; username?: string | null; displayName?: string; avatar?: string; onClose: () => void;
   /** Ouvre une table et y invite ce joueur (amis seulement). */
   onInvite?: (username: string) => void;
+  /** Ouvre la conversation privée avec ce joueur (amis seulement). */
+  onMessage?: (username: string) => void;
 }) {
   const other = !!username && username !== pa.session?.username;
   const [pub, setPub] = useState<PublicPlayer | null>(null);
@@ -118,6 +120,7 @@ export function ProfileView({ pa, username, displayName, avatar, onClose, onInvi
         <div className="pv-friend">
           {!pa.isAccount ? <p className="muted small">Créez un compte pour ajouter {pub.username} en ami.</p>
             : isFriend ? <>{onInvite && <button className="btn primary small" onClick={() => onInvite(pub.username)}><Icon name="dice" size={18} /> Inviter à jouer</button>}
+              {onMessage && <button className="btn small" onClick={() => onMessage(pub.username)}><Icon name="chat" size={18} /> Message</button>}
               <span className="ok small">✓ Vous êtes amis</span></>
               : <button className="btn primary small" onClick={async () => {
                 try {

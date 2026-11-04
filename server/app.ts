@@ -246,6 +246,7 @@ export async function startServer(opts: ServerOptions) {
   const http = createServer(app);
   const io = new Server(http, { cors: { origin: true } });
   stats.attach(io);
+  accounts.messages.attach(io);
 
   app.get('/health', (_req, res) => res.json({ ok: true, rooms: rooms.size, tournaments: tournaments.size }));
   const here = dirname(fileURLToPath(import.meta.url));
