@@ -1,0 +1,347 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { accessoryEmoji } from '../../../shared/progress/catalog';
+import { DAILY_REWARDS, chestWait, dailyStatus, levelInfo, passProgress, seasonOf, titleLabel, type Profile } from '../../../shared/progress/profile';
+import { dailyQuests, questsFor, today } from '../../../shared/progress/quests';
+import { bossOfWeek, weekKey } from '../../../shared/progress/boss';
+import { activeEvent, coinBoost, happyHour } from '../../../shared/progress/events';
+import { CURRENT_VERSION } from '../../../shared/changelog';
+import type { ProfileApi } from '../account/useProfile';
+import { loadChallengeDone } from '../account/useProfile';
+import { api } from '../account/api';
+import type { Settings } from '../settings';
+import { sound } from '../audio/sound';
+import { reportUrl } from '../legal';
+import { Avatar } from './Avatar';
+import { Icon } from './Icon';
+import { ProfileView } from './ProfileView';
+import { BossCard, DailyStreak, EveningChest, EventBanner, HappyHourBanner } from './Progression';
+import { ChallengeCard, type DuelPlay } from './ChallengeScreen';
+import { QuestsPanel } from './AccountScreens';
+import { DieCube } from './DiceCollection';
+import { ReferralCard, useReferral } from './Referral';
+import { FriendsButton, OpenLobbies } from './Friends';
+import { NotifBell, NotifPanel, useNotifications } from './Social';
+import { InstallPrompt } from './InstallPrompt';
+import { MusicControl, VolumeControl } from './VolumeControl';
+import { DiceTray, type DiceTrayHandle } from './DiceTray';
+import { changelogUnseen } from './Changelog';
+import { STANDALONE } from './Screens';
+import { MessagesButton } from './Messages';
+
+export interface HomeProps {
+  profile: Profile; pa: ProfileApi; avatar: string; displayName: string; settings: Settings; onChangeSettings: (s: Settings) => void;
+  onShop: () => void; onAccount: () => void; onLogin: () => void; onLeaderboard: () => void;
+  onSolo: () => void; onOnline: () => void; onTournaments: () => void; onParty: () => void;
+  onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void;
+  onChallenge: () => void; onBoss: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void;
+  onCollection: () => void; onDuels: () => void; onFriends: () => void; onChangelog: () => void; onJoinRoom: (code: string) => void;
+  onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
+  resume: { code: string; tournament?: boolean } | null; onResume: () => void;
+  /** Messages privés (bulle à côté des amis). */
+  onMessages?: () => void;
+}
+
+type SheetKind = 'menu' | 'coffre' | 'cadeau' | 'patron' | 'defi' | 'missions' | 'parrainage' | 'lobbies';
+
+/** Prochain tournoi programmé (11 h et 21 h, heure de Bruxelles) : heure affichée et minutes restantes. */
+export function nextTournamentSlot(now = Date.now()): { label: string; minutes: number } {
+  const parts = new Intl.DateTimeFormat('fr-BE', { timeZone: 'Europe/Brussels', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(now));
+  const h = Number(parts.find((p) => p.type === 'hour')?.value ?? 0), m = Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
+  const cur = h * 60 + m;
+  for (const slot of [11 * 60, 21 * 60]) if (cur < slot + 5) return { label: `${String(slot / 60).padStart(2, '0')}:00`, minutes: slot - cur };
+  return { label: '11:00', minutes: 24 * 60 - cur + 11 * 60 };
+}
+const inTime = (min: number) => (min <= 0 ? 'salon ouvert !' : min < 60 ? `dans ${min} min` : `dans ${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`);
+
+function useOnlineCount() {
+  const [n, setN] = useState<number | null>(null);
+  useEffect(() => {
+    if (STANDALONE) return;
+    const load = () => api<{ live: { online: number } }>('/stats').then((r) => setN(r.live.online)).catch(() => {});
+    load(); const t = setInterval(load, 20_000); return () => clearInterval(t);
+  }, []);
+  return n;
+}
+
+/** Fenêtre glissée depuis le bas (détail d'une tuile, menu « Plus »). */
+export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
+  }, [onClose]);
+  return (
+    <div className="sheet-back" onClick={onClose}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-grip" aria-hidden />
+        <header className="sheet-head"><h2>{title}</h2><button className="icon-btn" onClick={onClose} aria-label="Fermer"><Icon name="close" /></button></header>
+        <div className="sheet-body">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/** Menu « Plus » : tout le reste du jeu, rangé par thème, avec une recherche. */
+function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void }) {
+  const [q, setQ] = useState('');
+  const acc = p.pa.isAccount && !STANDALONE;
+  const groups: { title: string; items: { label: string; icon: Parameters<typeof Icon>[0]['name']; go: () => void; show?: boolean; dot?: boolean; keys?: string }[] }[] = [
+    { title: 'Progresser', items: [
+      { label: 'Profil et succès', icon: 'user', go: p.onProfile, keys: 'titre avatar photo succes' },
+      { label: 'Pass du mois', icon: 'ticket', go: p.onPass, keys: 'saison paliers' },
+      { label: 'Classement', icon: 'trophy', go: p.onLeaderboard, show: !STANDALONE, keys: 'ligue saison' },
+      { label: 'Défi du jour', icon: 'target', go: p.onChallenge },
+    ] },
+    { title: 'Mes dés et mes parties', items: [
+      { label: 'Collection', icon: 'dice', go: p.onCollection, show: !STANDALONE, keys: 'sacs des rares' },
+      { label: 'Boutique', icon: 'shop', go: p.onShop, keys: 'tapis decor rebord' },
+      { label: 'Album', icon: 'album', go: p.onAlbum, keys: 'combinaisons' },
+      { label: 'Récap du mois', icon: 'chart', go: p.onRecap },
+      { label: 'Statistiques', icon: 'stats', go: p.onStats, show: !STANDALONE, keys: 'admin en ligne' },
+    ] },
+    { title: 'Entre joueurs', items: [
+      { label: 'Amis', icon: 'people', go: p.onFriends, show: !STANDALONE },
+      { label: 'Messages', icon: 'chat', go: () => p.onMessages?.(), show: acc && !!p.onMessages, keys: 'messages prives discuter' },
+      { label: 'Club', icon: 'club', go: p.onClub, show: !STANDALONE },
+      { label: 'Défis entre amis', icon: 'target', go: p.onDuels, show: !STANDALONE, keys: 'duels' },
+      { label: 'Tournois', icon: 'trophy', go: p.onTournaments, show: !STANDALONE },
+      { label: 'Soirée (un téléphone)', icon: 'cheers', go: p.onParty, keys: 'vrais des arbitre' },
+    ] },
+    { title: 'Apprendre et régler', items: [
+      { label: 'Règles', icon: 'rules', go: p.onRules, keys: 'combinaisons charge decharge' },
+      { label: 'Partie guidée', icon: 'resume', go: p.onTutorial, keys: 'tuto apprendre' },
+      { label: "Bac d'essai", icon: 'dice', go: p.onSandbox, keys: 'lancer entrainement' },
+      { label: 'Réglages', icon: 'settings', go: p.onSettings, keys: 'son vibration qualite graphismes secouer' },
+      { label: acc ? 'Mon compte' : 'Compte', icon: 'key', go: acc ? p.onAccount : p.onLogin, show: !STANDALONE, keys: 'connexion mot de passe' },
+    ] },
+  ];
+  const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const nq = norm(q.trim());
+  const pick = (go: () => void) => { p.onClose(); go(); };
+  return (
+    <Sheet title="Tout le comptoir" onClose={p.onClose}>
+      <div className="plus-audio"><span>Son</span><MusicControl settings={p.settings} onSettings={p.onChangeSettings} /><VolumeControl settings={p.settings} onSettings={p.onChangeSettings} /><InstallPrompt compact /></div>
+      <label className="plus-search"><Icon name="search" size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher : règles, réglages, club…" aria-label="Chercher dans le menu" /></label>
+      {groups.map((g) => {
+        const items = g.items.filter((i) => i.show !== false && (!nq || norm(`${i.label} ${i.keys ?? ''}`).includes(nq)));
+        if (!items.length) return null;
+        return (
+          <section key={g.title} className="plus-group">
+            <h3>{g.title}</h3>
+            <div className="plus-grid">
+              {items.map((i) => <button key={i.label} onClick={() => pick(i.go)}><Icon name={i.icon} size={22} /><span>{i.label}</span></button>)}
+            </div>
+          </section>
+        );
+      })}
+      <div className="plus-foot">
+        <button className="link small-link" onClick={() => pick(p.onChangelog)}>Nouveautés (v{CURRENT_VERSION}){changelogUnseen() && <i className="new-dot" aria-label="nouvelle version" />}</button>
+        <a className="link small-link" href={reportUrl()}>Signaler un problème</a>
+        <button className="link small-link" onClick={() => pick(p.onLegal)}>Confidentialité</button>
+        {!STANDALONE && <a className="link small-link" href="/regles-du-421">Règles du 421</a>}
+        {!STANDALONE && <a className="link small-link" href="/combinaisons-du-421">Combinaisons et probabilités</a>}
+      </div>
+    </Sheet>
+  );
+}
+
+/** Vitrine 3D : le vrai bac du joueur, on peut le toucher pour lancer. */
+function HeroTray({ pa, settings }: { pa: ProfileApi; settings: Settings }) {
+  const tray = useRef<DiceTrayHandle>(null);
+  const rolling = useRef(false);
+  const roll = async () => {
+    if (rolling.current) return;
+    rolling.current = true; sound.unlock();
+    const r = crypto.getRandomValues(new Uint32Array(4));
+    await tray.current?.roll([0, 1, 2].map((i) => 1 + (r[i] % 6)), [false, false, false], r[3] >>> 1);
+    rolling.current = false;
+  };
+  useEffect(() => { tray.current?.setSwipeEnabled(true); }, []);
+  return (
+    <div className="hero-tray" onClick={() => void roll()}>
+      <DiceTray ref={tray} appearance={pa.profile.equipped} quality={settings.quality} insets={{ top: 0, bottom: 40, left: 0, right: 0 }} onSwipe={() => void roll()} />
+    </div>
+  );
+}
+
+type Tile = { id: string; title: string; sub: React.ReactNode; icon: Parameters<typeof Icon>[0]['name']; hot?: boolean; badge?: string; badgeKind?: 'blue'; go: () => void; show?: boolean };
+
+export function Home(props: HomeProps) {
+  const { pa, profile } = props;
+  const [sheet, setSheet] = useState<SheetKind | null>(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const { notifs, reload } = useNotifications(pa);
+  const [showNotifs, setShowNotifs] = useState(!!props.openNotifs);
+  const [toast, setToast] = useState<string | null>(null);
+  const [now, setNow] = useState(Date.now());
+  const [netOk, setNetOk] = useState(navigator.onLine);
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 15_000); return () => clearInterval(t); }, []);
+  useEffect(() => {
+    const up = () => setNetOk(true), down = () => setNetOk(false);
+    window.addEventListener('online', up); window.addEventListener('offline', down);
+    return () => { window.removeEventListener('online', up); window.removeEventListener('offline', down); };
+  }, []);
+  useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
+  const online = useOnlineCount();
+  const referral = useReferral(pa);
+  const li = levelInfo(profile.xp);
+  const name = pa.session?.username ?? (props.displayName || 'Invité');
+  const acc = pa.isAccount && !STANDALONE;
+  const day = today();
+
+  // --- État de chaque tuile -------------------------------------------------------------------
+  const chestLeft = chestWait(profile, now);
+  const daily = dailyStatus(profile);
+  const quests = questsFor(profile.quests, day);
+  const qDefs = dailyQuests(day);
+  const qReady = qDefs.filter((d) => (quests.progress[d.id] ?? 0) >= d.target && !quests.claimed.includes(d.id)).length;
+  const qDone = qDefs.filter((d) => quests.claimed.includes(d.id)).length;
+  const season = seasonOf(profile);
+  const pass = passProgress(season.points);
+  const passReady = Array.from({ length: pass.tier }, (_, i) => i + 1).filter((t) => !season.claimed.includes(t)).length;
+  const boss = bossOfWeek(day);
+  const bossBeaten = profile.bossWeek === weekKey(day);
+  const chal = loadChallengeDone();
+  const chalDone = chal?.day === day;
+  const duelsToPlay = notifs?.toPlay.filter((d) => !d.sent).length ?? 0;
+  const slot = nextTournamentSlot(now);
+  const hLeft = (ms: number) => { const m = Math.ceil(ms / 60000); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`; };
+
+  const openChest = async () => {
+    sound.unlock(); sound.rattle();
+    const r = await pa.openEveningChest();
+    if ('error' in r) { setToast(r.error); return; }
+    sound.treasure(); setToast(`Coffre : +${r.coins} pièces${r.bag ? ' et un sac de dés !' : ''}`);
+  };
+  const claimDaily = async () => {
+    const r = DAILY_REWARDS[daily.cycleDay - 1];
+    const err = await pa.claimDailyReward();
+    if (err) { setToast(err); return; }
+    sound.chips(daily.cycleDay === 7 ? 8 : 3);
+    setToast(`Cadeau du jour : +${r.coins} pièces${r.xp ? ` et +${r.xp} XP` : ''}`);
+  };
+
+  const tiles: Tile[] = [
+    { id: 'coffre', title: 'Coffre', icon: 'chest', hot: chestLeft === 0, badge: chestLeft === 0 ? 'Prêt' : undefined,
+      sub: chestLeft === 0 ? 'Ouvrir' : `dans ${hLeft(chestLeft)}`, go: () => (chestLeft === 0 ? void openChest() : setSheet('coffre')) },
+    { id: 'cadeau', title: 'Cadeau du jour', icon: 'gift', hot: daily.canClaim, badge: daily.canClaim ? `J${daily.cycleDay}` : undefined,
+      sub: daily.canClaim ? (daily.cycleDay === 7 ? 'Coffre du 7e jour' : `+${DAILY_REWARDS[daily.cycleDay - 1].coins} pièces`) : 'Revenez demain', go: () => (daily.canClaim ? void claimDaily() : setSheet('cadeau')) },
+    { id: 'tournoi', title: 'Tournoi', icon: 'trophy', badge: slot.label, badgeKind: 'blue', sub: inTime(slot.minutes), go: props.onTournaments, show: !STANDALONE },
+    { id: 'patron', title: 'Patron', icon: 'hat', sub: bossBeaten ? `${boss.name} · battu` : `${boss.name} · à battre`, go: () => setSheet('patron') },
+    { id: 'defi', title: 'Défi du jour', icon: 'target', sub: chalDone ? `${chal!.points} points` : '1 essai', go: () => setSheet('defi') },
+    { id: 'missions', title: 'Missions', icon: 'check', hot: qReady > 0, badge: qReady ? String(qReady) : undefined, sub: qReady ? 'à récupérer' : `${qDone}/${qDefs.length} faites`, go: () => setSheet('missions') },
+    { id: 'pass', title: `Pass ${pass.tier}/20`, icon: 'ticket', hot: passReady > 0, badge: passReady ? String(passReady) : undefined,
+      sub: <span className="tile-bar"><i style={{ width: `${pass.tier >= 20 ? 100 : (100 * pass.into) / pass.need}%` }} /></span>, go: props.onPass },
+    acc ? { id: 'duels', title: 'Défis d’amis', icon: 'people', hot: duelsToPlay > 0, badge: duelsToPlay ? String(duelsToPlay) : undefined, sub: duelsToPlay ? 'à jouer' : 'Défier un ami', go: props.onDuels }
+      : { id: 'album', title: 'Album', icon: 'album', sub: 'Vos combinaisons', go: props.onAlbum },
+  ];
+  const shown = tiles.filter((t) => t.show !== false);
+  const ready = shown.filter((t) => t.hot).length;
+
+  // --- Bannière : une seule à la fois, la plus utile ----------------------------------------------
+  const ev = activeEvent(day) || coinBoost(day);
+  const banner = (() => {
+    if (props.resume && !STANDALONE) return <button className="home-banner resume" onClick={props.onResume}><Icon name="resume" size={20} /><span><b>{props.resume.tournament ? 'Reprendre le tournoi' : 'Reprendre la partie'}</b><small>Table {props.resume.code}</small></span></button>;
+    if (pa.welcomeBack) return <button className="home-banner gift" onClick={() => { pa.dismissWelcome(); props.onCollection(); }}><Icon name="gift" size={20} /><span><b>Content de vous revoir !</b><small>Un sac de dés vous attend dans la Collection.</small></span></button>;
+    if (!profile.tutorial) return <button className="home-banner tuto" onClick={props.onTutorial}><Icon name="resume" size={20} /><span><b>Nouveau ? Apprendre à jouer</b><small>Partie guidée de 3 minutes</small></span><em>+50 pièces</em></button>;
+    if (!STANDALONE && !pa.isAccount) return <button className="home-banner account" onClick={props.onAccount}><Icon name="key" size={20} /><span><b>Gardez votre progression</b><small>Compte gratuit : classements, clubs, amis, tables avec mise</small></span><em>Créer</em></button>;
+    if (happyHour(now)) return <HappyHourBanner />;
+    if (ev) return <EventBanner onShop={props.onShop} />;
+    return null;
+  })();
+
+  const coll = useMemo(() => {
+    const owned = new Set(profile.owned.filter((id) => id.startsWith('dc-')).map((id) => id.replace('-brillant', '')));
+    return owned.size;
+  }, [profile.owned]);
+  const bags = profile.bags ?? 0;
+
+  return (
+    <div className="home2">
+      <header className="h2-bar">
+        <button className="h2-me" onClick={() => setShowProfile(true)} aria-label="Mon profil">
+          <Avatar photo={pa.photo} emoji={props.avatar} size={40} accessory={accessoryEmoji(profile.equipped.accessoire)} />
+          <span className="h2-me-text">
+            <span><b>{name}</b><em>Niv. {li.level}</em></span>
+            <span className="h2-coins"><i aria-hidden />{profile.coins.toLocaleString('fr-BE')}</span>
+          </span>
+        </button>
+        {!STANDALONE && !pa.isAccount && <button className="h2-login" onClick={props.onLogin}>Connexion</button>}
+        {acc && props.onMessages && <MessagesButton pa={pa} onOpen={props.onMessages} />}
+        {acc && <FriendsButton pa={pa} onOpen={props.onFriends} />}
+        {acc && <NotifBell count={notifs?.count ?? 0} onOpen={() => { setShowNotifs(true); reload(); }} />}
+      </header>
+
+      <main className="h2-main">
+        <section className="h2-hero">
+          <HeroTray pa={pa} settings={props.settings} />
+          <h1 className="plaque h2-plaque"><span>421</span></h1>
+          {online !== null && <button className="h2-live" onClick={props.onStats}><i aria-hidden />{online} en ligne</button>}
+          {titleLabel(profile.title) && <span className="h2-title-chip">{titleLabel(profile.title)}</span>}
+          <button className="h2-play" onClick={props.onSolo}><Icon name="dice" size={26} /><span>Jouer contre l'ordinateur</span><Icon name="back" size={20} /></button>
+        </section>
+
+        {STANDALONE ? <p className="note">Le jeu entre amis demande le serveur du projet. Cette version propose le solo et le bac d'essai.</p> : (
+          <div className="h2-pair">
+            <button className="h2-sec" onClick={props.onOnline} disabled={!netOk}><Icon name="people" size={18} /> En ligne</button>
+            <button className="h2-sec" onClick={props.onParty}><Icon name="cheers" size={18} /> Entre amis</button>
+          </div>
+        )}
+        {!netOk && !STANDALONE && <p className="note">Hors connexion : le jeu en ligne reviendra avec le réseau.</p>}
+
+        {banner}
+
+        {!STANDALONE && (
+          <div className="h2-promos">
+            <button className="h2-promo coll" onClick={props.onCollection}>
+              <span className="promo-cubes" aria-hidden><DieCube id="dc-paillettes" size={34} spin /><DieCube id="dc-dragon" size={46} spin /><DieCube id="dc-galaxie" size={34} spin /></span>
+              <span className="promo-shine" aria-hidden />
+              {bags > 0 && <em className="promo-badge">{bags} sac{bags > 1 ? 's' : ''}</em>}
+              <b>Dés super rares</b>
+              <small>{coll > 0 ? `${coll}/25 trouvés` : '25 dés à trouver'}<span className="tile-bar"><i style={{ width: `${(100 * coll) / 25}%` }} /></span></small>
+            </button>
+            <button className="h2-promo ref" onClick={() => (acc ? setSheet('parrainage') : props.onAccount())}>
+              <span className="promo-bag" aria-hidden>🎒</span>
+              <span className="promo-shine late" aria-hidden />
+              {referral && <em className="promo-badge">{referral.bagsEarned}/{referral.bagsMax}</em>}
+              <b>Invitez, gagnez un sac</b>
+              <small>{acc ? '+ set « Feu et Glace » à 5 amis' : 'Avec un compte gratuit'}</small>
+            </button>
+          </div>
+        )}
+
+        <div className="h2-today-head"><b>Aujourd'hui</b>{ready > 0 && <span>{ready} à récupérer</span>}</div>
+        <section className="h2-tiles">
+          {shown.map((t) => (
+            <button key={t.id} className={`h2-tile${t.hot ? ' hot' : ''}`} onClick={t.go}>
+              {t.badge && <em className={`h2-badge${t.badgeKind === 'blue' ? ' blue' : ''}`}>{t.badge}</em>}
+              <span className="h2-ic"><Icon name={t.icon} size={18} /></span>
+              <b>{t.title}</b>
+              <small>{t.sub}</small>
+            </button>
+          ))}
+        </section>
+      </main>
+
+      <nav className="h2-tabs" aria-label="Navigation">
+        <button className="on" aria-current="page"><Icon name="home" size={22} /><span>Accueil</span></button>
+        {!STANDALONE && <button onClick={props.onCollection}><Icon name="grid" size={22} /><span>Collection</span>{bags > 0 && <i className="tab-dot">{bags}</i>}</button>}
+        <button onClick={props.onShop}><Icon name="shop" size={22} /><span>Boutique</span></button>
+        {!STANDALONE && <button onClick={props.onLeaderboard}><Icon name="chart" size={22} /><span>Classement</span></button>}
+        <button onClick={() => setSheet('menu')}><Icon name="menu" size={22} /><span>Plus</span>{changelogUnseen() && <i className="tab-dot small" />}</button>
+      </nav>
+
+      {toast && <div className="h2-toast" role="status">{toast}</div>}
+      {sheet === 'menu' && <PlusMenu {...props} onProfile={() => setShowProfile(true)} onClose={() => setSheet(null)} />}
+      {sheet === 'coffre' && <Sheet title="Coffre du comptoir" onClose={() => setSheet(null)}><EveningChest pa={pa} /></Sheet>}
+      {sheet === 'cadeau' && <Sheet title="Cadeau du jour" onClose={() => setSheet(null)}><DailyStreak pa={pa} /></Sheet>}
+      {sheet === 'patron' && <Sheet title="Patron de la semaine" onClose={() => setSheet(null)}><BossCard pa={pa} onPlay={() => { setSheet(null); props.onBoss(); }} /></Sheet>}
+      {sheet === 'defi' && <Sheet title="Défi du jour" onClose={() => setSheet(null)}><ChallengeCard onOpen={() => { setSheet(null); props.onChallenge(); }} /></Sheet>}
+      {sheet === 'missions' && <Sheet title="Missions du jour" onClose={() => setSheet(null)}><QuestsPanel profile={profile} onClaim={pa.claim} /></Sheet>}
+      {sheet === 'parrainage' && <Sheet title="Parrainage" onClose={() => setSheet(null)}><ReferralCard pa={pa} onAccount={props.onAccount} /></Sheet>}
+      {sheet === 'lobbies' && <Sheet title="Salons ouverts" onClose={() => setSheet(null)}><OpenLobbies onJoin={props.onJoinRoom} onAll={props.onOnline} /></Sheet>}
+      {showNotifs && <NotifPanel pa={pa} notifs={notifs} reload={reload} onClose={() => { setShowNotifs(false); reload(); }}
+        onPlay={(d) => { setShowNotifs(false); props.onDuelPlay(d); }} onDuels={() => { setShowNotifs(false); props.onDuels(); }} />}
+      {showProfile && <ProfileView pa={pa} displayName={props.displayName} avatar={props.avatar} onClose={() => setShowProfile(false)} />}
+    </div>
+  );
+}

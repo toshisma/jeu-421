@@ -33,6 +33,15 @@ const PATHS: Record<string, string> = {
   cheers: 'M7 3h5l-1 9a2.5 2.5 0 0 1-3 0zM12 5h5l-1 9a2.5 2.5 0 0 1-3 0M9.5 13v6M7 21h5M14.5 15v4M12 21h5',
   chat: 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5',
   send: 'M4 12l16-8-6 16-3-7z',
+  home: 'M3 11l9-7 9 7v9H3zM10 20v-6h4v6',
+  grid: 'M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z',
+  menu: 'M4 7h16M4 12h16M4 17h16',
+  chest: 'M3 10a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v9H3zM3 12h18M10 12v3h4v-3',
+  gift: 'M3 9h18v4H3zM5 13h14v8H5zM12 9v12M12 9c-2-4-6-4-6-1.5S9 9 12 9zM12 9c2-4 6-4 6-1.5S15 9 12 9z',
+  hat: 'M6 15h12M8 15V6h8v9M4 18h16',
+  ticket: 'M3 7h18v4a2 2 0 0 0 0 4v4H3v-4a2 2 0 0 0 0-4z',
+  search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4',
+  eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   club: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9 5.5-.8z',
 };
 
