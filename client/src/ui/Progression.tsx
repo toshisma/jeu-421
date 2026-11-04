@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { activeEvent, coinBoost, eventEnd, happyHour, shortDate } from '../../../shared/progress/events';
 import { getItem } from '../../../shared/progress/catalog';
 import {
-  DAILY_REWARDS, PASS_POINTS, PASS_TIERS, availableTitles, dailyStatus, monthName, passReward, seasonOf, titleLabel,
+  DAILY_REWARDS, PASS_TIERS, passProgress, passThreshold, availableTitles, dailyStatus, monthName, passReward, seasonOf, titleLabel,
 } from '../../../shared/progress/profile';
 import { today } from '../../../shared/progress/quests';
 import { BOSS_COINS, bossOfWeek, weekKey } from '../../../shared/progress/boss';
@@ -81,15 +81,14 @@ export function DailyStreak({ pa }: { pa: ProfileApi }) {
 /** Résumé du pass de saison sur l'accueil. */
 export function PassSummary({ pa, onOpen }: { pa: ProfileApi; onOpen: () => void }) {
   const s = seasonOf(pa.profile);
-  const tier = Math.min(PASS_TIERS, Math.floor(s.points / PASS_POINTS));
+  const { tier, into, need } = passProgress(s.points);
   const ready = Array.from({ length: tier }, (_, i) => i + 1).filter((t) => !s.claimed.includes(t)).length;
-  const into = tier >= PASS_TIERS ? PASS_POINTS : s.points % PASS_POINTS;
   return (
     <button className="pass-summary" onClick={onOpen}>
       <span className="ps-left">
         <b>Pass de {monthName(s.id).split(' ')[0]}</b>
         <span className="muted small">Palier {tier} sur {PASS_TIERS}{ready ? `, ${ready} récompense${ready > 1 ? 's' : ''} à récupérer` : ''}</span>
-        <span className="q-bar"><i style={{ width: `${(100 * into) / PASS_POINTS}%` }} /></span>
+        <span className="q-bar"><i style={{ width: `${(100 * into) / need}%` }} /></span>
       </span>
       {ready > 0 && <span className="ps-badge">{ready}</span>}
       <Icon name="back" size={20} />
@@ -118,17 +117,17 @@ export function PassScreen({ pa, onBack }: { pa: ProfileApi; onBack: () => void 
   return (
     <Shell title={`Pass de ${monthName(s.id)}`} onBack={onBack}>
       <p className="muted">Gratuit. Chaque point d'XP gagné ce mois-ci fait avancer le pass ; les objets marqués « pass » ne s'achètent pas. Tout repart à zéro le 1er du mois.</p>
-      <div className="pass-total"><b>{s.points}</b> points<span className="muted small"> sur {PASS_TIERS * PASS_POINTS}</span></div>
+      <div className="pass-total"><b>{s.points}</b> points<span className="muted small"> sur {passThreshold(PASS_TIERS).toLocaleString('fr-FR')}</span></div>
       {msg && <p className="ok">{msg}</p>}
       <ol className="pass-tiers">
         {Array.from({ length: PASS_TIERS }, (_, i) => i + 1).map((t) => {
           const r = passReward(t, s.id);
-          const reached = s.points >= t * PASS_POINTS;
+          const reached = s.points >= passThreshold(t);
           const got = s.claimed.includes(t);
           return (
             <li key={t} className={`${reached ? 'reached' : ''}${got ? ' got' : ''}${r.item ? ' special' : ''}`}>
               <span className="pt-n">{t}</span>
-              <span className="pt-r">{rewardText(r)}<small>{t * PASS_POINTS} points</small></span>
+              <span className="pt-r">{rewardText(r)}<small>{passThreshold(t).toLocaleString('fr-FR')} points</small></span>
               {got ? <span className="ok"><Icon name="check" size={18} /></span>
                 : reached ? <button className="btn small primary" onClick={() => claim(t)}>Récupérer</button>
                   : <Icon name="lock" size={18} />}

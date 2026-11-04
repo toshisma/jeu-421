@@ -1,7 +1,7 @@
 /** Série de connexions, pass de saison, titres, événements et boutique d'événement. */
 import { describe, expect, it } from 'vitest';
 import {
-  PASS_POINTS, availableTitles, buy, canBuy, claimDaily, claimPassTier, completeTutorial, dailyStatus, newProfile, rewardFor,
+  passThreshold, availableTitles, buy, canBuy, claimDaily, claimPassTier, completeTutorial, dailyStatus, newProfile, rewardFor,
   sanitizeProfile, seasonOf, setTitle, addSeasonPoints, titleLabel,
 } from '../shared/progress/profile';
 import { activeEvent, coinBoost } from '../shared/progress/events';
@@ -23,7 +23,7 @@ describe('série de connexions', () => {
 
 describe('pass de saison', () => {
   it('points du mois, paliers, objets et titre, remise à zéro le mois suivant', () => {
-    let p = addSeasonPoints(newProfile(), 20 * PASS_POINTS, '2026-11-15');
+    let p = addSeasonPoints(newProfile(), passThreshold(20), '2026-11-15');
     expect(claimPassTier(p, 21, '2026-11-15')).toBeNull();
     for (let t = 1; t <= 20; t++) p = claimPassTier(p, t, '2026-11-15')!.profile;
     expect(p.owned).toContain('dice-pass-opale');

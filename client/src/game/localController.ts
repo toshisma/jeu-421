@@ -161,6 +161,31 @@ export class LocalController implements GameController {
     }, delay);
   }
 
+  /** Vous êtes sorti et seules les IA jouent encore : la fin peut être jouée d'un coup. */
+  canSkipToEnd() {
+    const me = this.state.players.find((p) => p.id === this.meId);
+    return !!me?.out && this.state.phase !== 'fini';
+  }
+  /** Joue instantanément tous les coups restants des IA, puis n'envoie que l'état final. */
+  skipToEnd() {
+    if (!this.canSkipToEnd()) return;
+    if (this.botTimer) clearTimeout(this.botTimer);
+    this.botTimer = null;
+    this.thinking = null;
+    for (let guard = 0; guard < 20000 && this.state.phase !== 'fini'; guard++) {
+      const pid = currentPlayerId(this.state);
+      const idx = this.meta.findIndex((m) => m.id === pid);
+      if (!pid || !this.meta[idx]?.isBot) break;
+      const opp = this.opponents[idx - 1];
+      const d = decide(this.state, pid, opp.difficulty, Math.random, opp.persona.style);
+      if (d.kind === 'roll') {
+        if (!rollAction(this.state, pid, d.keep, this.dieSource(pid, d.keep)).ok) stopAction(this.state, pid);
+      } else stopAction(this.state, pid);
+    }
+    this.emitMeta();
+    this.emit({ type: 'state', state: this.snapshot() });
+  }
+
   thinkingId() { return this.thinking; }
   turnDeadline() { return this.deadline; }
   turnSeconds() { return this.config.turnSeconds; }

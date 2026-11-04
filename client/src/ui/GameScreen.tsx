@@ -520,6 +520,12 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
         )}
       </div>
 
+      {s && s.phase !== 'fini' && s.players.find((p) => p.id === controller.meId)?.out && controller.canSkipToEnd?.() && (
+        <div className="skip-end">
+          <span>Vous êtes sorti : les autres finissent la partie.</span>
+          <button className="btn primary small" onClick={() => controller.skipToEnd?.()}>⏩ Voir le résultat</button>
+        </div>
+      )}
       {s && s.phase === 'fini' && !animating && (
         <EndOverlay reward={endReward} state={s} meta={meta} meId={controller.meId} canRematch={controller.canRematch()}
           online={controller.mode === 'online'} onRematch={() => controller.rematch()} onExit={leave}

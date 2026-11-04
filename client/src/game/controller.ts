@@ -61,4 +61,7 @@ export interface GameController {
   canRematch(): boolean;
   rematch(): void;
   leave(): void;
+  /** Contre l'ordinateur : une fois sorti, on peut jouer la fin de la partie d'un coup. */
+  canSkipToEnd?(): boolean;
+  skipToEnd?(): void;
 }

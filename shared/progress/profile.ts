@@ -599,9 +599,21 @@ export function claimDaily(p: Profile, day = today()): { profile: Profile; coins
   return { profile, coins: r.coins, xp: r.xp, cycleDay: st.cycleDay, bag };
 }
 
-/** Pass de saison : un par mois, 20 paliers de 100 points (1 point = 1 XP gagné dans le mois). */
+/**
+ * Pass de saison : un par mois, 20 paliers (1 point = 1 XP gagné dans le mois).
+ * Paliers de plus en plus chers : 250 points pour le 1er, puis +30 à chaque palier (≈ 10 700 au total),
+ * pour qu'un joueur assidu y passe le mois au lieu de deux jours.
+ */
 export const PASS_TIERS = 20;
-export const PASS_POINTS = 100;
+/** Points cumulés nécessaires pour atteindre le palier `tier` (0 pour le palier 0). */
+export const passThreshold = (tier: number) => (tier <= 0 ? 0 : 250 * tier + 15 * tier * (tier - 1));
+/** Palier atteint avec ce nombre de points, et progression vers le suivant. */
+export function passProgress(points: number): { tier: number; into: number; need: number } {
+  let tier = 0;
+  while (tier < PASS_TIERS && points >= passThreshold(tier + 1)) tier++;
+  if (tier >= PASS_TIERS) return { tier, into: 1, need: 1 };
+  return { tier, into: points - passThreshold(tier), need: passThreshold(tier + 1) - passThreshold(tier) };
+}
 export const seasonId = (day: string) => day.slice(0, 7);
 export type PassReward = { coins: number; item?: string; title?: string };
 export function passReward(tier: number, season: string): PassReward {
@@ -624,7 +636,7 @@ export function addSeasonPoints(p: Profile, points: number, day = today()): Prof
 }
 export function claimPassTier(p: Profile, tier: number, day = today()): { profile: Profile; reward: PassReward } | null {
   const s = seasonOf(p, day);
-  if (!Number.isInteger(tier) || tier < 1 || tier > PASS_TIERS || s.claimed.includes(tier) || s.points < tier * PASS_POINTS) return null;
+  if (!Number.isInteger(tier) || tier < 1 || tier > PASS_TIERS || s.claimed.includes(tier) || s.points < passThreshold(tier)) return null;
   const r = passReward(tier, s.id);
   const owned = r.item && !p.owned.includes(r.item) ? [...p.owned, r.item] : p.owned;
   const titles = r.title ? [...new Set([...(p.titles ?? []), r.title])] : p.titles;
