@@ -7,6 +7,15 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.31', date: '2026-11-04T23:25:00+01:00', title: 'Plus rapide, plus clair', items: [
+    'Le jeu s’ouvre beaucoup plus vite, surtout sur téléphone.',
+    'Tous les écrans refaits dans le style du nouvel accueil : jouer en ligne, partie solo, profil, réglages, classement, amis, messages, club, défis, pass…',
+    'Profil en onglets (Stats, Succès, Parties), et un bouton « Tout récupérer » dans le pass.',
+    'Alerte « À vous de jouer » : l’onglet clignote avec un petit son quand c’est votre tour et que le jeu est en arrière-plan (réglable).',
+    'Les sacs de dés ont enfin l’air de sacs de dés.',
+    'Le réglage du volume et de la musique ne se coupe plus dans le menu ni en partie.',
+    'En partie, le bac ne passe plus d’horizontal à vertical en cours de jeu.',
+  ] },
   { version: '0.30', date: '2026-11-04T21:15:00+01:00', title: 'Grand rafraîchissement du comptoir', items: [
     'Nouvel accueil : votre bac en 3D en vitrine (touchez-le pour lancer), et tout ce qui compte visible d’un coup d’œil, sans faire défiler.',
     'Coffre, cadeau du jour, tournoi, patron, défi, missions et pass rassemblés dans « Aujourd’hui » ; ce qui est prêt brille en doré.',
