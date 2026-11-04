@@ -22,6 +22,7 @@ import {
 import { Store } from './db';
 import { clientDay, createAccounts, type AccountsOptions } from './accounts';
 import { createStats, type StatsOptions } from './stats';
+import { createAdmin } from './admin';
 import { albumKey, didWin, finalPlace } from '../shared/progress/profile';
 import type { ComboKind } from '../shared/combos';
 import { getItem } from '../shared/progress/catalog';
@@ -220,6 +221,9 @@ export async function startServer(opts: ServerOptions) {
       return { onlineGames, inRooms };
     },
   });
+  // Administration (avant les autres routes : elle filtre aussi les comptes suspendus).
+  const admin = createAdmin(store, { isAdmin: stats.isAdmin, userFromToken: accounts.userFromToken });
+  app.use('/api', admin.router);
   app.use('/api', stats.router);
 
   accounts.setPresence((userId) => {
@@ -321,6 +325,7 @@ export async function startServer(opts: ServerOptions) {
   app.use('/api', accounts.router);
   const http = createServer(app);
   const io = new Server(http, { cors: { origin: true } });
+  admin.attach(io);
   stats.attach(io);
   accounts.messages.attach(io);
 
@@ -795,6 +800,7 @@ export async function startServer(opts: ServerOptions) {
       if (p.userId) sendProfile(p.socketId, accounts.tournamentEnd(p.userId, place, gains[place] ?? 0)?.profile);
     });
     accounts.release(`T:${t.code}`);
+    admin.tournamentFinished();
     const champ = t.players.find((p) => p.id === standings[0])!;
     if (t.sched) {
       // Tournoi programmé : sacs de dés selon la place et le nombre de partants (enregistré en base).

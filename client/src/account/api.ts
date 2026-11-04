@@ -33,6 +33,8 @@ export async function api<T = Record<string, unknown>>(path: string, opts: { bod
     throw new ApiError('Serveur injoignable. Vérifiez votre connexion.', 0);
   }
   const data = await res.json().catch(() => ({ ok: false, error: 'Réponse invalide du serveur' }));
+  // Compte suspendu par l'administration : l'application ferme la session et l'explique.
+  if (res.status === 403 && data?.banned === true && opts.token) window.dispatchEvent(new CustomEvent('421:banned', { detail: String(data.error ?? 'Votre compte est suspendu.') }));
   if (!res.ok || data.ok === false) throw new ApiError(data.error ?? `Erreur ${res.status}`, res.status);
   return data as T;
 }

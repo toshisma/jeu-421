@@ -91,6 +91,10 @@ export class OnlineSession {
     this.socket.on('game:emote', (m: { playerId: string; emote: string }) => { for (const cb of this.emoteL) cb(m.playerId, m.emote); });
     this.socket.on('spectate:closed', ({ text }: { text: string }) => { this.watchClosed = text; this.emitMeta(); });
     this.socket.on('room:chat', (m: ChatMessage) => { this.chat = [...this.chat.slice(-49), m]; this.emitMeta(); });
+    this.socket.on('account:banned', ({ text }: { text: string }) => {
+      window.dispatchEvent(new CustomEvent('421:banned', { detail: text }));
+      this.kicked = text; this.code = ''; this.room = null; saveSession(null); this.emitMeta();
+    });
     this.socket.on('room:kicked', ({ text }: { text: string }) => {
       this.kicked = text; this.code = ''; this.room = null; saveSession(null); this.emitMeta();
     });

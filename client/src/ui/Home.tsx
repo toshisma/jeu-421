@@ -38,6 +38,8 @@ export interface HomeProps {
   onChallenge: () => void; onBoss: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void;
   onCollection: () => void; onDuels: () => void; onFriends: () => void; onChangelog: () => void; onJoinRoom: (code: string) => void;
   onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
+  /** Tableau de bord d'administration (le menu ne le montre qu'aux admins). */
+  onAdmin?: () => void;
   resume: { code: string; tournament?: boolean } | null; onResume: () => void;
   /** Tournois programmés de 11 h et 21 h : rejoindre le salon (pay = s'inscrire en entrant). */
   onJoinScheduled?: (code: string, pay: boolean) => void;
@@ -110,6 +112,8 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
 function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void }) {
   const [q, setQ] = useState('');
   const acc = p.pa.isAccount && !STANDALONE;
+  const [admin, setAdmin] = useState(false);
+  useEffect(() => { if (acc && p.pa.token) api<{ admin: boolean }>('/admin/whoami', { token: p.pa.token }).then((r) => setAdmin(r.admin)).catch(() => {}); }, [acc, p.pa.token]);
   const groups: { title: string; items: { label: string; icon: Parameters<typeof Icon>[0]['name']; go: () => void; show?: boolean; dot?: boolean; keys?: string }[] }[] = [
     { title: 'Progresser', items: [
       { label: 'Profil et succès', icon: 'user', go: p.onProfile, keys: 'titre avatar photo succes' },
@@ -138,6 +142,7 @@ function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void })
       { label: 'Partie guidée', icon: 'resume', go: p.onTutorial, keys: 'tuto apprendre' },
       { label: "Bac d'essai", icon: 'dice', go: p.onSandbox, keys: 'lancer entrainement' },
       { label: 'Réglages', icon: 'settings', go: p.onSettings, keys: 'son vibration qualite graphismes secouer' },
+      { label: 'Administration', icon: 'settings', go: () => p.onAdmin?.(), show: admin && !!p.onAdmin, keys: 'admin bannir pieces tableau de bord' },
       { label: acc ? 'Mon compte' : 'Compte', icon: 'key', go: acc ? p.onAccount : p.onLogin, show: !STANDALONE, keys: 'connexion mot de passe' },
     ] },
   ];
