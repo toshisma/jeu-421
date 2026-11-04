@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../../../shared/rng';
 import type { DicePattern } from '../../../shared/progress/dice-collection';
-import { paintFace, type Layer } from './dieArt';
+import { faceSurface, paintFace, type Layer } from './dieArt';
 
 function canvas(w: number, h: number) {
   const c = document.createElement('canvas');
@@ -14,19 +14,49 @@ function canvas(w: number, h: number) {
 export interface DieStyle { body: string; body2: string; pip: string; accent?: string; pattern?: DicePattern; glow?: boolean; id?: string }
 const IVORY: DieStyle = { body: '#fbf9f3', body2: '#ebe5d8', pip: '#111111' };
 
-/** Face de dé : couleur, relief des points, points lumineux éventuels, zones métalliques. */
-export function dieFace(value: number, style: DieStyle = IVORY): { map: THREE.Texture; bump: THREE.Texture; emissive: THREE.Texture | null; metal: THREE.Texture } {
-  const S = 256;
+export interface DieFaceMaps {
+  map: THREE.Texture;
+  emissive: THREE.Texture | null;
+  /** Relief des points gravés (commun à tous les dés). */
+  normal: THREE.Texture;
+  /** R = occlusion, G = rugosité, B = métal (commun à tous les dés). */
+  orm: THREE.Texture;
+  /** R = vernis (absent au fond des points), G = rugosité du vernis, A = intensité des reflets (commun à tous les dés). */
+  coat: THREE.Texture;
+}
+
+const FACE = 256;
+/** Cartes de relief : ne dépendent que de la valeur de la face, partagées par tous les dés. */
+const surfaces = new Map<number, { normal: THREE.Texture; orm: THREE.Texture; coat: THREE.Texture }>();
+function surface(value: number) {
+  let s = surfaces.get(value);
+  if (s) return s;
+  const { normal, orm } = faceSurface(value, FACE);
+  const tex = (img: ImageData) => { const [c, g] = canvas(FACE, FACE); g.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(c); t.anisotropy = 4; t.premultiplyAlpha = false; return t; };
+  const coat = new ImageData(FACE, FACE);
+  for (let i = 0; i < orm.data.length; i += 4) {
+    const pip = orm.data[i + 1] === 255; // fond peint du point
+    const near = orm.data[i + 2] === 0;
+    coat.data[i] = pip ? 0 : near ? 150 : 255;
+    coat.data[i + 1] = pip ? 255 : near ? 200 : 150;
+    coat.data[i + 2] = 0;
+    coat.data[i + 3] = pip ? 90 : near ? 210 : 255; // alpha = intensité des reflets (peinture mate au fond)
+  }
+  s = { normal: tex(normal), orm: tex(orm), coat: tex(coat) };
+  surfaces.set(value, s);
+  return s;
+}
+
+/** Face de dé : couleur, points lumineux éventuels, et cartes de relief communes. */
+export function dieFace(value: number, style: DieStyle = IVORY): DieFaceMaps {
   const art = { ...style, seed: style.id };
-  const layer = (l: Layer) => { const [c, g] = canvas(S, S); paintFace(g, S, value, art, l); return c; };
+  const layer = (l: Layer) => { const [c, g] = canvas(FACE, FACE); paintFace(g, FACE, value, art, l); return c; };
   const map = new THREE.CanvasTexture(layer('color'));
   map.colorSpace = THREE.SRGBColorSpace;
   map.anisotropy = 8;
-  const bump = new THREE.CanvasTexture(layer('bump'));
-  const metal = new THREE.CanvasTexture(layer('metal'));
   let emissive: THREE.Texture | null = null;
   if (style.glow) { emissive = new THREE.CanvasTexture(layer('emissive')); emissive.colorSpace = THREE.SRGBColorSpace; }
-  return { map, bump, emissive, metal };
+  return { map, emissive, ...surface(value) };
 }
 
 /** Feutrine : fibres fines et irrégularités, avec une carte de relief assortie. */
@@ -50,12 +80,22 @@ export function felt(color: string, seed = 3, pattern?: 'losanges' | 'rayures' |
   }
   g.putImageData(img, 0, 0);
   bg.putImageData(bimg, 0, 0);
+  // Nuances douces du drap (zones un peu plus claires ou plus foncées, comme un feutre brossé).
+  // Dessinées aussi décalées d'un côté pour que la texture reste raccord quand elle se répète.
+  for (let k = 0; k < 60; k++) {
+    const x = rng() * S, y = rng() * S, r = 20 + rng() * 60, light = rng() < 0.5;
+    for (const [ox, oy] of [[0, 0], [-S, 0], [S, 0], [0, -S], [0, S]]) {
+      const gr = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r);
+      gr.addColorStop(0, light ? 'rgba(255,255,255,0.016)' : 'rgba(0,0,0,0.024)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = gr; g.fillRect(x + ox - r, y + oy - r, r * 2, r * 2);
+    }
+  }
   // Fibres
-  for (let k = 0; k < 5000; k++) {
-    const x = rng() * S, y = rng() * S, a = rng() * Math.PI * 2, l = 3 + rng() * 9;
+  for (let k = 0; k < 9000; k++) {
+    const x = rng() * S, y = rng() * S, a = rng() * Math.PI * 2, l = 2 + rng() * 8;
     const light = rng() < 0.5;
-    g.strokeStyle = light ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.09)';
-    bg.strokeStyle = light ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.25)';
+    g.strokeStyle = light ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.1)';
+    bg.strokeStyle = light ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
     for (const ctx of [g, bg]) {
       ctx.lineWidth = 0.8;
       ctx.beginPath();
@@ -79,6 +119,14 @@ export function wood(base: string, dark: string, seed = 11): THREE.Texture {
   const [c, g] = canvas(W, H);
   g.fillStyle = base;
   g.fillRect(0, 0, W, H);
+  // Bandes de croissance : larges variations de teinte le long du fil.
+  for (let y = 0; y < H; y += 2 + rng() * 10) {
+    const h = 3 + rng() * 14;
+    g.globalAlpha = 0.04 + rng() * 0.1;
+    g.fillStyle = rng() < 0.6 ? dark : '#ffe2b8';
+    g.fillRect(0, y, W, h);
+  }
+  g.globalAlpha = 1;
   for (let k = 0; k < 140; k++) {
     const y0 = rng() * H;
     const amp = 2 + rng() * 6;
@@ -102,6 +150,21 @@ export function wood(base: string, dark: string, seed = 11): THREE.Texture {
       g.ellipse(x, y, r * 2.2, r, 0, 0, Math.PI * 2);
       g.stroke();
     }
+  }
+  // Pores : petits traits sombres alignés sur le fil.
+  g.fillStyle = dark;
+  for (let k = 0; k < 2600; k++) {
+    g.globalAlpha = 0.08 + rng() * 0.16;
+    g.fillRect(rng() * W, rng() * H, 2 + rng() * 7, 0.8);
+  }
+  // Reflet satiné : une veine sur deux accroche un peu la lumière.
+  g.strokeStyle = '#fff3dc';
+  for (let k = 0; k < 30; k++) {
+    const y0 = rng() * H, amp = 2 + rng() * 5, ph = rng() * 10;
+    g.globalAlpha = 0.03 + rng() * 0.05; g.lineWidth = 1 + rng() * 3;
+    g.beginPath();
+    for (let x = 0; x <= W; x += 8) { const y = y0 + Math.sin(x * 0.006 + ph) * amp; if (x === 0) g.moveTo(x, y); else g.lineTo(x, y); }
+    g.stroke();
   }
   g.globalAlpha = 1;
   const t = new THREE.CanvasTexture(c);

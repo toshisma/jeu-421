@@ -28,12 +28,19 @@ export interface TraySceneOptions {
   /** Lancer au gobelet : on le secoue, puis il se verse dans le bac. */
   cup?: boolean;
   onShake?: () => void;
+  /**
+   * Scène de vignettes (boutique) : pas de boucle d'animation, pas d'écouteurs, pas de changement
+   * de couleur d'accent ; on rend à la demande avec `capture()`.
+   */
+  thumbnail?: boolean;
 }
 
 interface DieObj {
   mesh: THREE.Mesh;
   mats: THREE.MeshPhysicalMaterial[];
   ring: THREE.Mesh;
+  /** Ombre de contact (tache douce posée sur le tapis, sous le dé). */
+  contact: THREE.Mesh;
   pose: DiePose; // pose du corps physique
   offset: THREE.Quaternion; // rotation de maillage (étiquetage des faces)
 }
@@ -52,6 +59,7 @@ export class TrayScene {
   /** Dés d'un autre joueur affichés à la place des miens (null : les miens). */
   private skin: string | null = null;
   private glowBase = 0;
+  private quality: Quality = 'normale';
   // Traînée de lancer : particules émises derrière les dés pendant qu'ils roulent.
   private fxTrail: string[] | null = null;
   private parts: { mat: THREE.PointsMaterial; geo: THREE.BufferGeometry; pos: Float32Array; col: Float32Array; vel: Float32Array; life: Float32Array; max: Float32Array; next: number } | null = null;
@@ -90,7 +98,9 @@ export class TrayScene {
   private raycaster = new THREE.Raycaster();
   private pointer = new THREE.Vector2();
   private insets: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
-  private resizeObs: ResizeObserver;
+  private resizeObs: ResizeObserver | null = null;
+  /** Élévation de la caméra imposée (vignettes), en degrés. */
+  private elevOverride: number | null = null;
   private lamp: THREE.SpotLight;
   private hemi!: THREE.HemisphereLight;
   private key: THREE.DirectionalLight;
@@ -100,10 +110,10 @@ export class TrayScene {
   private trail: { x: number; y: number; t: number }[] = [];
 
   constructor(private container: HTMLElement, private opts: TraySceneOptions) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: opts.thumbnail ? 'low-power' : 'high-performance' });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.0;
+    this.renderer.toneMappingExposure = 1.05;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.domElement.className = 'tray-canvas';
@@ -115,11 +125,12 @@ export class TrayScene {
     this.scene.environment = envTex;
     this.disposables.push(envTex, pmrem);
 
-    // Lumières : lampe de bistrot chaude au-dessus + lumière principale qui projette les ombres.
-    this.hemi = new THREE.HemisphereLight(0xfff1dc, 0x20140a, 0.22);
+    // Lumières : lampe de bar chaude au-dessus du tapis + lumière principale qui projette les ombres
+    // (placée presque à la verticale, comme la lampe : les ombres tombent sous les dés).
+    this.hemi = new THREE.HemisphereLight(0xffe9cc, 0x1a0e06, 0.14);
     this.scene.add(this.hemi);
-    this.key = new THREE.DirectionalLight(0xfff4e2, 1.25);
-    this.key.position.set(-6, 16, 7);
+    this.key = new THREE.DirectionalLight(0xffe7c4, 1.2);
+    this.key.position.set(-4.5, 17, 4);
     this.key.castShadow = true;
     this.key.shadow.camera.left = -12;
     this.key.shadow.camera.right = 12;
@@ -130,8 +141,8 @@ export class TrayScene {
     this.key.shadow.radius = 4;
     this.scene.add(this.key);
     // Lampe suspendue : cône de lumière chaude centré sur le bac, la table s'assombrit autour.
-    this.lamp = new THREE.SpotLight(0xffd9a0, 900, 0, THREE.MathUtils.degToRad(42), 0.75, 2);
-    this.lamp.position.set(0.5, 14, 0.5);
+    this.lamp = new THREE.SpotLight(0xffd9a0, 1250, 0, THREE.MathUtils.degToRad(34), 0.95, 2);
+    this.lamp.position.set(0.3, 13, 0.3);
     this.lamp.target.position.set(0, 0, 0);
     this.scene.add(this.lamp, this.lamp.target);
 
@@ -145,6 +156,11 @@ export class TrayScene {
     this.home = layout;
     this.showValues([4, 2, 1], true);
 
+    if (opts.thumbnail) {
+      this.renderer.domElement.className = 'tray-thumb-canvas';
+      this.renderer.compile(this.scene, this.camera);
+      return;
+    }
     const el = this.renderer.domElement;
     el.addEventListener('pointermove', this.onPointerMove);
     el.addEventListener('pointerdown', this.onPointerDown);
@@ -164,15 +180,26 @@ export class TrayScene {
   // Construction
 
   private buildDice() {
-    const geo = new RoundedBoxGeometry(1, 1, 1, 5, 0.1);
+    // Arêtes bien arrondies (rayon 0,14) : visuel seulement, la physique garde son cube.
+    const geo = new RoundedBoxGeometry(1, 1, 1, 4, 0.14);
     this.disposables.push(geo);
     const ringGeo = new THREE.RingGeometry(0.78, 0.92, 48);
     ringGeo.rotateX(-Math.PI / 2);
     this.disposables.push(ringGeo);
+    // Ombre de contact : tache sombre très douce, plus nette et plus dense quand le dé est posé.
+    const cc = document.createElement('canvas'); cc.width = cc.height = 64;
+    const cg = cc.getContext('2d')!;
+    const grd = cg.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grd.addColorStop(0, 'rgba(0,0,0,1)'); grd.addColorStop(0.3, 'rgba(0,0,0,0.85)'); grd.addColorStop(0.62, 'rgba(0,0,0,0.3)'); grd.addColorStop(1, 'rgba(0,0,0,0)');
+    cg.fillStyle = grd; cg.fillRect(0, 0, 64, 64);
+    const contactTex = new THREE.CanvasTexture(cc);
+    const contactGeo = new THREE.PlaneGeometry(2.0, 2.0);
+    contactGeo.rotateX(-Math.PI / 2);
+    this.disposables.push(contactTex, contactGeo);
     for (let i = 0; i < 3; i++) {
       const mats = FACE_VALUES.map(() => new THREE.MeshPhysicalMaterial({
-        bumpScale: 1.2, roughness: 0.32, metalness: 0,
-        clearcoat: 0.55, clearcoatRoughness: 0.28, envMapIntensity: 0.55, sheen: 0,
+        roughness: 0.32, metalness: 0, normalScale: new THREE.Vector2(1, 1),
+        clearcoat: 0.55, clearcoatRoughness: 0.2, envMapIntensity: 0.55, sheen: 0,
       }));
       this.disposables.push(...mats);
       const mesh = new THREE.Mesh(geo, mats);
@@ -183,8 +210,13 @@ export class TrayScene {
       this.disposables.push(ringMat);
       const ring = new THREE.Mesh(ringGeo, ringMat);
       ring.position.y = 0.012;
-      this.scene.add(mesh, ring);
-      this.dice.push({ mesh, mats, ring, pose: { p: [0, 0.5, 0], q: [0, 0, 0, 1] }, offset: new THREE.Quaternion() });
+      const contactMat = new THREE.MeshBasicMaterial({ map: contactTex, transparent: true, opacity: 0.55, depthWrite: false, color: 0x000000 });
+      this.disposables.push(contactMat);
+      const contact = new THREE.Mesh(contactGeo, contactMat);
+      contact.position.y = 0.006;
+      contact.renderOrder = 1;
+      this.scene.add(mesh, ring, contact);
+      this.dice.push({ mesh, mats, ring, contact, pose: { p: [0, 0.5, 0], q: [0, 0, 0, 1] }, offset: new THREE.Quaternion() });
     }
   }
 
@@ -314,20 +346,37 @@ export class TrayScene {
       faces = FACE_VALUES.map((v) => dieFace(v, { ...st, id: st.id }));
       this.faceCache.set(st.id, faces);
     }
+    const fin = diceFinish(st);
     for (const d of this.dice)
       d.mats.forEach((m, j) => {
         const f = faces![j];
         m.map = f.map;
-        m.bumpMap = f.bump;
-        m.metalnessMap = f.metal;
-        m.roughness = st.roughness;
+        m.normalMap = f.normal;
+        m.normalScale.setScalar(fin.relief);
+        m.aoMap = f.orm;
+        m.aoMapIntensity = 1;
+        m.roughnessMap = f.orm;
+        m.metalnessMap = f.orm;
+        m.clearcoatMap = f.coat;
+        m.clearcoatRoughnessMap = f.coat;
+        m.specularIntensityMap = f.coat;
+        // Qualité normale : le vernis reste lisse (une texture et un calcul de moins par pixel).
+        m.clearcoatNormalMap = this.quality === 'haute' ? f.normal : null;
+        m.clearcoatNormalScale.setScalar(fin.relief * 0.8);
+        m.roughness = fin.roughness;
         m.metalness = st.metalness;
-        m.clearcoat = st.clearcoat;
+        m.clearcoat = fin.clearcoat;
+        m.clearcoatRoughness = fin.clearcoatRoughness;
+        m.specularIntensity = fin.specular;
+        m.sheen = this.quality === 'haute' ? fin.sheen : 0;
+        m.sheenRoughness = 0.6;
+        m.sheenColor.set(fin.sheenColor);
         m.iridescence = st.iridescence ?? 0;
         m.iridescenceIOR = 1.6;
+        m.iridescenceThicknessRange = [180, 620];
         m.emissiveMap = f.emissive;
         m.emissiveIntensity = 1;
-        m.envMapIntensity = st.metalness > 0.5 ? 1.1 : 0.55;
+        m.envMapIntensity = fin.env;
         m.needsUpdate = true;
       });
   }
@@ -377,7 +426,7 @@ export class TrayScene {
       color: L.rim.cap, roughness: L.rim.capMetal ? 0.3 : 0.6, metalness: L.rim.capMetal ? 0.85 : 0, envMapIntensity: 0.9,
     });
     const f = felt(L.felt.color, 3, L.felt.pattern);
-    const feltMat = new THREE.MeshStandardMaterial({ map: f.map, bumpMap: f.bump, bumpScale: 0.6, roughness: 1, metalness: 0, envMapIntensity: 0.15 });
+    const feltMat = new THREE.MeshStandardMaterial({ map: f.map, bumpMap: f.bump, bumpScale: 0.9, roughness: 1, metalness: 0, envMapIntensity: 0.12 });
 
     if (sh.id === 'rectangle') {
       const W = sh.halfX * 2, D = sh.halfZ * 2;
@@ -452,11 +501,12 @@ export class TrayScene {
       cap.castShadow = true;
       g.add(cap);
     }
-    document.documentElement.style.setProperty('--accent', decor.accent);
+    if (!this.opts.thumbnail) document.documentElement.style.setProperty('--accent', decor.accent);
     this.resize(); // recale caméra et brouillard sur la nouvelle forme
   }
 
   setQuality(q: Quality) {
+    if (q !== this.quality) { this.quality = q; this.diceKey = ''; this.styleDice(); }
     this.basePixelRatio = Math.min(window.devicePixelRatio, q === 'haute' ? 2 : 1.25);
     this.prScale = 1;
     this.renderer.setPixelRatio(this.basePixelRatio);
@@ -474,8 +524,8 @@ export class TrayScene {
 
   /** Cadre la caméra pour que tout le bac tienne dans la zone libre (entre les panneaux). */
   private resize() {
-    const w = this.container.clientWidth || 1;
-    const h = this.container.clientHeight || 1;
+    const w = this.thumbSize?.[0] ?? (this.container.clientWidth || 1);
+    const h = this.thumbSize?.[1] ?? (this.container.clientHeight || 1);
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     const { top, right, bottom, left } = this.insets;
@@ -485,12 +535,12 @@ export class TrayScene {
     const tanH = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * (w / h) * (freeW / w);
     // En portrait, la caméra tourne de 90° : le grand côté du bac suit la hauteur de l'écran.
     const portrait = freeW < freeH * 0.95;
-    const elev = THREE.MathUtils.degToRad(portrait ? 62 : 57);
+    const elev = THREE.MathUtils.degToRad(this.elevOverride ?? (portrait ? 62 : 57));
     const longHalf = this.shape.halfX + TRAY.wall + 0.6;
     const shortHalf = this.shape.halfZ + TRAY.wall + 0.4;
     const acrossHalf = portrait ? shortHalf : longHalf; // demi-largeur à l'écran
     const alongHalf = (portrait ? longHalf : shortHalf) * Math.sin(elev) + TRAY.wallHeight * Math.cos(elev); // demi-hauteur
-    const dist = Math.max(acrossHalf / tanH, alongHalf / tanV) * 1.04;
+    const dist = Math.max(acrossHalf / tanH, alongHalf / tanV) * (this.thumbSize ? this.thumbFit : 1.04);
     const target = new THREE.Vector3(0, 0, 0);
     if (portrait) this.camera.position.set(Math.cos(elev) * dist, Math.sin(elev) * dist, 0);
     else this.camera.position.set(0, Math.sin(elev) * dist, Math.cos(elev) * dist);
@@ -514,6 +564,14 @@ export class TrayScene {
     d.mesh.quaternion.copy(q).multiply(d.offset);
     d.ring.position.x = p.x;
     d.ring.position.z = p.z;
+    // Ombre de contact : dense quand le dé est posé, s'efface et s'élargit quand il saute.
+    const lift = Math.max(0, p.y - 0.5);
+    const k = Math.max(0, 1 - lift / 1.6);
+    d.contact.position.x = p.x + lift * 0.18;
+    d.contact.position.z = p.z - lift * 0.12;
+    d.contact.scale.setScalar(1 + lift * 0.35);
+    (d.contact.material as THREE.MeshBasicMaterial).opacity = 0.8 * k * k;
+    d.contact.visible = d.mesh.visible && k > 0.02;
   }
 
   private syncFromPoses() {
@@ -656,7 +714,7 @@ export class TrayScene {
   private stopCup() {
     if (this.cup) this.cup.visible = false;
     this.cupAnim = null;
-    for (const d of this.dice) d.mesh.visible = true;
+    for (const d of this.dice) { d.mesh.visible = true; d.contact.visible = true; }
   }
 
   private finishPlayback() {
@@ -730,9 +788,9 @@ export class TrayScene {
     if (this.playback?.hold) {
       // Dans le gobelet : les dés lancés sont cachés, les dés gardés restent au bord.
       animating = true;
-      this.dice.forEach((d, i) => { d.mesh.visible = this.kept[i]; });
+      this.dice.forEach((d, i) => { d.mesh.visible = this.kept[i]; d.contact.visible = this.kept[i]; });
     } else if (this.playback) {
-      this.dice.forEach((d) => { d.mesh.visible = true; });
+      this.dice.forEach((d) => { d.mesh.visible = true; d.contact.visible = true; });
       animating = true;
       const pb = this.playback;
       if (pb.t0 === null) pb.t0 = now;
@@ -894,14 +952,56 @@ export class TrayScene {
     if (i >= 0) this.opts.onDieClick?.(i);
   };
 
+  // ---------------------------------------------------------------------------------------------
+  // Vignettes (boutique)
+
+  private thumbSize: [number, number] | null = null;
+  private thumbFit = 1;
+
+  /**
+   * Rend la scène avec une apparence donnée et renvoie l'image (data URL). Une seule scène de
+   * vignettes sert toute la boutique : on change l'apparence, on rend, on copie l'image.
+   */
+  capture(a: Appearance, w: number, h: number, elev = 48, fit = 1): string {
+    this.thumbSize = [w, h];
+    this.thumbFit = fit;
+    this.elevOverride = elev;
+    this.setAppearance(a);
+    this.renderer.setPixelRatio(1);
+    this.renderer.setSize(w, h, false);
+    this.resize();
+    this.renderer.render(this.scene, this.camera);
+    return this.renderer.domElement.toDataURL('image/webp', 0.86);
+  }
+
   dispose() {
     cancelAnimationFrame(this.raf);
-    this.resizeObs.disconnect();
+    this.resizeObs?.disconnect();
     if (this.playback) this.finishPlayback();
     this.clearTray();
     for (const d of this.disposables) d.dispose();
-    for (const faces of this.faceCache.values()) for (const f of faces) { f.map.dispose(); f.bump.dispose(); f.metal.dispose(); f.emissive?.dispose(); }
+    // Les cartes de relief sont partagées entre toutes les scènes : on ne libère que les couleurs.
+    for (const faces of this.faceCache.values()) for (const f of faces) { f.map.dispose(); f.emissive?.dispose(); }
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
+}
+
+/**
+ * Fini de surface selon la matière du dé : le bois est mat et satiné, le marbre et la nacre
+ * vernis et brillants, le métal reflète la pièce, les résines ont un vernis franc.
+ */
+export function diceFinish(st: DiceItem) {
+  const metal = st.metalness > 0.5;
+  const p = st.pattern;
+  const wood = p === 'bois' || st.id === 'dice-bois';
+  const stone = p === 'marbre' || st.id === 'dice-marbre' || st.id === 'dice-obsidienne';
+  const pearl = p === 'nacre' || (st.iridescence ?? 0) > 0.5 || st.id === 'dice-pass-opale' || st.id === 'dice-diamant';
+  // La carte de rugosité vaut 0,59 sur le corps du dé et 1 au fond des points (peinture mate).
+  const base = Math.min(1, st.roughness / 0.59);
+  if (wood) return { roughness: Math.max(0.95, base), clearcoat: Math.min(0.25, st.clearcoat), clearcoatRoughness: 0.45, specular: 0.5, sheen: 0.35, sheenColor: '#ffd9a8', env: 0.35, relief: 1.1 };
+  if (metal) return { roughness: Math.max(0.34, base * 0.9), clearcoat: 0.25, clearcoatRoughness: 0.12, specular: 1, sheen: 0, sheenColor: '#000000', env: 1.35, relief: 1.2 };
+  if (stone) return { roughness: Math.min(0.36, base), clearcoat: 1, clearcoatRoughness: 0.06, specular: 0.9, sheen: 0, sheenColor: '#000000', env: 0.75, relief: 1 };
+  if (pearl) return { roughness: Math.min(0.32, base), clearcoat: 1, clearcoatRoughness: 0.08, specular: 1, sheen: 0.25, sheenColor: '#e8e0ff', env: 0.85, relief: 1 };
+  return { roughness: base, clearcoat: st.clearcoat, clearcoatRoughness: 0.14 + st.roughness * 0.35, specular: 0.7, sheen: 0, sheenColor: '#000000', env: 0.6, relief: 1 };
 }
