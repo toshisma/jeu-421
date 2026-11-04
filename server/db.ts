@@ -47,6 +47,11 @@ export interface DuelRow {
 
 export class Store {
   private db: DatabaseSync;
+  /** Administration : appelé à chaque enregistrement de profil (avant / après), et à la suppression d'un compte. */
+  onProfileSave?: (id: string, before: Profile | null, after: Profile) => void;
+  onUserDelete?: (id: string) => void;
+  /** Accès direct à la base pour les modules qui gèrent leurs propres tables (administration). */
+  get sqlite(): DatabaseSync { return this.db; }
 
   constructor(path: string) {
     if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
@@ -224,6 +229,12 @@ export class Store {
   }
   profileOf(u: UserRow): Profile { return sanitizeProfile(JSON.parse(u.profile)); }
   saveProfile(id: string, p: Profile) {
+    if (this.onProfileSave) {
+      const row = this.db.prepare('SELECT profile FROM users WHERE id = ?').get(id) as { profile: string } | undefined;
+      let before: Profile | null = null;
+      try { before = row ? sanitizeProfile(JSON.parse(row.profile)) : null; } catch { before = null; }
+      try { this.onProfileSave(id, before, p); } catch { /* le journal ne doit jamais bloquer le jeu */ }
+    }
     this.db.prepare('UPDATE users SET profile = ? WHERE id = ?').run(JSON.stringify(p), id);
   }
   setPassword(id: string, passHash: string, recoveryHash: string) {
@@ -241,6 +252,7 @@ export class Store {
     return n;
   }
   deleteUser(id: string) {
+    try { this.onUserDelete?.(id); } catch { /* */ }
     this.db.prepare('DELETE FROM users WHERE id = ?').run(id); // sessions et amis : ON DELETE CASCADE
     this.db.prepare('DELETE FROM ranked WHERE user_id = ?').run(id);
     // Statistiques : la partie reste comptée, mais plus aucun lien avec le compte supprimé.

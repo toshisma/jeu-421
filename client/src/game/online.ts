@@ -84,6 +84,10 @@ export class OnlineSession {
     this.socket.on('tournament:removed', ({ reason }: { reason: string }) => { this.removed = reason; this.tcode = ''; saveSession(null); this.emitMeta(); });
     this.socket.on('game:emote', (m: { playerId: string; emote: string }) => { for (const cb of this.emoteL) cb(m.playerId, m.emote); });
     this.socket.on('room:chat', (m: OnlineSession['chat'][number]) => { this.chat = [...this.chat.slice(-49), m]; this.emitMeta(); });
+    this.socket.on('account:banned', ({ text }: { text: string }) => {
+      window.dispatchEvent(new CustomEvent('421:banned', { detail: text }));
+      this.kicked = text; this.code = ''; this.room = null; saveSession(null); this.emitMeta();
+    });
     this.socket.on('room:kicked', ({ text }: { text: string }) => {
       this.kicked = text; this.code = ''; this.room = null; saveSession(null); this.emitMeta();
     });

@@ -1,0 +1,582 @@
+/**
+ * Outils d'administration (comptes listés dans ADMIN_USERS, vérifiés côté serveur à chaque appel).
+ *
+ * - Commandes : suspendre / rétablir un compte, fiche d'un joueur, don ou retrait de pièces,
+ *   d'objets du catalogue et de sacs de dés. Chaque commande est journalisée (qui, quoi, quand).
+ * - Tableau de bord : vue d'ensemble, visiteurs (suivi anonyme), rétention, journal d'activité
+ *   des joueurs, économie (pièces gagnées / dépensées par source).
+ *
+ * Suivi des visiteurs : aucun cookie, aucune adresse IP stockée. L'identifiant d'appareil tiré
+ * au hasard par le jeu (localStorage) est haché avec un sel secret gardé en base ; sans lui, une
+ * empreinte salée de l'adresse et du navigateur, qui change chaque jour.
+ *
+ * Journal et économie : les enregistrements de profil sont observés (avant / après) pour noter
+ * achats, sacs ouverts, succès et mouvements de pièces, sans toucher aux règles du jeu.
+ */
+import { createHash, randomBytes } from 'node:crypto';
+import express, { type NextFunction, type Request, type Response } from 'express';
+import type { Server, Socket } from 'socket.io';
+import { toPublic, type Store, type UserRow } from './db';
+import { brusselsDay, brusselsMidnight } from './stats';
+import { CATEGORY_LABELS, ITEMS, getItem } from '../shared/progress/catalog';
+import { FX, FX_KIND_LABEL, RARITY_LABEL, fxDef } from '../shared/progress/dice-collection';
+import { ACHIEVEMENTS } from '../shared/progress/achievements';
+import { BAGS_MAX, levelInfo, newProfile, sanitizeProfile, type Profile } from '../shared/progress/profile';
+
+export const BANNED_MESSAGE = 'Votre compte est suspendu.';
+const DAY_MS = 86400_000;
+const addDays = (day: string, n: number) => new Date(Date.parse(`${day}T12:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
+const FREE = new Set(newProfile().owned);
+const rarityOf = (it: ReturnType<typeof getItem>) => (it && it.category === 'dice' ? it.rarity ?? null : null);
+
+/** Libellés des sources de pièces (économie) et des types d'activité. */
+export const SOURCE_LABELS: Record<string, string> = {
+  partie: 'Parties en ligne', solo: 'Parties solo', cagnotte: 'Cagnottes', tournoi: 'Tournois', mise: 'Mises',
+  remboursement: 'Mises rendues', boutique: 'Boutique', coffre: 'Coffre', serie: 'Série de connexions', pass: 'Pass de saison',
+  quete: 'Quêtes', defi: 'Défi du jour', duel: 'Défis entre amis', club: 'Clubs', tutoriel: 'Partie guidée', fabrication: 'Fabrication',
+  saison: 'Saisons et ligues', parrainage: 'Parrainage', admin: 'Administration', autre: 'Autre',
+};
+const PATH_SOURCES: [RegExp, string][] = [
+  [/^\/shop\//, 'boutique'], [/^\/chest\//, 'coffre'], [/^\/daily\//, 'serie'], [/^\/season\//, 'pass'], [/^\/quests\//, 'quete'],
+  [/^\/challenge\//, 'defi'], [/^\/duels/, 'duel'], [/^\/clubs/, 'club'], [/^\/tutorial\//, 'tutoriel'], [/^\/solo\//, 'solo'],
+  [/^\/collection\//, 'fabrication'], [/^\/bags\//, 'sac'], [/^\/(me|league|referral)$/, 'saison'], [/^\/prestige/, 'autre'],
+];
+
+export interface AdminOptions {
+  isAdmin: (u: UserRow | undefined) => boolean;
+  userFromToken: (t: unknown) => UserRow | undefined;
+  now?: () => number;
+}
+
+export function createAdmin(store: Store, opts: AdminOptions) {
+  const now = opts.now ?? Date.now;
+  const db = store.sqlite;
+  db.exec(`
+    -- Comptes suspendus : jusqu'à une date, ou définitivement (until NULL).
+    CREATE TABLE IF NOT EXISTS admin_bans (
+      user_id TEXT PRIMARY KEY, reason TEXT NOT NULL DEFAULT '', until INTEGER, by_admin TEXT NOT NULL, at INTEGER NOT NULL
+    );
+    -- Journal des commandes d'administration.
+    CREATE TABLE IF NOT EXISTS admin_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, admin TEXT NOT NULL, action TEXT NOT NULL,
+      target_id TEXT, target_name TEXT, details TEXT NOT NULL DEFAULT ''
+    );
+    CREATE INDEX IF NOT EXISTS idx_admin_log_at ON admin_log(at DESC);
+    -- Activité des joueurs (connexions, achats, sacs, succès, niveaux, commandes admin…).
+    CREATE TABLE IF NOT EXISTS activity (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, user_id TEXT NOT NULL, kind TEXT NOT NULL, text TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_activity_user ON activity(user_id, at DESC);
+    CREATE INDEX IF NOT EXISTS idx_activity_at ON activity(at DESC);
+    -- Jours où un compte s'est servi du jeu (rétention, actifs).
+    CREATE TABLE IF NOT EXISTS user_days (user_id TEXT NOT NULL, day TEXT NOT NULL, PRIMARY KEY (user_id, day));
+    CREATE INDEX IF NOT EXISTS idx_user_days_day ON user_days(day);
+    -- Économie : pièces gagnées et dépensées par jour et par source.
+    CREATE TABLE IF NOT EXISTS economy (
+      day TEXT NOT NULL, source TEXT NOT NULL, earned INTEGER NOT NULL DEFAULT 0, spent INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, source)
+    );
+    -- Compteurs divers par jour (tournois terminés…).
+    CREATE TABLE IF NOT EXISTS daily_counts (day TEXT NOT NULL, key TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, key));
+    -- Visites (y compris sans compte) : visiteur = empreinte salée, jamais d'adresse IP.
+    CREATE TABLE IF NOT EXISTS visits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, day TEXT NOT NULL, visitor TEXT NOT NULL,
+      referrer TEXT NOT NULL, utm_source TEXT, utm_medium TEXT, utm_campaign TEXT, country TEXT, lang TEXT,
+      device TEXT NOT NULL, landing TEXT NOT NULL, user_id TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_visits_day ON visits(day);
+    CREATE INDEX IF NOT EXISTS idx_visits_visitor ON visits(visitor);
+  `);
+  // Ménage : activité et visites gardées un an.
+  db.prepare('DELETE FROM activity WHERE at < ?').run(now() - 365 * DAY_MS);
+  db.prepare('DELETE FROM visits WHERE at < ?').run(now() - 365 * DAY_MS);
+
+  let salt = store.getMeta('visit_salt');
+  if (!salt) { salt = randomBytes(24).toString('base64url'); store.setMeta('visit_salt', salt); }
+  const hash = (s: string) => createHash('sha256').update(`${salt}|${s}`).digest('hex').slice(0, 24);
+
+  // --- Suspensions --------------------------------------------------------------------------------
+  type Ban = { user_id: string; reason: string; until: number | null; by_admin: string; at: number };
+  const banOf = (userId: string): Ban | undefined => {
+    const b = db.prepare('SELECT * FROM admin_bans WHERE user_id = ?').get(userId) as Ban | undefined;
+    if (!b) return undefined;
+    if (b.until != null && b.until <= now()) { db.prepare('DELETE FROM admin_bans WHERE user_id = ?').run(userId); return undefined; }
+    return b;
+  };
+  const isBanned = (userId: string | undefined | null) => !!userId && !!banOf(userId);
+  const banText = (b: Ban) => {
+    let t = BANNED_MESSAGE;
+    if (b.until) t += ` Jusqu’au ${new Date(b.until).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}.`;
+    if (b.reason) t += ` Motif : ${b.reason}`;
+    return t;
+  };
+
+  // --- Activité -------------------------------------------------------------------------------------
+  const insActivity = db.prepare('INSERT INTO activity (at, user_id, kind, text) VALUES (?, ?, ?, ?)');
+  const activity = (userId: string, kind: string, text: string) => { insActivity.run(now(), userId, kind, text.slice(0, 300)); };
+  const seenDays = new Set<string>();
+  const insDay = db.prepare('INSERT OR IGNORE INTO user_days (user_id, day) VALUES (?, ?)');
+  const markActive = (userId: string) => {
+    const k = `${userId}|${brusselsDay(now())}`;
+    if (seenDays.has(k)) return;
+    if (seenDays.size > 20000) seenDays.clear();
+    seenDays.add(k);
+    insDay.run(userId, brusselsDay(now()));
+  };
+  const bumpEco = db.prepare(`INSERT INTO economy (day, source, earned, spent) VALUES (?, ?, ?, ?)
+    ON CONFLICT(day, source) DO UPDATE SET earned = earned + excluded.earned, spent = spent + excluded.spent`);
+  const bumpCount = db.prepare(`INSERT INTO daily_counts (day, key, n) VALUES (?, ?, 1) ON CONFLICT(day, key) DO UPDATE SET n = n + 1`);
+
+  // Requête HTTP en cours par compte : elle donne la source d'un mouvement de pièces.
+  const pending = new Map<string, string>();
+  let forced: string | null = null;
+  const itemName = (id: string) => getItem(id)?.name ?? fxDef(id)?.name ?? id;
+
+  store.onProfileSave = (userId, before, after) => {
+    if (!before) return;
+    const path = pending.get(userId);
+    let source = forced ?? (path ? PATH_SOURCES.find(([re]) => re.test(path))?.[1] ?? 'autre' : null);
+    if (!source) {
+      // Hors requête (partie en ligne, tournoi, mises) : déduit de ce qui a changé.
+      if (after.stats.tournaments > before.stats.tournaments) source = 'tournoi';
+      else if (after.stats.potsWon > before.stats.potsWon) source = 'cagnotte';
+      else if (after.stats.played > before.stats.played) source = 'partie';
+      else if (after.coins < before.coins) source = 'mise';
+      else source = 'remboursement';
+    }
+    const delta = after.coins - before.coins;
+    const day = brusselsDay(now());
+    if (delta) bumpEco.run(day, source === 'sac' ? 'autre' : source, Math.max(0, delta), Math.max(0, -delta));
+    if (forced) return; // les commandes admin ont leur propre ligne d'activité
+    const gained = after.owned.filter((id) => !before.owned.includes(id));
+    if ((after.bags ?? 0) < (before.bags ?? 0) && source === 'sac') {
+      activity(userId, 'sac', gained.length ? `Sac ouvert : ${gained.map(itemName).join(', ')}` : `Sac ouvert : doublon (+${(after.shards ?? 0) - (before.shards ?? 0)} éclats)`);
+    } else if (gained.length && source === 'boutique') {
+      activity(userId, 'achat', `Achat : ${gained.map(itemName).join(', ')} (${-delta} pièces)`);
+    } else if (gained.length && source === 'fabrication') {
+      activity(userId, 'achat', `Fabrication : ${gained.map(itemName).join(', ')}`);
+    }
+    if ((after.bags ?? 0) > (before.bags ?? 0)) activity(userId, 'sac', `Sac gagné (${after.bags} en réserve)`);
+    for (const id of Object.keys(after.achievements)) {
+      if (!before.achievements[id]) activity(userId, 'succes', `Succès : ${ACHIEVEMENTS.find((a) => a.id === id)?.name ?? id}`);
+    }
+    const lb = levelInfo(before.xp).level, la = levelInfo(after.xp).level;
+    if (la > lb) activity(userId, 'niveau', `Niveau ${la} atteint`);
+    if (source === 'coffre' || source === 'serie' || source === 'pass' || source === 'quete' || source === 'defi') {
+      if (delta > 0) activity(userId, 'gain', `${SOURCE_LABELS[source]} : +${delta} pièces`);
+    }
+    if ((source === 'cagnotte' || source === 'tournoi') && delta > 0) activity(userId, 'gain', `${SOURCE_LABELS[source]} : +${delta} pièces`);
+  };
+  store.onUserDelete = (userId) => {
+    db.prepare('DELETE FROM activity WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM user_days WHERE user_id = ?').run(userId);
+    db.prepare('DELETE FROM admin_bans WHERE user_id = ?').run(userId);
+    db.prepare('UPDATE visits SET user_id = NULL WHERE user_id = ?').run(userId);
+  };
+
+  // --- Sockets : coupure des sessions des comptes suspendus ---------------------------------------
+  const socketsOf = new Map<string, Set<Socket>>();
+  const track = (s: Socket, userId: string) => {
+    let set = socketsOf.get(userId);
+    if (!set) socketsOf.set(userId, (set = new Set()));
+    if (set.has(s)) return;
+    set.add(s);
+    s.once('disconnect', () => { set!.delete(s); if (!set!.size) socketsOf.delete(userId); });
+  };
+  function attach(io: Server) {
+    // Doit être appelé avant les autres gestionnaires de connexion (ce filtre passe en premier).
+    io.on('connection', (socket) => {
+      socket.use((pkt, next) => {
+        const payload = pkt[1] as { auth?: unknown } | undefined;
+        const u = payload && typeof payload === 'object' && payload.auth ? opts.userFromToken(payload.auth) : undefined;
+        if (u) {
+          const b = banOf(u.id);
+          if (b) {
+            const ack = pkt[pkt.length - 1];
+            if (typeof ack === 'function') ack({ ok: false, error: banText(b), banned: true });
+            socket.emit('account:banned', { text: banText(b) });
+            return; // commande refusée
+          }
+          track(socket, u.id);
+        }
+        next();
+      });
+    });
+    io.of('/presence').on('connection', (socket) => {
+      const u = opts.userFromToken(socket.handshake.auth?.token);
+      if (!u) return;
+      const b = banOf(u.id);
+      if (b) { socket.emit('account:banned', { text: banText(b) }); setTimeout(() => socket.disconnect(true), 200); return; }
+      track(socket, u.id);
+      markActive(u.id);
+    });
+  }
+  const cutSessions = (userId: string, text: string) => {
+    for (const s of socketsOf.get(userId) ?? []) { s.emit('account:banned', { text }); setTimeout(() => s.disconnect(true), 200); }
+  };
+
+  /** Fin d'un tournoi (comptage) : à brancher sur la levée du séquestre « T:… ». */
+  const tournamentFinished = () => bumpCount.run(brusselsDay(now()), 'tournois');
+
+  // --- Routes -------------------------------------------------------------------------------------
+  const router = express.Router();
+  const json = express.json({ limit: '8kb' });
+  const fail = (res: Response, status: number, error: string, extra: object = {}) => { res.status(status).json({ ok: false, error, ...extra }); };
+
+  // Jetons récemment vus (évite une lecture de session en plus à chaque requête).
+  const tokenCache = new Map<string, { id: string | null; at: number }>();
+  const userOfToken = (token: string): string | null => {
+    const c = tokenCache.get(token);
+    if (c && now() - c.at < 60_000) return c.id;
+    const id = opts.userFromToken(token)?.id ?? null;
+    if (tokenCache.size > 5000) tokenCache.clear();
+    tokenCache.set(token, { id, at: now() });
+    return id;
+  };
+  const loginJson = express.json({ limit: '32kb' });
+  // Filtre de toutes les requêtes /api : comptes suspendus refusés, source des mouvements de pièces, jours actifs.
+  router.use((req: Request, res: Response, next: NextFunction) => {
+    if ((req.path === '/login' || req.path === '/recover') && req.method === 'POST') {
+      return loginJson(req, res, () => {
+        const u = typeof req.body?.username === 'string' ? store.userByName(req.body.username.trim()) : undefined;
+        const b = u && banOf(u.id);
+        if (b) return fail(res, 403, banText(b), { banned: true });
+        if (u && req.path === '/login') res.on('finish', () => { if (res.statusCode === 200) { activity(u.id, 'connexion', 'Connexion'); markActive(u.id); } });
+        next();
+      });
+    }
+    if (req.path === '/register' && req.method === 'POST') {
+      res.on('finish', () => {
+        if (res.statusCode !== 200) return;
+        const u = typeof req.body?.username === 'string' ? store.userByName(req.body.username.trim()) : undefined;
+        if (u) { activity(u.id, 'connexion', 'Inscription'); markActive(u.id); }
+      });
+      return next();
+    }
+    const h = req.headers.authorization ?? '';
+    if (!h.startsWith('Bearer ')) return next();
+    const userId = userOfToken(h.slice(7));
+    if (!userId) return next();
+    const b = banOf(userId);
+    if (b && req.path !== '/logout') return fail(res, 403, banText(b), { banned: true });
+    markActive(userId);
+    pending.set(userId, req.path);
+    res.on('finish', () => { if (pending.get(userId) === req.path) pending.delete(userId); });
+    res.on('close', () => { if (pending.get(userId) === req.path) pending.delete(userId); });
+    next();
+  });
+
+  // Visite (publique, anonyme) : une par visiteur et par demi-heure.
+  const lastVisit = new Map<string, number>();
+  const clean = (v: unknown, n: number) => (typeof v === 'string' ? v.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, n) || null : null);
+  router.post('/visit', json, (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const b = req.body ?? {};
+    const ua = String(req.headers['user-agent'] ?? '');
+    if (/bot|crawl|spider|slurp|preview|headless|lighthouse/i.test(ua)) return res.json({ ok: true, skipped: true });
+    const device = typeof b.device === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(b.device) ? b.device : null;
+    const t = now();
+    const day = brusselsDay(t);
+    const visitor = device ? hash(`d:${device}`) : hash(`ip:${req.ip}|${ua}|${day}`);
+    const token = (req.headers.authorization ?? '').startsWith('Bearer ') ? (req.headers.authorization as string).slice(7) : null;
+    const userId = token ? userOfToken(token) : null;
+    if (b.link) {
+      if (userId) db.prepare('UPDATE visits SET user_id = ? WHERE visitor = ? AND user_id IS NULL').run(userId, visitor);
+      return res.json({ ok: true });
+    }
+    if (t - (lastVisit.get(visitor) ?? 0) < 30 * 60_000) return res.json({ ok: true, skipped: true });
+    if (lastVisit.size > 20000) lastVisit.clear();
+    lastVisit.set(visitor, t);
+    // Provenance : domaine du site d'origine ; liens internes (pages d'aide du site) gardés avec leur chemin.
+    let referrer = '(direct)';
+    const host = String(req.headers.host ?? '').toLowerCase();
+    try {
+      const r = typeof b.ref === 'string' && b.ref ? new URL(b.ref) : null;
+      if (r && /^https?:$/.test(r.protocol)) {
+        const rh = r.hostname.replace(/^www\./, '').toLowerCase();
+        referrer = host && host.split(':')[0].replace(/^www\./, '') === rh ? `(interne) ${r.pathname.slice(0, 60)}` : rh.slice(0, 80);
+      }
+    } catch { /* adresse invalide */ }
+    const utm = (b.utm && typeof b.utm === 'object' ? b.utm : {}) as Record<string, unknown>;
+    const cc = [req.headers['cf-ipcountry'], req.headers['x-vercel-ip-country'], req.headers['cloudfront-viewer-country'], req.headers['x-country-code']]
+      .map((v) => (typeof v === 'string' ? v.toUpperCase() : '')).find((v) => /^[A-Z]{2}$/.test(v) && v !== 'XX') ?? null;
+    const lang = clean(b.lang, 12);
+    const deviceKind = /iPad|Tablet/i.test(ua) ? 'tablette' : /Mobi|Android|iPhone|iPod/i.test(ua) ? 'mobile' : 'ordinateur';
+    let landing = clean(b.landing, 80) ?? '/';
+    if (!landing.startsWith('/')) landing = '/';
+    db.prepare(`INSERT INTO visits (at, day, visitor, referrer, utm_source, utm_medium, utm_campaign, country, lang, device, landing, user_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(t, day, visitor, referrer, clean(utm.utm_source, 60), clean(utm.utm_medium, 60), clean(utm.utm_campaign, 60),
+      cc, lang, deviceKind, landing, userId);
+    res.json({ ok: true });
+  });
+
+  // --- Administration -----------------------------------------------------------------------------
+  const adminOf = (req: Request) => {
+    const h = req.headers.authorization ?? '';
+    const u = opts.userFromToken(h.startsWith('Bearer ') ? h.slice(7) : '');
+    return opts.isAdmin(u) ? u : undefined;
+  };
+  const admin = express.Router();
+  admin.use((req, res, next) => {
+    // Routes historiques du tableau de bord : gérées par stats.ts.
+    if (req.path === '/whoami' || req.path === '/stats') return next('router');
+    res.setHeader('Cache-Control', 'no-store');
+    const a = adminOf(req);
+    if (!a) return fail(res, 403, 'Accès réservé à l’administration.');
+    (req as Request & { admin: UserRow }).admin = a;
+    next();
+  });
+  const adminName = (req: Request) => (req as Request & { admin: UserRow }).admin.username;
+  const logAdmin = (req: Request, action: string, target: UserRow | null, details: string) => {
+    db.prepare('INSERT INTO admin_log (at, admin, action, target_id, target_name, details) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(now(), adminName(req), action, target?.id ?? null, target?.username ?? null, details.slice(0, 500));
+    if (target) activity(target.id, 'admin', `Administration (${adminName(req)}) : ${details}`);
+  };
+  const target = (req: Request) => {
+    const k = String(req.params.id ?? '');
+    return store.userById(k) ?? store.userByName(k);
+  };
+  const lastSeen = (u: UserRow) => {
+    const a = store.lastSeenOf(u.id);
+    const d = (db.prepare('SELECT MAX(at) AS t FROM activity WHERE user_id = ?').get(u.id) as { t: number | null }).t ?? 0;
+    const g = (db.prepare('SELECT MAX(g.ended_at) AS t FROM game_players gp JOIN games_log g ON g.id = gp.game_id WHERE gp.user_id = ?').get(u.id) as { t: number | null }).t ?? 0;
+    return Math.max(a, d, g) || null;
+  };
+  const gamesOf = (userId: string) => db.prepare(`SELECT COUNT(*) AS n, COALESCE(SUM(CASE WHEN g.mode = 'solo' THEN 1 ELSE 0 END), 0) AS solo,
+    COALESCE(SUM(gp.won), 0) AS won FROM game_players gp JOIN games_log g ON g.id = gp.game_id WHERE gp.user_id = ?`).get(userId) as { n: number; solo: number; won: number };
+
+  function sheet(u: UserRow) {
+    const p = store.profileOf(u);
+    const li = levelInfo(p.xp);
+    const b = banOf(u.id);
+    const g = gamesOf(u.id);
+    const items = p.owned.filter((id) => !FREE.has(id)).map((id) => {
+      const it = getItem(id), fx = fxDef(id);
+      return { id, name: itemName(id), category: it ? CATEGORY_LABELS[it.category] : fx ? FX_KIND_LABEL[fx.kind] : '?', rarity: rarityOf(it) ?? fx?.rarity ?? null };
+    });
+    return {
+      id: u.id, username: u.username, createdAt: u.created_at, lastSeen: lastSeen(u), admin: opts.isAdmin(u),
+      coins: p.coins, xp: p.xp, level: li.level, prestige: p.prestige ?? 0, bags: p.bags ?? 0, shards: p.shards ?? 0,
+      items, equipped: p.equipped,
+      games: { total: g.n, solo: g.solo, online: g.n - g.solo, won: g.won, onlineRanked: u.online_games, onlineWins: u.online_wins, played: p.stats.played },
+      achievements: Object.keys(p.achievements).length,
+      ban: b ? { reason: b.reason, until: b.until, by: b.by_admin, at: b.at, text: banText(b) } : null,
+      photo: toPublic(u).photo,
+    };
+  }
+
+  admin.get('/players', (req, res) => {
+    const q = String(req.query.q ?? '').trim().slice(0, 30);
+    const rows = db.prepare(`SELECT id, username, created_at, json_extract(profile, '$.coins') AS coins, json_extract(profile, '$.xp') AS xp
+      FROM users WHERE username LIKE ? ESCAPE '\\' ORDER BY ${q ? 'length(username), username' : 'created_at DESC'} LIMIT 30`)
+      .all(`%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`) as { id: string; username: string; created_at: number; coins: number; xp: number }[];
+    res.json({ ok: true, players: rows.map((r) => ({ id: r.id, username: r.username, createdAt: r.created_at, coins: r.coins ?? 0, level: levelInfo(r.xp ?? 0).level, banned: isBanned(r.id) })) });
+  });
+  admin.get('/players/:id', (req, res) => {
+    const u = target(req);
+    if (!u) return fail(res, 404, 'Joueur introuvable.');
+    res.json({ ok: true, player: sheet(u) });
+  });
+
+  admin.post('/players/:id/ban', json, (req, res) => {
+    const u = target(req);
+    if (!u) return fail(res, 404, 'Joueur introuvable.');
+    if (opts.isAdmin(u)) return fail(res, 400, 'Impossible de suspendre un compte administrateur.');
+    const reason = clean(req.body?.reason, 200) ?? '';
+    const days = req.body?.days == null || req.body.days === '' ? null : Math.floor(Number(req.body.days));
+    if (days != null && (!Number.isFinite(days) || days < 1 || days > 3650)) return fail(res, 400, 'Durée : de 1 à 3650 jours, ou vide pour une suspension définitive.');
+    const until = days == null ? null : now() + days * DAY_MS;
+    db.prepare('INSERT OR REPLACE INTO admin_bans (user_id, reason, until, by_admin, at) VALUES (?, ?, ?, ?, ?)').run(u.id, reason, until, adminName(req), now());
+    tokenCache.clear();
+    logAdmin(req, 'ban', u, `suspension ${days == null ? 'définitive' : `de ${days} jour${days > 1 ? 's' : ''}`}${reason ? ` (motif : ${reason})` : ''}`);
+    cutSessions(u.id, banText(banOf(u.id)!));
+    res.json({ ok: true, player: sheet(u) });
+  });
+  admin.post('/players/:id/unban', json, (req, res) => {
+    const u = target(req);
+    if (!u) return fail(res, 404, 'Joueur introuvable.');
+    const r = db.prepare('DELETE FROM admin_bans WHERE user_id = ?').run(u.id);
+    if (!r.changes) return fail(res, 400, 'Ce compte n’est pas suspendu.');
+    logAdmin(req, 'unban', u, 'suspension levée');
+    res.json({ ok: true, player: sheet(u) });
+  });
+
+  /** Modifie le profil côté serveur (recalcul complet), journalise et renvoie la fiche. */
+  const edit = (req: Request, res: Response, fn: (p: Profile) => Profile | string, action: string, details: (before: Profile, after: Profile) => string) => {
+    const u = target(req);
+    if (!u) return fail(res, 404, 'Joueur introuvable.');
+    const before = store.profileOf(u);
+    const out = fn(structuredClone(before));
+    if (typeof out === 'string') return fail(res, 400, out);
+    const after = sanitizeProfile(JSON.parse(JSON.stringify(out)));
+    forced = 'admin';
+    try { store.saveProfile(u.id, after); } finally { forced = null; }
+    logAdmin(req, action, u, details(before, after));
+    res.json({ ok: true, player: sheet(store.userById(u.id)!) });
+  };
+  admin.post('/players/:id/coins', json, (req, res) => {
+    const delta = Math.trunc(Number(req.body?.delta));
+    if (!Number.isFinite(delta) || delta === 0 || Math.abs(delta) > 1_000_000) return fail(res, 400, 'Montant invalide (entier non nul, au plus 1 000 000).');
+    edit(req, res, (p) => {
+      if (p.coins + delta < 0) return `Le joueur n’a que ${p.coins} pièces.`;
+      return { ...p, coins: p.coins + delta };
+    }, delta > 0 ? 'coins+' : 'coins-', (b, a) => `${delta > 0 ? 'don' : 'retrait'} de ${Math.abs(delta)} pièces (${b.coins} → ${a.coins})`);
+  });
+  admin.post('/players/:id/bags', json, (req, res) => {
+    const delta = Math.trunc(Number(req.body?.delta));
+    if (!Number.isFinite(delta) || delta === 0 || Math.abs(delta) > BAGS_MAX) return fail(res, 400, `Nombre de sacs invalide (1 à ${BAGS_MAX}).`);
+    edit(req, res, (p) => {
+      const n = (p.bags ?? 0) + delta;
+      if (n < 0) return `Le joueur n’a que ${p.bags ?? 0} sac(s).`;
+      if (n > BAGS_MAX) return `Au plus ${BAGS_MAX} sacs en réserve.`;
+      return { ...p, bags: n };
+    }, delta > 0 ? 'bags+' : 'bags-', (b, a) => `${delta > 0 ? 'don' : 'retrait'} de ${Math.abs(delta)} sac${Math.abs(delta) > 1 ? 's' : ''} de dés (${b.bags ?? 0} → ${a.bags ?? 0})`);
+  });
+  admin.post('/players/:id/items', json, (req, res) => {
+    const id = String(req.body?.id ?? '');
+    const give = req.body?.action !== 'remove';
+    if (!getItem(id) && !fxDef(id)) return fail(res, 400, 'Objet inconnu du catalogue.');
+    if (FREE.has(id)) return fail(res, 400, 'Objet gratuit : tout le monde le possède.');
+    edit(req, res, (p) => {
+      const has = p.owned.includes(id);
+      if (give && has) return 'Le joueur possède déjà cet objet.';
+      if (!give && !has) return 'Le joueur ne possède pas cet objet.';
+      if (give) return { ...p, owned: [...p.owned, id] };
+      // Retrait : l'objet équipé est remplacé par celui par défaut (recalcul au nettoyage du profil).
+      return { ...p, owned: p.owned.filter((x) => x !== id), showcase: p.showcase?.filter((x) => x !== id) };
+    }, give ? 'item+' : 'item-', () => `${give ? 'don' : 'retrait'} de l’objet « ${itemName(id)} »`);
+  });
+
+  admin.get('/catalog', (_req, res) => {
+    const items = [
+      ...ITEMS.filter((i) => !FREE.has(i.id)).map((i) => ({ id: i.id, name: i.name, category: CATEGORY_LABELS[i.category], rarity: rarityOf(i) ? RARITY_LABEL[rarityOf(i)!] : null })),
+      ...FX.map((f) => ({ id: f.id, name: f.name, category: FX_KIND_LABEL[f.kind], rarity: RARITY_LABEL[f.rarity] })),
+    ];
+    res.json({ ok: true, items });
+  });
+  admin.get('/log', (req, res) => {
+    const limit = Math.min(500, Math.max(1, Number(req.query.limit) || 100));
+    res.json({ ok: true, log: db.prepare('SELECT at, admin, action, target_name AS target, details FROM admin_log ORDER BY at DESC, id DESC LIMIT ?').all(limit) });
+  });
+
+  // Journal d'activité : activité notée + parties terminées (statistiques), filtrable par joueur et par type.
+  admin.get('/activity', (req, res) => {
+    const name = String(req.query.user ?? '').trim();
+    const kind = String(req.query.kind ?? '').trim();
+    const u = name ? store.userByName(name) : undefined;
+    if (name && !u) return fail(res, 404, 'Joueur introuvable.');
+    const limit = Math.min(300, Math.max(1, Number(req.query.limit) || 100));
+    type Row = { at: number; username: string; kind: string; text: string };
+    let rows: Row[] = [];
+    if (kind !== 'partie') {
+      rows = db.prepare(`SELECT a.at, u.username, a.kind, a.text FROM activity a JOIN users u ON u.id = a.user_id
+        WHERE (? = '' OR a.user_id = ?) AND (? = '' OR a.kind = ?) ORDER BY a.at DESC LIMIT ?`).all(u?.id ?? '', u?.id ?? '', kind, kind, limit) as unknown as Row[];
+    }
+    if (!kind || kind === 'partie') {
+      const games = db.prepare(`SELECT g.ended_at AS at, u.username, g.mode, g.humans, g.bots, g.duration_s AS d, gp.won FROM game_players gp
+        JOIN games_log g ON g.id = gp.game_id JOIN users u ON u.id = gp.user_id WHERE (? = '' OR gp.user_id = ?) ORDER BY g.ended_at DESC LIMIT ?`)
+        .all(u?.id ?? '', u?.id ?? '', limit) as { at: number; username: string; mode: string; humans: number; bots: number; d: number; won: number }[];
+      rows.push(...games.map((g) => ({ at: g.at, username: g.username, kind: 'partie',
+        text: `Partie ${g.mode === 'solo' ? 'solo' : 'en ligne'} ${g.won ? 'gagnée' : 'perdue'} (${g.humans} humain${g.humans > 1 ? 's' : ''}${g.bots ? `, ${g.bots} ordi.` : ''}, ${Math.max(1, Math.round(g.d / 60))} min)` })));
+    }
+    rows.sort((a, b) => b.at - a.at);
+    res.json({ ok: true, activity: rows.slice(0, limit) });
+  });
+
+  // Jours actifs par compte : jours notés + jours de parties terminées.
+  const activeUnion = `SELECT user_id, day FROM user_days UNION SELECT gp.user_id, g.day FROM game_players gp JOIN games_log g ON g.id = gp.game_id WHERE gp.user_id IS NOT NULL`;
+  const activeSince = (day: string) => (db.prepare(`SELECT COUNT(DISTINCT user_id) AS n FROM (${activeUnion}) WHERE day >= ?`).get(day) as { n: number }).n;
+  const series = (from: string, n: number) => Array.from({ length: n }, (_, i) => addDays(from, i));
+
+  admin.get('/overview', (_req, res) => {
+    const t = now(), day = brusselsDay(t), from = addDays(day, -29);
+    const users = (db.prepare('SELECT COUNT(*) AS n FROM users').get() as { n: number }).n;
+    const eco = db.prepare(`SELECT COALESCE(SUM(json_extract(profile, '$.coins')), 0) AS coins, COALESCE(SUM(json_extract(profile, '$.bags')), 0) AS bags FROM users`).get() as { coins: number; bags: number };
+    const banned = (db.prepare('SELECT COUNT(*) AS n FROM admin_bans WHERE until IS NULL OR until > ?').get(t) as { n: number }).n;
+    const games = db.prepare(`SELECT mode, COUNT(*) AS n FROM games_log GROUP BY mode`).all() as { mode: string; n: number }[];
+    const tournaments = (db.prepare(`SELECT COALESCE(SUM(n), 0) AS n FROM daily_counts WHERE key = 'tournois'`).get() as { n: number }).n;
+    const perDay = db.prepare(`SELECT day, mode, COUNT(*) AS n FROM games_log WHERE day >= ? GROUP BY day, mode`).all(from) as { day: string; mode: string; n: number }[];
+    const tPerDay = new Map((db.prepare(`SELECT day, n FROM daily_counts WHERE key = 'tournois' AND day >= ?`).all(from) as { day: string; n: number }[]).map((r) => [r.day, r.n]));
+    const signups = new Map<string, number>();
+    for (const r of db.prepare('SELECT created_at FROM users WHERE created_at >= ?').all(brusselsMidnight(from)) as { created_at: number }[]) {
+      const d = brusselsDay(r.created_at); signups.set(d, (signups.get(d) ?? 0) + 1);
+    }
+    const activePerDay = new Map((db.prepare(`SELECT day, COUNT(DISTINCT user_id) AS n FROM (${activeUnion}) WHERE day >= ? GROUP BY day`).all(from) as { day: string; n: number }[]).map((r) => [r.day, r.n]));
+    const days = series(from, 30).map((d) => ({
+      day: d, signups: signups.get(d) ?? 0, active: activePerDay.get(d) ?? 0, tournaments: tPerDay.get(d) ?? 0,
+      solo: perDay.find((r) => r.day === d && r.mode === 'solo')?.n ?? 0, online: perDay.find((r) => r.day === d && r.mode === 'online')?.n ?? 0,
+    }));
+    res.json({
+      ok: true, day, users, bannedCount: banned, coins: eco.coins, bags: eco.bags,
+      active: { today: activeSince(day), week: activeSince(addDays(day, -6)), month: activeSince(from) },
+      games: { solo: games.find((g) => g.mode === 'solo')?.n ?? 0, online: games.find((g) => g.mode === 'online')?.n ?? 0, tournaments },
+      days,
+    });
+  });
+
+  admin.get('/visitors', (req, res) => {
+    const n = Math.min(90, Math.max(7, Number(req.query.days) || 30));
+    const day = brusselsDay(now()), from = addDays(day, -(n - 1));
+    const per = new Map((db.prepare(`SELECT day, COUNT(*) AS visits, COUNT(DISTINCT visitor) AS visitors FROM visits WHERE day >= ? GROUP BY day`).all(from) as { day: string; visits: number; visitors: number }[]).map((r) => [r.day, r]));
+    const top = (col: string, limit = 12) => db.prepare(`SELECT COALESCE(${col}, '(inconnu)') AS k, COUNT(*) AS n, COUNT(DISTINCT visitor) AS v FROM visits WHERE day >= ? GROUP BY k ORDER BY n DESC LIMIT ?`).all(from, limit) as { k: string; n: number; v: number }[];
+    const totals = db.prepare('SELECT COUNT(*) AS visits, COUNT(DISTINCT visitor) AS visitors FROM visits WHERE day >= ?').get(from) as { visits: number; visitors: number };
+    // Conversion : nouveaux visiteurs de la période (première visite dans la période), dont combien ont créé un compte depuis.
+    const conv = db.prepare(`SELECT COUNT(*) AS fresh, COALESCE(SUM(CASE WHEN converted THEN 1 ELSE 0 END), 0) AS converted FROM (
+        SELECT v.visitor, MIN(v.day) AS first, MAX(CASE WHEN v.user_id IS NOT NULL AND u.created_at >= ? THEN 1 ELSE 0 END) AS converted
+        FROM visits v LEFT JOIN users u ON u.id = v.user_id GROUP BY v.visitor) WHERE first >= ?`).get(brusselsMidnight(from), from) as { fresh: number; converted: number };
+    const anyCountry = (db.prepare('SELECT COUNT(*) AS n FROM visits WHERE country IS NOT NULL AND day >= ?').get(from) as { n: number }).n > 0;
+    const utm = db.prepare(`SELECT utm_source AS source, COALESCE(utm_medium, '') AS medium, COALESCE(utm_campaign, '') AS campaign, COUNT(*) AS n FROM visits
+      WHERE day >= ? AND utm_source IS NOT NULL GROUP BY source, medium, campaign ORDER BY n DESC LIMIT 12`).all(from);
+    res.json({
+      ok: true, days: series(from, n).map((d) => ({ day: d, visits: per.get(d)?.visits ?? 0, visitors: per.get(d)?.visitors ?? 0 })),
+      totals, conversion: { newVisitors: conv.fresh, converted: conv.converted },
+      referrers: top('referrer'), utm, countries: anyCountry ? top('country') : [], langs: top('lang'), devices: top('device', 5), landings: top('landing'),
+    });
+  });
+
+  admin.get('/retention', (req, res) => {
+    const byWeek = req.query.by === 'week';
+    const today = brusselsDay(now());
+    const users = db.prepare('SELECT id, created_at FROM users WHERE created_at >= ?').all(brusselsMidnight(addDays(today, byWeek ? -7 * 12 : -30))) as { id: string; created_at: number }[];
+    const active = new Map<string, Set<string>>();
+    if (users.length) {
+      for (const r of db.prepare(`SELECT user_id, day FROM (${activeUnion}) WHERE day >= ?`).all(addDays(today, byWeek ? -7 * 12 : -30)) as { user_id: string; day: string }[]) {
+        let s = active.get(r.user_id); if (!s) active.set(r.user_id, (s = new Set())); s.add(r.day);
+      }
+    }
+    const weekStart = (d: string) => { const wd = (new Date(`${d}T12:00:00Z`).getUTCDay() + 6) % 7; return addDays(d, -wd); };
+    const cohorts = new Map<string, { size: number; d1: number; d7: number; d30: number; first: string }>();
+    // Retour JN : le compte a rejoué (ou ouvert le jeu) au moins une fois N jours ou plus après son inscription.
+    const back = (days: Set<string> | undefined, d0: string, k: number) => !!days && [...days].some((d) => d >= addDays(d0, k));
+    for (const u of users) {
+      const d0 = brusselsDay(u.created_at);
+      const key = byWeek ? weekStart(d0) : d0;
+      const c = cohorts.get(key) ?? { size: 0, d1: 0, d7: 0, d30: 0, first: key };
+      const days = active.get(u.id);
+      c.size++;
+      if (back(days, d0, 1)) c.d1++;
+      if (back(days, d0, 7)) c.d7++;
+      if (back(days, d0, 30)) c.d30++;
+      cohorts.set(key, c);
+    }
+    // Une colonne n'a de sens que si la cohorte entière a eu le temps d'y arriver.
+    const span = byWeek ? 6 : 0;
+    const age = (k: string) => Math.round((Date.parse(today) - Date.parse(addDays(k, span))) / DAY_MS);
+    const rows = [...cohorts.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)).map(([k, c]) => ({
+      cohort: k, size: c.size, d1: age(k) >= 1 ? c.d1 : null, d7: age(k) >= 7 ? c.d7 : null, d30: age(k) >= 30 ? c.d30 : null,
+    }));
+    res.json({ ok: true, by: byWeek ? 'week' : 'day', rows });
+  });
+
+  admin.get('/economy', (req, res) => {
+    const n = Math.min(90, Math.max(7, Number(req.query.days) || 30));
+    const day = brusselsDay(now()), from = addDays(day, -(n - 1));
+    const bySource = (db.prepare('SELECT source, SUM(earned) AS earned, SUM(spent) AS spent FROM economy WHERE day >= ? GROUP BY source ORDER BY SUM(earned) + SUM(spent) DESC').all(from) as { source: string; earned: number; spent: number }[])
+      .map((r) => ({ ...r, label: SOURCE_LABELS[r.source] ?? r.source }));
+    const per = new Map((db.prepare('SELECT day, SUM(earned) AS earned, SUM(spent) AS spent FROM economy WHERE day >= ? GROUP BY day').all(from) as { day: string; earned: number; spent: number }[]).map((r) => [r.day, r]));
+    const richest = (db.prepare(`SELECT username, json_extract(profile, '$.coins') AS coins FROM users ORDER BY coins DESC LIMIT 10`).all() as { username: string; coins: number }[]);
+    res.json({ ok: true, bySource, days: series(from, n).map((d) => ({ day: d, earned: per.get(d)?.earned ?? 0, spent: per.get(d)?.spent ?? 0 })), richest });
+  });
+
+  router.use('/admin', admin);
+  return { router, attach, isBanned, banOf, tournamentFinished, activity };
+}

@@ -30,6 +30,7 @@ export function startPresence() {
     const token = (() => { try { return JSON.parse(localStorage.getItem('421.compte') ?? 'null')?.token; } catch { return undefined; } })();
     socket = io(url, { auth: { device: deviceId(), token }, transports: ['websocket', 'polling'] });
     socket.on('connect', () => socket?.emit('presence', state));
+    socket.on('account:banned', ({ text }: { text: string }) => window.dispatchEvent(new CustomEvent('421:banned', { detail: text })));
   } catch { socket = null; }
 }
 

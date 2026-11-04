@@ -32,11 +32,14 @@ import { accessoryEmoji } from '../../shared/progress/catalog';
 import { ShopScreen } from './ui/ShopScreen';
 import { AccountScreen, LeaderboardScreen } from './ui/AccountScreens';
 import { Home, RulesScreen, Sandbox, SettingsScreen, SoloSetup, STANDALONE } from './ui/Screens';
-import { AdminScreen, StatsScreen } from './ui/StatsScreen';
+import { StatsScreen } from './ui/StatsScreen';
+import { AdminDashboard } from './ui/AdminDashboard';
 import { CollectionScreen } from './ui/DiceCollection';
 import { DuelsScreen } from './ui/Social';
 import type { DuelPlay } from './ui/ChallengeScreen';
 import { restartPresence, setPresence, startPresence } from './presence';
+import { linkVisitor, trackVisit } from './visit';
+import { askConfirm } from './ui/confirm';
 
 type Screen =
   | { name: 'home' }
@@ -123,6 +126,21 @@ export function App() {
   useEffect(() => { setHaptics(settings.vibrate); }, [settings.vibrate]);
   // Présence (statistiques publiques) : seulement avec un serveur.
   useEffect(() => { if (!STANDALONE) startPresence(); }, []);
+  // Visite anonyme (provenance, page d'arrivée) ; rattachée au compte à la connexion.
+  useEffect(() => { if (!STANDALONE) trackVisit(pa.token); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!STANDALONE && pa.token) linkVisitor(pa.token); }, [pa.token]);
+  // Compte suspendu par l'administration : session fermée, message clair.
+  useEffect(() => {
+    let shown = false;
+    const onBan = (e: Event) => {
+      if (shown) return;
+      shown = true;
+      void pa.logout();
+      void askConfirm((e as CustomEvent<string>).detail || 'Votre compte est suspendu.', 'Compris', 'Fermer').then(() => { shown = false; setScreen({ name: 'home' }); });
+    };
+    window.addEventListener('421:banned', onBan);
+    return () => window.removeEventListener('421:banned', onBan);
+  }, [pa.logout]);
   useEffect(() => {
     setPresence(screen.name === 'solo' || screen.name === 'boss' ? 'solo' : screen.name === 'online' || screen.name === 'tournament' ? 'online' : 'menu');
   }, [screen.name]);
@@ -251,7 +269,7 @@ export function App() {
     case 'stats':
       return <StatsScreen pa={pa} onBack={home} onAdmin={() => setScreen({ name: 'admin' })} />;
     case 'admin':
-      return <AdminScreen pa={pa} onBack={() => setScreen({ name: 'stats' })} />;
+      return <AdminDashboard pa={pa} onBack={() => setScreen({ name: 'stats' })} />;
     case 'legal':
       return <LegalScreen onBack={() => (screen.back.name === 'home' ? home() : setScreen(screen.back))} />;
     case 'leaderboard':
