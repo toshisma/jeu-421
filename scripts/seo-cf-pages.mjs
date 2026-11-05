@@ -13,8 +13,8 @@ export const CF_PLAY = '/?mode=cartes';
 const R = CF_RULES;
 const FAMS = ['habitues', 'ivresse', 'pieges', 'chaines'];
 const FAM_TEXT = {
-  habitues: 'Des alliés qui restent en jeu (les Habitués), des Tournées en plus et de quoi annuler les petits coups adverses.',
-  ivresse: 'Des dés qui tournent : relancer, retourner un dé, parier… et frapper fort quand vous jouez en second.',
+  habitues: 'Des alliés qui s’installent pour 3 manches (les Habitués), des Tournées en plus et de quoi annuler les petits coups adverses.',
+  ivresse: 'Des dés qui tournent : relancer, retourner un dé, parier… et bousculer les dés de l’adversaire.',
   pieges: 'Des pièges posés face cachée, qui se déclenchent tout seuls chez l’adversaire. Et la Fouine pour les débusquer.',
   chaines: 'Des cartes qui s’enchaînent : pioche, réductions, retouches de dés, ripostes de plus en plus fortes.',
 };
@@ -23,7 +23,7 @@ const WHEN = {
   piege: 'Posé face cachée pendant votre tour (on paie à la pose) ; il se déclenche tout seul quand sa condition arrive chez l’adversaire.',
   riposte: 'À tout moment, en réponse à une carte adverse.',
   'dernier-mot': 'Seulement pendant l’étape « Dernier mot », juste avant les comptes.',
-  habitue: 'Pendant votre tour ; il s’installe devant vous et reste en jeu.',
+  habitue: 'Pendant votre tour ; il s’installe devant vous pour 3 manches.',
 };
 const byId = Object.fromEntries(CARDS.map((c) => [c.id, c]));
 const plural = (n, w) => `${n} ${w}${n > 1 ? 's' : ''}`;
@@ -49,7 +49,7 @@ const typesTable = () => `<div class="table-wrap"><table>
 <tr><td><b>Coup</b></td><td>${WHEN.coup}</td><td>« Cul sec » : un lancer de plus ce tour.</td></tr>
 <tr><td><b>Piège</b></td><td>${WHEN.piege}</td><td>« Faux 4-2-1 » : le 4-2-1 adverse ne vaut plus que 2.</td></tr>
 <tr><td><b>Riposte</b></td><td>${WHEN.riposte} En chaîne, la dernière posée s’applique la première.</td><td>« Ticket de caisse » : annule un Coup qui coûte 2 ou moins.</td></tr>
-<tr><td><b>Dernier mot</b></td><td>${WHEN['dernier-mot']}</td><td>« La note est salée » : le perdant reçoit 1 jeton de plus.</td></tr>
+<tr><td><b>Dernier mot</b></td><td>${WHEN['dernier-mot']}</td><td>« La note est salée » : le perdant reçoit 2 jetons de plus.</td></tr>
 <tr><td><b>Habitué</b></td><td>${WHEN.habitue} ${R.maxHabitues} au plus.</td><td>« Le Vieux Marcel » : vos suites valent 4 au lieu de 2.</td></tr>
 </tbody></table></div>`;
 
@@ -236,7 +236,7 @@ ${typesTable()}
 </ul>
 
 <h2 id="multi">À 3 ou 4 joueurs</h2>
-<p>Entre amis, à une table à code : ${R.startTokensMulti} jetons chacun. Le premier à 0 gagne, puis on continue pour les places. On joue du meneur dans le sens des aiguilles d’une montre, et chacun voit les combinaisons déjà faites. <b>Seul le plus mauvais de la manche reçoit des jetons</b>, du meilleur, comme au 421. Une carte qui vise « l’adversaire » vise le joueur de votre choix ; un piège se pose devant un joueur précis, à la vue de tous. Au Dernier mot, on parle du plus mauvais vers le meilleur.</p>
+<p>Entre amis, à une table à code : ${R.startTokensMulti} jetons chacun. Le premier à 0 gagne et la partie s’arrête ; les autres sont classés selon leurs jetons. On joue du meneur dans le sens des aiguilles d’une montre, et chacun voit les combinaisons déjà faites. <b>Seul le plus mauvais de la manche reçoit des jetons</b>, du meilleur, comme au 421. Une carte qui vise « l’adversaire » vise le joueur de votre choix ; un piège se pose devant un joueur précis, à la vue de tous. Au Dernier mot, on parle du plus mauvais vers le meilleur.</p>
 
 <h2 id="deck">Deck et collection</h2>
 <ul>

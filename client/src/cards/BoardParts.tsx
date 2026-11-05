@@ -164,12 +164,14 @@ export function TrapBox({ n, seen, sub, onClick, compact }: { n: number; seen: s
  * Pastille discrète d'un Habitué (vert) ou d'un de mes pièges (violet), dans la barre du joueur :
  * la petite illustration de la carte ; toucher ouvre sa fiche.
  */
-export function HabPin({ id, trap, onClick }: { id: string | null; trap?: boolean; onClick: () => void }) {
+export function HabPin({ id, trap, rounds, onClick }: { id: string | null; trap?: boolean; rounds?: number; onClick: () => void }) {
   const name = id ? def(id)?.name ?? '' : 'Piège';
+  const left = rounds != null ? `, encore ${rounds} manche${rounds > 1 ? 's' : ''}` : '';
   return (
-    <button className={`cfn-pin${trap ? ' trap' : ''}`} onClick={onClick} aria-label={trap ? `Votre piège posé : ${name}` : `Habitué : ${name}`} title={name}>
+    <button className={`cfn-pin${trap ? ' trap' : ''}`} onClick={onClick} aria-label={trap ? `Votre piège posé : ${name}` : `Habitué : ${name}${left}`} title={`${name}${left}`}>
       {id ? <CardArt id={id} /> : <TypeIcon type="piege" size={12} />}
-      <i aria-hidden><TypeIcon type={trap ? 'piege' : 'habitue'} size={8} /></i>
+      {/* Habitué : manches qui lui restent (il rentre chez lui au bout de 3 manches). */}
+      {rounds != null ? <b className="cfn-pin-left" aria-hidden>{rounds}</b> : <i aria-hidden><TypeIcon type={trap ? 'piege' : 'habitue'} size={8} /></i>}
     </button>
   );
 }
@@ -199,7 +201,7 @@ export function OppPanel({ p, v, seat, active, compact, refEl, tokRef, onTrap, o
       <div className="cfn-row">
         {compact ? <span className="cfn-mini-stat" aria-hidden>🍺 {p.tournees}</span> : <Glasses n={p.tournees} max={v.rules.tourneesMax} />}
         <span className="cfn-backs" aria-hidden>{compact ? <><i className="cfn-bk" /><em>{p.handCount}</em></> : Array.from({ length: Math.min(p.handCount, 7) }, (_, i) => <i key={i} className="cfn-bk" />)}</span>
-        {p.habitues.length > 0 && <span className="cfn-pins">{p.habitues.map((h) => <HabPin key={h.uid} id={h.id} onClick={() => onCard(h.id, p.id)} />)}</span>}
+        {p.habitues.length > 0 && <span className="cfn-pins">{p.habitues.map((h) => <HabPin key={h.uid} id={h.id} rounds={h.rounds} onClick={() => onCard(h.id, p.id)} />)}</span>}
         <span className="cfn-grow" />
         <TrapBox n={traps.length} seen={seen} sub={fresh ? 'Posé à l’instant' : 'Touchez pour les possibilités'} onClick={onTrap} compact={compact || p.habitues.length > 0} />
       </div>

@@ -456,6 +456,9 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
           else if (w === me) text = `Vous donnez ${plural(lr.amount, 'jeton')} à ${name(l)} : c’est le but, vous vous déchargez !`;
           else if (l === me) text = `${name(w)} vous donne ${plural(lr.amount, 'jeton')}.`;
           else text = `${name(w)} donne ${plural(lr.amount, 'jeton')} à ${name(l)}.`;
+          // Détail du calcul dès qu'une carte l'a changé (Note salée, Pilier, Double tournée…), et plafond éventuel.
+          if (!lr.reversed && lr.detail && lr.detail.length > 1) text += ` Calcul : ${lr.detail.map((d, i) => (i === 0 ? `${d.label} ${d.delta}` : `${d.label} ${d.delta >= 0 ? '+' : '−'}${Math.abs(d.delta)}`)).join(' · ')}.`;
+          if (!lr.reversed && lr.cappedFrom) text += ` ${w === me ? 'Vous n’aviez' : `${name(w)} n’avait`} que ${plural(lr.amount, 'jeton')} : ${lr.cappedFrom} prévus.`;
         }
         out.push({ kind: 'ann', ev: e, ann: { style: 'comptes', tone: 'comptes', kicker: 'Comptes', ms: ANN_MS.comptes, title, text } });
         continue;
@@ -519,7 +522,7 @@ export function threatLine(v: CfView): string {
     }
     case 'tournee-generale': return 'Ici : vous relancez tous vos dés, lui aussi, puis il peut encore en relancer un.';
     case 'domino': { const n2 = Math.min(me.tournees, o?.r.played ?? 0); return `Ici : vous perdez ${plural(n2, 'Tournée')}.`; }
-    case 'fermeture': { const h = v.players.flatMap((p) => p.habitues).find((x) => x.uid === pr.habitue); return `Ici : ${cardName(h?.id)} retourne dans la main de son propriétaire.`; }
+    case 'fermeture': { const h = v.players.flatMap((p) => p.habitues).find((x) => x.uid === pr.habitue); return `Ici : ${cardName(h?.id)} rentre chez lui (défaussé).`; }
     case 'double-tournee': return 'Ici : s’il gagne la manche, sa combinaison vaut le double.';
     case 'pari-comptoir': return 'Ici : le perdant de la manche recevra 2 jetons de plus.';
     case 'note-salee': return 'Ici : s’il gagne, vous recevrez 1 jeton de plus.';

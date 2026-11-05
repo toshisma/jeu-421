@@ -260,15 +260,36 @@ describe('Coups Fourrés : les 34 cartes', () => {
     expect(waitingFor(s)).toEqual([L]);
   });
 
-  it('Fermeture ! : un Habitué adverse retourne dans la main', () => {
+  it('Fermeture ! : un Habitué adverse rentre chez lui ; sans Habitué, on pioche 2 cartes', () => {
     let { s, L, O } = setup();
     const h = hab(s, O, 'josiane');
     s = act(s, L, play(give(s, L, 'fermeture'), { habitue: h }));
     expect(P(s, O).habitues).toHaveLength(0);
-    expect(P(s, O).hand.some((k) => k.uid === h)).toBe(true);
+    expect(P(s, O).discard.some((k) => k.uid === h)).toBe(true);
+    const t = setup();
+    const before = P(t.s, t.L).hand.length;
+    const f = give(t.s, t.L, 'fermeture');
+    expect(legalActions(t.s, t.L).filter((a) => a.type === 'play' && a.card === f)).toEqual([{ type: 'play', card: f }]);
+    const s2 = act(t.s, t.L, play(f));
+    expect(P(s2, t.L).hand.length).toBe(before + 2);
   });
 
-  it('La note est salée (Dernier mot) : +1 jeton au perdant si vous gagnez', () => {
+  it('Habitué : reste 3 manches (celle où il arrive comprise), puis rentre chez lui', () => {
+    let { s, L, O } = setup();
+    s = act(s, L, play(give(s, L, 'pilier')));
+    expect(P(s, L).habitues[0].rounds).toBe(3);
+    s = quickRound(s, L, O, [6, 3, 2], [5, 3, 2]);
+    expect(P(s, L).habitues[0].rounds).toBe(2);
+    const a = s.order[0], b = s.order[1];
+    s = quickRound(s, a, b, [6, 3, 2], [5, 3, 2]);
+    expect(P(s, L).habitues[0].rounds).toBe(1);
+    const a2 = s.order[0], b2 = s.order[1];
+    s = quickRound(s, a2, b2, [6, 3, 2], [5, 3, 2]);
+    expect(P(s, L).habitues).toHaveLength(0);
+    expect(P(s, L).discard.some((k) => k.id === 'pilier')).toBe(true);
+  });
+
+  it('La note est salée (Dernier mot) : +2 jetons au perdant si vous gagnez, détail aux comptes', () => {
     let { s, L, O } = setup();
     const n = give(s, L, 'note-salee');
     s = act(s, L, roll(), [6, 6, 6]);
@@ -277,7 +298,8 @@ describe('Coups Fourrés : les 34 cartes', () => {
     expect(s.phase).toBe('lastword');
     expect(waitingFor(s)).toEqual([L]);
     s = act(s, L, play(n));
-    expect(P(s, O).tokens).toBe(18);
+    expect(P(s, O).tokens).toBe(19);
+    expect(s.lastRound!.detail).toEqual([{ label: 'Brelan de 6', delta: 6 }, { label: 'La note est salée', delta: 2 }]);
   });
 
   it('Cul sec : un lancer de plus, au-delà de la limite', () => {
@@ -312,11 +334,11 @@ describe('Coups Fourrés : les 34 cartes', () => {
     expect(P(s, O).tokens).toBe(21);
   });
 
-  it('Le dé sous la table : seulement en second, relance un dé adverse', () => {
+  it('Le dé sous la table : relance un dé adverse ; si personne n’a fini, un de ses dés', () => {
     let { s, L, O } = setup();
     const u0 = give(s, L, 'de-sous-table');
     s = act(s, L, roll(), [6, 6, 6]);
-    expect(legalActions(s, L).some((a) => a.type === 'play' && a.card === u0)).toBe(false);
+    expect(legalActions(s, L).filter((a) => a.type === 'play' && a.card === u0).map((a) => (a as { target: string }).target)).toEqual([L, L, L]);
     s = act(s, L, stop);
     const u = give(s, O, 'de-sous-table');
     s = act(s, O, roll(), [1, 2, 3]);
@@ -606,7 +628,8 @@ describe('Coups Fourrés : partie libre à 3 ou 4', () => {
   it('à 3 : seul le plus mauvais reçoit, du meilleur', () => {
     let { s } = setup(3, 2);
     const [a, b, c] = s.order;
-    expect(P(s, a).tokens).toBe(7);
+    expect(P(s, a).tokens).toBe(9);
+    for (const id of [a, b, c]) P(s, id).tokens = 7;
     s = act(s, a, roll(), [6, 6, 6]); s = act(s, a, stop);
     s = act(s, b, roll(), [6, 3, 2]);
     s = act(s, c, roll(), [5, 3, 2]);
@@ -631,8 +654,10 @@ describe('Coups Fourrés : partie libre à 3 ou 4', () => {
     s = act(s, d, roll(), [6, 4, 2]);
     expect(P(s, a).out).toBe(true);
     expect(P(s, a).place).toBe(1);
-    expect(s.phase).toBe('turn');
-    expect(s.order).not.toContain(a);
+    // 0.39 : à 3 ou 4 aussi, la partie s'arrête au premier déchargé ; les autres sont classés par jetons.
+    expect(s.phase).toBe('over');
+    expect(s.ranking[0]).toBe(a);
+    expect(s.ranking).toHaveLength(4);
     expect(s.traps).toHaveLength(0); // les pièges d'un joueur sorti quittent la table
   });
 
@@ -642,7 +667,7 @@ describe('Coups Fourrés : partie libre à 3 ou 4', () => {
     s = act(s, a, roll(), [6, 6, 6]); s = act(s, a, stop);
     s = act(s, b, roll(), [6, 6, 6]);
     s = act(s, c, roll(), [5, 3, 2]);
-    expect([a, b, c].map((id) => P(s, id).tokens)).toEqual([7, 7, 7]);
+    expect([a, b, c].map((id) => P(s, id).tokens)).toEqual([9, 9, 9]);
   });
 });
 

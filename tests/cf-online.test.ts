@@ -483,7 +483,7 @@ describe('Coups Fourrés en ligne', () => {
     await until(() => [Lc, Mc, Nc].every((c) => !!c.last), 3000, 'départ à 3');
     expect(Lc.last!.mode).toBe('table');
     expect(Lc.last!.snap.seats).toHaveLength(3);
-    expect(Lc.last!.snap.view.players[0].tokens).toBe(7);
+    expect(Lc.last!.snap.view.players[0].tokens).toBe(9);
     // Oscar (pas ami) ne peut pas regarder.
     expect((await emit(Oc, 'cf:watch', { code: Lc.last!.id })).ok).toBe(false);
     await until(() => [Lc, Mc, Nc].every(finished), 90_000, 'fin à 3');

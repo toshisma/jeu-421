@@ -50,7 +50,7 @@ const WHEN: Record<CardType, string> = {
   piege: 'Posé face cachée pendant votre tour ; se déclenche tout seul chez l’adversaire.',
   riposte: 'À tout moment, en réponse à une carte adverse.',
   'dernier-mot': 'Seulement au Dernier mot, avant les comptes.',
-  habitue: 'Pendant votre tour ; reste en jeu.',
+  habitue: 'Pendant votre tour ; reste 3 manches.',
 };
 
 export function CardsCatalogScreen({ onBack }: { onBack: () => void }) {
@@ -82,8 +82,8 @@ export function CardsCatalogScreen({ onBack }: { onBack: () => void }) {
 }
 
 const FAM_TEXT: Record<CardFamily, string> = {
-  habitues: 'Des alliés qui restent en jeu, des Tournées et de quoi annuler les petits coups.',
-  ivresse: 'Des dés qui tournent : relancer, retourner, parier… et frapper fort quand on joue en second.',
+  habitues: 'Des alliés qui s’installent pour 3 manches, des Tournées et de quoi annuler les petits coups.',
+  ivresse: 'Des dés qui tournent : relancer, retourner, parier… et bousculer les dés adverses.',
   pieges: 'Des pièges posés face cachée, qui se déclenchent tout seuls. Et la Fouine pour les débusquer.',
   chaines: 'Des cartes qui s’enchaînent : pioche, réductions, retouches de dés, ripostes de plus en plus fortes.',
 };
@@ -98,7 +98,7 @@ const TIPS: { t: string; d: string }[] = [
   { t: 'La Fouine n’est jamais perdue', d: 'Sans piège en face, elle pioche une carte. Avec un piège, elle vous le montre : vous jouez ensuite en connaissant le danger.' },
   { t: 'Face à un Retournement de veste, visez plus bas', d: 'Il ne se déclenche que si vous deviez donner 4 jetons ou plus. Arrêtez-vous volontairement sur une combinaison qui vaut 3 ou moins : vous gagnez la manche sans vous faire retourner.' },
   { t: 'Le meneur fixe la limite', d: `Si vous menez avec une bonne combinaison, arrêtez-vous tôt : un seul lancer et l’autre n’aura qu’un lancer pour faire mieux (${CF_RULES.maxThrows} au plus).` },
-  { t: 'Jouer en second a ses avantages', d: 'Vous voyez la combinaison à battre. « Le dé sous la table » et « Tournée générale » ne se jouent qu’en second : gardez-les pour ces manches-là.' },
+  { t: 'Jouer en second a ses avantages', d: 'Vous voyez la combinaison à battre. « Le dé sous la table » et « Tournée générale » frappent les dés de l’adversaire s’il a fini son tour : c’est là qu’elles sont les plus fortes.' },
   { t: 'Le Dernier mot, c’est pour le perdant', d: 'Avant les comptes, celui qui perd parle en premier. « Recompter » (après 3 cartes jouées) peut transformer un 4-2-2 en 4-2-1. Comptez vos cartes jouées pendant la manche.' },
   { t: 'L’ardoise : au bon moment seulement', d: `+${CF_RULES.ardoiseLoan} Tournées tout de suite, mais rien à la manche suivante, et une seule fois par partie. Gardez-la pour une manche décisive ou pour payer une Riposte vitale.` },
   { t: 'Perdre une manche, c’est se refaire', d: `Le perdant mène la suivante et reçoit ${CF_RULES.tourneesPerRound + CF_RULES.tourneesLoserBonus} Tournées au lieu de ${CF_RULES.tourneesPerRound}. Une petite défaite n’est pas grave si elle prépare une grosse manche.` },
@@ -128,7 +128,7 @@ const LEXICON: { w: string; d: string }[] = [
   { w: 'Dernier mot', d: 'Étape avant les comptes : le joueur qui perd peut jouer une carte « Dernier mot », l’autre peut répondre, jusqu’à ce que tous passent.' },
   { w: 'Éclats de verre', d: 'Rendus par les doublons en trop ; ils servent à fabriquer la carte de votre choix.' },
   { w: 'Famille', d: 'Habitués (vert), Ivresse (rouge), Pièges (violet), Chaînes (bleu et or). Les familles du deck adverse sont visibles.' },
-  { w: 'Habitué', d: `Carte qui s’installe devant vous et reste en jeu, effet permanent (${CF_RULES.maxHabitues} au plus).` },
+  { w: 'Habitué', d: `Carte qui s’installe devant vous pour ${CF_RULES.habitueRounds} manches, puis rentre chez lui (${CF_RULES.maxHabitues} au plus, jamais deux fois le même).` },
   { w: 'Meneur', d: 'Celui qui joue en premier dans la manche (le perdant de la précédente). Son nombre de lancers fixe le maximum des autres.' },
   { w: 'Piège', d: `Posé face cachée (on paie à la pose), il se déclenche tout seul quand sa condition arrive. ${CF_RULES.maxTraps} posés au plus ; il revient en main après ${CF_RULES.trapReturnRounds} manches sans se déclencher.` },
   { w: 'Riposte', d: 'Carte jouée à tout moment en réponse à une carte adverse. En chaîne, la dernière posée s’applique la première.' },

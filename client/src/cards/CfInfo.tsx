@@ -131,8 +131,8 @@ export function RulesScreen({ onBack }: { onBack: () => void }) {
 }
 
 const FAMS: { f: CardFamily; text: string }[] = [
-  { f: 'habitues', text: 'Des alliés qui restent en jeu (Habitués), des Tournées et de quoi annuler les petits coups.' },
-  { f: 'ivresse', text: 'Des dés qui tournent : relancer, retourner, parier… et frapper fort quand on joue en second.' },
+  { f: 'habitues', text: 'Des alliés qui s’installent pour 3 manches (Habitués), des Tournées et de quoi annuler les petits coups.' },
+  { f: 'ivresse', text: 'Des dés qui tournent : relancer, retourner, parier… et bousculer les dés adverses.' },
   { f: 'pieges', text: 'Des pièges posés face cachée, qui se déclenchent tout seuls chez l’adversaire. Et la Fouine pour les trouver.' },
   { f: 'chaines', text: 'Des cartes qui s’enchaînent : pioche, réductions, retouches de dés, ripostes de plus en plus fortes.' },
 ];
@@ -176,7 +176,7 @@ export function RulesContent({ short }: { short?: boolean }) {
           <li><b className="cfn-typetag" style={{ color: TYPE_META['piege'].color }}><TypeIcon type="piege" size={14} />{TYPE_LABEL.piege}</b> : posé face cachée pendant votre tour (on paie à la pose). Il se déclenche tout seul quand sa condition arrive chez l’adversaire. {R.maxTraps} pièges posés au plus ; un piège qui ne s’est pas déclenché en {R.trapReturnRounds} manches revient dans votre main.</li>
           <li><b className="cfn-typetag" style={{ color: TYPE_META['riposte'].color }}><TypeIcon type="riposte" size={14} />{TYPE_LABEL.riposte}</b> : à tout moment, en réponse à une carte adverse. En chaîne, la dernière posée s’applique la première.</li>
           <li><b className="cfn-typetag" style={{ color: TYPE_META['dernier-mot'].color }}><TypeIcon type="dernier-mot" size={14} />{TYPE_LABEL['dernier-mot']}</b> : seulement pendant l’étape Dernier mot.</li>
-          <li><b className="cfn-typetag" style={{ color: TYPE_META['habitue'].color }}><TypeIcon type="habitue" size={14} />{TYPE_LABEL.habitue}</b> : s’installe devant vous et reste en jeu, effet permanent. {R.maxHabitues} au plus.</li>
+          <li><b className="cfn-typetag" style={{ color: TYPE_META['habitue'].color }}><TypeIcon type="habitue" size={14} />{TYPE_LABEL.habitue}</b> : s’installe devant vous pour {R.habitueRounds} manches (celle où il arrive comprise), puis rentre chez lui. {R.maxHabitues} au plus, jamais deux fois le même.</li>
         </ul>
         <p>Chaque carte coûte des <b>Tournées</b> (la pastille dorée). On voit les Tournées de l’adversaire, son nombre de cartes en main, ses pièges posés et les familles de son deck… mais pas lesquels.</p>
       </section>
@@ -206,7 +206,7 @@ export function RulesContent({ short }: { short?: boolean }) {
         <>
           <section>
             <h3>À 3 ou 4 entre amis</h3>
-            <p>{R.startTokensMulti} jetons chacun ; le premier à 0 gagne, puis on continue pour les places. On joue du meneur dans le sens des aiguilles d’une montre, chacun voit les combinaisons déjà faites. Seul le plus mauvais de la manche reçoit des jetons, du meilleur. Une carte contre « l’adversaire » vise le joueur de votre choix ; un piège se pose devant un joueur précis.</p>
+            <p>{R.startTokensMulti} jetons chacun ; le premier à 0 gagne et la partie s’arrête ; les autres sont classés selon leurs jetons. On joue du meneur dans le sens des aiguilles d’une montre, chacun voit les combinaisons déjà faites. Seul le plus mauvais de la manche reçoit des jetons, du meilleur. Une carte contre « l’adversaire » vise le joueur de votre choix ; un piège se pose devant un joueur précis.</p>
           </section>
           <section>
             <h3>Deck et collection</h3>

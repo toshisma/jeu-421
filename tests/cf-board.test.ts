@@ -30,7 +30,7 @@ function aliceSecond(): CfState {
   b.r.dice = [6, 5, 3]; b.r.throwsUsed = 2; b.r.done = true;
   a.r.dice = [6, 4, 2]; a.r.throwsUsed = 2; a.r.done = false;
   a.tournees = 2;
-  a.hand = [{ uid: 'h1', id: 'reaction-chaine' }, { uid: 'h2', id: 'tete-tourne' }, { uid: 'h3', id: 'fouine' }, { uid: 'h4', id: 'josiane' }, { uid: 'h5', id: 'note-salee' }];
+  a.hand = [{ uid: 'h1', id: 'reaction-chaine' }, { uid: 'h2', id: 'tete-tourne' }, { uid: 'h3', id: 'fouine' }, { uid: 'h4', id: 'patron' }, { uid: 'h5', id: 'note-salee' }];
   s.traps = [{ uid: 't1', id: 'faux-421', owner: 'b', target: 'a', posedRound: s.round, seenBy: ['b'] }];
   return s;
 }
@@ -176,7 +176,7 @@ describe('rendu serveur du plateau (aucune erreur)', () => {
     expect(fiche).toContain('Maintenant :');
     expect(fiche).toContain('Jouer · 2 Tournées');
     expect(fiche).toContain('Les 5 types de cartes');
-    const why = render(h(Fiche, { t: { uid: 'h4', id: 'josiane' }, v, legal, snapLegal: legal, pending: false, discard: false, onAct: noop, onClose: noop }));
+    const why = render(h(Fiche, { t: { uid: 'h4', id: 'patron' }, v, legal, snapLegal: legal, pending: false, discard: false, onAct: noop, onClose: noop }));
     expect(why).toContain('Pas maintenant :');
     const r = structuredClone(s);
     r.turn = 0; r.order = ['b', 'a'];

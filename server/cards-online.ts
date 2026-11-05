@@ -7,10 +7,9 @@
  * générateur cryptographique, et n'envoie à chacun que sa vue (`viewFor`), ses actions possibles et
  * les événements qu'il a le droit de voir (`eventsFor`). Spectateurs : vue publique sans rien de caché.
  *
- * Fenêtres de réponse : les parties en ligne sont créées avec `windows: true` ; une Riposte ou un
- * Dernier mot est proposé à tout joueur qui pourrait en avoir un d'après l'information publique, et
- * la décision dure toujours exactement la même durée (`windowMs`) : un « je passe » rapide n'est
- * appliqué qu'à la fin de la fenêtre. Ainsi la pause est identique qu'on ait ou non la carte.
+ * Fenêtres de réponse : les parties en ligne sont créées avec `windows: true`. Un joueur qui a
+ * vraiment une Riposte ou un Dernier mot jouable a 15 s (`windowMs`) pour décider ; « Laisser faire »
+ * ou jouer la carte fait reprendre la partie tout de suite. Sans carte jouable : aucune pause.
  *
  * Routes (préfixe /api, comptes) : POST /cf/bot/start, POST /cf/bot/end, POST /cf/bot/abandon,
  * GET /cf/friends, POST /cf/presence, GET /cf/challenges. (POST /cf/decks/auto est dans cards.ts.)
@@ -82,12 +81,12 @@ interface Ctx {
 }
 
 /**
- * Pause de réponse en ligne (Riposte, Dernier mot) : durée FIXE, la même qu'on ait la carte ou non
- * (sinon on devinerait qui a une Riposte). Seul endroit où la régler. Après des dés gardés, plus courte.
+ * Temps de réponse en ligne (Riposte, Dernier mot), seulement quand le joueur a une carte jouable.
+ * Seul endroit où le régler.
  */
-// Sam (0.39) : 4 s ne suffisaient pas pour lire la carte et riposter.
-export const CF_RESPONSE_WINDOW_MS = 7000;
-export const CF_KEEP_WINDOW_MS = 4000;
+// Sam (0.39) : 15 s pour réfléchir, seulement quand on a vraiment une carte à jouer.
+export const CF_RESPONSE_WINDOW_MS = 15000;
+export const CF_KEEP_WINDOW_MS = 15000;
 /** Fin d'une partie en ligne (tournoi du samedi : avancement du tableau). */
 export interface CfGameEnd { id: string; mode: CfGameMode; winner: string; losers: string[]; abandon: string | null }
 
@@ -315,8 +314,11 @@ export function createCfOnline(c: Ctx) {
       if (g.window?.key !== key) {
         if (g.window) clearTimeout(g.window.timer);
         const top = s.stack[s.stack.length - 1];
-        const dur = kind === 'respond' && top?.kind === 'keep' ? KEEP_WINDOW : WINDOW;
         const seat = seatOf(g, pid);
+        // Décision de Sam : pas de pause si le joueur n'a aucune Riposte / aucun Dernier mot jouable ;
+        // s'il en a un, il a toujours tout son temps (15 s), sauf s'il répond avant.
+        const canPlay = legalActions(s, pid).some((a) => a.type === 'play');
+        const dur = !canPlay ? 0 : kind === 'respond' && top?.kind === 'keep' ? KEEP_WINDOW : WINDOW;
         const len = seat?.left ? Math.min(dur, AUTOPLAY) : dur;
         g.window = { key, player: pid, until: now() + len, kind, buffered: null, timer: setTimeout(() => closeWindow(g, key), len) };
       }
@@ -364,11 +366,11 @@ export function createCfOnline(c: Ctx) {
     doApply(g, pid, a, true);
   }
 
-  function closeWindow(g: Game, key: string) {
+  function closeWindow(g: Game, key: string, answer?: CfAction) {
     if (!g.window || g.window.key !== key || g.ended) return;
     const { player, buffered } = g.window;
     g.window = null;
-    doApply(g, player, buffered ?? { type: 'pass' }, true);
+    doApply(g, player, answer ?? buffered ?? { type: 'pass' }, !answer);
   }
 
   /** Applique une action (déjà autorisée côté joueur) et diffuse. Renvoie un message d'erreur ou null. */
@@ -782,9 +784,10 @@ export function createCfOnline(c: Ctx) {
         if (g.window.buffered) return fail(a, 'Vous avez déjà répondu.');
         const legal = legalActions(g.state, seat.id);
         if (action.type === 'pass') {
-          g.window.buffered = { type: 'pass' };
+          // « Laisser faire » : la partie reprend tout de suite.
           ack(a)({ ok: true });
-          socket.emit('cf:state', message(g, seat.id, []));
+          clearTimeout(g.window.timer);
+          closeWindow(g, g.window.key, { type: 'pass' });
           return;
         }
         if (!legal.length) return fail(a, 'Action impossible maintenant.');

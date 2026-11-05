@@ -134,9 +134,9 @@ describe('Coups Fourrés en ligne : finitions', () => {
     void X;
   });
 
-  it('pause de réponse : réglée en un seul endroit, 4 s et 2,5 s', () => {
-    expect(CF_RESPONSE_WINDOW_MS).toBe(4000);
-    expect(CF_KEEP_WINDOW_MS).toBe(2500);
+  it('pause de réponse : réglée en un seul endroit, 15 s (seulement quand on a une carte à jouer)', () => {
+    expect(CF_RESPONSE_WINDOW_MS).toBe(15000);
+    expect(CF_KEEP_WINDOW_MS).toBe(15000);
   });
 });
 

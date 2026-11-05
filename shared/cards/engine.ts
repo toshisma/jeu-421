@@ -42,7 +42,7 @@ export interface CfConfig {
   windows?: boolean;
 }
 
-export interface CardInst { uid: string; id: string }
+export interface CardInst { uid: string; id: string; /** Habitué en jeu : manches restantes (celle en cours comprise). */ rounds?: number }
 
 export interface PosedTrap {
   uid: string;
@@ -142,6 +142,10 @@ export interface RoundSummary {
   reversed: boolean;
   combos: Record<string, { dice: number[]; label: string; value: number }>;
   text: string;
+  /** Détail du montant : valeur de la combinaison, puis chaque carte qui l'a changé (affiché aux comptes). */
+  detail?: { label: string; delta: number }[];
+  /** Le gagnant n'avait pas assez de jetons : il a donné tout ce qu'il avait (montant prévu). */
+  cappedFrom?: number;
 }
 
 export interface CfState {
@@ -437,7 +441,7 @@ function startRound(c: Ctx) {
     const patrons = p.habitues.filter((h) => h.id === 'patron').length;
     if (patrons > 0) {
       const g = gainTournees(c, p, patrons, true);
-      const card = s.prevLoser === id;
+      const card = true; // 0.39 : le Patron sert toujours une carte avec la Tournée (il ne reste que 3 manches)
       emit(c, { kind: 'patron', player: id, who: id, text: `Le Patron sert ${p.name} : +${plural(g, 'Tournée')}${card ? ' et une carte' : ''}.`, textYou: `Le Patron vous sert : +${plural(g, 'Tournée')}${card ? ' et une carte' : ''}.` });
       if (card) draw(c, p, patrons, false, true);
     }
@@ -557,12 +561,14 @@ function settle(c: Ctx) {
     const L = pl(s, worst);
     let amount = ev[best].value;
     const parts: string[] = [];
-    if (W.r.doubles > 0) { amount *= 2 ** W.r.doubles; parts.push('Double tournée'); }
-    if (W.r.noteSalee > 0) { amount += W.r.noteSalee; parts.push('La note est salée'); }
+    const detail: { label: string; delta: number }[] = [{ label: ev[best].combo.label, delta: amount }];
+    const step = (label: string, next: number) => { detail.push({ label, delta: next - amount }); amount = next; parts.push(label); };
+    if (W.r.doubles > 0) step('Double tournée', amount * 2 ** W.r.doubles);
+    if (W.r.noteSalee > 0) step('La note est salée', amount + 2 * W.r.noteSalee);
     const pari = W.r.pari + L.r.pari;
-    if (pari > 0) { amount += 2 * pari; parts.push('Pari de comptoir'); }
-    if (L.habitues.some((h) => h.id === 'pilier') && amount > 1) { amount -= 1; parts.push('Pilier de comptoir'); }
-    if (ev[worst].combo.kind === 'nenette' && amount < s.values.nenetteMin) { amount = s.values.nenetteMin; parts.push('nénette'); }
+    if (pari > 0) step('Pari de comptoir', amount + 2 * pari);
+    if (L.habitues.some((h) => h.id === 'pilier') && amount > 1) step('Pilier de comptoir', amount - 1);
+    if (ev[worst].combo.kind === 'nenette' && amount < s.values.nenetteMin) step('nénette', s.values.nenetteMin);
     let reversed = false;
     if (amount >= 4) {
       const t = s.traps.find((x) => x.id === 'retournement-veste' && x.owner === L.id && x.target === W.id);
@@ -582,7 +588,7 @@ function settle(c: Ctx) {
     const text = reversed
       ? `Retournement de veste ! C'est ${W.name} qui reçoit ${plural(given, 'jeton')} à la place de ${L.name}.`
       : `${W.name} gagne la manche avec ${ev[best].combo.label} et donne ${plural(given, 'jeton')} à ${L.name}${extra}.`;
-    summary = { round: s.round, winner: W.id, loser: L.id, amount: given, reversed, combos, text };
+    summary = { round: s.round, winner: W.id, loser: L.id, amount: given, reversed, combos, text, detail, ...(given < amount ? { cappedFrom: amount } : {}) };
     emit(c, { kind: 'comptes', player: W.id, text });
     // Gueule de bois : le gagnant aura un lancer de moins à la manche suivante.
     for (const t of trapsOn(s, W.id, 'gueule-bois')) {
@@ -607,7 +613,8 @@ function settle(c: Ctx) {
     }
   }
   const left = active(s);
-  if (left.length <= 1 || (isDuel(s) && s.ranking.length > 0)) return finish(c, false);
+  // 0.39 : à 3 ou 4 aussi, la partie s'arrête dès que quelqu'un s'est déchargé ; les autres sont classés par jetons.
+  if (left.length <= 1 || s.ranking.length > 0) return finish(c, false);
   if (s.round >= s.rules.maxRounds) return finish(c, true);
   endRound(c);
 }
@@ -632,6 +639,16 @@ function finish(c: Ctx, timeUp: boolean) {
 
 function endRound(c: Ctx) {
   const s = c.s;
+  // Habitués : une manche de moins ; au bout de habitueRounds manches, ils rentrent chez eux (défaussés).
+  for (const p of active(s)) {
+    for (const h of [...p.habitues]) {
+      h.rounds = (h.rounds ?? s.rules.habitueRounds ?? 3) - 1;
+      if (h.rounds > 0) continue;
+      p.habitues = p.habitues.filter((x) => x.uid !== h.uid);
+      p.discard.push({ uid: h.uid, id: h.id });
+      emit(c, { kind: 'habitue-part', player: p.id, card: h.id, who: p.id, text: `${cardName(h.id)} rentre chez lui (Habitué de ${p.name}).`, textYou: `${cardName(h.id)} rentre chez lui : il quitte votre comptoir.` });
+    }
+  }
   // Pièges non déclenchés depuis trapReturnRounds manches (celle de la pose comprise) : retour en main.
   for (const t of [...s.traps]) {
     if (s.round - t.posedRound + 1 >= s.rules.trapReturnRounds) {
@@ -662,7 +679,6 @@ function effectOptions(s: CfState, p: CfPlayer, id: string): PlayParams[] {
   const opps = active(s).filter((o) => o.id !== p.id);
   const myTurn = s.phase === 'turn' && s.order[s.turn] === p.id && !p.r.done;
   const rolled = p.r.throwsUsed > 0;
-  const second = s.order.indexOf(p.id) > 0;
   switch (id) {
     case 'tournee-patron': case 'cul-sec': case 'pari-comptoir': case 'double-tournee': case 'coup-coude':
     case 'mise-bouche': case 'calcul-mental': case 'note-salee':
@@ -685,20 +701,24 @@ function effectOptions(s: CfState, p: CfPlayer, id: string): PlayParams[] {
       return out;
     }
     case 'de-sous-table': {
-      if (!(myTurn && second)) return [];
+      if (!myTurn) return [];
       const out: PlayParams[] = [];
       for (const o of opps) if (o.r.done) for (const die of diceIdx) out.push({ target: o.id, die });
+      // Personne n'a encore fini son tour : on relance un de ses propres dés.
+      if (!out.length && rolled) for (const die of diceIdx) out.push({ target: p.id, die });
       return out;
     }
-    case 'tournee-generale':
-      if (!(myTurn && second && rolled)) return [];
-      return opps.filter((o) => o.r.done).map((o) => ({ target: o.id }));
+    case 'tournee-generale': {
+      if (!(myTurn && rolled)) return [];
+      const done = opps.filter((o) => o.r.done).map((o) => ({ target: o.id }));
+      return done.length ? done : [{}];
+    }
     case 'domino':
       return opps.map((o) => ({ target: o.id }));
     case 'fermeture': {
       const out: PlayParams[] = [];
       for (const o of opps) for (const h of o.habitues) out.push({ habitue: h.uid });
-      return out;
+      return out.length ? out : [{}];
     }
     case 'fouine': {
       const ts = s.traps.filter((t) => t.owner !== p.id);
@@ -731,7 +751,7 @@ function cardOptions(s: CfState, p: CfPlayer, k: CardInst, respond: boolean): Pl
   if (d.type === 'riposte') return [];
   if (s.phase === 'lastword') {
     if (d.type !== 'dernier-mot') return [];
-    if (k.id === 'recompter' && p.r.played < 3) return [];
+    if (k.id === 'recompter' && p.r.played < 1) return [];
     return effectOptions(s, p, k.id);
   }
   const myTurn = s.phase === 'turn' && s.order[s.turn] === p.id && !p.r.done;
@@ -745,10 +765,13 @@ function cardOptions(s: CfState, p: CfPlayer, k: CardInst, respond: boolean): Pl
   }
   // Coup
   if (k.id === 'grand-enchainement') {
-    if (!p.r.lastCoup) return [];
+    if (!p.r.lastCoup) return [{}]; // aucun Coup à rejouer : on pioche 2 cartes
     return effectOptions(s, p, p.r.lastCoup);
   }
-  if (k.id === 'fermeture') return effectOptions(s, p, k.id).filter((o) => !patronProtects(s, ownerOfHabitue(s, o.habitue!), d));
+  if (k.id === 'fermeture') {
+    const ok = effectOptions(s, p, k.id).filter((o) => !o.habitue || !patronProtects(s, ownerOfHabitue(s, o.habitue), d));
+    return ok.length ? ok : [{}];
+  }
   return effectOptions(s, p, k.id);
 }
 
@@ -1104,7 +1127,11 @@ function resolveCard(c: Ctx, it: Extract<StackItem, { kind: 'card' }>) {
   const id = it.card.id;
   const d = def(id);
   if (d.type === 'habitue') {
-    p.habitues.push(it.card);
+    p.habitues.push({ uid: it.card.uid, id: it.card.id, rounds: s.rules.habitueRounds ?? 3 });
+    if (id === 'vieux-marcel') {
+      emit(c, { kind: 'effet', player: p.id, card: id, who: p.id, text: `Le Vieux Marcel s’installe : ${p.name} pioche 1 carte.`, textYou: 'Le Vieux Marcel s’installe : vous piochez 1 carte.' });
+      draw(c, p, 1, false, true);
+    }
     return;
   }
   if (d.type === 'piege') {
@@ -1133,7 +1160,11 @@ function resolveCard(c: Ctx, it: Extract<StackItem, { kind: 'card' }>) {
   p.discard.push(it.card);
   if (id === 'grand-enchainement') {
     const replay = p.r.lastCoup;
-    if (!replay) return;
+    if (!replay) {
+      emit(c, { kind: 'effet', player: p.id, card: id, who: p.id, text: `Le grand enchaînement : ${p.name} pioche 2 cartes.`, textYou: 'Le grand enchaînement : vous piochez 2 cartes.' });
+      draw(c, p, 2, false, true);
+      return;
+    }
     emit(c, { kind: 'rejoue', player: p.id, card: replay, who: p.id, text: `Le grand enchaînement : ${p.name} rejoue ${cardName(replay)}.`, textYou: `Le grand enchaînement : vous rejouez ${cardName(replay)}.` });
     // Revalide la cible (elle a pu changer pendant la chaîne).
     if (!effectOptions(s, p, replay).some((o) => sameParams(o, it.params))) return;
@@ -1161,12 +1192,17 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       break;
     }
     case 'fermeture': {
+      if (!prm.habitue) {
+        you(`Fermeture ! Aucun Habitué à chasser : ${p.name} pioche 2 cartes.`, 'Fermeture ! Aucun Habitué à chasser : vous piochez 2 cartes.');
+        draw(c, p, 2, false, true);
+        break;
+      }
       const owner = s.players.find((o) => o.habitues.some((h) => h.uid === prm.habitue));
       if (!owner) break;
       const h = owner.habitues.find((x) => x.uid === prm.habitue)!;
       owner.habitues = owner.habitues.filter((x) => x.uid !== h.uid);
-      owner.hand.push(h);
-      emit(c, { kind: 'effet', player: owner.id, card: id, who: owner.id, text: `Fermeture ! ${cardName(h.id)} retourne dans la main de ${owner.name}.`, textYou: `Fermeture ! ${cardName(h.id)} retourne dans votre main.` });
+      owner.discard.push({ uid: h.uid, id: h.id });
+      emit(c, { kind: 'effet', player: owner.id, card: id, who: owner.id, text: `Fermeture ! ${cardName(h.id)} rentre chez lui (Habitué de ${owner.name}).`, textYou: `Fermeture ! ${cardName(h.id)} rentre chez lui.` });
       break;
     }
     case 'note-salee': p.r.noteSalee++; break;
@@ -1191,10 +1227,19 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
     case 'de-sous-table': {
       const o = pl(s, prm.target!);
       setDice(o, prm.die!, c.die());
+      if (o.id === p.id) {
+        you(`Le dé sous la table : ${p.name} relance un de ses dés (${p.r.dice.join('-')}).`, `Le dé sous la table : vous relancez un de vos dés (${p.r.dice.join('-')}).`, { dice: [...p.r.dice], rolled: [prm.die!] });
+        break;
+      }
       emit(c, { kind: 'effet', player: o.id, card: id, who: o.id, dice: [...o.r.dice], rolled: [prm.die!], text: `Le dé sous la table : un dé de ${o.name} est relancé (${o.r.dice.join('-')}).`, textYou: `Le dé sous la table : un de vos dés est relancé (${o.r.dice.join('-')}).` });
       break;
     }
     case 'tournee-generale': {
+      if (!prm.target) {
+        for (const i of diceIdx) setDice(p, i, c.die());
+        you(`Tournée générale : ${p.name} relance tous ses dés (${p.r.dice.join('-')}).`, `Tournée générale : vous relancez tous vos dés (${p.r.dice.join('-')}).`, { dice: [...p.r.dice], rolled: [0, 1, 2] });
+        break;
+      }
       const o = pl(s, prm.target!);
       for (const i of diceIdx) setDice(o, i, c.die());
       for (const i of diceIdx) setDice(p, i, c.die());
@@ -1205,7 +1250,7 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
     }
     case 'domino': {
       const o = pl(s, prm.target!);
-      const n = Math.min(o.tournees, playedBefore);
+      const n = Math.min(o.tournees, Math.max(1, playedBefore));
       o.tournees -= n;
       emit(c, { kind: 'effet', player: o.id, card: id, who: o.id, text: `Domino : ${o.name} perd ${plural(n, 'Tournée')}.`, textYou: `Domino : vous perdez ${plural(n, 'Tournée')}.` });
       break;

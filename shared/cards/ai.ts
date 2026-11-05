@@ -274,7 +274,7 @@ let TV = CF_AI_TUNING.tv;
 let CV = CF_AI_TUNING.cv;
 
 const STATIC: Record<string, number> = {
-  patron: 2.0, josiane: 1.6, 'vieux-marcel': 0.9, pilier: 1.2, videur: 1.0,
+  patron: 2.0, josiane: 1.6, 'vieux-marcel': 0.9 + 0.55, pilier: 1.2, videur: 1.0,
   leurre: 0.35, 'gueule-bois': 0.9, 'croche-patte': 0.7, 'main-sac': 0.5, 'ardoise-piegee': 0.7,
   'faux-421': 1.1, 'coup-nenette': 1.1, 'retournement-veste': 1.6,
 };
@@ -485,7 +485,7 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
   const lateGame = Math.min(me.tokens, ...opps.map((o) => o.tokens)) <= 4;
   switch (id) {
     case 'grand-enchainement':
-      if (!me.r.lastCoup) return null;
+      if (!me.r.lastCoup) return 2 * CV;
       return cardGain(view, ctx, me, me.r.lastCoup, a, used, limit, base, depth, level);
     case 'tete-tourne': case 'coup-pouce': case 'bon-numero': {
       const d = [...me.r.dice];
@@ -502,6 +502,12 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
     case 'pari-comptoir':
       return valueNow(withMods(ctx, { pari: ctx.mine.pari + 1 }), me.r.dice, used, limit, depth) - base;
     case 'de-sous-table': {
+      if (a.target === me.id) {
+        // Pas d'adversaire fini : relancer un de ses dés (moyenne sur les 6 faces).
+        let s2 = 0;
+        for (let f = 1; f <= 6; f++) { const d = [...me.r.dice]; d[a.die!] = f; s2 += valueNow(ctx, d, used, limit, depth); }
+        return s2 / 6 - base;
+      }
       const o = ctx.opps.find((x) => x.p.id === a.target)!;
       let sum = 0;
       for (let f = 1; f <= 6; f++) {
@@ -513,6 +519,12 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
       return sum / 6 - base;
     }
     case 'tournee-generale': {
+      if (!a.target) {
+        let s2 = 0;
+        const sol = used >= limit ? null : solve(ctx, limit, used, depth);
+        for (const k of FRESH) s2 += sol ? sol.V[used][k] : utility(ctx, k, used);
+        return s2 / FRESH.length - base;
+      }
       const o = ctx.opps.find((x) => x.p.id === a.target)!;
       let sum = 0; const N = level === 'fine-fouine' ? 24 : 8;
       for (let n = 0; n < N; n++) {
@@ -531,8 +543,9 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
       const big = me.hand!.some((k) => k.id !== 'mise-bouche' && def(k.id).cost >= 2 && def(k.id).type !== 'dernier-mot' && def(k.id).cost - 2 <= me.tournees - def('mise-bouche').cost);
       return big ? 2 * TV + 0.1 : (me.r.played >= 1 ? 0.25 : null);
     }
-    case 'domino': return target ? Math.min(target.tournees, me.r.played) * TV * 0.9 : null;
+    case 'domino': return target ? Math.min(target.tournees, Math.max(1, me.r.played)) * TV * 0.9 : null;
     case 'fermeture': {
+      if (!a.habitue) return 2 * CV;
       const h = opps.flatMap((o) => o.habitues).find((x) => x.uid === a.habitue);
       return h ? (STATIC[h.id] ?? 0.8) * 0.9 + 0.3 : null;
     }

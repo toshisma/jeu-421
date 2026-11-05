@@ -492,7 +492,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
           <Tokens n={meP.tokens} refEl={(el) => { tokRefs.current[me] = el; }} />
           <Glasses n={meP.tournees} max={v.rules.tourneesMax} />
           <span className="cfn-pins">
-            {meP.habitues.map((h) => <HabPin key={h.uid} id={h.id} onClick={() => setFiche({ id: h.id, owner: me, uid: h.uid })} />)}
+            {meP.habitues.map((h) => <HabPin key={h.uid} id={h.id} rounds={h.rounds} onClick={() => setFiche({ id: h.id, owner: me, uid: h.uid })} />)}
             {myTraps.map((t) => <HabPin key={t.uid} id={t.id} trap onClick={() => t.id && setFiche({ id: t.id, trapUid: t.uid })} />)}
           </span>
           <span className="cfn-grow" />

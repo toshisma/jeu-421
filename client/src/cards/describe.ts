@@ -166,6 +166,8 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
       return `Si vous gagnez la manche, votre combinaison vaut le double${c ? ` : ${c.label} donnerait ${c.value * 2} jetons au lieu de ${c.value}` : ''}.`;
     }
     case 'de-sous-table': {
+      if (target && target.id === p.id) return params.die !== undefined ? `Vous relancez ${p.r.dice[params.die] === 1 ? 'votre as' : `votre ${p.r.dice[params.die]}`} au hasard, sans utiliser de lancer.` : 'Personne n’a fini son tour : relancez un de vos dés au hasard, sans utiliser de lancer.';
+      if (!target && opts.length && opts.every((o) => o.target === p.id)) return 'Personne n’a fini son tour : relancez un de vos dés au hasard, sans utiliser de lancer.';
       if (target && params.die !== undefined) {
         const c = comboOf(v, target);
         return `${target.r.dice[params.die] === 1 ? 'L’as' : `Le ${target.r.dice[params.die]}`} de ${target.name} est relancé au hasard${c ? ` (il a ${c.label} pour l’instant)` : ''}.`;
@@ -174,18 +176,21 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
       return `Relancez au hasard un dé de ${tName}${c ? `, qui a ${c.label}` : ''}.`;
     }
     case 'tournee-generale':
+      if (!params.target && opts.length && opts.every((o) => !o.target)) return 'Personne n’a fini son tour : vous relancez tous vos dés, sans utiliser de lancer.';
       return `${tName} et vous relancez tous vos dés, puis vous pourrez encore relancer un des vôtres.`;
     case 'domino': {
-      const n = target ? Math.min(target.tournees, p.r.played) : p.r.played;
-      return n > 0 ? `${tName} perd ${plural(n, 'Tournée')} (une par carte déjà jouée par vous cette manche).` : `Vous n’avez encore joué aucune carte cette manche : ${tName} ne perdrait rien.`;
+      const want = Math.max(1, p.r.played);
+      const n = target ? Math.min(target.tournees, want) : want;
+      return n > 0 ? `${tName} perd ${plural(n, 'Tournée')} (une par carte déjà jouée par vous cette manche, au moins 1).` : `${tName} n’a plus de Tournées : il ne perdrait rien.`;
     }
     case 'fermeture': {
       if (params.habitue) {
         const owner = v.players.find((o) => o.habitues.some((h) => h.uid === params.habitue));
         const h = owner?.habitues.find((x) => x.uid === params.habitue);
-        return `${h ? def(h.id)?.name : 'Cet Habitué'} retourne dans la main de ${owner?.name ?? 'son propriétaire'}.`;
+        return `${h ? def(h.id)?.name : 'Cet Habitué'} de ${owner?.name ?? 'l’adversaire'} rentre chez lui (défaussé).`;
       }
-      return 'Renvoyez un Habitué adverse dans la main de son propriétaire.';
+      if (!opts.some((o) => o.habitue)) return 'Aucun Habitué adverse à chasser : vous piochez 2 cartes.';
+      return 'Un Habitué adverse rentre chez lui (défaussé).';
     }
     case 'fouine':
       if (!opts.some((o) => o.trap) && !params.trap) return 'Aucun piège adverse posé : vous piochez 1 carte.';
@@ -195,9 +200,9 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
     case 'calcul-mental': return p.deckCount > 0 ? `Vous regardez les ${Math.min(3, p.deckCount)} cartes du dessus de votre deck et en gardez une ; les autres repartent dessous.` : 'Votre deck est vide : rien à regarder.';
     case 'grand-enchainement': {
       const last = p.r.lastCoup;
-      return last ? `Rejoue gratuitement « ${def(last)?.name} » : ${describeNow(v, last, params, opts)}` : 'Aucun Coup joué cette manche à rejouer.';
+      return last ? `Rejoue gratuitement « ${def(last)?.name} » : ${describeNow(v, last, params, opts)}` : 'Aucun Coup joué cette manche à rejouer : vous piochez 2 cartes.';
     }
-    case 'note-salee': return `Si vous gagnez la manche, ${tName} reçoit 1 jeton de plus.`;
+    case 'note-salee': return `Si vous gagnez la manche, ${tName} reçoit 2 jetons de plus (sans dépasser les jetons qu’il vous reste).`;
     case 'ticket-caisse': case 'reaction-chaine': {
       const what = top && top.kind === 'card' ? (top.cardId ? `« ${def(top.cardId)?.name} »` : 'ce piège') : 'la carte adverse';
       const back = cardId === 'reaction-chaine' && p.r.played >= 2 ? ' Et comme c’est au moins votre 3e carte de la manche, elle revient dans votre main.' : '';
@@ -209,7 +214,7 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
     }
   }
   if (d.type === 'habitue') {
-    return `S’installe devant vous et reste en jeu (${p.habitues.length + 1}/${v.rules.maxHabitues}) : ${lowerFirst(d.text)}`;
+    return `S’installe devant vous pour ${v.rules.habitueRounds ?? 3} manches, celle-ci comprise (${p.habitues.length + 1}/${v.rules.maxHabitues}) : ${lowerFirst(d.text)}`;
   }
   if (d.type === 'piege') {
     const posed = v.traps.filter((t) => t.owner === p.id).length;
@@ -248,7 +253,7 @@ export function whyNot(v: CfView, cardId: string, legal: CfAction[], uid: string
   if (d.type === 'dernier-mot') {
     if (v.phase !== 'lastword') return 'Dernier mot : se joue quand les deux combinaisons sont sur la table.';
     if (cost > p.tournees) return `Il vous manque ${plural(cost - p.tournees, 'Tournée')}.`;
-    if (cardId === 'recompter' && p.r.played < 3) return `Il faut avoir joué au moins 3 autres cartes cette manche (${p.r.played} pour l’instant).`;
+    if (cardId === 'recompter' && p.r.played < 1) return 'Il faut avoir joué une autre carte cette manche.';
     if (!v.waiting.includes(p.id)) return 'Attendez votre tour de parole.';
     return 'Pas jouable maintenant.';
   }
@@ -258,13 +263,9 @@ export function whyNot(v: CfView, cardId: string, legal: CfAction[], uid: string
   if (cost > p.tournees) return `Il vous manque ${plural(cost - p.tournees, 'Tournée')} (coût ${cost}, vous en avez ${p.tournees}).`;
   if (d.type === 'habitue') return `Vous avez déjà ${v.rules.maxHabitues} Habitués en jeu.`;
   if (d.type === 'piege') return `Vous avez déjà ${v.rules.maxTraps} pièges posés.`;
-  const second = playsAfter(v, p.id);
   switch (cardId) {
     case 'tete-tourne': case 'coup-pouce': case 'bon-numero': return 'Lancez d’abord les dés.';
-    case 'de-sous-table': return second ? 'L’adversaire n’a pas encore de dés sur la table.' : 'Seulement si vous jouez en second.';
-    case 'tournee-generale': return !second ? 'Seulement si vous jouez en second.' : 'Lancez d’abord vos dés.';
-    case 'fermeture': return 'Aucun Habitué adverse à chasser.';
-    case 'grand-enchainement': return 'Aucun Coup joué cette manche à rejouer.';
+    case 'de-sous-table': case 'tournee-generale': return 'Lancez d’abord vos dés.';
   }
   return 'Pas jouable maintenant.';
 }

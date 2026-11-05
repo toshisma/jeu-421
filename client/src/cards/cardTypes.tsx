@@ -19,7 +19,7 @@ export const TYPE_META: Record<CardType, TypeMeta> = {
   piege: { label: 'Piège', color: '#d6a6ff', moment: 'Se pose pendant votre tour', def: 'Posé face cachée pendant votre tour ; se déclenche tout seul chez l’adversaire.' },
   riposte: { label: 'Riposte', color: '#7cc4ff', moment: 'En réponse à l’adversaire', def: 'En réponse à une carte de l’adversaire, même pendant son tour.' },
   'dernier-mot': { label: 'Dernier mot', color: '#ff9fb2', moment: 'Quand les dés sont posés', def: 'Quand les deux combinaisons sont posées, avant les comptes.' },
-  habitue: { label: 'Habitué', color: '#7fe0b2', moment: 'Reste en jeu', def: 'Reste en jeu devant vous et agit à chaque manche.' },
+  habitue: { label: 'Habitué', color: '#7fe0b2', moment: 'Reste 3 manches', def: 'S’installe devant vous et agit pendant 3 manches (celle où il arrive comprise), puis rentre chez lui.' },
 };
 
 export const TYPE_ORDER: CardType[] = ['coup', 'piege', 'riposte', 'dernier-mot', 'habitue'];
