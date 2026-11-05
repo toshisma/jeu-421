@@ -25,12 +25,15 @@ import { DEFAULT_APPEARANCE } from '../shared/progress/catalog';
 import { SEASONS, collectionDie } from '../shared/progress/dice-collection';
 import { createSocial } from './social';
 import { createMessages } from './messages';
+import { createDiscord } from './discord';
 import { DIVISIONS, SEASON_DIE_FROM, SEASON_TITLE_FROM, divisionIndex, divisionOf, nextSeasonStart, seasonDelta, seasonOf } from '../shared/season';
 import { today } from '../shared/progress/quests';
 import type { ComboKind } from '../shared/combos';
 import type { Difficulty } from '../shared/ai';
 
 export interface AccountsOptions {
+  /** Pour les tests : configuration et appel Discord simulés. */
+  discord?: { env?: Record<string, string | undefined>; api?: (code: string, redirect: string) => Promise<{ id: string; guilds: string[] }> };
   /** Durée minimale d'une partie solo pour être récompensée (anti-triche basique). */
   minSoloMs?: number;
   /** Parties solo récompensées par jour et par compte. */
@@ -844,6 +847,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   };
   const social = createSocial({ router, store, auth, userOf, fail, adjust, coinsOf, brusselsDate, brusselsHour, now: () => opts.now?.() ?? Date.now() });
   const messages = createMessages({ router, store, auth, userOf, fail, push: social.push, userFromToken, now: () => opts.now?.() ?? Date.now() });
+  createDiscord({ router, store, auth, userOf, userFromToken, now: () => opts.now?.() ?? Date.now(), env: opts.discord?.env, discordApi: opts.discord?.api });
 
   return { social, messages, router, setPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
 }

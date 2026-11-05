@@ -29,6 +29,7 @@ import { changelogUnseen } from './Changelog';
 import { STANDALONE } from './Screens';
 import { MessagesButton } from './Messages';
 import { ScheduledCard } from './Scheduled';
+import { DISCORD_RESULTS, DiscordCard, takeDiscordReturn, useDiscord } from './Discord';
 import { ChestArt, FriendsArt, GiftArt, Rays, RewardBurst, ScrollArt, TableArt, TargetArt, TicketArt, TopHatArt, TrophyArt } from './illustrations';
 import type { ProgrammeView } from '../../../shared/scheduled';
 
@@ -49,7 +50,7 @@ export interface HomeProps {
   onMessages?: () => void;
 }
 
-type SheetKind = 'tournoi' | 'menu' | 'coffre' | 'cadeau' | 'patron' | 'defi' | 'missions' | 'parrainage' | 'lobbies';
+type SheetKind = 'tournoi' | 'menu' | 'coffre' | 'cadeau' | 'patron' | 'defi' | 'missions' | 'parrainage' | 'lobbies' | 'discord';
 
 /** Prochain tournoi programmé (11 h et 21 h, heure de Bruxelles) : heure affichée et minutes restantes. */
 export function nextTournamentSlot(now = Date.now()): { label: string; minutes: number } {
@@ -126,7 +127,7 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
 }
 
 /** Menu « Plus » : tout le reste du jeu, rangé par thème, avec une recherche. */
-function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void }) {
+function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void; onDiscord?: () => void }) {
   const [q, setQ] = useState('');
   const acc = p.pa.isAccount && !STANDALONE;
   const [admin, setAdmin] = useState(false);
@@ -153,6 +154,7 @@ function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void })
       { label: 'Tournois', icon: 'trophy', go: p.onTournaments, show: !STANDALONE },
       { label: 'Regarder une partie', icon: 'eye', go: p.onOnline, show: !STANDALONE, keys: 'spectateur parties en cours' },
       { label: 'Soirée (un téléphone)', icon: 'cheers', go: p.onParty, keys: 'vrais des arbitre' },
+      { label: 'Discord du jeu', icon: 'chat', go: () => p.onDiscord?.(), show: !STANDALONE && !!p.onDiscord, keys: 'discord communaute serveur sac offert' },
     ] },
     { title: 'Apprendre et régler', items: [
       { label: 'Règles', icon: 'rules', go: p.onRules, keys: 'combinaisons charge decharge' },
@@ -244,6 +246,16 @@ export function Home(props: HomeProps) {
   const lobbies = useOpenLobbies();
   const prog = useProgramme(pa.token);
   const referral = useReferral(pa);
+  const { discord, reload: reloadDiscord } = useDiscord(pa);
+  // Retour de la vérification Discord (/?discord=…) : message dans la fiche Discord, profil rafraîchi.
+  const [discordMsg, setDiscordMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => {
+    const r = takeDiscordReturn();
+    if (!r) return;
+    setDiscordMsg({ ok: r === 'ok', text: DISCORD_RESULTS[r] ?? DISCORD_RESULTS.erreur });
+    setSheet('discord');
+    if (r === 'ok') { sound.treasure(); pa.refresh(); reloadDiscord(); }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const li = levelInfo(profile.xp);
   const name = pa.session?.username ?? (props.displayName || 'Invité');
   const acc = pa.isAccount && !STANDALONE;
@@ -324,6 +336,7 @@ export function Home(props: HomeProps) {
     if (!STANDALONE && !pa.isAccount) return <button className="home-banner account" onClick={props.onAccount}><Icon name="key" size={20} /><span><b>Gardez votre progression</b><small>Compte gratuit : classements, clubs, amis, tables avec mise</small></span><em>Créer</em></button>;
     if (happyHour(now)) return <HappyHourBanner />;
     if (ev) return <EventBanner onShop={props.onShop} />;
+    if (acc && discord?.invite && discord.verify && !discord.claimed) return <button className="home-banner discord" onClick={() => setSheet('discord')}><BagIcon size={26} color="bleu" /><span><b>Rejoignez le Discord du jeu</b><small>Un sac de dés offert, une fois vérifié</small></span><em>Voir</em></button>;
     return null;
   })();
 
@@ -471,7 +484,8 @@ export function Home(props: HomeProps) {
 
       {toast && <div className="h2-toast" role="status">{toast}</div>}
       {burst && <RewardBurst kind={burst.kind} phase={burst.phase} title={burst.title} detail={burst.detail} onClose={closeBurst} />}
-      {sheet === 'menu' && <PlusMenu {...props} onProfile={() => setShowProfile(true)} onClose={() => setSheet(null)} />}
+      {sheet === 'menu' && <PlusMenu {...props} onProfile={() => setShowProfile(true)} onClose={() => setSheet(null)} onDiscord={discord?.invite ? () => setSheet('discord') : undefined} />}
+      {sheet === 'discord' && discord && <Sheet title="Discord" onClose={() => { setSheet(null); setDiscordMsg(null); }}>{discordMsg && <p className={`discord-msg${discordMsg.ok ? ' ok' : ''}`}>{discordMsg.text}</p>}<DiscordCard pa={pa} state={discord} onAccount={() => { setSheet(null); props.onAccount(); }} /></Sheet>}
       {sheet === 'tournoi' && props.onJoinScheduled && <Sheet title="Tournois de 11 h et 21 h" onClose={() => setSheet(null)}>
         <ScheduledCard pa={pa} onJoin={(c, pay) => { setSheet(null); props.onJoinScheduled!(c, pay); }} onAccount={() => { setSheet(null); props.onAccount(); }} />
         <button className="btn ghost small" onClick={() => { setSheet(null); props.onTournaments(); }}>Autres tournois</button>
