@@ -20,14 +20,32 @@ const post = (path: string, body: object, token?: string | null) => {
 };
 const timeZone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch { return ''; } };
 
+/**
+ * Adresse d'arrivée, lue dès le chargement : certains paramètres (?parrain, ?tournois…) sont
+ * effacés de la barre d'adresse avant l'envoi de la visite, ce qui faisait perdre les utm_*.
+ */
+const firstSearch = (() => { try { return location.search; } catch { return ''; } })();
+
 let started = false;
 export function trackVisit(token?: string | null) {
   if (!web()) return;
-  const q = new URLSearchParams(location.search);
+  const q = new URLSearchParams(firstSearch);
   const utm: Record<string, string> = {};
   for (const k of ['utm_source', 'utm_medium', 'utm_campaign']) { const v = q.get(k); if (v) utm[k] = v.slice(0, 60); }
   post('/visit', { device: deviceId(), ref: document.referrer || '', utm, lang: navigator.language || '', tz: timeZone(), landing: location.pathname }, token);
+  if (['rejoindre', 'tournoi', 'regarder', 'parrain'].some((k) => q.has(k))) trackEvent('invited');
   if (!started) { started = true; startHeartbeat(); }
+}
+
+/**
+ * Étape du parcours (conversion), comptée une seule fois par visiteur côté serveur :
+ * première partie solo, première table en ligne, invitation envoyée, arrivée par invitation.
+ */
+const sentEvents = new Set<string>();
+export function trackEvent(kind: 'solo' | 'online' | 'invite' | 'invited') {
+  if (!web() || sentEvents.has(kind)) return;
+  sentEvents.add(kind);
+  post('/visit/event', { device: deviceId(), kind });
 }
 
 /** Le visiteur vient de se connecter ou de créer son compte : ses visites sont rattachées (conversion). */

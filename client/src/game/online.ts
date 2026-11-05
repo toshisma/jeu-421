@@ -8,6 +8,7 @@ import { currentPlayerId, type GameState } from '../../../shared/engine';
 import type { Ack, ChatMessage, Notice, PublicRoom, RollMessage } from '../../../shared/protocol';
 import { saveSession } from '../settings';
 import { SERVER_URL, publicUrl } from '../platform';
+import { trackEvent } from '../visit';
 import { today } from '../../../shared/progress/quests';
 import type { EndReward } from '../account/useProfile';
 import type { GameController, GameEvent, MetaPlayer } from './controller';
@@ -121,6 +122,7 @@ export class OnlineSession {
   }
 
   private remember(a: { code: string; playerId: string; token: string }) {
+    trackEvent('online');
     this.code = a.code;
     this.playerId = a.playerId;
     this.token = a.token;
@@ -167,6 +169,7 @@ export class OnlineSession {
 
   // --- Tournoi ---
   private rememberT(a: { code: string; playerId: string; token: string }) {
+    trackEvent('online');
     this.tcode = a.code;
     this.playerId = a.playerId;
     this.token = a.token;
