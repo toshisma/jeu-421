@@ -35,7 +35,7 @@ export const CARDS: CardDef[] = [
   c('patron', 'Le Patron', 'habitues', 'habitue', 3, 'legendaire', 'Au début de chaque manche, +1 Tournée (et 1 carte si vous avez perdu la manche précédente). Vos Habitués ne peuvent être ni chassés ni annulés par une carte qui coûte 2 ou moins.', '« Ici, c’est moi qui sers. »'),
   c('josiane', 'Josiane, la serveuse', 'habitues', 'habitue', 3, 'rare', 'Une fois par manche, relancez un de vos dés sans utiliser de lancer.', '« Je vous remets la même ? »'),
   c('vieux-marcel', 'Le Vieux Marcel', 'habitues', 'habitue', 1, 'commune', 'Vos suites valent 4 au lieu de 2.', '« De mon temps, on comptait jusqu’à trois. »'),
-  c('pilier', 'Le Pilier de comptoir', 'habitues', 'habitue', 1, 'commune', 'Quand vous perdez une manche, vous recevez 1 jeton de moins (au moins 1). Plusieurs Piliers ne se cumulent pas.', '« Trente ans au même tabouret. Rien ne le bouge. »'),
+  c('pilier', 'Le Pilier de comptoir', 'habitues', 'habitue', 1, 'commune', 'Quand vous perdez une manche, vous recevez 1 jeton de moins (au moins 1).', '« Trente ans au même tabouret. Rien ne le bouge. »'),
   c('videur', 'Le Videur', 'habitues', 'habitue', 2, 'epique', 'Le premier piège adverse qui se déclenche dans chaque manche est annulé et défaussé.', '« Pas de ça chez nous. »'),
   c('tournee-patron', 'Tournée du patron', 'habitues', 'coup', 0, 'commune', 'Gagnez 2 Tournées.', '« C’est la maison qui offre ! »'),
   c('ticket-caisse', 'Ticket de caisse', 'habitues', 'riposte', 1, 'commune', 'Annulez un Coup adverse qui coûte 2 ou moins.', '« Ça, ce n’est pas sur l’addition. »'),
@@ -90,7 +90,8 @@ export const CF_RULES = {
   tourneesLoserBonus: 1,
   tourneesMax: 6,
   maxTraps: 3,
-  maxHabitues: 4,
+  /** Habitués en jeu en même temps (chacun en un seul exemplaire devant soi). */
+  maxHabitues: 3,
   /** Un piège non déclenché depuis ce nombre de manches revient en main. */
   trapReturnRounds: 3,
   /** L'ardoise, une fois par partie : emprunter ces Tournées tout de suite, rien à la manche suivante. */

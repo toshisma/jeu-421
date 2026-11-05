@@ -107,6 +107,7 @@ export function cardHint(v: CfView, legal: CfAction[], k: { uid: string; id: str
   if (short) return short;
   // Partie guidée : une seule action permise à la fois, les autres cartes attendent.
   if (tuto) return wait('Plus tard');
+  if (d.type === 'habitue' && p.habitues.some((h) => h.id === k.id)) return wait('Déjà en jeu');
   if (d.type === 'habitue' && p.habitues.length >= v.rules.maxHabitues) return wait(`${v.rules.maxHabitues} Habitués max`);
   if (d.type === 'piege' && v.traps.filter((t) => t.owner === p.id).length >= v.rules.maxTraps) return wait(`${v.rules.maxTraps} pièges max`);
   const second = playsAfter(v, p.id);
