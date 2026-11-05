@@ -65,12 +65,12 @@ function playableLabel(v: CfView, legal: CfAction[], uid: string, id: string): s
     case 'double-tournee': return 'Gain doublé';
     case 'de-sous-table': return 'Relancer son dé';
     case 'tournee-generale': return 'Tout relancer';
-    case 'domino': { const o = v.players.find((x) => x.id === opts[0]?.target); const n = o ? Math.min(o.tournees, p.r.played) : p.r.played; return `Lui ôter ${plural(n, 'Tournée')}`; }
+    case 'domino': { const o = v.players.find((x) => x.id === opts[0]?.target); const n = o ? Math.min(o.tournees, 2) : 2; return `Lui ôter ${plural(n, 'Tournée')}`; }
     case 'fermeture': return 'Chasser un Habitué';
     case 'grand-enchainement': return p.r.lastCoup ? `Rejouer ${cardName(p.r.lastCoup).split(' ')[0]}` : 'Rejouer';
-    case 'note-salee': return '+1 jeton donné';
+    case 'note-salee': return '+2 jetons donnés';
     case 'ticket-caisse': case 'reaction-chaine': return 'Annuler sa carte';
-    case 'yeux-piquent': return 'Lâcher ses dés';
+    case 'yeux-piquent': return 'Annuler son coup de dés';
   }
   if (d.type === 'piege') return 'Poser face cachée';
   if (d.type === 'habitue') return 'Installer';
@@ -253,7 +253,7 @@ export const TRAP_WHEN: Record<string, string> = {
   'ardoise-piegee': 'quand vous jouez un Coup : 2 Tournées de plus, sinon le Coup est annulé',
   'faux-421': 'quand vous finissez sur 4-2-1 : il ne vaut plus que 2',
   'coup-nenette': 'quand vous devriez gagner avec une combinaison qui vaut 1 : elle devient une nénette',
-  'retournement-veste': 'quand vous devriez lui donner 4 jetons ou plus : c’est lui qui les reçoit',
+  'retournement-veste': 'quand vous devriez lui donner 5 jetons ou plus : c’est lui qui les reçoit',
 };
 export const TRAP_TIP: Record<string, string> = {
   'faux-421': 'Astuce : « Fouine » permet de regarder un piège avant de s’arrêter.',
@@ -295,7 +295,8 @@ export interface Announce {
 export type PlanStep = { kind: 'dice'; ev: CfEvent; strip?: Announce; after?: Announce } | { kind: 'ann'; ann: Announce; ev?: CfEvent };
 
 // Durées de lecture (touchez pour passer). Raccourcies le 5 novembre : le jeu doit rester vif.
-export const ANN_MS = { big: 2400, strip: 1300, trap: 3000, comptes: 3000, reveal: 4000 };
+// 0.39 : tout un peu plus court (Sam : « le jeu est lent »). Toucher l'annonce la passe.
+export const ANN_MS = { big: 1800, strip: 1100, trap: 2300, comptes: 2600, reveal: 3200 };
 const TRAP_CONSEQ = new Set(['faux-421', 'croche-patte', 'gueule-bois', 'coup-nenette', 'ardoise-piegee', 'piege', 'annule']);
 const noDot = (t: string) => t.replace(/[.!]\s*$/, '');
 

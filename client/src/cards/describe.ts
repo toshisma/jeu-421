@@ -99,7 +99,7 @@ const conditionOf: Record<string, string> = {
   'ardoise-piegee': 'il joue un Coup (il paie 2 Tournées de plus, sinon le Coup est annulé)',
   'faux-421': 'il termine avec un 4-2-1 (qui ne vaudra que 2)',
   'coup-nenette': 'il devrait gagner avec une combinaison qui vaut 1 (elle devient une nénette)',
-  'retournement-veste': 'il devrait vous donner 4 jetons ou plus (c’est lui qui les reçoit)',
+  'retournement-veste': 'il devrait vous donner 5 jetons ou plus (c’est lui qui les reçoit)',
 };
 
 /** Effet d'un dé modifié : « Le 6 devient un 1 : vous passez à 4-2-1 (vaut 8). » */
@@ -179,9 +179,8 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
       if (!params.target && opts.length && opts.every((o) => !o.target)) return 'Personne n’a fini son tour : vous relancez tous vos dés, sans utiliser de lancer.';
       return `${tName} et vous relancez tous vos dés, puis vous pourrez encore relancer un des vôtres.`;
     case 'domino': {
-      const want = Math.max(1, p.r.played);
-      const n = target ? Math.min(target.tournees, want) : want;
-      return n > 0 ? `${tName} perd ${plural(n, 'Tournée')} (une par carte déjà jouée par vous cette manche, au moins 1).` : `${tName} n’a plus de Tournées : il ne perdrait rien.`;
+      const n = target ? Math.min(target.tournees, 2) : 2;
+      return n > 0 ? `${tName} perd ${plural(n, 'Tournée')}.` : `${tName} n’a plus de Tournées : il ne perdrait rien.`;
     }
     case 'fermeture': {
       if (params.habitue) {
@@ -209,8 +208,8 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
       return `Annule ${what} de ${top ? nameIn(v, top.owner) : tName}.${back}`;
     }
     case 'yeux-piquent': {
-      const who = top ? nameIn(v, top.owner) : tName;
-      return `${who} voulait garder des dés : il doit tous les relâcher et relancer les trois.`;
+      const what = top && top.kind === 'card' && top.cardId ? `« ${def(top.cardId)?.name} »` : 'son coup de dés';
+      return `Annule ${what} de ${top ? nameIn(v, top.owner) : tName} : ses dés ne bougent pas.`;
     }
   }
   if (d.type === 'habitue') {
@@ -244,7 +243,7 @@ export function whyNot(v: CfView, cardId: string, legal: CfAction[], uid: string
     if (decision === 'respond' && v.waiting.includes(p.id)) {
       const top = v.stack[v.stack.length - 1];
       if (cost > p.tournees) return `Il vous manque ${plural(cost - p.tournees, 'Tournée')}.`;
-      if (cardId === 'yeux-piquent') return 'Se joue seulement quand l’adversaire garde des dés.';
+      if (cardId === 'yeux-piquent') return 'N’annule qu’un Coup qui change des dés.';
       if (cardId === 'ticket-caisse' && top?.kind === 'card') return 'N’annule qu’un Coup qui coûte 2 ou moins.';
       return 'Ne peut pas répondre à cette action.';
     }

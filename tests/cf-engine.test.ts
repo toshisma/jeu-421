@@ -68,20 +68,20 @@ function quickRound(s: CfState, L: string, O: string, dl: number[], dO: number[]
 // ---------------------------------------------------------------------------------------------
 
 describe('Coups Fourrés : déroulé', () => {
-  it('début de partie : 4 cartes, échange de 2 au plus, tirage du meneur, service', () => {
+  it('début de partie : 5 cartes, échange de 2 au plus, tirage du meneur, service', () => {
     let s = newGame({}, [{ id: 'a', deck: FILL }, { id: 'b', deck: FILL }], 3);
     expect(s.phase).toBe('mulligan');
-    expect(s.players.every((p) => p.hand.length === 4)).toBe(true);
+    expect(s.players.every((p) => p.hand.length === 5)).toBe(true);
     expect(waitingFor(s).sort()).toEqual(['a', 'b']);
     const two = legalActions(s, 'a').filter((x) => x.type === 'mulligan' && x.cards.length === 2);
-    expect(two).toHaveLength(6);
+    expect(two).toHaveLength(10);
     expect(legalActions(s, 'a').some((x) => x.type === 'mulligan' && x.cards.length === 3)).toBe(false);
     s = act(s, 'a', two[0]);
-    expect(P(s, 'a').hand).toHaveLength(4);
+    expect(P(s, 'a').hand).toHaveLength(5);
     s = act(s, 'b', { type: 'mulligan', cards: [] });
     expect(s.phase).toBe('turn');
     expect(s.round).toBe(1);
-    for (const p of s.players) { expect(p.hand).toHaveLength(5); expect(p.tournees).toBe(2); expect(p.tokens).toBe(11); }
+    for (const p of s.players) { expect(p.hand).toHaveLength(6); expect(p.tournees).toBe(2); expect(p.tokens).toBe(11); }
     expect(waitingFor(s)).toEqual([s.order[0]]);
   });
 
@@ -134,7 +134,7 @@ describe('Coups Fourrés : déroulé', () => {
   });
 
   it('deck vide : on mélange la défausse (1 jeton reçu) ; sans défausse, 1 jeton par pioche manquante', () => {
-    const deck = ['domino', 'domino', 'domino', 'domino', 'domino'];
+    const deck = ['domino', 'domino', 'domino', 'domino', 'domino', 'domino'];
     let { s, L, O } = setup(2, 1, deck);
     expect(P(s, L).deck).toHaveLength(0);
     P(s, O).discard.push({ uid: 'x1', id: 'cul-sec' });
@@ -346,15 +346,19 @@ describe('Coups Fourrés : les 34 cartes', () => {
     expect(P(s, L).r.dice).toEqual([1, 6, 6]);
   });
 
-  it('Les yeux qui piquent : l’adversaire doit relâcher tous ses dés gardés', () => {
+  it('Les yeux qui piquent : annule un Coup qui change des dés (plus de riposte sur les dés gardés)', () => {
     let { s, L, O } = setup();
     const y = give(s, O, 'yeux-piquent');
     s = act(s, L, roll(), [4, 2, 6]);
-    s = act(s, L, roll([true, true, false]));
+    s = act(s, L, roll([true, true, false]), [5]);
+    expect(waitingFor(s)).toEqual([L]); // garder des dés n'ouvre plus de fenêtre de riposte
+    s = act(s, L, play(give(s, L, 'tete-tourne'), { die: 2 }));
     expect(waitingFor(s)).toEqual([O]);
-    s = act(s, O, play(y), [5, 5, 5]);
-    expect(P(s, L).r.dice).toEqual([5, 5, 5]);
-    expect(P(s, L).r.throwsUsed).toBe(2);
+    s = act(s, O, play(y));
+    expect(P(s, L).r.dice).toEqual([4, 2, 5]);
+    // Un Coup qui ne touche pas aux dés : pas de riposte possible avec cette carte.
+    s = act(s, L, play(give(s, L, 'tournee-patron')));
+    expect(waitingFor(s)).toEqual([L]);
   });
 
   it('Gueule de bois : le gagnant n’aura qu’un seul lancer à la manche suivante', () => {

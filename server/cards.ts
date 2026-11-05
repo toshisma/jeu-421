@@ -138,6 +138,9 @@ export interface CfGameReward { userId: string; won: boolean; capsules: number; 
 
 export function createCards(c: CardsCtx) {
   const { store } = c;
+  // Refonte des cartes (0.39) : collections remises à zéro une seule fois, avec sauvegarde.
+  const reset = store.cfResetCollectionsV2();
+  if (reset) console.log(`[cartes] refonte : ${reset} collection(s) remise(s) à zéro (3 boosters à la prochaine visite)`);
   const rng = c.rng ?? cryptoRng;
   const day = () => brusselsDay(c.now());
   const season = () => cfSeasonOf(day());

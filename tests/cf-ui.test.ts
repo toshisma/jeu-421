@@ -72,7 +72,7 @@ describe('contrôleur local contre l’ordinateur', () => {
     const snap = await new Promise<CfSnapshot>((ok) => c.subscribe((s) => { if (s.legal.length) ok(s); }));
     const bot = snap.view.players.find((p) => p.id !== c.me)!;
     expect(bot.hand).toBeUndefined();
-    expect(snap.view.players.find((p) => p.id === c.me)!.hand!.length).toBe(4);
+    expect(snap.view.players.find((p) => p.id === c.me)!.hand!.length).toBe(5);
     expect(snap.seats[1].bot).toBe(true);
   });
 });
@@ -238,17 +238,16 @@ describe('rendu des écrans du mode', () => {
     expect(mull).toContain('Garder ma main');
     s = apply(s, 'a', { type: 'mulligan', cards: [] }).state;
     s = apply(s, 'b', { type: 'mulligan', cards: [] }).state;
-    // Bob garde des dés, Alice peut répondre avec « Les yeux qui piquent ».
+    // Bob retourne un dé avec « Tête qui tourne », Alice peut répondre avec « Les yeux qui piquent ».
     const t = structuredClone(s);
     const bob = t.players.find((p) => p.id === 'b')!;
-    t.stack = [{ kind: 'keep', owner: 'b', keep: [true, true, false], cancelled: false }];
+    t.stack = [{ kind: 'card', owner: 'b', card: { uid: 'tt', id: 'tete-tourne' }, type: 'coup', params: { die: 2 }, cost: 2, cancelled: false, playedBefore: 0, returnsToHand: false, targetIdx: null }];
     t.respond = ['a'];
     bob.r.dice = [4, 2, 6]; bob.r.throwsUsed = 1;
     const alice = t.players.find((p) => p.id === 'a')!;
     alice.hand = [{ uid: 'y1', id: 'yeux-piquent' }]; alice.tournees = 3;
     const resp = renderToString(h(RespondPanel, { v: viewFor(t, 'a'), legal: legalActions(t, 'a'), pending: false, onAct: noop }));
-    expect(resp).toContain('Bob garde des dés');
-    expect(resp).toContain('Bob garde 4-2 et va relancer le reste.');
+    expect(resp).toContain('Tête qui tourne');
     expect(resp).toContain('Vous pouvez riposter');
     expect(resp).toContain('Laisser faire');
     const c = structuredClone(s);

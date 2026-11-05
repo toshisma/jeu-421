@@ -882,6 +882,31 @@ export class Store {
     // Partie guidée du mode récompensée (une seule fois).
     try { this.db.exec('ALTER TABLE cf_players ADD COLUMN tutorial INTEGER NOT NULL DEFAULT 0'); } catch { /* déjà présente */ }
   }
+  /**
+   * Refonte des cartes (0.39, demandée par Sam) : une seule fois, on sauvegarde les collections et
+   * les decks (tables *_backup_v2), puis on remet tout le monde à zéro : plus de cartes, de decks,
+   * d'éclats ni de boosters, et la découverte du mode est à refaire (2 decks de départ + 3 boosters).
+   * Les légendaires au choix gagnées en fin de saison restent à choisir.
+   * Les capsules, la ligue, l'historique, les cosmétiques et les titres sont conservés.
+   * Renvoie le nombre de joueurs remis à zéro (0 si déjà fait).
+   */
+  cfResetCollectionsV2(): number {
+    this.cfInit();
+    if (this.getMeta('cf:reset:v2')) return 0;
+    let n = 0;
+    this.cfTx(() => {
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS cf_cards_backup_v2 AS SELECT * FROM cf_cards;
+        CREATE TABLE IF NOT EXISTS cf_decks_backup_v2 AS SELECT * FROM cf_decks;
+        CREATE TABLE IF NOT EXISTS cf_players_backup_v2 AS SELECT * FROM cf_players;
+      `);
+      n = Number((this.db.prepare('SELECT COUNT(*) AS n FROM cf_players WHERE discovered = 1').get() as { n: number }).n);
+      this.db.exec('DELETE FROM cf_cards; DELETE FROM cf_decks;');
+      this.db.exec('UPDATE cf_players SET discovered = 0, shards = 0, boosters = 0, active_deck = NULL');
+      this.setMeta('cf:reset:v2', String(Date.now()));
+    });
+    return n;
+  }
   /** Transaction du mode cartes, réentrante (une fonction peut en appeler une autre). */
   cfTx<T>(fn: () => T): T {
     this.cfInit();

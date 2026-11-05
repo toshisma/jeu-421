@@ -543,7 +543,7 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
       const big = me.hand!.some((k) => k.id !== 'mise-bouche' && def(k.id).cost >= 2 && def(k.id).type !== 'dernier-mot' && def(k.id).cost - 2 <= me.tournees - def('mise-bouche').cost);
       return big ? 2 * TV + 0.1 : (me.r.played >= 1 ? 0.25 : null);
     }
-    case 'domino': return target ? Math.min(target.tournees, Math.max(1, me.r.played)) * TV * 0.9 : null;
+    case 'domino': return target ? Math.min(target.tournees, 2) * TV * 0.9 : null;
     case 'fermeture': {
       if (!a.habitue) return 2 * CV;
       const h = opps.flatMap((o) => o.habitues).find((x) => x.uid === a.habitue);
@@ -622,7 +622,7 @@ function threatOf(view: CfView, me: CfPlayerView): number {
     case 'cul-sec': return owner.r.throwsUsed >= (owner.throwLimit ?? 3) ? 1.0 : 0.5;
     case 'fermeture': { const h = me.habitues.find((x) => x.uid === top.params.habitue); return h ? (STATIC[h.id] ?? 0.8) + 0.4 : 0.1; }
     case 'fouine': return view.traps.some((t) => t.uid === top.params.trap && t.owner === me.id && t.id !== 'leurre') ? 1.0 : 0.1;
-    case 'domino': return Math.min(me.tournees, owner.r.played - 1) * TV;
+    case 'domino': return Math.min(me.tournees, 2) * TV;
     case 'tournee-patron': return 2 * TV;
     case 'coup-coude': return CV * 0.8;
     case 'calcul-mental': return CV;

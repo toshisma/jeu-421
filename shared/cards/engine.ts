@@ -570,7 +570,7 @@ function settle(c: Ctx) {
     if (L.habitues.some((h) => h.id === 'pilier') && amount > 1) step('Pilier de comptoir', amount - 1);
     if (ev[worst].combo.kind === 'nenette' && amount < s.values.nenetteMin) step('nénette', s.values.nenetteMin);
     let reversed = false;
-    if (amount >= 4) {
+    if (amount >= 5) {
       const t = s.traps.find((x) => x.id === 'retournement-veste' && x.owner === L.id && x.target === W.id);
       if (t && triggerTrap(c, t)) reversed = true;
     }
@@ -673,6 +673,8 @@ export function costOf(_s: CfState, p: CfPlayer, id: string): number {
 }
 
 const diceIdx = [0, 1, 2];
+/** Coups qui changent des dés (Les yeux qui piquent peut les annuler). */
+export const DICE_COUPS = new Set(['tete-tourne', 'coup-pouce', 'bon-numero', 'de-sous-table', 'tournee-generale']);
 
 /** Paramètres possibles pour l'effet d'un Coup (ou d'un Dernier mot), sans tenir compte du coût. */
 function effectOptions(s: CfState, p: CfPlayer, id: string): PlayParams[] {
@@ -739,8 +741,8 @@ function cardOptions(s: CfState, p: CfPlayer, k: CardInst, respond: boolean): Pl
     if (d.type !== 'riposte') return [];
     const top = s.stack[s.stack.length - 1];
     if (!top || top.owner === p.id) return [];
-    if (k.id === 'yeux-piquent') return top.kind === 'keep' ? [{}] : [];
     if (top.kind !== 'card') return [];
+    if (k.id === 'yeux-piquent') return top.type === 'coup' && top.card && DICE_COUPS.has(top.card.id) ? [{}] : [];
     if (k.id === 'ticket-caisse') return top.type === 'coup' && def(top.card.id).cost <= 2 ? [{}] : [];
     if (k.id === 'reaction-chaine') {
       if (top.type === 'habitue' && patronProtects(s, top.owner, d)) return [];
@@ -1066,7 +1068,8 @@ const canPay = (p: CfPlayer, cost: number) => Math.max(0, cost - p.r.discount) <
 export function mightRespond(_s: CfState, p: CfPlayer, top: StackItem): boolean {
   if (top.owner === p.id || p.out) return false;
   const f = p.families;
-  if (top.kind === 'keep') return f.includes('ivresse') && canPay(p, def('yeux-piquent').cost);
+  if (top.kind === 'keep') return false; // 0.39 : plus aucune riposte sur des dés gardés (moins d'interruptions)
+  if (f.includes('ivresse') && top.type === 'coup' && DICE_COUPS.has(top.card.id) && canPay(p, def('yeux-piquent').cost)) return true;
   if (f.includes('chaines') && canPay(p, def('reaction-chaine').cost)) return true;
   return f.includes('habitues') && top.type === 'coup' && def(top.card.id).cost <= 2 && canPay(p, def('ticket-caisse').cost);
 }
@@ -1075,7 +1078,7 @@ export function mightHaveLastword(_s: CfState, p: CfPlayer): boolean {
   if (p.out) return false;
   const f = p.families;
   if (f.includes('habitues') && canPay(p, def('note-salee').cost)) return true;
-  return f.includes('chaines') && p.r.played >= 3 && canPay(p, def('recompter').cost);
+  return f.includes('chaines') && p.r.played >= 1 && canPay(p, def('recompter').cost);
 }
 function refreshRespond(s: CfState) {
   const top = s.stack[s.stack.length - 1];
@@ -1141,15 +1144,7 @@ function resolveCard(c: Ctx, it: Extract<StackItem, { kind: 'card' }>) {
   }
   if (d.type === 'riposte') {
     const target = s.stack[it.targetIdx!];
-    if (id === 'yeux-piquent') {
-      if (target && target.kind === 'keep') {
-        target.keep = [false, false, false];
-        const o = pl(s, target.owner);
-        emit(c, { kind: 'yeux-piquent', player: o.id, who: o.id, text: `Les yeux qui piquent : ${o.name} doit relâcher tous ses dés.`, textYou: 'Les yeux qui piquent : vous devez relâcher tous vos dés.' });
-      }
-    } else if (target) {
-      target.cancelled = true;
-    }
+    if (target) target.cancelled = true;
     if (it.returnsToHand) {
       p.hand.push(it.card);
       emit(c, { kind: 'retour-main', player: p.id, card: id, who: p.id, text: `Réaction en chaîne revient dans la main de ${p.name}.`, textYou: 'Réaction en chaîne revient dans votre main.' });
@@ -1250,7 +1245,7 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
     }
     case 'domino': {
       const o = pl(s, prm.target!);
-      const n = Math.min(o.tournees, Math.max(1, playedBefore));
+      const n = Math.min(o.tournees, 2);
       o.tournees -= n;
       emit(c, { kind: 'effet', player: o.id, card: id, who: o.id, text: `Domino : ${o.name} perd ${plural(n, 'Tournée')}.`, textYou: `Domino : vous perdez ${plural(n, 'Tournée')}.` });
       break;

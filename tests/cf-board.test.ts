@@ -66,7 +66,7 @@ describe('cartes en main : jouable (raison) ou pas (moment / ce qui manque)', ()
     const lw = structuredClone(aliceSecond());
     lw.phase = 'lastword'; lw.players.find((p) => p.id === 'a')!.r.done = true; lw.lastword = { order: ['a', 'b'], idx: 0, passes: 0 };
     const ll = legalActions(lw, 'a');
-    expect(cardHint(viewFor(lw, 'a'), ll, { uid: 'h5', id: 'note-salee' })).toMatchObject({ playable: true, label: '+1 jeton donné' });
+    expect(cardHint(viewFor(lw, 'a'), ll, { uid: 'h5', id: 'note-salee' })).toMatchObject({ playable: true, label: '+2 jetons donnés' });
     expect(cardHint(viewFor(lw, 'a'), ll, { uid: 'h2', id: 'tete-tourne' }).label).toBe('Votre tour');
     expect(decisionBanner(viewFor(lw, 'a'), ll)).toMatchObject({ title: 'Dernier mot', text: 'vous perdez 6-4-2 contre 6-5-3 · jouez une carte ou passez' });
     // Défausse et main de départ.
