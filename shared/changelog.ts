@@ -7,6 +7,12 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.37', date: '2026-11-05T16:15:00+01:00', title: 'Coups Fourrés : un plateau bien plus clair', items: [
+    'Nouvel écran de partie : une frise montre où en est la manche, un bandeau dit quoi faire, et les cartes jouables brillent avec la raison (« 6 → 1 : 4-2-1 ! »).',
+    'Chaque coup de l’adversaire est annoncé en grand et lisible : carte jouée, piège posé face cachée (avec les pièges possibles), piège déclenché et ce qu’il a fait.',
+    'Touchez une carte pour la voir en grand et savoir ce qu’elle ferait maintenant. Les 5 types (Coup, Piège, Riposte, Dernier mot, Habitué) ont chacun leur icône et leur couleur.',
+    'Partie guidée de 3 minutes pour apprendre à jouer (20 capsules la première fois avec un compte), journal de la manche, aide « ? » et partage de vos plus beaux coups.',
+  ] },
   { version: '0.36', date: '2026-11-05T15:35:00+01:00', title: 'Partie rapide et tournoi du samedi', items: [
     'Partie rapide : un bouton sur l’accueil vous place tout de suite à une table. Si personne n’arrive, l’ordinateur complète la table (sans mise ni classement), et un vrai joueur qui arrive prend sa place.',
     'Défi du jour à partager : une petite grille de votre résultat à envoyer à vos amis, sans dévoiler la solution.',
