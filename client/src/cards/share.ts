@@ -228,7 +228,9 @@ export function drawShareImage(ctx: CanvasRenderingContext2D, m: ShareMoment, ar
   ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
   // Petites étoiles du menu du mode
   ctx.fillStyle = 'rgba(214,166,255,0.35)';
-  for (let i = 0; i < 40; i++) { const sx = (i * 397) % W, sy = (i * 211) % H; ctx.beginPath(); ctx.arc(sx, sy, (i % 3) + 1, 0, Math.PI * 2); ctx.fill(); }
+  let seed = 421;
+  const rnd = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
+  for (let i = 0; i < 46; i++) { ctx.beginPath(); ctx.arc(rnd() * W, rnd() * H, 0.8 + rnd() * 1.8, 0, Math.PI * 2); ctx.fill(); }
   // Halo derrière la carte
   const halo = ctx.createRadialGradient(270, 315, 20, 270, 315, 300);
   halo.addColorStop(0, m.kind === 'veste' || m.kind === 'nenette' ? 'rgba(214,166,255,0.55)' : 'rgba(255,211,107,0.5)'); halo.addColorStop(1, 'rgba(0,0,0,0)');
@@ -274,8 +276,11 @@ export function drawShareImage(ctx: CanvasRenderingContext2D, m: ShareMoment, ar
   ctx.fillText('421', tx + 75, py + 40);
   ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = `800 34px ${SANS}`;
   ctx.fillText(SHARE_SITE, tx + 175, py + 30);
-  ctx.fillStyle = '#d6a6ff'; ctx.font = `600 22px ${SANS}`;
-  ctx.fillText('Le 421 aux cartes : bluff, fouine et coups bas', tx + 175, py + 62);
+  ctx.fillStyle = '#d6a6ff';
+  const tag = 'Le 421 aux cartes : bluff, fouine et coups bas';
+  let ts = 22;
+  do { ctx.font = `600 ${ts}px ${SANS}`; } while (ctx.measureText(tag).width > W - tx - 175 - 30 && --ts > 14);
+  ctx.fillText(tag, tx + 175, py + 62);
   ctx.restore();
 }
 

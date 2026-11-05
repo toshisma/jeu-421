@@ -16,7 +16,7 @@ export function LearnHero({ onRules }: { onRules: () => void }) {
   return (
     <button className="cf-learn-hero" onClick={onRules}>
       <span className="cf-learn-hero-ic" aria-hidden>🎓</span>
-      <span><b>Nouveau ? Apprenez à jouer en 3 minutes</b><small>Les règles pas à pas, puis « Bien débuter » plus bas</small></span>
+      <span><b>Nouveau ? Apprenez à jouer en 3 minutes</b><small>Règles, les 34 cartes, conseils et lexique</small></span>
       <Icon name="rules" size={20} />
     </button>
   );
