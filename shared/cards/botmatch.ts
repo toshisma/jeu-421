@@ -52,14 +52,18 @@ export function botToPlay(match: BotMatch): string | null {
   return match.setup.bots.find((b) => waitingFor(match.state).includes(b.id))?.id ?? null;
 }
 export function stepBot(match: BotMatch): CfEvent[] {
+  return stepBotAction(match)?.events ?? [];
+}
+/** Comme stepBot, en disant aussi qui a joué quoi (le client règle sa pause d'après l'action). */
+export function stepBotAction(match: BotMatch): { bot: string; action: CfAction; events: CfEvent[] } | null {
   const id = botToPlay(match);
-  if (!id) return [];
+  if (!id) return null;
   const bot = match.setup.bots.find((b) => b.id === id)!;
   const action = cfDecide(viewFor(match.state, id), legalActions(match.state, id), bot.level, match.aiRng);
   const r = apply(match.state, id, action);
   if (!r.ok) throw new Error(`Action d'ordinateur refusée : ${r.error}`);
   match.state = r.state;
-  return r.events;
+  return { bot: id, action, events: r.events };
 }
 
 /** Action du joueur humain. Les ordinateurs NE jouent PAS automatiquement ensuite (appeler stepBot / advanceBots). */

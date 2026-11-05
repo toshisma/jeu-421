@@ -3,7 +3,7 @@
  * tour adverse, votre tour, riposte, piège déclenché, fiche de carte).
  * Styles : bloc « Coups Fourrés : nouveau plateau » à la fin de styles.css (classes cfn-*).
  */
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { CARD_BY_ID, cardDef, type CardType } from '../../../shared/cards/catalog';
 import type { CfAction, CfEvent, CfPlayerView, CfView, PlayParams } from '../../../shared/cards/engine';
 import { Avatar } from '../ui/Avatar';
@@ -83,9 +83,13 @@ export function HandCard({ id, ok, off, sel, focus, style, onClick, small }: { i
 
 const PILL_BG: Record<string, string> = { ok: '#f1cc7d', cost: 'rgba(255,255,255,.78)', wait: 'rgba(255,255,255,.5)' };
 
-/** Main en éventail : cartes jouables soulevées et dorées, étiquette de raison sous chaque carte. */
-export function Hand({ cards, hints, onPick, sel, focus }: {
-  cards: { uid: string; id: string }[]; hints: Record<string, CardHint>; onPick: (uid: string) => void; sel?: string | null; focus?: boolean;
+/**
+ * Main en éventail : cartes jouables soulevées et dorées, étiquette de raison sous chaque carte.
+ * `quiet` (ce n'est pas à vous) : main grisée, sans étiquettes (la raison reste dans la fiche de la carte).
+ * Mémorisée : le minuteur et les animations ne la redessinent pas.
+ */
+export const Hand = memo(function Hand({ cards, hints, onPick, sel, focus, quiet }: {
+  cards: { uid: string; id: string }[]; hints: Record<string, CardHint>; onPick: (uid: string) => void; sel?: string | null; focus?: boolean; quiet?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(340);
@@ -117,7 +121,7 @@ export function Hand({ cards, hints, onPick, sel, focus }: {
             onClick={() => onPick(k.uid)} />
         );
       })}
-      {cards.map((k, i) => {
+      {!quiet && cards.map((k, i) => {
         const h = hints[k.uid];
         if (!h) return null;
         const ok = h.playable;
@@ -132,7 +136,7 @@ export function Hand({ cards, hints, onPick, sel, focus }: {
       })}
     </div>
   );
-}
+});
 
 /** Frise de la manche (étape en cours en surbrillance dorée). */
 export function Frise({ steps }: { steps: FriseStep[] }) {
@@ -155,6 +159,20 @@ export function TrapBox({ n, seen, sub, onClick, compact }: { n: number; seen: s
   );
 }
 
+/**
+ * Pastille discrète d'un Habitué (vert) ou d'un de mes pièges (violet), dans la barre du joueur :
+ * la petite illustration de la carte ; toucher ouvre sa fiche.
+ */
+export function HabPin({ id, trap, onClick }: { id: string | null; trap?: boolean; onClick: () => void }) {
+  const name = id ? def(id)?.name ?? '' : 'Piège';
+  return (
+    <button className={`cfn-pin${trap ? ' trap' : ''}`} onClick={onClick} aria-label={trap ? `Votre piège posé : ${name}` : `Habitué : ${name}`} title={name}>
+      {id ? <CardArt id={id} /> : <TypeIcon type="piege" size={12} />}
+      <i aria-hidden><TypeIcon type={trap ? 'piege' : 'habitue'} size={8} /></i>
+    </button>
+  );
+}
+
 /** Panneau d'un adversaire (prototype : avatar, nom, deck, jetons, Tournées, cartes en main, pièges, Habitués). */
 export function OppPanel({ p, v, seat, active, compact, refEl, tokRef, onTrap, onCard, emote, focus }: {
   p: CfPlayerView; v: CfView; seat?: CfSeat & { away?: boolean; left?: boolean }; active: boolean; compact: boolean; focus?: boolean;
@@ -163,7 +181,9 @@ export function OppPanel({ p, v, seat, active, compact, refEl, tokRef, onTrap, o
   const traps = v.traps.filter((t) => t.owner === p.id);
   const seen = traps.filter((t) => t.id).map((t) => cardName(t.id));
   const fresh = traps.some((t) => t.posedRound === v.round) && v.order[v.turn] === p.id && v.phase === 'turn';
-  const sub = [seat?.label ? (seat.bot ? `Ordinateur ${seat.label}` : seat.label) : null, p.families.length ? `deck ${familiesLabel(p.families)}` : null].filter(Boolean).join(' · ');
+  // Sous-titre court : niveau de l'ordinateur et familles du deck en abrégé (le détail des pièges
+  // possibles est dans l'encadré des pièges).
+  const sub = [seat?.label ? (seat.bot ? `Ordinateur ${seat.label}` : seat.label) : null, p.families.length ? familiesLabel(p.families).replace(/ \/ /g, '/') : null].filter(Boolean).join(' · ');
   return (
     <section className={`cfn-opp${active ? ' active' : ''}${p.out ? ' out' : ''}${compact ? ' compact' : ''}${focus ? ' cfn-focus-zone' : ''}`} ref={refEl}
       aria-label={`${p.name} : ${plural(p.tokens, 'jeton')}, ${plural(p.tournees, 'Tournée')}, ${plural(p.handCount, 'carte')} en main, ${plural(traps.length, 'piège')} posé${traps.length > 1 ? 's' : ''}`}>
@@ -178,14 +198,10 @@ export function OppPanel({ p, v, seat, active, compact, refEl, tokRef, onTrap, o
       <div className="cfn-row">
         {compact ? <span className="cfn-mini-stat" aria-hidden>🍺 {p.tournees}</span> : <Glasses n={p.tournees} max={v.rules.tourneesMax} />}
         <span className="cfn-backs" aria-hidden>{compact ? <><i className="cfn-bk" /><em>{p.handCount}</em></> : Array.from({ length: Math.min(p.handCount, 7) }, (_, i) => <i key={i} className="cfn-bk" />)}</span>
+        {p.habitues.length > 0 && <span className="cfn-pins">{p.habitues.map((h) => <HabPin key={h.uid} id={h.id} onClick={() => onCard(h.id, p.id)} />)}</span>}
         <span className="cfn-grow" />
-        <TrapBox n={traps.length} seen={seen} sub={fresh ? 'Posé à l’instant' : 'Touchez pour les possibilités'} onClick={onTrap} compact={compact} />
+        <TrapBox n={traps.length} seen={seen} sub={fresh ? 'Posé à l’instant' : 'Touchez pour les possibilités'} onClick={onTrap} compact={compact || p.habitues.length > 0} />
       </div>
-      {p.habitues.length > 0 && (
-        <div className="cfn-row cfn-habs">
-          {p.habitues.map((h) => <button key={h.uid} className="cfn-hab" onClick={() => onCard(h.id, p.id)}><TypeIcon type="habitue" size={12} />{shortName(h.id)}</button>)}
-        </div>
-      )}
     </section>
   );
 }
@@ -502,7 +518,7 @@ export function HelpSheet({ v, onClose, onRules }: { v: CfView; onClose: () => v
             <li><b>Dernier mot</b> : les combinaisons sont posées ; les cartes « Dernier mot » peuvent encore tout changer.</li>
             <li><b>Comptes</b> : le gagnant DONNE au perdant autant de jetons que vaut sa combinaison. Le premier à 0 jeton gagne la partie.</li>
           </ol>
-          <p>Les cartes qui <b className="cfn-gold">brillent</b> sont jouables maintenant ; l’étiquette dit pourquoi. Les autres disent quand elles se jouent ou ce qui manque. Touchez une carte pour la lire en grand.</p>
+          <p>Quand c’est à vous, les cartes qui <b className="cfn-gold">brillent</b> sont jouables maintenant ; l’étiquette dit pourquoi. Les autres disent quand elles se jouent ou ce qui manque. Pendant le tour adverse, la main est grisée. Touchez une carte pour la lire en grand. Le bandeau sous l’adversaire dit toujours ce qui se passe ; les pastilles rondes sont les Habitués en jeu (touchez-les).</p>
           <p><b>L’ardoise</b> (une fois par partie) : {v.rules.ardoiseLoan} Tournées tout de suite, rien à la manche suivante.</p>
         </section>
         <button className="cfn-act ghost full" onClick={onRules}>Règles complètes</button>

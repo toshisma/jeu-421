@@ -66,4 +66,32 @@ export interface CfController {
   leave(): void;
   /** L'écran a fini d'animer et montre la décision au joueur (le minuteur peut partir). */
   ready?(): void;
+  /**
+   * L'écran anime (true) ou est au repos (false). Contre l'ordinateur, la pause « humaine » avant le
+   * coup suivant ne part qu'une fois l'écran au repos : rythme régulier, sans temps mort ni rafale.
+   */
+  screen?(busy: boolean): void;
+}
+
+/**
+ * Attente de l'écran au repos, pour les contrôleurs locaux (ordinateur, partie guidée).
+ * Sans écran abonné (tests) ou si l'écran ne répond plus, on n'attend pas plus de `maxMs`.
+ */
+export class ScreenGate {
+  private busy = false;
+  private waiters: (() => void)[] = [];
+  set(busy: boolean) {
+    this.busy = busy;
+    if (!busy) for (const w of this.waiters.splice(0)) w();
+  }
+  idle(maxMs = 20000): Promise<void> {
+    if (!this.busy) return Promise.resolve();
+    return new Promise<void>((r) => {
+      const t = setTimeout(done, maxMs);
+      const self = this;
+      function done() { clearTimeout(t); self.waiters = self.waiters.filter((w) => w !== done); r(); }
+      this.waiters.push(done);
+    });
+  }
+  release() { this.set(false); }
 }

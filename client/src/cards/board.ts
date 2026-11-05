@@ -148,23 +148,40 @@ export function toBeat(v: CfView): { label: string; who: string } | null {
   return best;
 }
 
+/** « Bébert : 4-2-1 en 2 lancers » (bandeau pendant et après le tour adverse). */
+export function rollLine(name: string, label: string, throws: number): string {
+  return `${name} : ${shortCombo(label)} en ${plural(throws, 'lancer')}`;
+}
+
 export function decisionBanner(v: CfView, legal: CfAction[], spectator = false): Banner {
   const mine = !spectator && legal.length > 0;
   const who = nameIn(v, v.waiting[0]);
   const wait = (text: string): Banner => ({ mine: false, title: '', text, tone: 'wait' });
   if (v.phase === 'over') return wait('Partie terminée');
+  // C'est à moi, mais l'écran finit d'animer : jamais « Vous réfléchit… ».
+  if (!mine && !spectator && v.waiting.includes(v.you)) return wait('À vous dans un instant…');
   switch (v.decision) {
     case 'mulligan':
       return mine ? { mine, title: 'Votre main', text: `Choisissez jusqu’à ${plural(v.rules.mulligan, 'carte')} à changer`, tone: 'gold' } : wait(`${who} choisit sa main… attendez`);
     case 'turn': {
-      if (!mine) return wait(spectator ? `${who} joue…` : v.waiting[0] === v.you ? 'À vous dans un instant…' : `${who} joue… attendez votre tour`);
+      if (!mine) {
+        if (!spectator && v.waiting[0] === v.you) return wait('À vous dans un instant…');
+        // Ce que l'adversaire a sur le tapis (les dés affichés) : même phrase qu'à la fin de son lancer.
+        const tp = playerOf(v, v.waiting[0]);
+        const c = tp && tp.r.throwsUsed > 0 ? comboOf(v, tp) : null;
+        return wait(tp && c ? rollLine(tp.name, c.label, tp.r.throwsUsed) : `${who} joue…`);
+      }
       const p = meOf(v);
       const lim = p.throwLimit ?? v.rules.maxThrows;
       const beat = toBeat(v);
       const lead = beat ? `Battez ${beat.label}` : v.order[0] === p.id ? 'Vous menez' : 'À vous de lancer';
       if (p.r.throwsUsed === 0) return { mine, title: 'À vous !', text: `${lead} · ${plural(lim, 'lancer')} au plus`, tone: 'gold' };
       const left = lim - p.r.throwsUsed;
-      return { mine, title: 'À vous !', text: left > 0 ? `${lead} · encore ${plural(left, 'lancer')} sur ${lim}` : `${lead} · plus de lancer : une carte, ou arrêtez-vous`, tone: 'gold' };
+      const c = comboOf(v, p);
+      const have = c ? `Vous avez ${shortCombo(c.label)} · ` : '';
+      const lead2 = have ? lead.replace(/^Battez/, 'battez').replace(/^Vous menez/, 'vous menez').replace(/^À vous de lancer$/, '') : lead;
+      const head = `${have}${lead2}`.replace(/ · $/, '');
+      return { mine, title: 'À vous !', text: left > 0 ? `${head} · encore ${plural(left, 'lancer')} sur ${lim}` : `${head} · plus de lancer : une carte, ou arrêtez-vous`, tone: 'gold' };
     }
     case 'respond': {
       const top = v.stack[v.stack.length - 1];
@@ -270,9 +287,14 @@ export interface Announce {
   /** Possibilités (piège posé). */
   list?: string[];
 }
-export type PlanStep = { kind: 'dice'; ev: CfEvent; strip?: Announce } | { kind: 'ann'; ann: Announce; ev?: CfEvent };
+/**
+ * Étape à jouer : des dés à animer (`strip` : la phrase du bandeau pendant le lancer ; `after` : la phrase
+ * une fois les dés posés, avec leurs vraies valeurs), ou une annonce.
+ */
+export type PlanStep = { kind: 'dice'; ev: CfEvent; strip?: Announce; after?: Announce } | { kind: 'ann'; ann: Announce; ev?: CfEvent };
 
-export const ANN_MS = { big: 2800, strip: 1500, trap: 3400, comptes: 3200, reveal: 4000 };
+// Durées de lecture (touchez pour passer). Raccourcies le 5 novembre : le jeu doit rester vif.
+export const ANN_MS = { big: 2400, strip: 1300, trap: 3000, comptes: 3000, reveal: 4000 };
 const TRAP_CONSEQ = new Set(['faux-421', 'croche-patte', 'gueule-bois', 'coup-nenette', 'ardoise-piegee', 'piege', 'annule']);
 const noDot = (t: string) => t.replace(/[.!]\s*$/, '');
 
@@ -297,18 +319,24 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
       case 'pioche': case 'pioche-privee': case 'tour': case 'mulligan': case 'fin': case 'calcul':
         continue;
       case 'lancer': {
-        if (mine) { out.push({ kind: 'dice', ev: e }); continue; }
         const kept = (e.dice ?? []).filter((_, j) => e.kept?.[j]);
+        if (mine) {
+          out.push({ kind: 'dice', ev: e, strip: strip(kept.length ? `Vous gardez ${kept.join('-')} et relancez ${plural(3 - kept.length, 'dé')}` : 'Vous lancez les dés', 'info', 0) });
+          continue;
+        }
         const t = kept.length ? `${n} garde ${kept.join('-')} et relance ${plural(3 - kept.length, 'dé')}` : `${n} lance les dés`;
-        out.push({ kind: 'dice', ev: e, strip: strip(t, 'info', 1800) });
+        const pl = playerOf(next, e.player!);
+        const after = pl && e.dice ? strip(rollLine(n, comboWith(next, pl, e.dice).label, e.throwIndex ?? pl.r.throwsUsed), 'info', 900) : undefined;
+        out.push({ kind: 'dice', ev: e, strip: strip(t, 'info', 0), after });
         continue;
       }
       case 'fin-tour': {
-        if (mine) continue;
         const pv = prev ? playerOf(prev, e.player!) : undefined;
         const c = e.dice ? shortCombo(comboWith(next, playerOf(next, e.player!)!, e.dice).label) : '';
+        // Mon arrêt : réponse immédiate dans le bandeau (courte), puis l'adversaire enchaîne.
+        if (mine) { if (c) out.push({ kind: 'ann', ev: e, ann: strip(`Vous vous arrêtez sur ${c}`, 'info', 700) }); continue; }
         const k = pv?.r.throwsUsed;
-        out.push({ kind: 'ann', ev: e, ann: strip(`${n} s’arrête sur ${c}${k ? ` (${plural(k, 'lancer')})` : ''}`, 'info', 1900) });
+        out.push({ kind: 'ann', ev: e, ann: strip(`${n} s’arrête sur ${c}${k ? ` (${plural(k, 'lancer')})` : ''}`, 'info', 1300) });
         continue;
       }
       case 'pose': {
@@ -441,6 +469,22 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
     out.push({ kind: 'ann', ev: e, ann: strip(e.text, e.card ? typeOf(e.card) : e.who === me && me ? 'bad' : 'info') });
   }
   return out;
+}
+
+// ------------------------------------------------------------------------------------------------
+// Dés gardés (comme au 421 classique : la sélection reste d'un lancer à l'autre)
+
+/**
+ * Ma sélection de dés gardés après un événement de dés du moteur : après mon lancer, exactement les
+ * dés que le moteur a gardés (Croche-patte en libère un, Les yeux qui piquent les libèrent tous) ;
+ * un dé relancé par une carte (Dé sous la table, Tournée générale…) n'est plus gardé ; un dé dont la
+ * valeur change (Tête qui tourne, Coup de pouce, Le bon numéro…) garde son état.
+ */
+export function keepAfter(keep: boolean[], e: CfEvent, me: string): boolean[] {
+  if (!me || e.player !== me) return keep;
+  if (e.kind === 'lancer') return e.kept ? [...e.kept] : [false, false, false];
+  if (e.rolled?.length) return keep.map((x, i) => x && !e.rolled!.includes(i));
+  return keep;
 }
 
 // ------------------------------------------------------------------------------------------------

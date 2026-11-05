@@ -8,7 +8,7 @@ import { TUTO_ME } from '../shared/cards/tutorial';
 import { deckList } from '../client/src/cards/local';
 import { TutorialCfController } from '../client/src/cards/tutorial';
 import type { CfSnapshot } from '../client/src/cards/controller';
-import { cardHint, decisionBanner, friseSteps, handHints, planEvents, shortCombo, threatLine, trapPossibilities } from '../client/src/cards/board';
+import { cardHint, decisionBanner, friseSteps, handHints, keepAfter, planEvents, shortCombo, threatLine, trapPossibilities } from '../client/src/cards/board';
 import { AnnounceView, BigCard, Fiche, Hand, HelpSheet, Journal, OppPanel, RespondPanel, TrapSheet } from '../client/src/cards/BoardParts';
 import { TYPE_META, TypeLegend } from '../client/src/cards/cardTypes';
 
@@ -76,11 +76,13 @@ describe('cartes en main : jouable (raison) ou pas (moment / ce qui manque)', ()
     expect(cardHint(viewFor(m, 'a'), [], k).label).toBe('Main de départ');
     expect(decisionBanner(viewFor(m, 'a'), legalActions(m, 'a')).text).toBe('Choisissez jusqu’à 2 cartes à changer');
   });
-  it('bandeau « À vous ! Battez 6-5-3 · encore 1 lancer sur 2 » et attente', () => {
+  it('bandeau « À vous ! Vous avez 6-4-2 · battez 6-5-3 · encore 1 lancer sur 2 » et attente (ce que montre le tapis)', () => {
     const s = aliceSecond();
     s.players.find((p) => p.id === 'a')!.r.throwsUsed = 1;
-    expect(decisionBanner(viewFor(s, 'a'), legalActions(s, 'a'))).toMatchObject({ mine: true, title: 'À vous !', text: 'Battez 6-5-3 · encore 1 lancer sur 2' });
-    expect(decisionBanner(viewFor(s, 'b'), [])).toMatchObject({ mine: false, text: 'Alice joue… attendez votre tour' });
+    expect(decisionBanner(viewFor(s, 'a'), legalActions(s, 'a'))).toMatchObject({ mine: true, title: 'À vous !', text: 'Vous avez 6-4-2 · battez 6-5-3 · encore 1 lancer sur 2' });
+    expect(decisionBanner(viewFor(s, 'b'), [])).toMatchObject({ mine: false, text: 'Alice : 6-4-2 en 1 lancer' });
+    s.players.find((p) => p.id === 'a')!.r.throwsUsed = 0;
+    expect(decisionBanner(viewFor(s, 'b'), [])).toMatchObject({ mine: false, text: 'Alice joue…' });
     expect(shortCombo('421')).toBe('4-2-1');
   });
 });
@@ -116,6 +118,8 @@ describe('file d’annonces', () => {
     expect(steps.map((x) => x.kind)).toEqual(['ann', 'dice']);
     expect(steps[0].kind === 'ann' && steps[0].ann).toMatchObject({ style: 'big', card: 'tete-tourne', kicker: 'Coup' });
     expect(steps[1].kind === 'dice' && steps[1].strip?.title).toBe('Bob garde 6-5 et relance 1 dé');
+    // Le résultat n'est écrit qu'avec les vraies valeurs des dés, une fois posés.
+    expect(steps[1].kind === 'dice' && steps[1].after?.title).toBe('Bob : 6-5-3 en 2 lancers');
   });
   it('piège qui me frappe : « Compris », conséquence en clair, astuce ; riposte qui annule ma carte', () => {
     const steps = planEvents([
@@ -202,5 +206,43 @@ describe('partie guidée sur le nouveau plateau', () => {
     }
     expect(c.current()?.finished?.standings[0]).toBe(TUTO_ME);
     expect(reveals).toBeGreaterThan(0); // le piège de Dédé qui vous frappe demande « Compris »
+  });
+});
+
+describe('dés gardés : la sélection reste d’un lancer à l’autre et suit le moteur', () => {
+  /** Alice garde les dés `keep` et relance ; Bob laisse faire. Renvoie les événements (vus par Alice). */
+  const relance = (s: CfState, keep: boolean[]) => {
+    const r1 = apply(s, 'a', { type: 'roll', keep });
+    expect(r1.ok).toBe(true);
+    let st = r1.state;
+    const events = [...r1.events];
+    if (legalActions(st, 'b').some((x) => x.type === 'pass')) { const r2 = apply(st, 'b', { type: 'pass' }); events.push(...r2.events); st = r2.state; }
+    return { st, events };
+  };
+  const after = (keep: boolean[], events: CfEvent[]) => events.reduce((k, e) => keepAfter(k, e, 'a'), keep);
+  it('après ma relance, les dés que je gardais restent gardés', () => {
+    const s = aliceSecond();
+    s.players.find((p) => p.id === 'a')!.r.throwsUsed = 1;
+    s.traps = [];
+    const { events } = relance(s, [true, false, true]);
+    expect(events.some((e) => e.kind === 'lancer')).toBe(true);
+    expect(after([true, false, true], events)).toEqual([true, false, true]);
+  });
+  it('Croche-patte : le dé qu’il renvoie au lancer n’est plus gardé', () => {
+    const s = aliceSecond();
+    s.players.find((p) => p.id === 'a')!.r.throwsUsed = 1;
+    s.traps = [{ uid: 't9', id: 'croche-patte', owner: 'b', target: 'a', posedRound: s.round, seenBy: ['b'] }];
+    const { events } = relance(s, [true, true, false]);
+    expect(events.some((e) => e.kind === 'croche-patte')).toBe(true);
+    const k = after([true, true, false], events);
+    expect(k.filter(Boolean)).toHaveLength(1);
+    expect(k[2]).toBe(false);
+  });
+  it('Les yeux qui piquent relâchent tout ; un dé relancé par une carte n’est plus gardé ; un dé changé garde son état', () => {
+    expect(keepAfter([true, true, false], { kind: 'lancer', player: 'a', dice: [1, 2, 3], kept: [false, false, false], rolled: [0, 1, 2], text: '' }, 'a')).toEqual([false, false, false]);
+    expect(keepAfter([true, true, false], { kind: 'de-sous-table', player: 'a', dice: [1, 2, 3], rolled: [1], text: '' } as CfEvent, 'a')).toEqual([true, false, false]);
+    expect(keepAfter([true, true, false], { kind: 'tete-tourne', player: 'a', dice: [6, 2, 3], text: '' } as CfEvent, 'a')).toEqual([true, true, false]);
+    // Les dés de l'adversaire ne touchent pas à ma sélection.
+    expect(keepAfter([true, false, false], { kind: 'lancer', player: 'b', dice: [1, 2, 3], kept: [false, false, false], text: '' }, 'a')).toEqual([true, false, false]);
   });
 });

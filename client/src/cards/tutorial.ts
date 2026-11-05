@@ -6,7 +6,7 @@
 import { decisionKind, eventsFor, viewFor, waitingFor, type CfAction, type CfEvent } from '../../../shared/cards/engine';
 import { CF_TUTORIAL_CAPSULES, CfTutorial, TUTO_BOT, TUTO_BOT_NAME, TUTO_ME, TUTO_VISIBLE } from '../../../shared/cards/tutorial';
 import { cfTutorialDone } from './api';
-import type { CfController, CfGuide, CfSeat, CfSnapshot } from './controller';
+import { ScreenGate, type CfController, type CfGuide, type CfSeat, type CfSnapshot } from './controller';
 
 const SEEN = '421.cf.tuto';
 /** Partie guidée déjà vue sur cet appareil (terminée ou passée). */
@@ -73,7 +73,11 @@ export class TutorialCfController implements CfController {
     void this.advance();
   }
 
-  leave() { this.closed = true; markTutorialSeen('passe'); }
+  leave() { this.closed = true; this.gate.release(); markTutorialSeen('passe'); }
+
+  /** L'écran anime (true) ou est au repos (false). */
+  private gate = new ScreenGate();
+  screen(busy: boolean) { this.gate.set(busy); }
 
   /** Fait jouer Dédé tant que c'est à lui (avec des pauses), puis rend la main. */
   private async advance() {
@@ -82,7 +86,9 @@ export class TutorialCfController implements CfController {
     try {
       while (!this.closed && this.run.current?.kind === 'bot') {
         const k = decisionKind(this.run.state);
-        await this.wait(this.run.current.text ? 1500 : k === 'respond' ? 700 : 900);
+        // La pause part quand l'écran a fini d'animer le coup précédent (rythme régulier).
+        if (this.pace > 0) await this.gate.idle();
+        await this.wait(this.run.current.text ? 1500 : k === 'respond' ? 500 : 650);
         if (this.closed) return;
         this.publish(this.run.bot());
       }

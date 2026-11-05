@@ -7,16 +7,18 @@
  *   jouent TOUT ce qu'ils ont à jouer avant que la main revienne au joueur (même ordre qu'advanceBots).
  * - Invité, ou serveur indisponible : graine locale, decks de départ, aucune récompense.
  *
- * Les ordinateurs jouent un pas à la fois, avec de petites pauses naturelles (désactivables pour les tests).
+ * Les ordinateurs jouent un pas à la fois : l'écran finit d'animer le pas précédent, puis une courte pause
+ * « humaine » (selon le coup : presque rien pour un « je laisse faire », un peu plus pour une carte).
+ * Pauses désactivables pour les tests (pace 0).
  */
 import { ApiError } from '../account/api';
 import { cfBotAbandon, cfBotEnd, cfBotStart } from './api';
 import { CARDS, STARTER_DECKS } from '../../../shared/cards/catalog';
 import { buildAutoDeck } from '../../../shared/cards/autodeck';
 import { CF_LEVEL_LABEL, type CfLevel } from '../../../shared/cards/ai';
-import { botToPlay, playMine, startBotMatch, stepBot, type BotMatch, type BotMatchSetup } from '../../../shared/cards/botmatch';
+import { botToPlay, playMine, startBotMatch, stepBotAction, type BotMatch, type BotMatchSetup } from '../../../shared/cards/botmatch';
 import { actionKey, decisionKind, defaultAction, eventsFor, legalActions, viewFor, waitingFor, type CfAction, type CfEvent } from '../../../shared/cards/engine';
-import type { CfController, CfSeat, CfSnapshot } from './controller';
+import { ScreenGate, type CfController, type CfSeat, type CfSnapshot } from './controller';
 
 export const deckList = (d: Record<string, number>) => Object.entries(d).flatMap(([id, n]) => Array<string>(n).fill(id));
 
@@ -173,6 +175,7 @@ export class LocalCfController implements CfController {
     if (this.closed) return;
     this.closed = true;
     this.clearTimer();
+    this.gate.release();
     if (this.gameId && this.token && this.match.state.phase !== 'over') {
       void cfBotAbandon(this.token, this.gameId).catch(() => {});
     }
@@ -186,9 +189,12 @@ export class LocalCfController implements CfController {
     this.running = true;
     try {
       while (!this.closed && botToPlay(this.match)) {
-        await this.pause();
+        const kind = decisionKind(this.match.state);
+        // Le coup est décidé tout de suite (même ordre que le rejeu serveur), puis montré après la pause.
+        const step = stepBotAction(this.match)!;
+        await this.pause(kind, step.action);
         if (this.closed) return;
-        this.publish(stepBot(this.match));
+        this.publish(step.events);
       }
     } finally {
       this.running = false;
@@ -199,16 +205,27 @@ export class LocalCfController implements CfController {
     this.publish([]);
   }
 
+  /** L'écran du joueur anime (true) ou est au repos (false). */
+  private gate = new ScreenGate();
+  screen(busy: boolean) { this.gate.set(busy); }
+
   /**
-   * Pause « humaine » selon ce que l'ordinateur s'apprête à faire : il ne doit jamais enchaîner trop
-   * vite (l'écran annonce aussi chaque action au centre, une par une).
+   * Pause « humaine » avant de montrer le coup de l'ordinateur. Elle part quand l'écran a fini
+   * d'animer le coup précédent : enchaînements réguliers (≈ 0,5 à 0,9 s), jamais de rafale ni de
+   * longue attente. Un simple « je laisse faire » ne fait presque pas attendre.
    */
-  private pause(): Promise<void> {
-    if (this.pace <= 0) return Promise.resolve();
-    const k = decisionKind(this.match.state);
-    const base = k === 'respond' ? 1100 : k === 'lastword' ? 1200 : k === 'mulligan' ? 400 : k === 'discard' ? 700 : 950;
-    const ms = (base + Math.random() * 600) * this.pace;
-    return new Promise((r) => setTimeout(r, ms));
+  private async pause(kind: ReturnType<typeof decisionKind>, action: CfAction): Promise<void> {
+    if (this.pace <= 0) return;
+    await this.gate.idle();
+    let ms: number;
+    if (action.type === 'pass') ms = 150;
+    else if (kind === 'respond' || kind === 'lastword') ms = 700;
+    else if (kind === 'mulligan') ms = 250;
+    else if (kind === 'discard') ms = 400;
+    else if (action.type === 'play') ms = 650 + Math.random() * 250;
+    else if (action.type === 'stop') ms = 450 + Math.random() * 200;
+    else ms = 500 + Math.random() * 250;
+    await new Promise((r) => setTimeout(r, ms * this.pace));
   }
 
   private async finish() {
