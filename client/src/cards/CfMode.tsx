@@ -6,9 +6,10 @@
  * Fonctions communes du jeu gardées à l'identique : Messages, Amis, Notifications, profil.
  * Seuls changent la monnaie (capsules), le classement (ligue du mode) et les parties.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { ProfileApi } from '../account/useProfile';
-import { api, ApiError } from '../account/api';
+import { ApiError } from '../account/api';
+import type { CfFriendPresence } from '../../../shared/cards/protocol';
 import type { Settings } from '../settings';
 import type { DuelPlay } from '../ui/ChallengeScreen';
 import { Avatar } from '../ui/Avatar';
@@ -20,15 +21,15 @@ import { ProfileView } from '../ui/ProfileView';
 import { Sheet } from '../ui/kit';
 import { accessoryEmoji } from '../../../shared/progress/catalog';
 import { sound } from '../audio/sound';
-import { BOOSTER, CARDS, STARTER_DECKS, CAPSULES } from '../../../shared/cards/catalog';
+import { BOOSTER, CARDS, CF_RULES, STARTER_DECKS, CAPSULES } from '../../../shared/cards/catalog';
 import { CF_DIVISIONS, type CfGameView } from '../../../shared/cards/progress';
 import { CF_LEVEL_LABEL, type CfLevel } from '../../../shared/cards/ai';
-import { cfBuyBooster, cfDiscover, cfMe, type CfState } from './api';
+import { cfBuyBooster, cfDiscover, cfFriends, cfMe, type CfState } from './api';
 import { BoosterPack, CardBack, CardView } from './components';
 import { Capsules, DivisionShield, WaitingOverlay, divisionProgress, seasonEndsIn, seasonName, useCfToast } from './cfui';
 import { CF_BOTS, LocalCfController, deckList } from './local';
 import type { CfController } from './controller';
-import { cfPresence, SOON, tryOnline, type CfMatchmaking } from './onlineEntry';
+import { CfOnline, type CfOnlineController } from './online';
 import { CfGame } from './CfGame';
 import { BoosterOpening, CollectionScreen } from './CfCollection';
 import { DeckEditor, DecksScreen } from './CfDecks';
@@ -49,6 +50,8 @@ export interface CfModeProps {
   onLogin: () => void;
   onDuelPlay: (d: DuelPlay) => void;
   onDuels: () => void;
+  /** À faire dès l'ouverture (venu de la liste d'amis) : défier ce pseudo, ou regarder cette partie. */
+  pending?: { challenge?: string; watch?: string };
 }
 
 type Route =
@@ -60,12 +63,12 @@ type Route =
   | { r: 'deck'; id: string | null; cards?: Record<string, number>; name?: string }
   | { r: 'league' }
   | { r: 'rules' }
-  | { r: 'game'; ctrl: CfController; mode: string; again?: () => void };
+  | { r: 'game'; ctrl: CfController; mode: string; again?: () => void; online?: boolean };
 
 type SheetKind = 'bot' | 'friends' | 'boosters' | 'missions' | null;
 
-/** Amis présents dans le mode (route du serveur en ligne ; absente → rien). */
-interface CfFriend { username: string; photo?: string | null; status: 'menu' | 'partie'; code?: string; watchable?: boolean }
+/** Amis présents dans le mode (bandeau « Dédé est dans Coups Fourrés · Défier »). */
+type CfFriend = CfFriendPresence;
 function useCfFriends(token: string | null): CfFriend[] | null {
   const [list, setList] = useState<CfFriend[] | null>(null);
   useEffect(() => {
@@ -73,7 +76,7 @@ function useCfFriends(token: string | null): CfFriend[] | null {
     let stop = false;
     const load = () => {
       if (document.visibilityState !== 'visible') return;
-      api<{ friends: CfFriend[] }>('/cf/friends', { token }).then((r) => { if (!stop) setList(Array.isArray(r.friends) ? r.friends : []); })
+      cfFriends(token).then((f) => { if (!stop) setList(Array.isArray(f) ? f : []); })
         .catch((e) => { if (!stop && e instanceof ApiError && e.status === 404) stop = true; });
     };
     load();
@@ -99,8 +102,10 @@ export function CfMode(props: CfModeProps) {
   const [route, setRoute] = useState<Route>({ r: 'menu' });
   const [sheet, setSheet] = useState<SheetKind>(null);
   const [toast, showToast] = useCfToast();
-  const [waiting, setWaiting] = useState<{ title: string; status: string; code?: string; mm: CfMatchmaking; ranked?: boolean } | null>(null);
+  const [waiting, setWaiting] = useState<{ kind: 'queue' | 'challenge'; title: string } | null>(null);
   const [starting, setStarting] = useState(false);
+  const [online, setOnline] = useState<CfOnline | null>(null);
+  const [, bump] = useReducer((x: number) => x + 1, 0);
 
   const reload = useCallback(async () => {
     if (!pa.token) { setSt(null); return null; }
@@ -108,8 +113,41 @@ export function CfMode(props: CfModeProps) {
   }, [pa.token]);
   useEffect(() => { void reload().then((s) => { if (s && !s.discovered) setRoute({ r: 'discover' }); }); }, [reload]);
 
-  // Présence « Dans Coups Fourrés » tant que le mode est ouvert (module en ligne, s'il existe).
-  useEffect(() => { cfPresence(true); return () => cfPresence(false); }, []);
+  // Connexion « Coups Fourrés en ligne » (comptes) : présence, file classée, défis, tables, reprise.
+  useEffect(() => {
+    if (!pa.token) { setOnline(null); return; }
+    const o = new CfOnline(pa.token);
+    setOnline(o);
+    o.presence(true);
+    const offC = o.onChange(bump);
+    const offG = o.onGame((ctrl) => {
+      setWaiting(null);
+      setSheet(null);
+      sound.unlock();
+      setRoute({ r: 'game', ctrl, mode: modeLabel(ctrl), online: true });
+    });
+    return () => { offC(); offG(); o.presence(false); setTimeout(() => o.close(), 300); };
+  }, [pa.token]);
+  // Messages du serveur (retiré d'une table, défi refusé…).
+  useEffect(() => { if (online?.alert) { showToast(online.alert, 'err'); online.alert = null; } });
+  useEffect(() => {
+    const sc = online?.sentChallenge;
+    if (waiting?.kind === 'challenge' && sc?.closed) {
+      if (sc.closed !== 'accepte') showToast(sc.closed, 'err');
+      online!.sentChallenge = null;
+      setWaiting(null);
+    }
+  });
+
+  // Venu de la liste d'amis : défi ou partie à regarder, dès que la connexion et les decks sont prêts.
+  const pendingDone = useRef(false);
+  useEffect(() => {
+    const pd = props.pending;
+    if (!pd || pendingDone.current || !online?.connected || !st) return;
+    pendingDone.current = true;
+    if (pd.challenge) challenge(pd.challenge);
+    else if (pd.watch) watch(pd.watch);
+  });
 
   const name = pa.session?.username ?? (props.displayName || 'Vous');
   const menu = useCallback(() => { setRoute({ r: 'menu' }); void reload(); }, [reload]);
@@ -128,40 +166,35 @@ export function CfMode(props: CfModeProps) {
         me: { name, avatar: props.avatar, photo: pa.photo, account: pa.session?.username },
       });
       setSheet(null);
-      setRoute({ r: 'game', ctrl, mode: `contre ${CF_BOTS[level].name}`, again: () => void startBot(level, deckId) });
+      setRoute({ r: 'game', ctrl, mode: '', again: () => void startBot(level, deckId) });
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Impossible de lancer la partie.', 'err');
     } finally { setStarting(false); }
   }, [starting, st, pa.token, pa.photo, pa.session, name, props.avatar, showToast]);
 
-  /** Lance une attente en ligne (classée, défi, table) : « Bientôt disponible » si le module manque. */
-  const goOnline = useCallback(async (title: string, mm: Promise<CfMatchmaking | null>, mode: string, ranked = false) => {
-    const m = await mm;
-    if (!m) { showToast(SOON); return; }
-    setSheet(null);
-    setWaiting({ title, status: ranked ? 'Recherche d’un adversaire de votre niveau…' : 'En attente des joueurs…', code: m.code, mm: m, ranked });
-    try {
-      const ctrl = await m.controller;
-      setWaiting(null);
-      setRoute({ r: 'game', ctrl, mode });
-    } catch (e) {
-      setWaiting(null);
-      if (e instanceof Error && e.message) showToast(e.message, 'err');
-    }
-  }, [showToast]);
-  const onStatus = (status: string) => setWaiting((w) => (w ? { ...w, status } : w));
-  const common = () => ({ token: pa.token, deckId: activeDeck?.id ?? null, onStatus });
+  /** Commande en ligne : erreur claire en français si elle échoue. */
+  const tryOnline = useCallback(async (f: (o: CfOnline) => Promise<unknown>): Promise<boolean> => {
+    if (!online) { showToast(acc ? 'Connexion au serveur de jeu en cours…' : 'Les parties en ligne demandent un compte (gratuit).', 'err'); return false; }
+    try { await f(online); return true; } catch (e) { showToast(e instanceof Error ? e.message : 'Action impossible.', 'err'); return false; }
+  }, [online, acc, showToast]);
 
+  const needDeck = () => { if (!activeDeck) { showToast('Il vous faut un deck complet de 20 cartes (Mes decks).', 'err'); return true; } return false; };
   const ranked = () => {
     if (!acc) { showToast('La partie classée demande un compte (gratuit).', 'err'); return; }
-    if (!activeDeck) { showToast('Il vous faut un deck complet de 20 cartes.', 'err'); return; }
-    void goOnline('Partie classée', tryOnline('startRanked', common()), 'classée', true);
+    if (needDeck()) return;
+    sound.unlock();
+    void tryOnline((o) => o.queueJoin(activeDeck!.id)).then((ok) => { if (ok) setWaiting({ kind: 'queue', title: 'Partie classée' }); });
   };
+  const challenge = (username: string) => {
+    if (needDeck()) return;
+    void tryOnline((o) => o.challenge(username, activeDeck!.id)).then((ok) => { if (ok) { setSheet(null); setWaiting({ kind: 'challenge', title: `Défi envoyé à ${username}` }); } });
+  };
+  const watch = (code: string) => void tryOnline((o) => o.watch(code));
 
   // --- écrans ----------------------------------------------------------------------------------
   if (route.r === 'game') {
     return <CfGame key={gameKey(route.ctrl)} controller={route.ctrl} mode={route.mode} settings={props.settings} onSettings={props.onSettings} pa={pa}
-      onExit={() => { menu(); }} onAgain={route.again ? () => { route.again!(); } : undefined}
+      online={route.online ? online : null} onExit={() => { menu(); }} onAgain={route.again ? () => { route.again!(); } : undefined}
       onAccount={props.onAccount} />;
   }
   if (route.r === 'discover' && st) {
@@ -187,39 +220,83 @@ export function CfMode(props: CfModeProps) {
   if (route.r === 'league') return <LeagueScreen token={pa.token} state={st} onState={setSt} onBack={menu} onAccount={props.onAccount} username={pa.session?.username} />;
   if (route.r === 'rules') return <RulesScreen onBack={menu} />;
 
+  const q = online?.queue;
+  const resumeGame = online?.hello?.game && !online.game ? online.hello.game : null;
   return (
     <>
-      <CfMenu {...props} st={st} loadErr={loadErr} name={name}
+      <CfMenu {...props} st={st} loadErr={loadErr} name={name} token={pa.token}
         onBot={() => setSheet('bot')} onFriendsPlay={() => setSheet('friends')} onRanked={ranked}
         onDecks={() => setRoute({ r: 'decks' })} onBoosters={() => setSheet('boosters')} onCollection={() => setRoute({ r: 'collection' })}
         onMissions={() => setSheet('missions')} onLeague={() => setRoute({ r: 'league' })} onRules={() => setRoute({ r: 'rules' })}
-        onChallenge={(u) => void goOnline(`Défi lancé à ${u}`, tryOnline('challengeFriend', { ...common(), username: u }), `contre ${u}`)}
-        onWatch={(f) => void goOnline(`Partie de ${f.username}`, tryOnline('watch', { token: pa.token, username: f.username, code: f.code }), 'spectateur')}
-        onRetry={() => void reload()} />
+        onChallenge={challenge} onWatch={(f) => f.code && watch(f.code)} onRetry={() => void reload()}
+        top={<>
+          {resumeGame && <button className="cf-banner gold" onClick={() => void tryOnline((o) => o.resume(resumeGame.id))}><b>Partie en cours</b><span>{resumeGame.ranked ? 'Classée' : 'Entre amis'} : reprenez-la avant d’être compté absent.</span><em>Reprendre</em></button>}
+          {online?.challenges.map((c) => (
+            <div key={c.id} className="cf-banner duel" role="alert">
+              <span><b>{c.from} vous défie !</b><span>Duel avec votre deck actif{activeDeck ? ` (« ${activeDeck.name} »)` : ''}.</span></span>
+              <button className="cf-btn small ghost" onClick={() => void tryOnline((o) => o.answerChallenge(c.id, false))}>Refuser</button>
+              <button className="cf-btn small gold" onClick={() => { if (!needDeck()) void tryOnline((o) => o.answerChallenge(c.id, true, activeDeck!.id)); }}>Accepter</button>
+            </div>
+          ))}
+        </>} />
       {sheet === 'bot' && <BotSheet st={st} acc={acc} starting={starting} onClose={() => setSheet(null)} onStart={startBot} onAccount={props.onAccount} />}
-      {sheet === 'friends' && <FriendsPlaySheet acc={acc} onClose={() => setSheet(null)} onAccount={props.onAccount}
-        onCreate={() => void goOnline('Table entre amis', tryOnline('createTable', common()), 'entre amis')}
-        onJoin={(code) => void goOnline(`Table ${code}`, tryOnline('joinTable', { ...common(), code }), 'entre amis')}
-        onChallenge={() => { setSheet(null); props.onFriends(); }} />}
+      {sheet === 'friends' && <FriendsPlaySheet acc={acc} token={pa.token} onClose={() => setSheet(null)} onAccount={props.onAccount}
+        onCreate={() => { if (!needDeck()) void tryOnline((o) => o.tableCreate(activeDeck!.id)).then((ok) => ok && setSheet(null)); }}
+        onJoin={(code) => { if (!needDeck()) void tryOnline((o) => o.tableJoin(code, activeDeck!.id)).then((ok) => ok && setSheet(null)); }}
+        onChallenge={challenge} onWatch={watch} onFriends={() => { setSheet(null); props.onFriends(); }} />}
       {sheet === 'boosters' && st && <BoostersSheet st={st} onClose={() => setSheet(null)} onOpen={() => { setSheet(null); setRoute({ r: 'booster' }); }}
         onBuy={async () => {
           try { const r = await cfBuyBooster(pa.token); setSt(r.state); sound.chips(3); showToast('Booster acheté : il vous attend !'); }
           catch (e) { showToast(e instanceof Error ? e.message : 'Achat impossible.', 'err'); }
         }} />}
       {sheet === 'missions' && <Sheet title="Missions du jour" onClose={() => setSheet(null)}><MissionsList st={st} onAccount={props.onAccount} /></Sheet>}
-      {waiting && <WaitingOverlay title={waiting.title} status={waiting.status} code={waiting.code}
-        onCancel={() => { waiting.mm.cancel(); setWaiting(null); }}
-        extra={waiting.ranked ? <LateBot onPlay={() => { waiting.mm.cancel(); setWaiting(null); setSheet('bot'); }} /> : undefined} />}
+      {online?.table && <TableLobby online={online} st={st} me={pa.session?.username ?? ''} onError={(t) => showToast(t, 'err')} />}
+      {waiting?.kind === 'queue' && <WaitingOverlay title={waiting.title} status={q?.text ?? 'Recherche d’un adversaire de votre niveau…'}
+        onCancel={() => { void online?.queueLeave(); setWaiting(null); }}
+        extra={q?.offer ? <button className="cf-btn violet" onClick={() => { void online?.queueLeave(); setWaiting(null); setSheet('bot'); }}>Jouer contre l’ordinateur en attendant</button> : undefined} />}
+      {waiting?.kind === 'challenge' && <WaitingOverlay title={waiting.title} status="En attente de sa réponse…"
+        onCancel={() => { void online?.cancelChallenge(); setWaiting(null); }} />}
       {toast}
     </>
   );
 }
 
-/** Au bout d'une minute de recherche : proposer une partie contre l'ordinateur. */
-function LateBot({ onPlay }: { onPlay: () => void }) {
-  const [show, setShow] = useState(false);
-  useEffect(() => { const t = setTimeout(() => setShow(true), 60_000); return () => clearTimeout(t); }, []);
-  return show ? <button className="cf-btn violet" onClick={onPlay}>Jouer contre l’ordinateur en attendant</button> : null;
+const modeLabel = (c: CfOnlineController) => (c.spectator ? 'spectateur' : c.mode === 'classee' ? 'classée' : c.mode === 'ami' ? 'défi' : 'entre amis');
+
+/** Table privée à code (avant le départ) : joueurs, decks, code à partager, lancer. */
+function TableLobby({ online, st, me, onError }: { online: CfOnline; st: CfState | null; me: string; onError: (t: string) => void }) {
+  const t = online.table!;
+  const host = t.host === me;
+  const mine = t.players.find((p) => p.account === me);
+  const decks = st?.decks.filter((d) => d.valid) ?? [];
+  const run = (f: () => Promise<unknown>) => void f().catch((e) => onError(e instanceof Error ? e.message : 'Action impossible.'));
+  const share = () => {
+    const text = `Rejoignez ma table de Coups Fourrés sur 421online.com : code ${t.code}`;
+    const nav = navigator as Navigator & { share?: (d: { text: string }) => Promise<void> };
+    if (nav.share) void nav.share({ text }).catch(() => {}); else void navigator.clipboard?.writeText(t.code);
+  };
+  return (
+    <div className="cf-wait" role="dialog" aria-modal="true" aria-label="Table entre amis">
+      <div className="cf-wait-card cf-table">
+        <h3>Table entre amis</h3>
+        <button className="cf-table-code" onClick={share} aria-label={`Code ${t.code}, partager`}><small>Code</small><b>{t.code}</b><Icon name="share" size={18} /></button>
+        <ul className="cf-table-list">
+          {t.players.map((p) => (
+            <li key={p.account}>
+              {p.photo ? <Avatar photo={p.photo} size={30} /> : <i>{initials(p.name)}</i>}
+              <span><b>{p.name}{p.host ? ' · hôte' : ''}</b><small>{p.deck ? `Deck « ${p.deck} »` : 'Choisit son deck…'}</small></span>
+              {host && !p.host && <button className="cf-btn small ghost" onClick={() => run(() => online.tableKick(p.account))}>Retirer</button>}
+            </li>
+          ))}
+          {Array.from({ length: Math.max(0, t.max - t.players.length) }, (_, i) => <li key={`v${i}`} className="empty"><i>?</i><span><small>Place libre</small></span></li>)}
+        </ul>
+        {decks.length > 1 && <div className="cf-chips">{decks.map((d) => <button key={d.id} className={mine?.deck === d.name ? 'on' : ''} onClick={() => run(() => online.tableDeck(d.id))}>{d.name}</button>)}</div>}
+        <p>{host ? (t.players.length < 2 ? 'Partagez le code : la partie se lance dès 2 joueurs (4 au plus).' : 'Tout le monde est là ? Lancez la partie.') : 'L’hôte lancera la partie dès que tout le monde est prêt.'}</p>
+        {host && <button className="cf-btn gold big" disabled={t.players.length < 2} onClick={() => run(() => online.tableStart())}>Lancer la partie</button>}
+        <button className="cf-btn ghost" onClick={() => void online.tableLeave()}>Quitter la table</button>
+      </div>
+    </div>
+  );
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -229,6 +306,7 @@ function CfMenu(p: CfModeProps & {
   st: CfState | null; loadErr: string | null; name: string;
   onBot: () => void; onFriendsPlay: () => void; onRanked: () => void; onDecks: () => void; onBoosters: () => void; onCollection: () => void;
   onMissions: () => void; onLeague: () => void; onRules: () => void; onChallenge: (u: string) => void; onWatch: (f: CfFriend) => void; onRetry: () => void;
+  token?: string | null; top?: React.ReactNode;
 }) {
   const { pa, st } = p;
   const acc = pa.isAccount;
@@ -262,6 +340,7 @@ function CfMenu(p: CfModeProps & {
       </header>
 
       <main className="cf-menu-main">
+        {p.top}
         {present.length > 0 && (
           <div className="cf-present">
             <span className="cf-faces" aria-hidden>{present.map((f, i) => f.photo
@@ -343,7 +422,7 @@ function CfMenu(p: CfModeProps & {
           </button>
           <button className="cf-tile classic" onClick={p.onHome}>
             <span className="cf-tile-art" aria-hidden><span className="cf-421">421</span></span>
-            <b>421 classique</b><small>Retour au jeu de base</small>
+            <b>421 classique</b><small>Jeu de base</small>
           </button>
         </div>
 
@@ -400,13 +479,29 @@ function BotSheet({ st, acc, starting, onClose, onStart, onAccount }: { st: CfSt
   );
 }
 
-function FriendsPlaySheet({ acc, onClose, onCreate, onJoin, onChallenge, onAccount }: { acc: boolean; onClose: () => void; onCreate: () => void; onJoin: (code: string) => void; onChallenge: () => void; onAccount: () => void }) {
+function FriendsPlaySheet({ acc, token, onClose, onCreate, onJoin, onChallenge, onWatch, onFriends, onAccount }: {
+  acc: boolean; token: string | null; onClose: () => void; onCreate: () => void; onJoin: (code: string) => void;
+  onChallenge: (u: string) => void; onWatch: (code: string) => void; onFriends: () => void; onAccount: () => void;
+}) {
   const [code, setCode] = useState('');
+  const friends = useCfFriends(token);
   return (
     <Sheet title="Entre amis" onClose={onClose}>
       {!acc && <p className="cf-sheet-note">Les parties entre amis demandent un compte gratuit. <button className="cf-link" onClick={onAccount}>Créer un compte</button></p>}
-      <button className="cf-row-btn" onClick={onChallenge} disabled={!acc}><Icon name="people" size={22} /><span><b>Défier un ami</b><small>Choisissez-le dans votre liste d’amis</small></span></button>
-      <button className="cf-row-btn" onClick={onCreate} disabled={!acc}><Icon name="plus" size={22} /><span><b>Ouvrir une table à code</b><small>De 2 à 4 joueurs · 7 jetons à 3 ou 4</small></span></button>
+      {acc && friends && friends.length > 0 && (
+        <ul className="cf-friend-list">
+          {friends.map((f) => (
+            <li key={f.username}>
+              {f.photo ? <Avatar photo={f.photo} size={30} /> : <i>{initials(f.username)}</i>}
+              <span><b>{f.username}</b><small>{f.status === 'partie' ? 'En partie de Coups Fourrés' : 'Dans Coups Fourrés'}</small></span>
+              {f.status === 'partie' ? (f.watchable && f.code ? <button className="cf-btn small ghost" onClick={() => onWatch(f.code!)}>Regarder</button> : null)
+                : <button className="cf-btn small gold" onClick={() => onChallenge(f.username)}>Défier</button>}
+            </li>
+          ))}
+        </ul>
+      )}
+      <button className="cf-row-btn" onClick={onFriends} disabled={!acc}><Icon name="people" size={22} /><span><b>Défier un ami</b><small>Votre liste d’amis, bouton « Défier »</small></span></button>
+      <button className="cf-row-btn" onClick={onCreate} disabled={!acc}><Icon name="plus" size={22} /><span><b>Ouvrir une table à code</b><small>De 2 à 4 joueurs · {CF_RULES.startTokensMulti} jetons à 3 ou 4</small></span></button>
       <form className="cf-code" onSubmit={(e) => { e.preventDefault(); if (code.trim().length >= 4) onJoin(code.trim().toUpperCase()); }}>
         <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase().slice(0, 8))} placeholder="Code de la table" aria-label="Code de la table" disabled={!acc} autoCapitalize="characters" />
         <button className="cf-btn violet" disabled={!acc || code.trim().length < 4}>Rejoindre</button>

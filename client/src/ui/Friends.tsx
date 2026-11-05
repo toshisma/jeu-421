@@ -9,6 +9,8 @@ import { Icon } from './Icon';
 interface Friend {
   username: string; level: number; me?: boolean; lastSeen: number; online: boolean;
   room: { code: string; status: 'salon' | 'partie'; joinable: boolean; watchable?: boolean } | null;
+  /** Présence dans Coups Fourrés (menu du mode, ou partie qu'on peut regarder). */
+  cf?: { status: 'menu' | 'partie'; code?: string; watchable?: boolean } | null;
 }
 
 /** « Vu il y a 3 h », comme sur Steam. */
@@ -23,7 +25,9 @@ export function seenAgo(t: number, now = Date.now()): string {
 }
 
 /** Écran Amis : qui est en ligne, qui joue, rejoindre son salon d'un clic, voir son profil. */
-export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessage, onWatch }: { pa: ProfileApi; onBack: () => void; onAccount: () => void; onJoin: (code: string) => void; onInvite: (username: string) => void; onMessage?: (username: string) => void; onWatch?: (code: string) => void }) {
+export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessage, onWatch, onCfChallenge, onCfWatch }: { pa: ProfileApi; onBack: () => void; onAccount: () => void; onJoin: (code: string) => void; onInvite: (username: string) => void; onMessage?: (username: string) => void; onWatch?: (code: string) => void;
+  /** Ouvert depuis Coups Fourrés : « Défier » lance un duel du mode cartes, « Regarder » sa partie. */
+  onCfChallenge?: (username: string) => void; onCfWatch?: (code: string) => void }) {
   const [list, setList] = useState<Friend[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -38,7 +42,7 @@ export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessa
       </Shell>
     );
   }
-  const rank = (f: Friend) => (f.room?.joinable ? 0 : f.room ? 1 : f.online ? 2 : 3);
+  const rank = (f: Friend) => (onCfChallenge && f.cf ? -1 : f.room?.joinable ? 0 : f.room ? 1 : f.online ? 2 : 3);
   const sorted = [...(list ?? [])].sort((a, b) => rank(a) - rank(b) || b.lastSeen - a.lastSeen);
   const onlineCount = sorted.filter((f) => f.online).length;
   const active = sorted.filter((f) => f.online || f.room), away = sorted.filter((f) => !f.online && !f.room);
@@ -52,12 +56,16 @@ export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessa
   const row = (f: Friend) => (
     <li key={f.username} className={f.online ? 'on' : ''}>
       <button className="fr-main" onClick={() => setOpen(f.username)} aria-label={`Profil de ${f.username}`}>
-        <Initial name={f.username} dot={f.room ? 'play' : f.online ? 'on' : 'off'} />
+        <Initial name={f.username} dot={f.room || f.cf?.status === 'partie' ? 'play' : f.online ? 'on' : 'off'} />
         <span className="fr-name"><b>{f.username}</b><small>
-          {f.room ? (f.room.status === 'salon' ? 'Dans un salon, en attente' : 'En pleine partie') : f.online ? 'En ligne' : seenAgo(f.lastSeen)}
+          {f.cf ? (f.cf.status === 'partie' ? 'En partie de Coups Fourrés' : 'Dans Coups Fourrés')
+            : f.room ? (f.room.status === 'salon' ? 'Dans un salon, en attente' : 'En pleine partie') : f.online ? 'En ligne' : seenAgo(f.lastSeen)}
           {' · '}niv. {f.level}</small></span>
       </button>
-      {f.room?.joinable ? <button className="btn small primary" onClick={() => onJoin(f.room!.code)}>Rejoindre</button>
+      {onCfChallenge ? (f.cf?.status === 'partie' && f.cf.watchable && f.cf.code && onCfWatch
+        ? <button className="btn small" onClick={() => onCfWatch(f.cf!.code!)}><Icon name="eye" size={16} /> Regarder</button>
+        : <button className="btn small primary" onClick={() => onCfChallenge(f.username)}>Défier</button>)
+        : f.room?.joinable ? <button className="btn small primary" onClick={() => onJoin(f.room!.code)}>Rejoindre</button>
         : f.room?.watchable && onWatch ? <button className="btn small" onClick={() => onWatch(f.room!.code)}><Icon name="eye" size={16} /> Regarder</button>
         : f.online && !f.room ? <button className="btn small primary" onClick={() => onInvite(f.username)}>Inviter</button>
         : onMessage ? <button className="icon-btn" onClick={() => onMessage(f.username)} aria-label={`Écrire à ${f.username}`}><Icon name="chat" size={20} /></button> : null}

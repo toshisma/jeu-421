@@ -9,7 +9,8 @@
  *
  * Les ordinateurs jouent un pas à la fois, avec de petites pauses naturelles (désactivables pour les tests).
  */
-import { api, ApiError } from '../account/api';
+import { ApiError } from '../account/api';
+import { cfBotAbandon, cfBotEnd, cfBotStart } from './api';
 import { CARDS, STARTER_DECKS } from '../../../shared/cards/catalog';
 import { buildAutoDeck } from '../../../shared/cards/autodeck';
 import { CF_LEVEL_LABEL, type CfLevel } from '../../../shared/cards/ai';
@@ -41,8 +42,6 @@ export interface LocalCfOptions {
   /** Graine imposée (tests). */
   seed?: number;
 }
-
-interface StartReply { gameId: string; seed: number; me: { id: string; name: string; deck: string[] }; bots: { id: string; name: string; deck: string[]; level: CfLevel }[] }
 
 /** Deck de l'ordinateur hors serveur : un deck de départ, ou un deck complet pour la Fine fouine. */
 function localBotDeck(level: CfLevel, mine: string[], rnd: () => number): string[] {
@@ -113,7 +112,7 @@ export class LocalCfController implements CfController {
   static async create(o: LocalCfOptions): Promise<LocalCfController> {
     if (o.token) {
       try {
-        const r = await api<StartReply & { ok?: boolean }>('/cf/bot/start', { token: o.token, body: { level: o.level, deckId: o.deckId ?? undefined } });
+        const r = await cfBotStart(o.token, o.level, o.deckId ?? undefined);
         if (r && typeof r.seed === 'number' && r.me && Array.isArray(r.bots) && r.bots.length) {
           return new LocalCfController(o, { seed: r.seed, me: r.me, bots: r.bots }, r.gameId, null);
         }
@@ -165,7 +164,7 @@ export class LocalCfController implements CfController {
     this.closed = true;
     this.clearTimer();
     if (this.gameId && this.token && this.match.state.phase !== 'over') {
-      void api('/cf/bot/abandon', { token: this.token, body: { gameId: this.gameId } }).catch(() => {});
+      void cfBotAbandon(this.token, this.gameId).catch(() => {});
     }
   }
 
@@ -208,8 +207,8 @@ export class LocalCfController implements CfController {
     this.publish([]);
     if (!this.gameId || !this.token) return;
     try {
-      const reward = await api<Record<string, unknown>>('/cf/bot/end', { token: this.token, body: { gameId: this.gameId, actions: this.match.mine } });
-      this.finished = { standings, reward };
+      const r = await cfBotEnd(this.token, this.gameId, this.match.mine);
+      this.finished = { standings, reward: r.reward ?? { note: 'Plafond du jour atteint : pas de capsules pour cette partie.' } };
     } catch (e) {
       this.finished = { standings, reward: { error: e instanceof Error ? e.message : 'Résultat non enregistré.' } };
     }
@@ -222,8 +221,9 @@ export class LocalCfController implements CfController {
     this.clearTimer();
     if (!this.timed || !waitingFor(this.match.state).includes(this.me)) { this.deadline = null; return; }
     this.turnStart = Date.now();
-    this.deadline = this.turnStart + LocalCfController.GRACE + (this.match.state.rules.decisionSeconds + this.reserve) * 1000;
-    this.timer = setTimeout(() => void this.onTimeout(), this.deadline - Date.now());
+    // Comme en ligne : `deadline` = fin des 30 s ; ensuite la réserve s'écoule.
+    this.deadline = this.turnStart + LocalCfController.GRACE + this.match.state.rules.decisionSeconds * 1000;
+    this.timer = setTimeout(() => void this.onTimeout(), this.deadline + this.reserve * 1000 - Date.now());
   }
   private clearTimer() { if (this.timer) clearTimeout(this.timer); this.timer = null; }
   private consumeReserve() {

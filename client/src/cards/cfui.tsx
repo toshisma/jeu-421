@@ -87,7 +87,7 @@ export function WaitingOverlay({ title, status, code, onCancel, extra }: { title
 export function useCfToast(ms = 3200): [React.ReactNode, (text: string, kind?: 'ok' | 'err') => void] {
   const [t, setT] = useState<{ text: string; kind: 'ok' | 'err'; id: number } | null>(null);
   useEffect(() => { if (!t) return; const i = setTimeout(() => setT(null), ms); return () => clearTimeout(i); }, [t, ms]);
-  return [t ? <div key={t.id} className={`cf-toast ${t.kind}`} role={t.kind === 'err' ? 'alert' : 'status'} onClick={() => setT(null)}>{t.text}</div> : null,
+  return [t ? <div key={t.id} className={`cf-toast is-${t.kind}`} role={t.kind === 'err' ? 'alert' : 'status'} onClick={() => setT(null)}>{t.text}</div> : null,
     (text, kind = 'ok') => setT({ text, kind, id: Date.now() })];
 }
 

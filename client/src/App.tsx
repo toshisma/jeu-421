@@ -35,6 +35,7 @@ import { MessagesScreen } from './ui/Messages';
 import { connectMessages } from './messages';
 import { linkVisitor, trackVisit } from './visit';
 import { askConfirm } from './ui/confirm';
+import { CfChallengeBanner } from './cards/ChallengeBanner';
 import { lazyScreen, saveData, whenIdle } from './lazy';
 import { loadTrayScene } from './ui/DiceTray';
 
@@ -67,7 +68,7 @@ type Screen =
   | { name: 'hub'; tab: HubTab }
   | { name: 'friends'; from?: 'cf' }
   | { name: 'messages'; with?: string; from?: 'cf' }
-  | { name: 'cf' }
+  | { name: 'cf'; pending?: { challenge?: string; watch?: string } }
   | { name: 'changelog' }
   | { name: 'online'; mode: OnlineMode }
   | { name: 'watch'; code: string; back: Screen }
@@ -116,6 +117,8 @@ export function App() {
   // Clic sur une notification : l'accueil s'ouvre sur le panneau des notifications.
   // Clic sur une notification de message : la conversation s'ouvre.
   const openPm = useMemo(() => { const v = new URLSearchParams(location.search).get('messages'); if (v) cleanUrl(); return v ? v.slice(0, 20) : null; }, []);
+  // Notification « X vous défie à Coups Fourrés » : le mode s'ouvre, le défi s'y affiche.
+  const openCf = useMemo(() => { const v = new URLSearchParams(location.search).has('cf-defi'); if (v) cleanUrl(); return v; }, []);
   const openNotifs = useMemo(() => { const v = new URLSearchParams(location.search).has('notifs'); if (v) cleanUrl(); return v; }, []);
   // Lien de parrainage : le pseudo du parrain est retenu pour la création du compte.
   useMemo(() => {
@@ -128,7 +131,7 @@ export function App() {
       : watchLink ? { name: 'watch', code: watchLink.toUpperCase(), back: { name: 'home' } }
       : invite ? { name: 'online', mode: { kind: 'join', code: invite.toUpperCase() } }
         : tInvite && settings.name ? { name: 'tournament', mode: { kind: 'join', code: tInvite.toUpperCase() } }
-          : tInvite || tSched ? { name: 'hub', tab: 'tournois' } : openPm ? { name: 'messages', with: openPm } : { name: 'home' });
+          : tInvite || tSched ? { name: 'hub', tab: 'tournois' } : openCf ? { name: 'cf' } : openPm ? { name: 'messages', with: openPm } : { name: 'home' });
   const [resume, setResume] = useState(loadSession);
   // Profil : invité (sur l'appareil) ou compte (sur le serveur). Pas de comptes sans serveur.
   const pa = useProfile(!STANDALONE);
@@ -311,12 +314,14 @@ export function App() {
     case 'changelog':
       return <ChangelogScreen onBack={home} />;
     case 'cf':
-      return <CfMode pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
+      return <CfMode key={JSON.stringify(screen.pending ?? null)} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
         onHome={home} onMessages={() => setScreen({ name: 'messages', from: 'cf' })} onFriends={() => setScreen({ name: 'friends', from: 'cf' })}
         onAccount={() => setScreen({ name: 'account' })} onLogin={() => setScreen({ name: 'account', tab: 'login' })}
         onDuelPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }} onDuels={() => setScreen({ name: 'duels' })} />;
     case 'friends':
-      return <FriendsScreen pa={pa} onBack={screen.from === 'cf' ? () => setScreen({ name: 'cf' }) : home} onAccount={() => setScreen({ name: 'account' })} onJoin={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
+      return <FriendsScreen pa={pa} onBack={screen.from === 'cf' ? () => setScreen({ name: 'cf' }) : home}
+        onCfChallenge={screen.from === 'cf' ? (u) => setScreen({ name: 'cf', pending: { challenge: u } }) : undefined}
+        onCfWatch={screen.from === 'cf' ? (c) => setScreen({ name: 'cf', pending: { watch: c } }) : undefined} onAccount={() => setScreen({ name: 'account' })} onJoin={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
         onInvite={(username) => setScreen({ name: 'online', mode: { kind: 'create', invite: username } })}
         onMessage={(username) => setScreen({ name: 'messages', with: username })}
         onWatch={(code) => setScreen({ name: 'watch', code, back: { name: 'friends' } })} />;
@@ -345,6 +350,7 @@ export function App() {
     <>
       <Suspense fallback={<div className="screen-loading" role="status" aria-label="Chargement…"><span className="spinner" aria-hidden /></div>}>{view}</Suspense>
       {!STANDALONE && <FriendOnlineToast pa={pa} />}
+      {!STANDALONE && !atTable && screen.name !== 'cf' && <CfChallengeBanner pa={pa} onOpen={() => setScreen({ name: 'cf' })} />}
       {!STANDALONE && !atTable && <InviteBanner pa={pa} onJoin={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })} />}
     </>
   );

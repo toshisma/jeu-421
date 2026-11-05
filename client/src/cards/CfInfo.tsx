@@ -62,7 +62,7 @@ export function LeagueScreen({ token, state, onState, onBack, onAccount, usernam
         </section>
       )}
       <Divisions current={me?.division} />
-      <section className="cf-top">
+      <section className="cf-top50">
         <h3>Les 50 meilleurs</h3>
         {err && <p className="cf-err">{err}</p>}
         {!board && !err && <p className="cf-muted">Chargement…</p>}

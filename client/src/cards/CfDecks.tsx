@@ -18,6 +18,9 @@ import { FAMILY_STYLE, FAMILY_SHORT } from './meta';
 import { CfShell, useCfToast } from './cfui';
 import { deckAlerts, deckStats } from './describe';
 
+/** Largeur de l'écran (360 hors navigateur, pour le rendu serveur des tests). */
+const vw = () => (typeof window !== 'undefined' ? window.innerWidth : 360);
+
 type Tok = string | null;
 const FAMS: CardFamily[] = ['habitues', 'ivresse', 'pieges', 'chaines'];
 const TYPES: CardType[] = ['coup', 'piege', 'riposte', 'dernier-mot', 'habitue'];
@@ -269,7 +272,7 @@ export function DeckEditor({ token, state, onState, deckId, initial, initialName
           );
         })}
       </div>
-      {zoom && <div className="cf-zoom" role="dialog" aria-modal="true" onClick={() => setZoom(null)}><CardView id={zoom} width={Math.min(260, window.innerWidth - 60)} /><button className="cf-btn ghost">Fermer</button></div>}
+      {zoom && <div className="cf-zoom" role="dialog" aria-modal="true" onClick={() => setZoom(null)}><CardView id={zoom} width={Math.min(260, vw() - 60)} /><button className="cf-btn ghost">Fermer</button></div>}
       {toast}
     </CfShell>
   );

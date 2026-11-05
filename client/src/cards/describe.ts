@@ -290,7 +290,7 @@ export function decisionLine(v: CfView): string {
     case 'turn': {
       if (!mine) return `${who} joue…`;
       const p = meOf(v);
-      if (p.r.throwsUsed === 0) return 'À vous : lancez les dés (cartes jouables avant ou après).';
+      if (p.r.throwsUsed === 0) return 'À vous : lancez les dés.';
       const left = (p.throwLimit ?? 0) - p.r.throwsUsed;
       return left > 0 ? `Touchez un dé pour le garder · encore ${plural(left, 'lancer')}` : 'Plus de lancer : jouez une carte ou arrêtez-vous.';
     }

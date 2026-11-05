@@ -176,3 +176,94 @@ describe('ce que fait une carte ici et maintenant', () => {
     expect(eventTone({ kind: 'comptes', text: '' })).toBe('comptes');
   });
 });
+
+// ---------------------------------------------------------------------------------------------
+// Rendu serveur des écrans principaux (aucune erreur, textes attendus)
+import { createElement as h } from 'react';
+import { renderToString as rts } from 'react-dom/server';
+const renderToString = (el: Parameters<typeof rts>[0]) => rts(el).replace(/<!-- -->/g, '');
+import { CollectionScreen, BoosterOpening, extrasOf } from '../client/src/cards/CfCollection';
+import { DecksScreen, DeckEditor } from '../client/src/cards/CfDecks';
+import { LeagueScreen, RulesScreen, MissionsList } from '../client/src/cards/CfInfo';
+import { CfMode } from '../client/src/cards/CfMode';
+import { EndScreen, Mulligan, RespondWindow, ChoiceWindow } from '../client/src/cards/CfGame';
+import { CARDS } from '../shared/cards/catalog';
+import { cfDailyMissions, type CfState as CfPlayerState } from '../shared/cards/progress';
+import { deckAlerts, deckStats } from '../client/src/cards/describe';
+
+const noop = () => {};
+function fakeState(): CfPlayerState {
+  const collection = Object.fromEntries(CARDS.map((c, i) => [c.id, { count: i % 5 === 0 ? 0 : 1 + (i % 3), shiny: i === 4 ? 1 : 0 }]));
+  return {
+    discovered: true, capsules: 140, shards: 85, boosters: 2, legendPicks: 0, collection,
+    decks: [{ id: 'd1', name: 'Le Zinc', cards: STARTER_DECKS[0].cards, valid: true, problems: [], createdAt: 1, updatedAt: 1 }],
+    activeDeck: 'd1', cosmetics: [], titles: [],
+    missions: cfDailyMissions('2026-11-05').map((m, i) => ({ ...m, progress: i, done: i >= m.target })),
+    botCapsulesToday: 3, firstWinToday: false,
+    league: { season: '2026-11', endsOn: '2026-12-01', points: 512, best: 512, floor: 300, division: 'bistrot', games: 9, wins: 6, rank: 12 },
+    history: [{ opponent: 'Dédé', vsBot: false, ranked: true, result: 'victoire', points: 24, capsules: 15, at: 1 }],
+  };
+}
+const guestPa = { isAccount: false, token: null, session: null, photo: null, profile: { equipped: {} }, isBlocked: () => false } as never;
+
+describe('rendu des écrans du mode', () => {
+  it('menu du mode (invité) : boutons, tuiles, invitation à créer un compte', () => {
+    const html = renderToString(h(CfMode, { pa: guestPa, settings: { name: '', avatar: '🎩' } as never, onSettings: noop, avatar: '🎩', displayName: '',
+      onHome: noop, onMessages: noop, onFriends: noop, onAccount: noop, onLogin: noop, onDuelPlay: noop, onDuels: noop }));
+    for (const t of ['Coups Fourrés', 'Partie classée', 'Contre l’ordinateur', 'Entre amis', 'Mes decks', 'Boosters', 'Collection', 'Missions', 'Classement', '421 classique', 'Règles', 'Connexion', 'sans rien gagner']) expect(html).toContain(t);
+  });
+
+  it('collection, decks, éditeur, classement, règles, missions, booster', () => {
+    const st = fakeState();
+    const coll = renderToString(h(CollectionScreen, { token: 't', state: st, onState: noop, onBack: noop, onAccount: noop }));
+    expect(coll).toContain('Recycler tous les doublons en trop');
+    expect(coll).toContain(`${CARDS.filter((c) => st.collection[c.id].count > 0).length}/34 cartes`);
+    expect(extrasOf(st.collection).copies).toBeGreaterThan(0);
+    expect(renderToString(h(CollectionScreen, { token: null, state: null, onState: noop, onBack: noop, onAccount: noop }))).toContain('Créer un compte');
+    expect(renderToString(h(DecksScreen, { token: 't', state: st, onState: noop, onBack: noop, onAccount: noop, onEdit: noop }))).toContain('Construire automatiquement');
+    const ed = renderToString(h(DeckEditor, { token: 't', state: st, onState: noop, deckId: null, initial: { 'bon-numero': 2, 'tournee-generale': 1, 'double-tournee': 2, 'de-sous-table': 2, fermeture: 1 }, onBack: noop }));
+    expect(ed).toContain('Trop cher');
+    expect(ed).toContain('Encore 12 cartes');
+    expect(renderToString(h(LeagueScreen, { token: null, state: null, onState: noop, onBack: noop, onAccount: noop }))).toContain('Grand Café');
+    const rules = renderToString(h(RulesScreen, { onBack: noop }));
+    expect(rules).toContain('11 jetons');
+    expect(rules).toContain('Dernier mot');
+    expect(renderToString(h(MissionsList, { st, onAccount: noop }))).toContain('capsules');
+    expect(renderToString(h(BoosterOpening, { token: 't', state: st, onState: noop, onDone: noop, onCollection: noop }))).toContain('Touchez le booster');
+  });
+
+  it('fenêtres de partie : main de départ, riposte, choix, fin', () => {
+    let s = newGame({}, [{ id: 'a', name: 'Alice', deck: deckList(STARTER_DECKS[0].cards) }, { id: 'b', name: 'Bob', deck: deckList(STARTER_DECKS[1].cards) }], 8);
+    const mull = renderToString(h(Mulligan, { v: viewFor(s, 'a'), legal: legalActions(s, 'a'), pending: false, onAct: noop }));
+    expect(mull).toContain('Garder ma main');
+    s = apply(s, 'a', { type: 'mulligan', cards: [] }).state;
+    s = apply(s, 'b', { type: 'mulligan', cards: [] }).state;
+    // Bob garde des dés, Alice peut répondre avec « Les yeux qui piquent ».
+    const t = structuredClone(s);
+    const bob = t.players.find((p) => p.id === 'b')!;
+    t.stack = [{ kind: 'keep', owner: 'b', keep: [true, true, false], cancelled: false }];
+    t.respond = ['a'];
+    bob.r.dice = [4, 2, 6]; bob.r.throwsUsed = 1;
+    const alice = t.players.find((p) => p.id === 'a')!;
+    alice.hand = [{ uid: 'y1', id: 'yeux-piquent' }]; alice.tournees = 3;
+    const resp = renderToString(h(RespondWindow, { v: viewFor(t, 'a'), legal: legalActions(t, 'a'), pending: false, onAct: noop }));
+    expect(resp).toContain('Bob garde 2 dés : répondre ?');
+    expect(resp).toContain('Laisser passer');
+    const c = structuredClone(s);
+    c.choice = { kind: 'calcul', player: 'a', cards: [{ uid: 'c1', id: 'cul-sec' }, { uid: 'c2', id: 'fouine' }, { uid: 'c3', id: 'leurre' }] };
+    expect(renderToString(h(ChoiceWindow, { v: viewFor(c, 'a'), legal: legalActions(c, 'a'), pending: false, onAct: noop }))).toContain('Calcul mental');
+    const snap = { view: viewFor(s, 'a'), legal: [], waitingFor: [], seats: [], finished: { standings: ['a', 'b'], reward: { capsules: 3, booster: true, points: 0, missions: ['jouer-2'] } } };
+    const end = renderToString(h(EndScreen, { snap, v: snap.view, me: 'a', onExit: noop, onAccount: noop, bot: true, guest: false, rewarded: true, ranked: false, spectator: false }));
+    expect(end).toContain('Victoire !');
+    expect(end).toContain('première victoire du jour');
+    expect(end).toContain('mission');
+  });
+
+  it('statistiques et conseils de deck', () => {
+    const st = deckStats(STARTER_DECKS[1].cards);
+    expect(st.total).toBe(20);
+    expect(st.curve.reduce((a, b) => a + b, 0)).toBe(20);
+    expect(deckAlerts(STARTER_DECKS[1].cards).filter((a) => a.level === 'bloque')).toEqual([]);
+    expect(deckAlerts({ 'cul-sec': 2, 'tete-tourne': 2, 'pari-comptoir': 2, 'double-tournee': 2, 'de-sous-table': 2, 'gueule-bois': 2 }).map((a) => a.text).join(' ')).toMatch(/Sans parade/);
+  });
+});

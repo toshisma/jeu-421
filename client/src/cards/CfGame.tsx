@@ -22,14 +22,19 @@ import { DiceTray, type DiceTrayHandle } from '../ui/DiceTray';
 import { flyTokens } from '../ui/flyTokens';
 import { Sheet } from '../ui/kit';
 import type { CfController, CfSeat, CfSnapshot } from './controller';
-import { CardBack, CardView, HandFan, MiniCard, TrapBack } from './components';
+import type { CfOnline } from './online';
+import { CfChatButton } from './CfChat';
+import { CapsuleIcon, CardBack, CardView, HandFan, MiniCard, TrapBack } from './components';
 import { FAMILY_SHORT } from './meta';
-import { Capsules, Pip } from './cfui';
+import { Pip } from './cfui';
 import {
   comboOf, costNow, decisionLine, describeNow, eventTone, isBigShot, isHeadline, meOf, nameIn, nextParam,
   paramQuestion, phaseLine, playOptions, playableUids, plural, rerollLabel, resolveOption, valuesFor, whyNot, type ParamKey,
 } from './describe';
 import { RulesContent } from './CfInfo';
+
+/** Largeur de l'écran (360 hors navigateur, pour le rendu serveur des tests). */
+const vw = () => (typeof window !== 'undefined' ? window.innerWidth : 360);
 
 interface Props {
   controller: CfController;
@@ -41,6 +46,8 @@ interface Props {
   onExit: () => void;
   onAgain?: () => void;
   onAccount: () => void;
+  /** Session en ligne (tchat de table, réactions), pour une partie en ligne. */
+  online?: CfOnline | null;
 }
 
 const NO_KEEP = [false, false, false];
@@ -54,10 +61,12 @@ interface Fly { key: number; ms: number; cardId: string | null; kind: 'card' | '
 interface Headline { key: number; text: string; tone: string }
 interface LogLine { key: number; text: string; tone: string; round: number }
 
-export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onAgain, onAccount }: Props) {
-  const me = controller.me;
+export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onAgain, onAccount, online }: Props) {
   const tray = useRef<DiceTrayHandle>(null);
   const [snap, setSnap] = useState<CfSnapshot | null>(null);
+  const spectator = !!(controller as { spectator?: boolean }).spectator;
+  // Spectateur : on regarde la partie du point de vue du premier joueur (sans voir sa main).
+  const me = snap && !snap.view.players.some((p) => p.id === controller.me) ? snap.view.players[0]?.id ?? controller.me : controller.me;
   const snapRef = useRef<CfSnapshot | null>(null);
   const [animating, setAnimating] = useState(false);
   const queue = useRef<{ snap: CfSnapshot; events: CfEvent[] }[]>([]);
@@ -92,6 +101,29 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   useEffect(() => {
     const n = (controller as { notice?: string | null }).notice;
     if (n) setTimeout(() => { if (alive.current) setHeadline({ key: Date.now(), text: n, tone: 'info' }); }, 400);
+  }, [controller]);
+  // Avis du serveur (joueur déconnecté, action automatique…) et réactions.
+  const seenNotices = useRef(0);
+  const [, bump] = useState(0);
+  useEffect(() => {
+    if (!online) return;
+    return online.onChange(() => {
+      const n = (controller as { notices?: string[] }).notices ?? [];
+      if (n.length > seenNotices.current) { setHeadline({ key: Date.now(), text: n[n.length - 1], tone: 'info' }); }
+      seenNotices.current = n.length;
+      bump((x) => x + 1);
+    });
+  }, [online, controller]);
+  const [emotes, setEmotes] = useState<Record<string, { e: string; k: number }>>({});
+  useEffect(() => {
+    const c = controller as { onEmote?: (cb: (pid: string, e: string) => void) => () => void };
+    if (!c.onEmote) return;
+    return c.onEmote((pid, e) => {
+      const k = Date.now() + Math.random();
+      setEmotes((m) => ({ ...m, [pid]: { e, k } }));
+      sound.click();
+      setTimeout(() => setEmotes((m) => { if (m[pid]?.k !== k) return m; const n = { ...m }; delete n[pid]; return n; }), 2600);
+    });
   }, [controller]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2800); return () => clearTimeout(t); }, [toast]);
   useEffect(() => { if (!headline) return; const t = setTimeout(() => setHeadline((h) => (h?.key === headline.key ? null : h)), 2600); return () => clearTimeout(t); }, [headline]);
@@ -222,8 +254,8 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   // ----------------------------------------------------------------------------------------------
   const v = snap?.view ?? null;
   const legal = useMemo(() => (snap && !animating ? snap.legal : []), [snap, animating]);
-  const mine = legal.length > 0 && !pending;
-  const meP = v ? meOf(v) : null;
+  const mine = legal.length > 0 && !pending && !spectator;
+  const meP = v ? v.players.find((p) => p.id === me) ?? null : null;
   const decision = v?.decision ?? null;
   const myTurn = mine && decision === 'turn';
   const canKeep = myTurn && !!meP && meP.r.throwsUsed > 0 && legal.some((a) => a.type === 'roll');
@@ -234,6 +266,9 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   useEffect(() => { if (!mine) setJosiane(false); }, [mine]);
   useEffect(() => { if (mine && (decision === 'turn' && meP?.r.throwsUsed === 0 || decision === 'respond' || decision === 'lastword')) sound.turn(); }, [mine, decision]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Fenêtre de réponse sans aucune carte jouable (en ligne, toutes les fenêtres durent pareil) : on passe tout seul.
+  const onlyPass = mine && (decision === 'respond' || decision === 'lastword') && legal.length === 1 && legal[0].type === 'pass';
+  useEffect(() => { if (onlyPass) { const t = setTimeout(() => void controller.act({ type: 'pass' }), 350); return () => clearTimeout(t); } }, [onlyPass, controller, snap]);
   const selCard = sel ? meP?.hand?.find((k) => k.uid === sel) ?? null : null;
   const selOpts = useMemo(() => (sel ? playOptions(legal, sel) : []), [legal, sel]);
   const nextKey: ParamKey | null = selOpts.length ? nextParam(selOpts, chosen) : null;
@@ -281,19 +316,25 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
 
   // Minuteur de décision et réserve.
   const deadline = snap?.deadline ?? null;
-  useEffect(() => { if (!deadline) return; const t = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(t); }, [deadline]);
+  const rwUntil = snap?.responseWindow?.until ?? null;
+  useEffect(() => { if (!deadline && !rwUntil) return; const t = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(t); }, [deadline, rwUntil]);
   const reserve = snap?.reserve?.[me] ?? 0;
-  const left = deadline ? Math.max(0, (deadline - now) / 1000) : null;
-  const decisionLeft = left !== null ? Math.min(CF_RULES.decisionSeconds, Math.ceil(left - reserve)) : null;
-  const inReserve = left !== null && decisionLeft !== null && decisionLeft <= 0;
-  const clock = left === null || !mine ? null : inReserve ? { text: `Réserve ${Math.ceil(left)} s`, low: true, pct: (100 * left) / Math.max(1, reserve) } : { text: `${decisionLeft} s`, low: (decisionLeft ?? 0) <= 8, pct: (100 * (decisionLeft ?? 0)) / CF_RULES.decisionSeconds };
+  // `deadline` = fin des 30 s de la décision ; ensuite la réserve de la partie s'écoule.
+  const left = deadline ? (deadline - now) / 1000 : null;
+  const inReserve = left !== null && left <= 0;
+  const reserveLeft = left !== null ? Math.max(0, reserve + Math.min(0, left)) : 0;
+  const clock = left === null || !mine ? null : inReserve
+    ? { text: `Réserve ${Math.ceil(reserveLeft)} s`, low: true, pct: (100 * reserveLeft) / Math.max(1, CF_RULES.reserveSeconds) }
+    : { text: `${Math.min(CF_RULES.decisionSeconds, Math.ceil(left))} s`, low: left <= 8, pct: (100 * left) / CF_RULES.decisionSeconds };
+  const tickSec = clock ? Math.ceil(inReserve ? reserveLeft : left!) : 0;
   const lastTick = useRef(0);
-  useEffect(() => { const s = clock ? Math.ceil(inReserve ? left! : decisionLeft!) : 0; if (clock && s <= 5 && s > 0 && lastTick.current !== s) { lastTick.current = s; sound.tick(); } }, [clock, left, decisionLeft, inReserve]);
+  useEffect(() => { if (clock && tickSec <= 5 && tickSec > 0 && lastTick.current !== tickSec) { lastTick.current = tickSec; sound.tick(); } }, [clock, tickSec]);
 
   const leave = async () => {
     const over = !!snap?.finished || v?.phase === 'over';
     if (!over && !(await askConfirm(controller.ranked ? 'Quitter ? La partie classée compte comme une défaite.' : 'Abandonner la partie en cours ?', 'Quitter'))) return;
-    controller.leave();
+    const c = controller as { close?: () => void };
+    if (over && c.close) c.close(); else controller.leave();
     onExit();
   };
 
@@ -316,7 +357,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const turnP = turnId ? v.players.find((p) => p.id === turnId) ?? null : null;
   const myCombo = comboOf(v, meP);
   const discardMode = mine && decision === 'discard';
-  const lastwordMine = mine && decision === 'lastword';
+  const lastwordMine = mine && decision === 'lastword' && !onlyPass;
   const respondMine = mine && decision === 'respond';
   const choiceMine = mine && decision === 'choice';
   const mulliganMine = mine && decision === 'mulligan';
@@ -368,13 +409,14 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         <button className="cf-ib" onClick={leave} aria-label="Quitter la partie"><Icon name="close" size={18} /></button>
         <div className="cf-phase"><b>CF</b><span>{phaseLine(v, mode)}</span></div>
         <button className="cf-ib" onClick={() => setLogOpen(true)} aria-label="Journal de la manche"><Icon name="history" size={18} /></button>
+        {online && <CfChatButton controller={controller} pa={pa} />}
         <button className="cf-ib" onClick={() => setRulesOpen(true)} aria-label="Règles"><Icon name="rules" size={18} /></button>
         <VolumeControl settings={settings} onSettings={onSettings} />
       </div>
 
       <div className={`cf-opps n${opps.length}`}>
         {opps.map((o) => (
-          <OppPanel key={o.id} p={o} v={v} seat={seat(o.id)} active={turnId === o.id || v.waiting.includes(o.id)} compact={opps.length > 1}
+          <OppPanel key={o.id} p={o} v={v} seat={seat(o.id)} emote={emotes[o.id]?.e} active={turnId === o.id || v.waiting.includes(o.id)} compact={opps.length > 1}
             refEl={(el) => { panels.current[o.id] = el; }} onHabitue={(id) => setZoom({ id, owner: o.id })} />
         ))}
       </div>
@@ -383,6 +425,9 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         <DiceTray ref={tray} appearance={pa.profile.equipped} quality={settings.quality} onDieClick={onDie} cup={settings.cup} />
         {strip}
         {lastwordMine && <div className="cf-lastword-tag">Dernier mot</div>}
+        {snap.responseWindow && snap.responseWindow.player !== me && snap.responseWindow.until > now && !headline && (
+          <div className="cf-respwin" role="status">{snap.responseWindow.kind === 'lastword' ? 'Dernier mot possible' : 'Réponse possible'} : {nameIn(v, snap.responseWindow.player)}… <b>{Math.ceil((snap.responseWindow.until - now) / 1000)} s</b></div>
+        )}
         <div className="cf-tray-chip">
           {turnP && turnP.id !== me ? <span><b>{turnP.name}</b>{turnP.r.throwsUsed ? ` : ${comboOf(v, turnP)?.label ?? ''}` : ' va lancer'}</span>
             : myCombo ? <span>Vous : <b>{myCombo.label}</b>{myTurn && throwsLeft !== null ? ` · ${throwsLeft > 0 ? `encore ${plural(throwsLeft, 'lancer')}` : 'plus de lancer'}` : ` · vaut ${myCombo.value}`}</span>
@@ -394,7 +439,9 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       <div className="cf-hand-zone" ref={handRef}>
         {preview}
         {mine && (discardMode || lastwordMine) && !selCard && <div className="cf-hand-tip">{discardMode ? `Main pleine : touchez une carte à défausser (${hand.length}/${v.rules.handMax}).` : 'Dernier mot : jouez une carte « Dernier mot » ou passez.'}</div>}
-        {hand.length > 0 ? (
+        {spectator ? (
+          <div className="cf-spect-hand"><span className="cf-backs">{Array.from({ length: Math.min(meP.handCount, 8) }, (_, i) => <CardBack key={i} width={30} />)}</span><small>Vous regardez la partie · main de {meP.name} cachée</small></div>
+        ) : hand.length > 0 ? (
           <HandFan className="cf-hand">
             {hand.map((k) => (
               <MiniCard key={k.uid} id={k.id} playable={playable.has(k.uid)} disabled={!playable.has(k.uid) && !discardMode && mine && decision !== 'mulligan'} selected={sel === k.uid}
@@ -435,17 +482,17 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
           <div className="bs-who">{nameIn(v, bigShot.who)}</div>
         </div>
       )}
-      {toast && <div key={toast.key} className="cf-toast err" role="alert">{toast.text}</div>}
+      {toast && <div key={toast.key} className="cf-toast is-err" role="alert">{toast.text}</div>}
 
       {mulliganMine && <Mulligan v={v} legal={legal} pending={pending} onAct={act} clock={clock?.text} />}
-      {respondMine && <RespondWindow v={v} legal={legal} pending={pending} onAct={act} clock={clock?.text} />}
+      {respondMine && !onlyPass && <RespondWindow v={v} legal={legal} pending={pending} onAct={act} clock={clock?.text} />}
       {choiceMine && <ChoiceWindow v={v} legal={legal} pending={pending} onAct={act} />}
-      {(snap.finished || v.phase === 'over') && !animating && <EndScreen snap={snap} v={v} me={me} onExit={() => { controller.leave(); onExit(); }} onAgain={onAgain} onAccount={onAccount}
-        bot={controller.kind === 'bot'} guest={!pa.isAccount} rewarded={(controller as { rewarded?: boolean }).rewarded ?? controller.kind === 'online'} />}
+      {(snap.finished || v.phase === 'over') && !animating && <EndScreen snap={snap} v={v} me={me} onExit={() => { const c = controller as { close?: () => void }; if (c.close) c.close(); else controller.leave(); onExit(); }} onAgain={onAgain} onAccount={onAccount}
+        bot={controller.kind === 'bot'} guest={!pa.isAccount} ranked={controller.ranked} spectator={spectator} rewarded={(controller as { rewarded?: boolean }).rewarded ?? controller.kind === 'online'} />}
 
       {zoom && (
         <div className="cf-zoom" role="dialog" aria-modal="true" aria-label={def(zoom.id)?.name} onClick={() => setZoom(null)}>
-          <CardView id={zoom.id} width={Math.min(260, window.innerWidth - 60)} />
+          <CardView id={zoom.id} width={Math.min(260, vw() - 60)} />
           <p>{zoom.owner ? `En jeu chez ${nameIn(v, zoom.owner)}` : `${TYPE_LABEL[def(zoom.id)!.type]} · ${FAMILY_LABEL[def(zoom.id)!.family]}`}</p>
           <button className="cf-btn ghost">Fermer</button>
         </div>
@@ -469,7 +516,7 @@ function Glasses({ n, max, small }: { n: number; max: number; small?: boolean })
   );
 }
 
-function OppPanel({ p, v, seat, active, compact, refEl, onHabitue }: { p: CfPlayerView; v: CfView; seat?: CfSeat; active: boolean; compact: boolean; refEl: (el: HTMLElement | null) => void; onHabitue: (id: string) => void }) {
+function OppPanel({ p, v, seat, active, compact, refEl, onHabitue, emote }: { p: CfPlayerView; v: CfView; seat?: CfSeat & { away?: boolean; left?: boolean }; active: boolean; compact: boolean; refEl: (el: HTMLElement | null) => void; onHabitue: (id: string) => void; emote?: string }) {
   const traps = v.traps.filter((t) => t.owner === p.id);
   const c = comboOf(v, p);
   const fams = p.families.map((f) => FAMILY_SHORT[f]).join(' / ');
@@ -477,7 +524,8 @@ function OppPanel({ p, v, seat, active, compact, refEl, onHabitue }: { p: CfPlay
     <section className={`cf-opp${active ? ' active' : ''}${p.out ? ' out' : ''}`} ref={refEl} aria-label={`${p.name} : ${p.tokens} jetons, ${p.tournees} Tournées, ${p.handCount} cartes en main, ${traps.length} pièges posés`}>
       <div className="cf-opp-row">
         <Avatar photo={seat?.photo} emoji={seat?.avatar ?? '🎲'} size={compact ? 30 : 40} />
-        <span className="cf-opp-name"><b>{p.name}</b>{!compact && <small>{[seat?.label, fams].filter(Boolean).join(' · ')}</small>}</span>
+        <span className="cf-opp-name"><b>{p.name}</b>{seat?.left ? <small className="away">A quitté la partie</small> : seat?.away ? <small className="away">Déconnecté : 60 s pour revenir</small> : !compact && <small>{[seat?.label, fams].filter(Boolean).join(' · ')}</small>}</span>
+        {emote && <span className="cf-emote" aria-label={`Réaction : ${emote}`}>{emote}</span>}
         <span className="cf-tokens" aria-hidden><i />{p.tokens}</span>
       </div>
       <div className="cf-opp-row">
@@ -537,7 +585,7 @@ function FlyLayer({ f }: { f: Fly }) {
 // ------------------------------------------------------------------------------------------------
 // Fenêtres de décision
 
-function Mulligan({ v, legal, pending, onAct, clock }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void; clock?: string }) {
+export function Mulligan({ v, legal, pending, onAct, clock }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void; clock?: string }) {
   const [back, setBack] = useState<string[]>([]);
   const hand = meOf(v).hand ?? [];
   const max = v.rules.mulligan;
@@ -552,7 +600,7 @@ function Mulligan({ v, legal, pending, onAct, clock }: { v: CfView; legal: CfAct
             const on = back.includes(k.uid);
             return (
               <button key={k.uid} className={`cf-mull${on ? ' out' : ''}`} onClick={() => setBack((b) => (on ? b.filter((x) => x !== k.uid) : b.length < max ? [...b, k.uid] : b))} aria-pressed={on}>
-                <CardView id={k.id} width={Math.min(140, (window.innerWidth - 72) / 2)} dimmed={on} />
+                <CardView id={k.id} width={Math.min(140, (vw() - 72) / 2)} dimmed={on} />
                 {on && <span className="cf-mull-tag">Renvoyée</span>}
               </button>
             );
@@ -564,7 +612,7 @@ function Mulligan({ v, legal, pending, onAct, clock }: { v: CfView; legal: CfAct
   );
 }
 
-function RespondWindow({ v, legal, pending, onAct, clock }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void; clock?: string }) {
+export function RespondWindow({ v, legal, pending, onAct, clock }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void; clock?: string }) {
   const top = v.stack[v.stack.length - 1];
   const who = top ? nameIn(v, top.owner) : 'L’adversaire';
   const me = meOf(v);
@@ -599,7 +647,7 @@ function RespondWindow({ v, legal, pending, onAct, clock }: { v: CfView; legal: 
   );
 }
 
-function ChoiceWindow({ v, legal, pending, onAct }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void }) {
+export function ChoiceWindow({ v, legal, pending, onAct }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void }) {
   const ch = v.choice;
   if (!ch) return null;
   const has = (i: number) => legal.some((a) => a.type === 'choose' && a.index === i);
@@ -611,7 +659,7 @@ function ChoiceWindow({ v, legal, pending, onAct }: { v: CfView; legal: CfAction
           <h3>Calcul mental</h3>
           <p>Gardez une carte ; les autres repartent sous votre deck.</p>
           <div className="cf-choice-row">
-            {ch.cards.map((k, i) => <button key={k.uid} className="cf-choice-card" disabled={pending || !has(i)} onClick={() => onAct({ type: 'choose', index: i })}><CardView id={k.id} width={Math.min(104, (window.innerWidth - 80) / 3)} /><span>Garder</span></button>)}
+            {ch.cards.map((k, i) => <button key={k.uid} className="cf-choice-card" disabled={pending || !has(i)} onClick={() => onAct({ type: 'choose', index: i })}><CardView id={k.id} width={Math.min(104, (vw() - 80) / 3)} /><span>Garder</span></button>)}
           </div>
         </div>
       </div>
@@ -647,32 +695,36 @@ function ChoiceWindow({ v, legal, pending, onAct }: { v: CfView; legal: CfAction
   return null;
 }
 
-function EndScreen({ snap, v, me, onExit, onAgain, onAccount, bot, guest, rewarded }: { snap: CfSnapshot; v: CfView; me: string; onExit: () => void; onAgain?: () => void; onAccount: () => void; bot: boolean; guest: boolean; rewarded: boolean }) {
+export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, bot, guest, rewarded, ranked, spectator }: { snap: CfSnapshot; v: CfView; me: string; onExit: () => void; onAgain?: () => void; onAccount: () => void; bot: boolean; guest: boolean; rewarded: boolean; ranked: boolean; spectator: boolean }) {
   const standings = snap.finished?.standings ?? v.ranking;
   const won = standings[0] === me;
+  const abandon = (snap.finished as { abandon?: string | null } | null)?.abandon;
   const reward = (snap.finished?.reward ?? null) as Record<string, unknown> | null;
   const num = (k: string) => (reward && typeof reward[k] === 'number' ? (reward[k] as number) : null);
   const capsules = num('capsules');
-  const points = num('points') ?? num('delta');
-  const boosters = num('boosters') ?? (reward?.booster ? 1 : null);
+  const points = ranked ? num('points') : null;
+  const boosters = num('boosters') ?? (reward?.booster === true ? 1 : null);
+  const missions = Array.isArray(reward?.missions) ? (reward!.missions as string[]).length : 0;
   const error = reward && typeof reward.error === 'string' ? reward.error : null;
   const note = reward && typeof reward.note === 'string' ? reward.note : null;
   return (
     <div className="cf-modal end" role="dialog" aria-modal="true" aria-label={won ? 'Victoire' : 'Défaite'}>
       <div className={`cf-modal-card cf-end${won ? ' win' : ''}`}>
         <span className="cf-end-rays" aria-hidden />
-        <h2>{won ? 'Victoire !' : standings.length > 2 && standings.indexOf(me) > 0 ? `${standings.indexOf(me) + 1}e place` : 'Défaite'}</h2>
+        {spectator ? <h2>{nameIn(v, standings[0])} gagne</h2> : <h2>{won ? 'Victoire !' : standings.length > 2 && standings.indexOf(me) > 0 ? `${standings.indexOf(me) + 1}e place` : 'Défaite'}</h2>}
+        {abandon && <p>{abandon}</p>}
         <p>{won ? 'Plus un seul jeton : le comptoir est à vous.' : `${nameIn(v, standings[0])} s’est déchargé le premier.`} {v.round} manche{v.round > 1 ? 's' : ''}.</p>
         <ol className="cf-standings">
-          {standings.map((id, i) => <li key={id} className={id === me ? 'me' : ''}><span>{i + 1}</span><b>{nameIn(v, id)}</b><small>{v.players.find((p) => p.id === id)?.tokens ?? 0} jeton(s)</small></li>)}
+          {standings.map((id, i) => <li key={id} className={id === me ? 'me' : ''}><span>{i + 1}</span><b>{nameIn(v, id)}</b><small>{plural(v.players.find((p) => p.id === id)?.tokens ?? 0, 'jeton')}</small></li>)}
         </ol>
         <div className="cf-gains">
-          {capsules !== null && <span className="cf-gain"><Capsules n={capsules} size={22} /> <small>capsules</small></span>}
+          {capsules !== null && <span className="cf-gain"><b>+{capsules}</b><CapsuleIcon size={22} /> <small>capsule{capsules > 1 ? 's' : ''}</small></span>}
           {points !== null && <span className="cf-gain"><b>{points > 0 ? `+${points}` : points}</b> <small>points de ligue</small></span>}
           {boosters ? <span className="cf-gain"><b>+{boosters}</b> <small>booster{boosters > 1 ? 's' : ''}{won ? ' (première victoire du jour)' : ''}</small></span> : null}
+          {missions > 0 && <span className="cf-gain"><b>✓ {missions}</b> <small>mission{missions > 1 ? 's' : ''} du jour</small></span>}
           {note && <small className="cf-gain-note">{note}</small>}
           {error && <small className="cf-gain-note">{error}</small>}
-          {!reward && rewarded && <small className="cf-gain-note">Calcul des gains…</small>}
+          {!reward && rewarded && !spectator && <small className="cf-gain-note">Calcul des gains…</small>}
           {!reward && !rewarded && bot && <small className="cf-gain-note">{guest ? 'Partie d’essai : aucun gain.' : 'Partie d’entraînement : pas de capsules cette fois.'}</small>}
         </div>
         {guest && bot && <button className="cf-link" onClick={onAccount}>Créer un compte gratuit pour gagner des capsules</button>}
