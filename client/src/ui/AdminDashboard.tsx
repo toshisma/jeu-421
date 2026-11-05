@@ -180,25 +180,25 @@ interface Visitors {
   utm: { source: string; medium: string; campaign: string; n: number }[];
   funnel?: Funnel & { byLanding: (Funnel & { landing: string })[] };
 }
-interface Funnel { visitors: number; guidePlay: number; solo: number; online: number; played: number; invite: number; invited: number; returned: number }
+interface Funnel { visitors: number; guidePlay: number; solo: number; online: number; cards?: number; played: number; invite: number; invited: number; returned: number }
 /** Parcours des nouveaux visiteurs : arrivée → partie lancée → multijoueur → invitation → retour. */
 function FunnelBlock({ f }: { f: NonNullable<Visitors['funnel']> }) {
   return (
     <section className="adm-card">
       <h3>Parcours des nouveaux visiteurs <small className="muted">première visite dans la période</small></h3>
       <div className="stat-row">
-        <Kpi value={pct(f.played, f.visitors)} label={`ont lancé une partie (${nf(f.played)})`} hint="Solo ou en ligne, à n’importe quel moment depuis leur arrivée" />
+        <Kpi value={pct(f.played, f.visitors)} label={`ont lancé une partie (${nf(f.played)})`} hint="Solo, en ligne ou Coups Fourrés, à n’importe quel moment depuis leur arrivée" />
         <Kpi value={pct(f.online, f.visitors)} label={`ont joué en ligne (${nf(f.online)})`} hint="Table rejointe ou créée : partie rapide, salon privé, tournoi" />
         <Kpi value={pct(f.invite, f.visitors)} label={`ont invité quelqu’un (${nf(f.invite)})`} hint="Lien ou code de table partagé depuis le salon" />
         <Kpi value={pct(f.returned, f.visitors)} label={`sont revenus un autre jour (${nf(f.returned)})`} />
       </div>
-      <p className="muted small">{nf(f.invited)} sont arrivés par un lien d’invitation ; {nf(f.guidePlay)} ont cliqué sur « Jouer » depuis une page d’aide (règles, stratégie…).</p>
+      <p className="muted small">{nf(f.invited)} sont arrivés par un lien d’invitation ; {nf(f.guidePlay)} ont cliqué sur « Jouer » depuis une page d’aide (règles, stratégie…) ; {nf(f.cards ?? 0)} ont lancé une partie de Coups Fourrés.</p>
       {f.byLanding.length > 0 && (
         <div className="adm-table-wrap">
           <table className="adm-table">
-            <thead><tr><th>Page d’arrivée</th><th>Nouveaux</th><th>Clic Jouer</th><th>Partie</th><th>En ligne</th><th>Retour</th></tr></thead>
+            <thead><tr><th>Page d’arrivée</th><th>Nouveaux</th><th>Clic Jouer</th><th>Partie</th><th>En ligne</th><th>Coups Fourrés</th><th>Retour</th></tr></thead>
             <tbody>{f.byLanding.map((r) => (
-              <tr key={r.landing}><th>{r.landing}</th><td>{nf(r.visitors)}</td><td>{r.landing === '/' ? '–' : pct(r.guidePlay, r.visitors)}</td><td>{pct(r.played, r.visitors)}</td><td>{pct(r.online, r.visitors)}</td><td>{pct(r.returned, r.visitors)}</td></tr>
+              <tr key={r.landing}><th>{r.landing}</th><td>{nf(r.visitors)}</td><td>{r.landing === '/' ? '–' : pct(r.guidePlay, r.visitors)}</td><td>{pct(r.played, r.visitors)}</td><td>{pct(r.online, r.visitors)}</td><td>{pct(r.cards ?? 0, r.visitors)}</td><td>{pct(r.returned, r.visitors)}</td></tr>
             ))}</tbody>
           </table>
         </div>

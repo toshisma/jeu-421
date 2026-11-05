@@ -229,6 +229,7 @@ const GUIDES: [string, string][] = [
   ['/jouer-au-421-en-ligne', 'Jouer au 421 en ligne'], ['/regles-du-421', 'Règles du 421'], ['/combinaisons-du-421', 'Combinaisons'],
   ['/strategie-421', 'Stratégie'], ['/421-entre-amis', '421 entre amis'], ['/jeux-entre-amis-a-distance', 'Jeux entre amis à distance'],
   ['/jeu-multijoueur-navigateur', 'Jeu multijoueur sur navigateur'], ['/jeux-de-des', 'Jeux de dés'],
+  ['/coups-fourres', 'Coups Fourrés'],
 ];
 
 export function Home(props: HomeProps) {

@@ -8,12 +8,17 @@
  *  - les probabilités et durées citées sont calculées avec le moteur du jeu (shared/combos.ts, shared/engine.ts) ;
  *  - date « updated » à changer à la main quand le contenu d'une page change (elle alimente le sitemap).
  *
+ * Pages « Coups Fourrés » (mode cartes) : scripts/seo-cf-pages.mjs ; leurs boutons « Jouer » ouvrent
+ * directement le mode (/?mode=cartes). Images : scripts/shots-cf-seo.mjs.
+ * Le catalogue des cartes (.ts) est lu directement : Node 22.18 ou plus récent (sinon : node --import tsx).
+ *
  * Mesure : chaque page note la visite (même suivi anonyme que le jeu, /api/visit, avec la vraie provenance,
  * ex. google.com) et le clic sur « Jouer » (/api/visit/event, étape guide_play). Les liens vers le jeu n'ont
  * donc pas besoin de paramètres utm (qui écraseraient la provenance réelle dans le tableau de bord).
  */
-import { writeFileSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { cfPages, CF_PLAY } from './seo-cf-pages.mjs';
 
 const SITE = 'https://421online.com';
 const OUT = join(process.cwd(), 'client', 'public');
@@ -55,6 +60,7 @@ ${toc([['commencer', 'Commencer en trente secondes'], ['modes', 'Les façons de 
 <section class="card"><h3>Tournois</h3><p>Deux rendez-vous chaque jour, à <b>11 h et 21 h</b> (heure de Bruxelles), de 4 à 16 joueurs, avec des sacs de dés à gagner. Vous pouvez aussi créer votre propre tournoi, public ou privé.</p></section>
 <section class="card"><h3>Défi du jour</h3><p>Les mêmes dés pour tout le monde, cinq coups, un seul essai qui compte, et un classement chaque jour.</p></section>
 <section class="card"><h3>Regarder une partie</h3><p>Le mode spectateur permet de suivre une table publique en cours (ou celle d’un ami), sans jouer, et de partir quand vous voulez.</p></section>
+<section class="card"><h3>Coups Fourrés, le 421 aux cartes</h3><p>Le même jeu de dés, en duel, avec un deck de 20 cartes à collectionner : pièges, relances, bluff. Contre l’ordinateur, entre amis, en ligue ou au tournoi du samedi. <a href="/coups-fourres">Découvrir Coups Fourrés</a>.</p></section>
 </div>
 
 <h2 id="compte">Avec ou sans compte</h2>
@@ -89,7 +95,7 @@ ${play('Jouer au 421 maintenant', 'Gratuit, sans téléchargement')}
       ['Peut-on jouer au 421 contre l’ordinateur ?', 'Oui, contre 1 à 5 adversaires, en niveau facile, normal ou difficile. Le solo marche même sans connexion une fois le jeu ouvert.'],
       ['Combien de joueurs par partie en ligne ?', 'De 2 à 6 joueurs par table. L’hôte peut ajouter des joueurs ordinateur pour compléter.'],
     ],
-    related: ['421-entre-amis', 'regles-du-421', 'jeu-multijoueur-navigateur'],
+    related: ['421-entre-amis', 'regles-du-421', 'coups-fourres'],
   },
   // ---------------------------------------------------------------------------------------------
   {
@@ -401,6 +407,7 @@ ${toc([['criteres', 'Ce qu’on attend d’un jeu multijoueur instantané'], ['p
 <li><b>Tournois</b> : tous les jours à 11 h et 21 h (heure de Bruxelles), avec un compte.</li>
 <li><b>Mode spectateur</b> : regardez une partie publique en cours, le temps que vos amis arrivent.</li>
 </ul>
+<p>Vous aimez aussi les jeux de cartes ? <a href="/coups-fourres">Coups Fourrés</a> mélange les dés du 421 et un deck de cartes à collectionner, en duel ou de 2 à 4 entre amis, toujours dans le navigateur.</p>
 
 <h2 id="technique">Ce qu’il faut pour jouer</h2>
 <p>Un navigateur à jour (Chrome, Safari, Firefox, Edge ou Samsung Internet) et une connexion internet pour le multijoueur ; une connexion mobile suffit. Les dés sont affichés en 3D : sur un appareil ancien, baissez la qualité graphique dans les réglages. Le son se coupe d’un geste, pour jouer discrètement.</p>
@@ -415,7 +422,7 @@ ${play('Lancer une partie maintenant', 'Le lien à envoyer à vos amis apparaît
       ['À combien peut-on jouer ?', 'De 2 à 6 joueurs par table en ligne. On peut aussi jouer seul contre 1 à 5 adversaires ordinateur.'],
       ['Peut-on jouer sur téléphone avec des amis sur ordinateur ?', 'Oui, les joueurs d’une même table peuvent utiliser des appareils différents.'],
     ],
-    related: ['jouer-au-421-en-ligne', 'jeux-entre-amis-a-distance', '421-entre-amis'],
+    related: ['jouer-au-421-en-ligne', 'jeux-entre-amis-a-distance', 'coups-fourres'],
   },
   // ---------------------------------------------------------------------------------------------
   {
@@ -443,7 +450,7 @@ ${toc([['bon-jeu', 'Ce qui fait un bon jeu à distance'], ['nombre', 'Selon le n
 <div class="table-wrap"><table>
 <thead><tr><th>Joueurs</th><th>Ce qui marche</th><th>Sur 421online</th></tr></thead>
 <tbody>
-<tr><td>2</td><td>Les duels courts, avec revanche immédiate.</td><td>Table privée à deux, ou défi entre amis (mêmes dés pour les deux).</td></tr>
+<tr><td>2</td><td>Les duels courts, avec revanche immédiate.</td><td>Table privée à deux, défi entre amis (mêmes dés pour les deux), ou un duel de <a href="/coups-fourres">Coups Fourrés</a>, le 421 aux cartes.</td></tr>
 <tr><td>3 ou 4</td><td>Le format idéal : tout le monde joue souvent et les alliances changent.</td><td>Table privée ; complétez avec un joueur ordinateur si quelqu’un manque.</td></tr>
 <tr><td>5 ou 6</td><td>Des tours rapides, sinon l’attente devient longue.</td><td>Table de 6 avec un temps de jeu court (10 à 20 secondes).</td></tr>
 <tr><td>Plus de 6</td><td>Plusieurs tables, puis une finale.</td><td>Créez un tournoi : tables de 3 à 6, les meilleurs passent au tour suivant.</td></tr>
@@ -478,7 +485,7 @@ ${play('Inviter mes amis à une partie', 'Un lien suffit, sans compte et sans t�
       ['Comment jouer à distance si on n’est pas disponibles en même temps ?', 'Avec un jeu en différé : dans 421online, les défis entre amis donnent les mêmes dés à chacun, qui joue quand il veut dans les 72 heures.'],
       ['Quel jeu en ligne pour 4 joueurs ?', 'Une table de 421 à 4 est le format idéal : tout le monde joue à chaque manche et les parties s’enchaînent vite.'],
     ],
-    related: ['421-entre-amis', 'jeu-multijoueur-navigateur', 'jeux-de-des'],
+    related: ['421-entre-amis', 'jeu-multijoueur-navigateur', 'coups-fourres'],
   },
   // ---------------------------------------------------------------------------------------------
   {
@@ -490,7 +497,7 @@ ${play('Inviter mes amis à une partie', 'Un lien suffit, sans compte et sans t�
     h1: 'Les jeux de dés classiques, comparés',
     lead: 'Quelques dés, un gobelet, et la soirée est lancée. Les jeux de dés sont parmi les plus anciens jeux de société, et ils se jouent toujours aussi bien entre amis. Voici les grands classiques francophones, ce qui les distingue, et lequel choisir.',
     body: `
-${toc([['comparatif', 'Le comparatif'], ['421', 'Le 421'], ['zanzibar', 'Le Zanzibar'], ['yams', 'Le Yams'], ['perudo', 'Le Perudo'], ['5000', 'Le 5000'], ['choisir', 'Lequel choisir ?']])}
+${toc([['comparatif', 'Le comparatif'], ['421', 'Le 421'], ['zanzibar', 'Le Zanzibar'], ['yams', 'Le Yams'], ['perudo', 'Le Perudo'], ['5000', 'Le 5000'], ['cartes', 'Dés et cartes : Coups Fourrés'], ['choisir', 'Lequel choisir ?']])}
 
 <h2 id="comparatif">Le comparatif</h2>
 <div class="table-wrap"><table>
@@ -518,12 +525,16 @@ ${toc([['comparatif', 'Le comparatif'], ['421', 'Le 421'], ['zanzibar', 'Le Zanz
 <h2 id="5000">Le 5000</h2>
 <p>Un jeu de « stop ou encore » : on lance les dés, on met de côté ceux qui rapportent des points (les 1, les 5, les brelans), puis on décide de s’arrêter pour encaisser ou de relancer le reste, au risque de tout perdre si plus rien ne rapporte. Le premier à 5 000 points gagne. On le connaît aussi sous les noms de 10 000 ou Farkle, avec des variantes de comptage.</p>
 
+<h2 id="cartes">Dés et cartes : Coups Fourrés</h2>
+<p>Et si on ajoutait des cartes au 421 ? C’est le principe de <a href="/coups-fourres">Coups Fourrés</a> : les dés et les combinaisons du 421, plus un deck de 20 cartes par joueur pour relancer un dé, poser un piège ou bluffer. Un jeu de stratégie qui garde la tension des dés, à essayer gratuitement contre l’ordinateur.</p>
+
 <h2 id="choisir">Lequel choisir ?</h2>
 <ul>
 <li><b>Pour une partie rapide à plusieurs</b>, à table ou à distance : le 421.</li>
 <li><b>Pour une soirée en famille, sans pression</b> : le Yams.</li>
 <li><b>Pour une grande tablée qui aime bluffer</b> : le Perudo.</li>
 <li><b>Pour ceux qui aiment prendre des risques</b> : le 5000.</li>
+<li><b>Pour un duel de stratégie et de bluff</b> : Coups Fourrés, le 421 aux cartes.</li>
 </ul>
 <p>Tous ces jeux se jouent avec de vrais dés. Pour le 421 sans matériel, à distance ou contre l’ordinateur, <a href="/" data-play>421online</a> fait le travail : bac en 3D, jetons comptés, règles appliquées. Et si vous jouez avec vos propres dés, le mode « arbitre » tient les comptes à votre place (voir <a href="/421-entre-amis">jouer au 421 entre amis</a>).</p>
 ${play('Jouer au 421 en ligne', 'Le jeu de dés du comptoir, gratuit')}
@@ -533,32 +544,51 @@ ${play('Jouer au 421 en ligne', 'Le jeu de dés du comptoir, gratuit')}
       ['Quelle différence entre le 421 et le Yams ?', 'Le 421 se joue avec 3 dés et des jetons, en manches rapides où la plus faible combinaison perd ; le Yams se joue avec 5 dés et une feuille de marque à remplir.'],
       ['Peut-on jouer à un jeu de dés en ligne avec des amis ?', 'Oui : sur 421online, une table privée de 421 s’ouvre avec un lien, de 2 à 6 joueurs, sans téléchargement.'],
     ],
-    related: ['regles-du-421', 'jouer-au-421-en-ligne', 'jeux-entre-amis-a-distance'],
+    related: ['regles-du-421', 'coups-fourres', 'jeux-entre-amis-a-distance'],
   },
+  ...cfPages,
 ];
 
 // Gabarit -----------------------------------------------------------------------------------------
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const strip = (s) => s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 const bySlug = Object.fromEntries(pages.map((p) => [p.slug, p]));
-const HEADER_NAV = ['jouer-au-421-en-ligne', 'regles-du-421', 'strategie-421', '421-entre-amis', 'jeux-de-des'];
+const HEADER_NAV = ['jouer-au-421-en-ligne', 'regles-du-421', 'strategie-421', '421-entre-amis', 'jeux-de-des', 'coups-fourres'];
 const ORG = { '@type': 'Organization', '@id': `${SITE}/#organisation`, name: '421online', url: `${SITE}/`, logo: `${SITE}/icons/icon-512.png` };
 
 // Mesure (même suivi anonyme que le jeu : identifiant d'appareil aléatoire, haché par le serveur, sans cookie).
 const TRACK = `<script>(function(){try{var K='421.appareil',d=localStorage.getItem(K);if(!d||!/^[A-Za-z0-9_-]{8,64}$/.test(d)){d=Array.prototype.map.call(crypto.getRandomValues(new Uint8Array(12)),function(b){return(b<16?'0':'')+b.toString(16)}).join('');localStorage.setItem(K,d)}var tz='';try{tz=Intl.DateTimeFormat().resolvedOptions().timeZone||''}catch(e){}var q=new URLSearchParams(location.search),u={};['utm_source','utm_medium','utm_campaign'].forEach(function(k){var v=q.get(k);if(v)u[k]=v.slice(0,60)});var send=function(p,o,b){var s=JSON.stringify(o);if(b&&navigator.sendBeacon&&navigator.sendBeacon(p,new Blob([s],{type:'application/json'})))return;fetch(p,{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:s}).catch(function(){})};send('/api/visit',{device:d,ref:document.referrer||'',utm:u,lang:navigator.language||'',tz:tz,landing:location.pathname});document.addEventListener('click',function(e){var a=e.target&&e.target.closest&&e.target.closest('a[data-play]');if(a)send('/api/visit/event',{device:d,kind:'guide_play',page:location.pathname},true)})}catch(e){}})();</script>`;
 
+/** Coups Fourrés, le mode cartes : décrit une fois (page principale du mode), référencé par les autres pages. */
+const CF_ID = `${SITE}/coups-fourres#jeu`;
+const CF_GAME = {
+  '@type': 'VideoGame', '@id': CF_ID, name: 'Coups Fourrés', alternateName: 'Le 421 aux cartes', url: `${SITE}/coups-fourres`,
+  description: 'Jeu de cartes et de dés gratuit dans le navigateur : les combinaisons du 421, un deck de 20 cartes par joueur, des pièges et du bluff. Contre l’ordinateur, entre amis (2 à 4), en ligue classée ou en tournoi.',
+  inLanguage: 'fr', genre: ['Jeu de cartes', 'Jeu de dés', 'Jeu de cartes à collectionner', 'Jeu de stratégie'],
+  gamePlatform: ['Navigateur web'], applicationCategory: 'GameApplication', operatingSystem: 'Tout appareil avec un navigateur récent (Android, iOS, Windows, macOS, Linux)',
+  playMode: ['SinglePlayer', 'MultiPlayer'], numberOfPlayers: { '@type': 'QuantitativeValue', minValue: 1, maxValue: 4 },
+  isAccessibleForFree: true, offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+  image: `${SITE}/og-coups-fourres.jpg`, screenshot: `${SITE}/img/partie-coups-fourres.webp`,
+  publisher: { '@id': `${SITE}/#organisation` }, isPartOf: { '@id': `${SITE}/#jeu` },
+};
+
 for (const p of pages) {
   const url = `${SITE}/${p.slug}`;
+  const playHref = p.play ?? '/';
+  const og = p.og ?? '/og-421.png';
+  const parent = p.parent ? bySlug[p.parent] : null;
+  const crumbs = [['421online', `${SITE}/`], ...(parent ? [[parent.short, `${SITE}/${parent.slug}`]] : []), [p.short, url]];
   const ld = {
     '@context': 'https://schema.org',
     '@graph': [
       {
         '@type': 'Article', '@id': `${url}#article`, headline: p.h1, description: p.description, inLanguage: 'fr', mainEntityOfPage: url,
-        datePublished: p.published, dateModified: p.updated, author: ORG, publisher: ORG, image: `${SITE}${p.image?.src ?? '/og-421.png'}`,
-        about: { '@id': `${SITE}/#jeu` },
+        datePublished: p.published, dateModified: p.updated, author: ORG, publisher: ORG, image: `${SITE}${p.image?.src ?? og}`,
+        about: { '@id': p.about === 'cf' ? CF_ID : `${SITE}/#jeu` },
       },
+      ...(p.slug === 'coups-fourres' ? [CF_GAME] : []),
       { '@type': 'FAQPage', '@id': `${url}#faq`, mainEntity: p.faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) },
-      { '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: '421online', item: `${SITE}/` }, { '@type': 'ListItem', position: 2, name: p.short, item: url }] },
+      { '@type': 'BreadcrumbList', itemListElement: crumbs.map(([name, item], i) => ({ '@type': 'ListItem', position: i + 1, name, item })) },
     ],
   };
   const fig = p.image ? `<figure class="shot"><img src="${p.image.src}" width="${p.image.w}" height="${p.image.h}" alt="${esc(p.image.alt)}" loading="lazy" decoding="async"><figcaption>${p.image.caption}</figcaption></figure>` : '';
@@ -583,7 +613,7 @@ for (const p of pages) {
 <meta property="og:title" content="${esc(p.title)}">
 <meta property="og:description" content="${esc(p.description)}">
 <meta property="og:url" content="${url}">
-<meta property="og:image" content="${SITE}/og-421.png">
+<meta property="og:image" content="${SITE}${og}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="article:modified_time" content="${p.updated}">
@@ -597,11 +627,11 @@ for (const p of pages) {
 <header class="top">
   <a class="logo" href="/" aria-label="421online : ouvrir le jeu"><span>421</span></a>
   <nav aria-label="Pages d’aide">${HEADER_NAV.map((s) => `<a href="/${s}"${s === p.slug ? ' aria-current="page"' : ''}>${bySlug[s].nav}</a>`).join('')}</nav>
-  <a class="cta small" href="/" data-play>Jouer</a>
+  <a class="cta small" href="${playHref}" data-play>Jouer</a>
 </header>
 <main>
 <article>
-<nav class="crumbs" aria-label="Fil d’Ariane"><a href="/">421online</a> <span aria-hidden="true">›</span> <span>${p.short}</span></nav>
+<nav class="crumbs" aria-label="Fil d’Ariane"><a href="/">421online</a> <span aria-hidden="true">›</span> ${parent ? `<a href="/${parent.slug}">${parent.short}</a> <span aria-hidden="true">›</span> ` : ''}<span>${p.short}</span></nav>
 <h1>${p.h1}</h1>
 <p class="lead">${p.lead}</p>
 <p class="meta">Mis à jour le <time datetime="${p.updated}">${new Date(`${p.updated}T12:00:00Z`).toLocaleDateString('fr-BE', { day: 'numeric', month: 'long', year: 'numeric' })}</time></p>
@@ -614,7 +644,7 @@ ${p.faq.map(([q, a]) => `<details><summary>${q}</summary><p>${a}</p></details>`)
 <aside class="related" aria-label="À lire aussi"><h2>À lire aussi</h2><div>${related}</div></aside>
 </main>
 <footer>
-<p><a href="/" data-play>421online.com</a> : le 421, jeu de dés de comptoir, gratuit en ligne, seul ou entre amis. Les pièces du jeu se gagnent en jouant et ne s’achètent pas.</p>
+<p><a href="/" data-play>421online.com</a> : le 421, jeu de dés de comptoir, gratuit en ligne, seul ou entre amis, et <a href="/coups-fourres">Coups Fourrés</a>, le 421 aux cartes. Les pièces et les capsules du jeu se gagnent en jouant et ne s’achètent pas.</p>
 <nav class="links" aria-label="Toutes les pages d’aide">${pages.map((x) => `<a href="/${x.slug}">${x.short}</a>`).join('')}<a href="/confidentialite">Confidentialité et mentions légales</a></nav>
 </footer>
 ${TRACK}
@@ -624,6 +654,9 @@ ${TRACK}
   // Garde-fous : description et titre de longueur raisonnable, pas de lien interne vers une page inconnue.
   if (strip(p.description).length > 170) console.warn(`⚠ description longue (${p.description.length}) : ${p.slug}`);
   for (const m of html.matchAll(/href="\/([a-z0-9-]+)(?:#[^"]*)?"/g)) if (!bySlug[m[1]] && m[1] !== 'confidentialite') throw new Error(`Lien inconnu /${m[1]} dans ${p.slug}`);
+  for (const m of html.matchAll(/(?:src|content)="(?:https:\/\/421online\.com)?\/((?:img|og-|icons)[^"]*\.(?:webp|png|jpg))"/g)) if (!existsSync(join(OUT, m[1]))) throw new Error(`Image absente /${m[1]} dans ${p.slug}`);
+  for (const m of html.matchAll(/href="#([^"]+)"/g)) if (!html.includes(`id="${m[1]}"`)) throw new Error(`Ancre absente #${m[1]} dans ${p.slug}`);
+  if (p.play && !html.includes(`href="${CF_PLAY}" data-play`)) throw new Error(`Bouton Jouer absent dans ${p.slug}`);
   writeFileSync(join(OUT, `${p.slug}.html`), html);
 }
 

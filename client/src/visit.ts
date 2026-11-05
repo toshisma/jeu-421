@@ -39,10 +39,11 @@ export function trackVisit(token?: string | null) {
 
 /**
  * Étape du parcours (conversion), comptée une seule fois par visiteur côté serveur :
- * première partie solo, première table en ligne, invitation envoyée, arrivée par invitation.
+ * première partie solo, première table en ligne, invitation envoyée, arrivée par invitation,
+ * première partie de Coups Fourrés (contre l'ordinateur, guidée, en ligne ou en tournoi).
  */
 const sentEvents = new Set<string>();
-export function trackEvent(kind: 'solo' | 'online' | 'invite' | 'invited') {
+export function trackEvent(kind: 'solo' | 'online' | 'invite' | 'invited' | 'cards') {
   if (!web() || sentEvents.has(kind)) return;
   sentEvents.add(kind);
   post('/visit/event', { device: deviceId(), kind });

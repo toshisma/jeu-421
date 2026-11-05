@@ -163,8 +163,13 @@ describe('administration', () => {
     expect((await api('/visit/event', { device: 'parcours-0003', kind: 'achat' }, undefined, 'POST', ua)).status).toBe(400);
     expect((await api('/visit/event', { device: 'x', kind: 'solo' }, undefined, 'POST', ua)).status).toBe(400);
     expect((await api('/visit/event', { device: 'robot-00001', kind: 'solo' }, undefined, 'POST', { 'User-Agent': 'Googlebot/2.1' })).skipped).toBe(true);
+    // Arrivée sur la page Coups Fourrés, clic « Jouer gratuitement » (/?mode=cartes), partie de cartes.
+    await api('/visit', { device: 'cartes-00004', ref: 'https://www.bing.com/', landing: '/coups-fourres' }, undefined, 'POST', ua);
+    await api('/visit/event', { device: 'cartes-00004', kind: 'guide_play', page: '/coups-fourres' }, undefined, 'POST', ua);
+    expect((await api('/visit/event', { device: 'cartes-00004', kind: 'cards' }, undefined, 'POST', ua)).first).toBe(true);
     const f = (await api('/admin/visitors', undefined, adminTok)).funnel;
-    expect(f).toMatchObject({ visitors: 3, guidePlay: 1, solo: 1, online: 1, played: 1, invite: 1, invited: 1, returned: 0 });
+    expect(f).toMatchObject({ visitors: 4, guidePlay: 2, solo: 1, online: 1, cards: 1, played: 2, invite: 1, invited: 1, returned: 0 });
+    expect(f.byLanding.find((r: { landing: string }) => r.landing === '/coups-fourres')).toMatchObject({ visitors: 1, guidePlay: 1, cards: 1, played: 1 });
     expect(f.byLanding.find((r: { landing: string }) => r.landing === '/strategie-421')).toMatchObject({ visitors: 1, guidePlay: 1, played: 1 });
   });
 });

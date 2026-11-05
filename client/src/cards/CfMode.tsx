@@ -40,6 +40,7 @@ import { TutorialCfController, markTutorialSeen, tutorialSeen } from './tutorial
 import { askConfirm } from '../ui/confirm';
 import { TournamentCard, TournamentScreen } from './CfTournament';
 import './fonts';
+import { trackEvent } from '../visit';
 
 export interface CfModeProps {
   pa: ProfileApi;
@@ -221,6 +222,9 @@ export function CfMode(props: CfModeProps) {
     void tryOnline((o) => o.challenge(username, activeDeck!.id)).then((ok) => { if (ok) { setSheet(null); setWaiting({ kind: 'challenge', title: `Défi envoyé à ${username}` }); } });
   };
   const watch = (code: string) => void tryOnline((o) => o.watch(code));
+
+  // Parcours des visiteurs (tableau admin) : première partie de Coups Fourrés lancée, quel que soit le type.
+  useEffect(() => { if (route.r === 'game') trackEvent('cards'); }, [route.r]);
 
   // --- écrans ----------------------------------------------------------------------------------
   if (route.r === 'game') {
