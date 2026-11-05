@@ -2462,3 +2462,8 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
   .ab-who > b { font-size: 22px; }
   .actionbar.v2 .hint { display: none; }
 }
+
+/* Liens vers les guides en bas de l'accueil (visibles en défilant sur petits écrans) */
+.h2-guides { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 12px; padding: 4px 8px 2px; flex: none; }
+.h2-guides a { font: 500 11px/1.4 var(--font); color: #9fb3ab; text-decoration: none; }
+.h2-guides a:hover { color: #f1cc7d; text-decoration: underline; }

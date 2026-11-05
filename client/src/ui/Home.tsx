@@ -186,8 +186,7 @@ function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void })
         <button className="link small-link" onClick={() => pick(p.onChangelog)}>Nouveautés (v{CURRENT_VERSION}){changelogUnseen() && <i className="new-dot" aria-label="nouvelle version" />}</button>
         <a className="link small-link" href={reportUrl()}>Signaler un problème</a>
         <button className="link small-link" onClick={() => pick(p.onLegal)}>Confidentialité</button>
-        {!STANDALONE && <a className="link small-link" href="/regles-du-421">Règles du 421</a>}
-        {!STANDALONE && <a className="link small-link" href="/combinaisons-du-421">Combinaisons et probabilités</a>}
+        {!STANDALONE && GUIDES.map(([href, label]) => <a key={href} className="link small-link" href={href}>{label}</a>)}
       </div>
     </Sheet>
   );
@@ -213,6 +212,13 @@ function HeroTray({ pa, settings }: { pa: ProfileApi; settings: Settings }) {
 }
 
 type Tile = { id: string; title: string; sub: React.ReactNode; icon: Parameters<typeof Icon>[0]['name']; hot?: boolean; badge?: string; badgeKind?: 'blue'; go: () => void; show?: boolean };
+
+/** Pages de guide (référencement) : liens texte visibles, utiles aux joueurs comme à Google. */
+const GUIDES: [string, string][] = [
+  ['/jouer-au-421-en-ligne', 'Jouer au 421 en ligne'], ['/regles-du-421', 'Règles du 421'], ['/combinaisons-du-421', 'Combinaisons'],
+  ['/strategie-421', 'Stratégie'], ['/421-entre-amis', '421 entre amis'], ['/jeux-entre-amis-a-distance', 'Jeux entre amis à distance'],
+  ['/jeu-multijoueur-navigateur', 'Jeu multijoueur sur navigateur'], ['/jeux-de-des', 'Jeux de dés'],
+];
 
 export function Home(props: HomeProps) {
   const { pa, profile } = props;
@@ -375,7 +381,7 @@ export function Home(props: HomeProps) {
         {/* 1. Vitrine 3D et partie contre l'ordinateur */}
         <section className="h2-hero">
           <HeroTray pa={pa} settings={props.settings} />
-          <h1 className="plaque h2-plaque"><span>421</span></h1>
+          <h1 className="plaque h2-plaque"><span aria-hidden>421</span><span className="sr-only">421 en ligne : jeu de dés multijoueur gratuit</span></h1>
           {STANDALONE && online !== null && <button className="h2-live" onClick={props.onStats}><i aria-hidden />{online} en ligne</button>}
           {!STANDALONE && <div className="h2-news"><NewsTicker /></div>}
           {titleLabel(profile.title) && <span className="h2-title-chip">{titleLabel(profile.title)}</span>}
@@ -452,6 +458,7 @@ export function Home(props: HomeProps) {
             </button>
           ))}
         </section>
+        {!STANDALONE && <nav className="h2-guides" aria-label="Guides du 421">{GUIDES.map(([href, label]) => <a key={href} href={href}>{label}</a>)}</nav>}
       </main>
 
       <nav className="h2-tabs" aria-label="Navigation">
