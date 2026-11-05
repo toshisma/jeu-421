@@ -21,6 +21,7 @@ import { cardName, familiesLabel, shortCombo, threatLine, trapPossibilities, typ
 import './fonts';
 
 const def = (id: string | null | undefined) => (id ? CARD_BY_ID[id] : undefined);
+const useIsoLayout = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 const vw = () => (typeof window !== 'undefined' ? window.innerWidth : 360);
 
 // ------------------------------------------------------------------ petites pièces
@@ -89,13 +90,17 @@ export function Hand({ cards, hints, onPick, sel, focus }: {
   const ref = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(340);
   const [small, setSmall] = useState(false);
-  useLayoutEffect(() => {
+  useIsoLayout(() => {
     const m = () => { if (ref.current) setW(ref.current.clientWidth); setSmall(window.innerHeight < 700); };
     m(); window.addEventListener('resize', m); return () => window.removeEventListener('resize', m);
   }, []);
   const n = cards.length;
   const cw = small ? 82 : 96;
-  const step = n > 1 ? Math.min(cw - 24, (w - cw - 4) / (n - 1)) : 0;
+  // Inclinaison par carte, et marge pour que les cartes inclinées du bord ne sortent pas de l'écran.
+  const per = n <= 4 ? 6 : Math.min(5, 20 / (n - 1));
+  const edge = (per * (n - 1)) / 2;
+  const pad = Math.ceil(Math.sin((edge * Math.PI) / 180) * 1.2 * (small ? 115 : 134) * 0.9) + 4;
+  const step = n > 1 ? Math.min(cw - 24, (w - cw - 2 * pad) / (n - 1)) : 0;
   const start = (w - (cw + step * (n - 1))) / 2;
   const crowded = step < 74;
   const lift = small ? 12 : 16;
@@ -104,7 +109,7 @@ export function Hand({ cards, hints, onPick, sel, focus }: {
       {cards.map((k, i) => {
         const h = hints[k.uid];
         const off = i - (n - 1) / 2;
-        const rot = off * (n <= 4 ? 7 : Math.min(7, 26 / (n - 1)));
+        const rot = off * per;
         const ok = !!h?.playable;
         return (
           <HandCard key={k.uid} id={k.id} ok={ok} off={!ok} sel={sel === k.uid} focus={focus && ok} small={small}
@@ -260,7 +265,7 @@ export function AnnounceView({ a, onDone, spectator, me, v }: { a: Announce; onD
 
 // ------------------------------------------------------------------ fenêtre de riposte (à moi)
 
-export function RespondPanel({ v, legal, pending, onAct, deadline, focus }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void; deadline?: number | null; focus?: boolean }) {
+export function RespondPanel({ v, legal, pending, onAct, deadline, focus, tuto }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void; deadline?: number | null; focus?: boolean; tuto?: string | null }) {
   const top = v.stack[v.stack.length - 1];
   const me = meOf(v);
   const plays = legal.filter((a): a is Extract<CfAction, { type: 'play' }> => a.type === 'play');
@@ -276,6 +281,7 @@ export function RespondPanel({ v, legal, pending, onAct, deadline, focus }: { v:
   return (
     <div className="cfn-resp" role="dialog" aria-modal="true" aria-label="Fenêtre de riposte">
       <div className="cfn-resp-in">
+        {tuto && <p className="cfn-tuto-inline">{tuto}</p>}
         <small className="cfn-resp-kicker">{kicker}</small>
         {top?.kind === 'card' && top.cardId ? <BigCard id={top.cardId} width={Math.min(250, vw() - 70)} extra={threatLine(v)} />
           : top?.kind === 'card' ? <div className="cfn-resp-trap"><TrapCard big /><span>{threatLine(v)}</span></div>
@@ -331,7 +337,7 @@ export function Fiche({ t, v, legal, snapLegal, pending, discard, onAct, onClose
   else if (t.trapUid) now = <><b>Votre piège, posé face cachée.</b> Il se déclenchera tout seul quand sa condition arrivera chez {opps.length === 1 ? opps[0].name : 'sa cible'}.</>;
   else if (!mineInHand) now = null;
   else if (discard) now = <><b>Main pleine :</b> défaussez cette carte pour revenir à {v.rules.handMax} cartes.</>;
-  else if (opts.length) now = <><b>Maintenant :</b> {describeNow(v, t.id, chosen, opts)}{trapsAgainst > 0 && !choosing ? ` ${opps.length === 1 ? opps[0].name : 'Un adversaire'} a ${plural(trapsAgainst, 'piège')} caché${trapsAgainst > 1 ? 's' : ''}.` : ''}</>;
+  else if (opts.length) now = <><b>Maintenant :</b> {describeNow(v, t.id, ready ?? chosen, opts)}{trapsAgainst > 0 && !choosing ? ` ${opps.length === 1 ? opps[0].name : 'Un adversaire'} a ${plural(trapsAgainst, 'piège')} caché${trapsAgainst > 1 ? 's' : ''}.` : ''}</>;
   else now = <><b>Pas maintenant :</b> {tuto ? 'pas à cette étape de la partie guidée.' : whyNot(v, t.id, snapLegal, t.uid!)}</>;
   const playable = mineInHand && opts.length > 0 && !discard;
   return (
@@ -534,7 +540,7 @@ export function Mulligan({ v, legal, pending, onAct, clock }: { v: CfView; legal
   );
 }
 
-export function ChoiceWindow({ v, legal, pending, onAct, focus }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void; focus?: boolean }) {
+export function ChoiceWindow({ v, legal, pending, onAct, focus, tuto }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void; focus?: boolean; tuto?: string | null }) {
   const ch = v.choice;
   if (!ch) return null;
   const has = (i: number) => legal.some((a) => a.type === 'choose' && a.index === i);
@@ -557,6 +563,7 @@ export function ChoiceWindow({ v, legal, pending, onAct, focus }: { v: CfView; l
     return (
       <div className="cfn-reveal" role="dialog" aria-modal="true" aria-label="La Fouine a trouvé un piège">
         <div className="cfn-reveal-in">
+          {tuto && <p className="cfn-tuto-inline">{tuto}</p>}
           <small className="cfn-reveal-pill"><TypeIcon type="piege" size={14} /> La Fouine vous montre le piège</small>
           <BigCard id={ch.cardId} width={Math.min(250, vw() - 80)} />
           <div className="cfn-reveal-box"><b>Payer 1 Tournée pour le défausser ?</b><span>Vous en avez {me.tournees}. Sinon, il reste posé : au moins, vous savez ce qui vous attend.</span></div>
@@ -583,7 +590,7 @@ export function ChoiceWindow({ v, legal, pending, onAct, focus }: { v: CfView; l
   return null;
 }
 
-export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, bot, guest, rewarded, ranked, spectator }: { snap: CfSnapshot; v: CfView; me: string; onExit: () => void; onAgain?: () => void; onAccount: () => void; bot: boolean; guest: boolean; rewarded: boolean; ranked: boolean; spectator: boolean }) {
+export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, bot, guest, rewarded, ranked, spectator, onShare, sharing, againLabel }: { againLabel?: string; snap: CfSnapshot; v: CfView; me: string; onExit: () => void; onAgain?: () => void; onAccount: () => void; bot: boolean; guest: boolean; rewarded: boolean; ranked: boolean; spectator: boolean; onShare?: () => void; sharing?: boolean }) {
   const standings = snap.finished?.standings ?? v.ranking;
   const won = standings[0] === me;
   const abandon = (snap.finished as { abandon?: string | null } | null)?.abandon;
@@ -616,9 +623,10 @@ export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, bot, guest,
           {!reward && !rewarded && bot && <small className="cf-gain-note">{guest ? 'Partie d’essai : aucun gain.' : 'Partie d’entraînement : pas de capsules cette fois.'}</small>}
         </div>
         {guest && bot && <button className="cf-link" onClick={onAccount}>Créer un compte gratuit pour gagner des capsules</button>}
+        {onShare && <button className="cf-btn violet" disabled={sharing} onClick={onShare}><Icon name="share" size={18} />Partager mon plus beau coup</button>}
         <div className="cf-modal-btns">
           <button className="cf-btn ghost" onClick={onExit}>Menu du mode</button>
-          {onAgain && <button className="cf-btn gold" onClick={onAgain}>Rejouer</button>}
+          {onAgain && <button className="cf-btn gold" onClick={onAgain}>{againLabel ?? 'Rejouer'}</button>}
         </div>
       </div>
     </div>

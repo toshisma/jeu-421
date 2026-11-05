@@ -42,7 +42,7 @@ export function TypeIcon({ type, size = 14, color, className }: { type: CardType
 export function TypeTag({ type, moment, size = 12, className }: { type: CardType; moment?: boolean; size?: number; className?: string }) {
   const m = TYPE_META[type];
   return (
-    <span className={`cf-typetag${className ? ` ${className}` : ''}`} style={{ color: m.color }}>
+    <span className={`cfn-typetag${className ? ` ${className}` : ''}`} style={{ color: m.color }}>
       <TypeIcon type={type} size={size} />{m.label}{moment ? ` · ${m.moment}` : ''}
     </span>
   );
@@ -51,12 +51,12 @@ export function TypeTag({ type, moment, size = 12, className }: { type: CardType
 /** Légende des 5 types (fiche de carte, aide « ? », règles). */
 export function TypeLegend({ highlight, title = 'Les 5 types de cartes' }: { highlight?: CardType; title?: string | null }) {
   return (
-    <div className="cf-legend">
-      {title && <b className="cf-legend-title">{title}</b>}
+    <div className="cfn-legend">
+      {title && <b className="cfn-legend-title">{title}</b>}
       {TYPE_ORDER.map((t) => (
-        <div key={t} className={`cf-legend-row${highlight === t ? ' on' : ''}`} style={highlight === t ? { borderColor: TYPE_META[t].color } : undefined}>
-          <span className="cf-legend-ic"><TypeIcon type={t} size={18} /></span>
-          <span className="cf-legend-txt"><b style={{ color: TYPE_META[t].color }}>{TYPE_META[t].label}</b><small>{TYPE_META[t].def}</small></span>
+        <div key={t} className={`cfn-legend-row${highlight === t ? ' on' : ''}`} style={highlight === t ? { borderColor: TYPE_META[t].color } : undefined}>
+          <span className="cfn-legend-ic"><TypeIcon type={t} size={18} /></span>
+          <span className="cfn-legend-txt"><b style={{ color: TYPE_META[t].color }}>{TYPE_META[t].label}</b><small>{TYPE_META[t].def}</small></span>
         </div>
       ))}
     </div>

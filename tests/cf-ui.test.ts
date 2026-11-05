@@ -120,7 +120,7 @@ describe('ce que fait une carte ici et maintenant', () => {
     expect(valuesFor(opts, { die: 2 }, 'delta')).toEqual([1]); // un 1 ne descend pas
     expect(nextParam(opts, { die: 0 })).toBe('delta');
     expect(filterOptions(opts, { die: 0, delta: 1 })).toEqual([{ die: 0, delta: 1 }]);
-    expect(describeNow(v, 'coup-pouce', { die: 0, delta: 1 }, opts)).toBe('Le 3 devient un 4 : vous passez à 421 (vaut 8).');
+    expect(describeNow(v, 'coup-pouce', { die: 0, delta: 1 }, opts)).toBe('Le 3 devient un 4 : vous passez à 4-2-1 (vaut 8).');
   });
 
   it('explique pourquoi une carte n’est pas jouable', () => {

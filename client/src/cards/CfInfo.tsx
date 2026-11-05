@@ -3,6 +3,7 @@
  * validé par Sam et du catalogue : les chiffres viennent de CF_RULES, BOOSTER, CAPSULES).
  */
 import { useEffect, useState } from 'react';
+import { TYPE_META, TypeIcon } from './cardTypes';
 import { BOOSTER, CAPSULES, CARDS, CF_RULES, FAMILY_LABEL, TYPE_LABEL, type CardFamily } from '../../../shared/cards/catalog';
 import { CF_DIVISIONS, CF_LEGEND_COUNT, CF_LEGEND_NAME, type CfLeagueBoard } from '../../../shared/cards/progress';
 import { DEFAULT_CONFIG } from '../../../shared/config';
@@ -171,11 +172,11 @@ export function RulesContent({ short }: { short?: boolean }) {
       <section>
         <h3>Les cartes</h3>
         <ul className="cf-rules-types">
-          <li><b>{TYPE_LABEL.coup}</b> : pendant votre tour, avant ou après un lancer. Puis défaussé.</li>
-          <li><b>{TYPE_LABEL.piege}</b> : posé face cachée pendant votre tour (on paie à la pose). Il se déclenche tout seul quand sa condition arrive chez l’adversaire. {R.maxTraps} pièges posés au plus ; un piège qui ne s’est pas déclenché en {R.trapReturnRounds} manches revient dans votre main.</li>
-          <li><b>{TYPE_LABEL.riposte}</b> : à tout moment, en réponse à une carte adverse. En chaîne, la dernière posée s’applique la première.</li>
-          <li><b>{TYPE_LABEL['dernier-mot']}</b> : seulement pendant l’étape Dernier mot.</li>
-          <li><b>{TYPE_LABEL.habitue}</b> : s’installe devant vous et reste en jeu, effet permanent. {R.maxHabitues} au plus.</li>
+          <li><b className="cfn-typetag" style={{ color: TYPE_META['coup'].color }}><TypeIcon type="coup" size={14} />{TYPE_LABEL.coup}</b> : pendant votre tour, avant ou après un lancer. Puis défaussé.</li>
+          <li><b className="cfn-typetag" style={{ color: TYPE_META['piege'].color }}><TypeIcon type="piege" size={14} />{TYPE_LABEL.piege}</b> : posé face cachée pendant votre tour (on paie à la pose). Il se déclenche tout seul quand sa condition arrive chez l’adversaire. {R.maxTraps} pièges posés au plus ; un piège qui ne s’est pas déclenché en {R.trapReturnRounds} manches revient dans votre main.</li>
+          <li><b className="cfn-typetag" style={{ color: TYPE_META['riposte'].color }}><TypeIcon type="riposte" size={14} />{TYPE_LABEL.riposte}</b> : à tout moment, en réponse à une carte adverse. En chaîne, la dernière posée s’applique la première.</li>
+          <li><b className="cfn-typetag" style={{ color: TYPE_META['dernier-mot'].color }}><TypeIcon type="dernier-mot" size={14} />{TYPE_LABEL['dernier-mot']}</b> : seulement pendant l’étape Dernier mot.</li>
+          <li><b className="cfn-typetag" style={{ color: TYPE_META['habitue'].color }}><TypeIcon type="habitue" size={14} />{TYPE_LABEL.habitue}</b> : s’installe devant vous et reste en jeu, effet permanent. {R.maxHabitues} au plus.</li>
         </ul>
         <p>Chaque carte coûte des <b>Tournées</b> (la pastille dorée). On voit les Tournées de l’adversaire, son nombre de cartes en main, ses pièges posés et les familles de son deck… mais pas lesquels.</p>
       </section>

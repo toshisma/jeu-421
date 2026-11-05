@@ -12,6 +12,8 @@ import { evalPlayer, type CfAction, type CfEvent, type CfPlayerView, type CfView
 const def = (id: string): CardDef | undefined => CARD_BY_ID[id];
 export const plural = (n: number, w: string) => `${n} ${w}${n > 1 ? 's' : ''}`;
 const le = (v: number) => (v === 1 ? 'l’as' : `le ${v}`);
+/** « 421 » s'écrit 4-2-1 dans les phrases. */
+const lbl = (l: string) => (l === '421' ? '4-2-1' : l);
 
 export const meOf = (v: CfView): CfPlayerView => v.players.find((p) => p.id === v.you)!;
 export const playerOf = (v: CfView, id: string): CfPlayerView | undefined => v.players.find((p) => p.id === id);
@@ -105,7 +107,7 @@ function diceChange(v: CfView, p: CfPlayerView, die: number, to: number, who = '
   const dice = [...p.r.dice];
   dice[die] = to;
   const c = comboWith(v, p, dice);
-  return `${from === 1 ? 'L’as' : `Le ${from}`} devient ${to === 1 ? 'un as' : `un ${to}`} : ${who} à ${c.label} (vaut ${c.value}).`;
+  return `${from === 1 ? 'L’as' : `Le ${from}`} devient ${to === 1 ? 'un as' : `un ${to}`} : ${who} à ${lbl(c.label)} (vaut ${c.value}).`;
 }
 
 /** Meilleur résultat possible parmi des options de dé (pour conseiller sans choisir à la place). */
@@ -114,7 +116,7 @@ function bestDiceOption(v: CfView, p: CfPlayerView, opts: PlayParams[], apply: (
   for (const o of opts) {
     const dice = apply(o);
     const e = evalPlayer({ values: v.values }, { habitues: p.habitues, r: { ...p.r, dice, forcedNenette: false } });
-    if (!best || e.rank > best.rank) best = { o, label: e.combo.label, value: e.value, rank: e.rank };
+    if (!best || e.rank > best.rank) best = { o, label: lbl(e.combo.label), value: e.value, rank: e.rank };
   }
   return best;
 }

@@ -78,7 +78,7 @@ function playableLabel(v: CfView, legal: CfAction[], uid: string, id: string): s
 }
 
 /** Ce que dit l'étiquette d'une carte en main : jouable (raison) ou pas (moment / ce qui manque). */
-export function cardHint(v: CfView, legal: CfAction[], k: { uid: string; id: string }, discard = false): CardHint {
+export function cardHint(v: CfView, legal: CfAction[], k: { uid: string; id: string }, discard = false, tuto = false): CardHint {
   const d = def(k.id);
   const type: CardType = d?.type ?? 'coup';
   if (!d) return { playable: false, label: '?', tone: 'wait', type };
@@ -105,8 +105,10 @@ export function cardHint(v: CfView, legal: CfAction[], k: { uid: string; id: str
   if (!isTurnOf(v, p.id)) return moment('Votre tour');
   if (v.decision !== 'turn') return wait('Patientez');
   if (short) return short;
-  if (d.type === 'habitue') return wait(`${v.rules.maxHabitues} Habitués max`);
-  if (d.type === 'piege') return wait(`${v.rules.maxTraps} pièges max`);
+  // Partie guidée : une seule action permise à la fois, les autres cartes attendent.
+  if (tuto) return wait('Plus tard');
+  if (d.type === 'habitue' && p.habitues.length >= v.rules.maxHabitues) return wait(`${v.rules.maxHabitues} Habitués max`);
+  if (d.type === 'piege' && v.traps.filter((t) => t.owner === p.id).length >= v.rules.maxTraps) return wait(`${v.rules.maxTraps} pièges max`);
   const second = playsAfter(v, p.id);
   switch (k.id) {
     case 'tete-tourne': case 'coup-pouce': case 'bon-numero': return wait('Après un lancer');
@@ -119,11 +121,11 @@ export function cardHint(v: CfView, legal: CfAction[], k: { uid: string; id: str
 }
 
 /** Étiquettes de toute la main et nombre de cartes jouables maintenant. */
-export function handHints(v: CfView, legal: CfAction[], discard = false): { hints: Record<string, CardHint>; playable: number } {
+export function handHints(v: CfView, legal: CfAction[], discard = false, tuto = false): { hints: Record<string, CardHint>; playable: number } {
   const hints: Record<string, CardHint> = {};
   let playable = 0;
   for (const k of meOf(v).hand ?? []) {
-    const h = cardHint(v, legal, k, discard);
+    const h = cardHint(v, legal, k, discard, tuto);
     hints[k.uid] = h;
     if (h.playable) playable++;
   }
@@ -155,7 +157,7 @@ export function decisionBanner(v: CfView, legal: CfAction[], spectator = false):
     case 'mulligan':
       return mine ? { mine, title: 'Votre main', text: `Choisissez jusqu’à ${plural(v.rules.mulligan, 'carte')} à changer`, tone: 'gold' } : wait(`${who} choisit sa main… attendez`);
     case 'turn': {
-      if (!mine) return wait(spectator ? `${who} joue…` : `${who} joue… attendez votre tour`);
+      if (!mine) return wait(spectator ? `${who} joue…` : v.waiting[0] === v.you ? 'À vous dans un instant…' : `${who} joue… attendez votre tour`);
       const p = meOf(v);
       const lim = p.throwLimit ?? v.rules.maxThrows;
       const beat = toBeat(v);

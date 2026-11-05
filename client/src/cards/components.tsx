@@ -6,6 +6,7 @@
 import { useId, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { cardDef, FAMILY_LABEL, RARITY_LABEL, TYPE_LABEL, type CardDef, type CardFamily, type CardRarity } from '../../../shared/cards/catalog';
 import { CardArt } from './art';
+import { TYPE_META, TypeIcon } from './cardTypes';
 import { FAMILY_SHORT, FAMILY_STYLE, splitEmphasis } from './meta';
 import './fonts';
 
@@ -119,7 +120,7 @@ function CardFace({ def, shiny, isNew, count }: { def: CardDef; shiny?: boolean;
         <h3 className={cx('cf-name', def.name.length > 15 && 'cf-name-long')}>{def.name}</h3>
       </div>
       <div className="cf-art"><CardArt id={def.id} /></div>
-      <div className="cf-type"><span>{TYPE_LABEL[def.type]}</span><RarityGem rarity={def.rarity} label /></div>
+      <div className="cf-type"><span className="cfn-typetag"><TypeIcon type={def.type} size={13} color={TYPE_META[def.type].color} />{TYPE_LABEL[def.type]}</span><RarityGem rarity={def.rarity} label /></div>
       <div className={cx('cf-txt', long && 'cf-txt-long')}>
         <p>{before}{bold && <b>{bold}</b>}{after}</p>
         <em>{def.flavor}</em>

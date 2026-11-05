@@ -8,29 +8,31 @@ import { BOOSTER, CARDS, CF_RULES, FAMILY_LABEL, TYPE_LABEL, type CardFamily, ty
 import { Icon } from '../ui/Icon';
 import { CardView, FamilyBadge } from './components';
 import { CfShell } from './cfui';
+import { TYPE_META, TypeIcon } from './cardTypes';
 
 const vw = () => (typeof window !== 'undefined' ? window.innerWidth : 360);
 
 /** Bandeau « Nouveau ? » en haut du menu, pour qui n'a encore jamais joué. */
-export function LearnHero({ onRules }: { onRules: () => void }) {
+export function LearnHero({ onTuto }: { onTuto: () => void }) {
   return (
-    <button className="cf-learn-hero" onClick={onRules}>
+    <button className="cf-learn-hero" onClick={onTuto}>
       <span className="cf-learn-hero-ic" aria-hidden>🎓</span>
-      <span><b>Nouveau ? Apprenez à jouer en 3 minutes</b><small>Règles, les 34 cartes, conseils et lexique</small></span>
-      <Icon name="rules" size={20} />
+      <span><b>Nouveau ? Apprenez à jouer en 3 minutes</b><small>Partie guidée contre Dédé, pas à pas</small></span>
+      <Icon name="dice" size={20} />
     </button>
   );
 }
 
 /** Section « Apprendre » du menu : mise en avant tant que la partie guidée n'est pas faite. */
-export function LearnBlock({ fresh, onRules, onCards, onTips, onLexicon }: {
-  fresh: boolean; onRules: () => void; onCards: () => void; onTips: () => void; onLexicon: () => void;
+export function LearnBlock({ fresh, onTuto, onRules, onCards, onTips, onLexicon }: {
+  fresh: boolean; onTuto: () => void; onRules: () => void; onCards: () => void; onTips: () => void; onLexicon: () => void;
 }) {
   return (
     <section className={`cf-learn${fresh ? ' fresh' : ''}`} aria-labelledby="cf-learn-h">
       <h2 id="cf-learn-h">{fresh ? 'Bien débuter' : 'Apprendre'}</h2>
       <div className="cf-learn-grid">
-        <button className={fresh ? 'hot' : ''} onClick={onRules}><Icon name="rules" size={18} /><span><b>Règles du jeu</b><small>Manche, Tournées, cartes</small></span></button>
+        <button className={fresh ? 'hot' : ''} onClick={onTuto}><Icon name="dice" size={18} /><span><b>Partie guidée</b><small>3 minutes, pas à pas</small></span></button>
+        <button onClick={onRules}><Icon name="rules" size={18} /><span><b>Règles du jeu</b><small>Manche, Tournées, cartes</small></span></button>
         <button onClick={onCards}><span className="cf-learn-n" aria-hidden>{CARDS.length}</span><span><b>Les {CARDS.length} cartes</b><small>Par famille, texte complet</small></span></button>
         <button onClick={onTips}><Icon name="target" size={18} /><span><b>Conseils</b><small>Stratégie de comptoir</small></span></button>
         <button onClick={onLexicon}><Icon name="album" size={18} /><span><b>Lexique</b><small>Tournée, ardoise, Riposte…</small></span></button>
@@ -70,7 +72,7 @@ export function CardsCatalogScreen({ onBack }: { onBack: () => void }) {
         {list.map((c) => (
           <li key={c.id}>
             <CardView id={c.id} width={w} />
-            <small><b>{TYPE_LABEL[c.type]}</b> · {WHEN[c.type]}</small>
+            <small><b className="cfn-typetag" style={{ color: TYPE_META[c.type].color }}><TypeIcon type={c.type} size={13} />{TYPE_LABEL[c.type]}</b> · {WHEN[c.type]}</small>
           </li>
         ))}
         {!list.length && <li className="cf-muted">Aucune carte de ce type dans cette famille.</li>}
