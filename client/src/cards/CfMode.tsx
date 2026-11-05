@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { ProfileApi } from '../account/useProfile';
-import { ApiError } from '../account/api';
+import { ApiError, api } from '../account/api';
 import type { CfFriendPresence } from '../../../shared/cards/protocol';
 import type { Settings } from '../settings';
 import type { DuelPlay } from '../ui/ChallengeScreen';
@@ -50,6 +50,10 @@ export interface CfModeProps {
   onLogin: () => void;
   onDuelPlay: (d: DuelPlay) => void;
   onDuels: () => void;
+  /** Fonctions communes du jeu : réglages, administration, modération. */
+  onOpenSettings?: () => void;
+  onAdmin?: () => void;
+  onModeration?: () => void;
   /** À faire dès l'ouverture (venu de la liste d'amis) : défier ce pseudo, ou regarder cette partie. */
   pending?: { challenge?: string; watch?: string };
 }
@@ -313,6 +317,9 @@ function CfMenu(p: CfModeProps & {
   const { notifs, reload } = useNotifications(pa);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const [role, setRole] = useState<{ admin: boolean; moderator: boolean; pending: number }>({ admin: false, moderator: false, pending: 0 });
+  useEffect(() => { if (acc && pa.token) api<{ admin: boolean; moderator: boolean; pending: number }>('/moderation/whoami', { token: pa.token }).then(setRole).catch(() => {}); }, [acc, pa.token]);
   const friends = useCfFriends(pa.token);
   const league = st?.league;
   const prog = league ? divisionProgress(league.points) : null;
@@ -337,6 +344,9 @@ function CfMenu(p: CfModeProps & {
         {acc && <MessagesButton pa={pa} onOpen={p.onMessages} />}
         {acc && <FriendsButton pa={pa} onOpen={p.onFriends} />}
         {acc && <NotifBell count={notifs?.count ?? 0} onOpen={() => { setShowNotifs(true); reload(); }} />}
+        <button className="icon-btn cf-more-btn" onClick={() => setShowMore(true)} aria-label="Réglages et plus">
+          <Icon name="settings" size={22} />{(role.admin || role.moderator) && role.pending > 0 && <i className="cf-more-dot" aria-hidden />}
+        </button>
       </header>
 
       <main className="cf-menu-main">
@@ -438,6 +448,17 @@ function CfMenu(p: CfModeProps & {
         ) : null}
       </main>
 
+      {showMore && (
+        <Sheet title="Réglages et plus" onClose={() => setShowMore(false)}>
+          <div className="cf-more">
+            {p.onOpenSettings && <button className="cf-more-item" onClick={() => { setShowMore(false); p.onOpenSettings!(); }}><Icon name="settings" size={20} /><span>Réglages<small>Son, musique, vibrations, qualité 3D…</small></span></button>}
+            {role.admin && p.onAdmin && <button className="cf-more-item" onClick={() => { setShowMore(false); p.onAdmin!(); }}><Icon name="chart" size={20} /><span>Administration<small>Tableau de bord, joueurs, signalements</small></span>{role.pending > 0 && <em>{role.pending}</em>}</button>}
+            {!role.admin && role.moderator && p.onModeration && <button className="cf-more-item" onClick={() => { setShowMore(false); p.onModeration!(); }}><Icon name="flag" size={20} /><span>Modération<small>Signalements à traiter</small></span>{role.pending > 0 && <em>{role.pending}</em>}</button>}
+            <button className="cf-more-item" onClick={() => { setShowMore(false); p.onRules(); }}><Icon name="rules" size={20} /><span>Règles du mode<small>Cartes, Tournées, pièges, Dernier mot</small></span></button>
+            <button className="cf-more-item" onClick={() => { setShowMore(false); p.onHome(); }}><Icon name="home" size={20} /><span>421 classique<small>Retour à l'accueil du jeu</small></span></button>
+          </div>
+        </Sheet>
+      )}
       {showNotifs && <NotifPanel pa={pa} notifs={notifs} reload={reload} onClose={() => { setShowNotifs(false); reload(); }}
         onPlay={(d) => { setShowNotifs(false); p.onDuelPlay(d); }} onDuels={() => { setShowNotifs(false); p.onDuels(); }} />}
       {showProfile && <ProfileView pa={pa} displayName={p.displayName} avatar={p.avatar} onClose={() => setShowProfile(false)} />}

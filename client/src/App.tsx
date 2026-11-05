@@ -74,7 +74,7 @@ type Screen =
   | { name: 'watch'; code: string; back: Screen }
   | { name: 'tournament'; mode: TournamentMode }
   | { name: 'rules' }
-  | { name: 'settings' }
+  | { name: 'settings'; from?: 'cf' }
   | { name: 'sandbox'; tryFx?: string }
   | { name: 'shop' }
   | { name: 'account'; tab?: 'login' | 'register' }
@@ -94,8 +94,8 @@ type Screen =
   | { name: 'collection' }
   | { name: 'duels' }
   | { name: 'duel'; duel: DuelPlay }
-  | { name: 'admin' }
-  | { name: 'moderation' };
+  | { name: 'admin'; from?: 'cf' }
+  | { name: 'moderation'; from?: 'cf' };
 
 /**
  * Nettoie l'adresse (lien d'invitation, page de confidentialité) sans recharger la page.
@@ -277,7 +277,7 @@ export function App() {
     case 'rules':
       return <RulesScreen onBack={home} />;
     case 'settings':
-      return <SettingsScreen settings={settings} onChange={setSettings} onBack={home} />;
+      return <SettingsScreen settings={settings} onChange={setSettings} onBack={screen.from === 'cf' ? () => setScreen({ name: 'cf' }) : home} />;
     case 'sandbox':
       return <Sandbox settings={settings} appearance={profile.equipped} trail={profile.fx?.trainee} fete={profile.fx?.fete} tryFx={screen.tryFx}
         onSettings={setSettings} onBack={screen.tryFx ? () => setScreen({ name: 'collection' }) : home} />;
@@ -317,7 +317,8 @@ export function App() {
       return <CfMode key={JSON.stringify(screen.pending ?? null)} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
         onHome={home} onMessages={() => setScreen({ name: 'messages', from: 'cf' })} onFriends={() => setScreen({ name: 'friends', from: 'cf' })}
         onAccount={() => setScreen({ name: 'account' })} onLogin={() => setScreen({ name: 'account', tab: 'login' })}
-        onDuelPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }} onDuels={() => setScreen({ name: 'duels' })} />;
+        onDuelPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }} onDuels={() => setScreen({ name: 'duels' })}
+        onOpenSettings={() => setScreen({ name: 'settings', from: 'cf' })} onAdmin={() => setScreen({ name: 'admin', from: 'cf' })} onModeration={() => setScreen({ name: 'moderation', from: 'cf' })} />;
     case 'friends':
       return <FriendsScreen pa={pa} onBack={screen.from === 'cf' ? () => setScreen({ name: 'cf' }) : home}
         onCfChallenge={screen.from === 'cf' ? (u) => setScreen({ name: 'cf', pending: { challenge: u } }) : undefined}
@@ -336,9 +337,9 @@ export function App() {
     case 'stats':
       return <StatsScreen pa={pa} onBack={home} onAdmin={() => setScreen({ name: 'admin' })} />;
     case 'admin':
-      return <AdminDashboard pa={pa} onBack={() => setScreen({ name: 'stats' })} />;
+      return <AdminDashboard pa={pa} onBack={() => setScreen(screen.from === 'cf' ? { name: 'cf' } : { name: 'stats' })} />;
     case 'moderation':
-      return <ModerationScreen pa={pa} onBack={home} />;
+      return <ModerationScreen pa={pa} onBack={screen.from === 'cf' ? () => setScreen({ name: 'cf' }) : home} />;
     case 'legal':
       return <LegalScreen onBack={() => (screen.back.name === 'home' ? home() : setScreen(screen.back))} />;
     case 'leaderboard':

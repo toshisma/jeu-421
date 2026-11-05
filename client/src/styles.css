@@ -3284,3 +3284,11 @@ button.cf-banner { cursor: pointer; }
 .cf-table-list .cf-btn { width: auto; flex: none; }
 /* Petits écrans : l'étiquette « Nouveau » de la tuile Coups Fourrés devient une pastille, pour ne pas toucher le titre. */
 @media (max-height: 780px) { .v2-promo .promo-badge.cf-new-badge { width: 10px; height: 10px; padding: 0; border-radius: 50%; font-size: 0 !important; color: transparent; box-shadow: 0 0 0 2px rgba(0,0,0,.35); } }
+/* Coups Fourrés : réglages et administration depuis le menu du mode */
+.cf-more-btn { position: relative; }
+.cf-more-dot { position: absolute; top: 4px; right: 4px; width: 9px; height: 9px; border-radius: 50%; background: #e04a3a; box-shadow: 0 0 0 2px #24163d; }
+.cf-more { display: flex; flex-direction: column; gap: 8px; }
+.cf-more-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.05); color: var(--blanc); text-align: left; cursor: pointer; font: 700 15px/1.2 var(--font); }
+.cf-more-item span { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.cf-more-item small { font: 500 12px/1.3 var(--font); color: var(--texte-2); }
+.cf-more-item em { font-style: normal; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: #e04a3a; color: #fff; font: 800 12px/22px var(--font); text-align: center; }
