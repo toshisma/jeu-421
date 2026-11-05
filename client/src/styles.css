@@ -2573,3 +2573,4 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .mod-all { display: flex; gap: 8px; align-items: flex-start; font-size: 0.9375rem; }
 .mod-all input { margin-top: 3px; }
 .mod-team .adm-search { margin-top: 8px; }
+.push-box .btn { max-width: 100%; min-width: 0; white-space: normal; text-align: center; justify-content: center; flex: 1 1 auto; }
