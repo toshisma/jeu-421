@@ -7,6 +7,10 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.33', date: '2026-11-05T09:40:00+01:00', title: 'Le comptoir sur Discord', items: [
+    'Le jeu a son serveur Discord : menu « Plus » → « Discord du jeu ». Discutez, trouvez des partenaires, suivez les tournois et proposez vos idées.',
+    'Un sac de dés offert aux joueurs avec un compte qui rejoignent le Discord, une fois la vérification faite (une fois par compte).',
+  ] },
   { version: '0.32', date: '2026-11-05T08:50:00+01:00', title: 'Dés de collection et 4-2-1 en fête', items: [
     'Tous les dés de collection refaits, communs compris : chaque dé a sa matière en relief (écailles, métal gravé, nébuleuse, lave, résine…). Plus le dé est rare, plus il brille et scintille.',
     'Les versions brillantes ont un reflet irisé et des étincelles.',
