@@ -7,6 +7,7 @@ import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
 import { askConfirm } from './confirm';
 import { Shell } from './Screens';
+import { ModerationPanel, useModeration } from './Moderation';
 
 const nf = (n: number) => Math.round(n).toLocaleString('fr-BE');
 const pct = (a: number, b: number) => (b ? `${Math.round((100 * a) / b)} %` : '–');
@@ -14,9 +15,9 @@ const dayShort = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('f
 const dayLong = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 const dateTime = (t: number | null) => (t ? new Date(t).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–');
 
-type Tab = 'apercu' | 'personnes' | 'joueurs' | 'visiteurs' | 'retention' | 'activite' | 'economie' | 'journal';
+type Tab = 'apercu' | 'signalements' | 'personnes' | 'joueurs' | 'visiteurs' | 'retention' | 'activite' | 'economie' | 'journal';
 const TABS: [Tab, string][] = [
-  ['apercu', 'Vue d’ensemble'], ['personnes', 'Personnes'], ['joueurs', 'Joueurs'], ['visiteurs', 'Visiteurs'], ['retention', 'Rétention'],
+  ['apercu', 'Vue d’ensemble'], ['signalements', 'Signalements'], ['personnes', 'Personnes'], ['joueurs', 'Joueurs'], ['visiteurs', 'Visiteurs'], ['retention', 'Rétention'],
   ['activite', 'Activité'], ['economie', 'Économie'], ['journal', 'Journal admin'],
 ];
 
@@ -644,6 +645,9 @@ export function AdminDashboard({ pa, onBack }: { pa: ProfileApi; onBack: () => v
   const [openPlayer, setOpenPlayer] = useState<string | null>(null);
   const { data: o, error, reload } = useAdmin<Overview>('/admin/overview', token, 30_000);
   const { data: live } = useAdmin<Live>('/admin/stats', token, 20_000);
+  const mod = useModeration(token);
+  const [pending, setPending] = useState<number | null>(null);
+  const toTreat = pending ?? mod?.pending ?? 0;
   return (
     <Shell title="Administration" onBack={onBack} wide>
       {error && <p className="error">{error}</p>}
@@ -657,9 +661,10 @@ export function AdminDashboard({ pa, onBack }: { pa: ProfileApi; onBack: () => v
             <Kpi value={nf(o.coins)} label="pièces en circulation" />
           </div>
           <nav className="tabs adm-tabs" role="tablist">
-            {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
+            {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{k === 'signalements' && toTreat > 0 && <i className="tab-badge" aria-label={`${toTreat} à traiter`}>{toTreat > 99 ? '99+' : toTreat}</i>}</button>)}
           </nav>
           {tab === 'apercu' && <OverviewTab o={o} live={live} />}
+          {tab === 'signalements' && <ModerationPanel token={token} admin onPending={setPending} />}
           {tab === 'personnes' && <PeopleTab token={token} onOpen={(id) => { setOpenPlayer(id); setTab('joueurs'); }} />}
           {tab === 'joueurs' && <PlayersTab token={token} open={openPlayer} onActivity={(u) => { setActivityUser(u); setTab('activite'); }} onChanged={reload} />}
           {tab === 'visiteurs' && <VisitorsTab token={token} />}

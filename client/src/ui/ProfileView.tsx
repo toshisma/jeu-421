@@ -15,6 +15,7 @@ import { Avatar } from './Avatar';
 import { TitlePicker } from './Progression';
 import { accessoryEmoji } from '../../../shared/progress/catalog';
 import { Empty, Section, Tabs, useToast } from './kit';
+import { ReportDialog } from './Report';
 
 interface PublicPlayer {
   title?: string | null;
@@ -98,6 +99,7 @@ export function ProfileView({ pa, username, displayName, avatar, onClose, onInvi
   const [isFriend, setIsFriend] = useState(false);
   const [watchCode, setWatchCode] = useState<string | null>(null);
   const [tab, setTab] = useState<PvTab>('stats');
+  const [reporting, setReporting] = useState(false);
   const [toast, showToast] = useToast();
   useEffect(() => { if (msg) showToast(msg); }, [msg]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -164,15 +166,16 @@ export function ProfileView({ pa, username, displayName, avatar, onClose, onInvi
         </>}
         {tab === 'parties' && <History username={pub.username} />}
         {tab === 'succes' && <Achievements unlocked={pub.achievements} />}
-        {pa.isAccount && (
+        {(
           <div className="pv-danger">
-            <button className="btn ghost small danger" onClick={async () => {
+            {pa.isAccount && <button className="btn ghost small danger" onClick={async () => {
               const on = !pa.isBlocked(pub.username);
               if (on && !(await askConfirm(`Bloquer ${pub.username} ? Sa photo et ses réactions seront masquées, et il ne pourra plus s'asseoir à vos tables.`, 'Bloquer'))) return;
               const e = await pa.block(pub.username, on);
               setMsg(e ?? (on ? `${pub.username} est bloqué.` : `${pub.username} est débloqué.`));
-            }}>{pa.isBlocked(pub.username) ? 'Débloquer' : 'Bloquer ce joueur'}</button>
-            {pub.photo && (
+            }}>{pa.isBlocked(pub.username) ? 'Débloquer' : 'Bloquer ce joueur'}</button>}
+            <button className="btn ghost small" onClick={() => setReporting(true)}><Icon name="flag" size={18} /> Signaler ce joueur</button>
+            {pa.isAccount && pub.photo && (
               <button className="btn ghost small" onClick={async () => {
                 if (!(await askConfirm('Signaler la photo de ce joueur comme inappropriée ?', 'Signaler'))) return;
                 try { await api('/report', { body: { username: pub.username, reason: 'photo' }, token: pa.token }); setMsg('Merci, la photo a été signalée.'); }
@@ -262,6 +265,7 @@ export function ProfileView({ pa, username, displayName, avatar, onClose, onInvi
         <div className="sheet-body pv-body">{body}</div>
       </div>
       {toast}
+      {reporting && pub && <ReportDialog pa={pa} target={{ username: pub.username }} onClose={() => setReporting(false)} />}
     </div>
   );
 }

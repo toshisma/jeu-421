@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { OnlineSession } from '../game/online';
 import type { ProfileApi } from '../account/useProfile';
 import { Icon } from './Icon';
+import { ReportDialog, ReportMsgButton, type ReportTarget } from './Report';
 
 const MUTE = '421.tchat-muet';
 const readMute = () => { try { return localStorage.getItem(MUTE) === '1'; } catch { return false; } };
@@ -14,6 +15,7 @@ export function Chat({ session, pa }: { session: OnlineSession; pa: ProfileApi }
   const [text, setText] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [seen, setSeen] = useState(0);
+  const [report, setReport] = useState<ReportTarget | null>(null);
   const list = useRef<HTMLUListElement>(null);
   const visible = chat.filter((m) => !(m.account && pa.isBlocked(m.account)));
   useEffect(() => { if (open) { setSeen(visible.length); list.current?.scrollTo(0, list.current.scrollHeight); } }, [open, visible.length]);
@@ -38,7 +40,8 @@ export function Chat({ session, pa }: { session: OnlineSession; pa: ProfileApi }
           {muted ? <p className="muted small">Le tchat est coupé : vous ne voyez plus les messages. Touchez « Tchat coupé » pour le réactiver.</p> : (
             <ul ref={list}>
               {visible.length === 0 && <li className="muted small">Pas encore de message. Dites bonjour à la table !</li>}
-              {visible.map((m, i) => <li key={i} className={`${m.playerId === session.chatId ? 'me' : ''}${m.spectator ? ' spec' : ''}`}><b>{m.name}</b>{m.spectator && <small className="chat-spec"> (spectateur)</small>} {m.text}</li>)}
+              {visible.map((m, i) => <li key={m.id ?? i} className={`${m.playerId === session.chatId ? 'me' : ''}${m.spectator ? ' spec' : ''}`}><span><b>{m.name}</b>{m.spectator && <small className="chat-spec"> (spectateur)</small>} {m.text}</span>
+                {m.id && m.account && m.playerId !== session.chatId && m.account !== pa.session?.username && <ReportMsgButton name={m.name} onClick={() => setReport({ username: m.account!, message: { place: 'table', id: m.id!, text: m.text } })} />}</li>)}
             </ul>
           )}
           {err && <p className="error small">{err}</p>}
@@ -48,6 +51,7 @@ export function Chat({ session, pa }: { session: OnlineSession; pa: ProfileApi }
           </form>
         </section>
       )}
+      {report && <ReportDialog pa={pa} target={report} onClose={() => setReport(null)} />}
     </>
   );
 }

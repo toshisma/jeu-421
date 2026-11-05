@@ -12,7 +12,7 @@ export interface DuelView {
   mine: { points: number; throws: number } | null; theirsPlayed: boolean; theirs: { points: number; throws: number } | null;
   winner: string | null; pot: number; seen: boolean;
 }
-interface Notifs { requests: { username: string; at: number }[]; toPlay: DuelView[]; results: DuelView[]; count: number }
+interface Notifs { requests: { username: string; at: number }[]; toPlay: DuelView[]; results: DuelView[]; notices?: { id: number; kind: string; text: string; at: number }[]; count: number }
 
 /** Notifications dans le jeu : relues toutes les 30 s, au retour sur l'onglet, et à la demande. */
 export function useNotifications(pa: ProfileApi) {
@@ -60,10 +60,18 @@ export function NotifPanel({ pa, notifs, reload, onClose, onPlay, onDuels }: {
   useEffect(() => {
     for (const d of notifs?.results ?? []) void api(`/duels/${d.id}/seen`, { body: {}, token: pa.token }).catch(() => {});
   }, [notifs?.results.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Avis de la modération : lus une fois affichés (ils restent visibles jusqu'à la fermeture du panneau).
+  const [shownNotices, setShownNotices] = useState<NonNullable<Notifs['notices']>>([]);
+  useEffect(() => {
+    const fresh = notifs?.notices ?? [];
+    if (!fresh.length) return;
+    setShownNotices((l) => [...fresh.filter((x) => !l.some((y) => y.id === x.id)), ...l]);
+    void api('/notifications/seen', { body: { notices: fresh.map((x) => x.id) }, token: pa.token }).then(reload).catch(() => {});
+  }, [notifs?.notices?.map((x) => x.id).join()]); // eslint-disable-line react-hooks/exhaustive-deps
   const act = async (path: string, body: object, ok: string) => {
     try { await api(path, { body, token: pa.token }); setMsg(ok); sound.click(); reload(); } catch (e) { setMsg((e as Error).message); }
   };
-  const empty = notifs && !notifs.requests.length && !notifs.toPlay.length && !notifs.results.length;
+  const empty = notifs && !notifs.requests.length && !notifs.toPlay.length && !notifs.results.length && !shownNotices.length;
   return (
     <div className="sheet-back" onClick={onClose}>
       <div className="sheet notif-sheet" role="dialog" aria-label="Notifications" onClick={(e) => e.stopPropagation()}>
@@ -78,6 +86,19 @@ export function NotifPanel({ pa, notifs, reload, onClose, onPlay, onDuels }: {
         </div>
         {!notifs && <p className="muted">Chargement…</p>}
         {empty && <p className="empty">Rien de neuf pour l'instant. Défiez un ami pour animer la soirée !</p>}
+        {shownNotices.length > 0 && (
+          <section>
+            <h3>Modération</h3>
+            <ul className="notif-list">
+              {shownNotices.map((x) => (
+                <li key={x.id} className="mod-notice">
+                  <span className="n-ico" aria-hidden>{x.kind === 'merci' ? '🙏' : x.kind === 'role' ? '🛡️' : '⚠️'}</span>
+                  <div className="n-main"><b>{x.text}</b><small>{ago(x.at)}</small></div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         {!!notifs?.requests.length && (
           <section>
             <h3>Demandes d'amis</h3>

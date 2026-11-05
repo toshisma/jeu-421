@@ -8,6 +8,7 @@ import type { ProfileApi } from '../account/useProfile';
 import { onPm, setUnread, useUnread, type PmMessage } from '../messages';
 import { BigAction, Empty, Initial, Section, Shell } from './kit';
 import { Icon } from './Icon';
+import { ReportDialog, ReportMsgButton, type ReportTarget } from './Report';
 
 const PM_MAX = 500;
 
@@ -111,6 +112,7 @@ function Thread({ pa, username, onBack }: { pa: ProfileApi; username: string; on
   const [text, setText] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [report, setReport] = useState<ReportTarget | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const vh = useViewportHeight();
@@ -167,9 +169,12 @@ function Thread({ pa, username, onBack }: { pa: ProfileApi; username: string; on
           return (
             <div key={m.id} className="pm-row-wrap">
               {newDay && <p className="pm-day">{new Date(m.at).toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>}
-              <div className={`pm-msg ${m.mine ? 'mine' : 'theirs'}`}>
-                <span className="pm-text">{m.text}</span>
-                <small>{new Date(m.at).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}{m === lastMine && m.read ? ' · Lu' : ''}</small>
+              <div className={`pm-line ${m.mine ? 'mine' : 'theirs'}`}>
+                <div className={`pm-msg ${m.mine ? 'mine' : 'theirs'}`}>
+                  <span className="pm-text">{m.text}</span>
+                  <small>{new Date(m.at).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}{m === lastMine && m.read ? ' · Lu' : ''}</small>
+                </div>
+                {!m.mine && <ReportMsgButton name={username} onClick={() => setReport({ username, message: { place: 'prive', id: m.id, text: m.text } })} />}
               </div>
             </div>
           );
@@ -185,6 +190,7 @@ function Thread({ pa, username, onBack }: { pa: ProfileApi; username: string; on
           {text.length > PM_MAX - 100 && <small className="pm-left">{PM_MAX - text.length}</small>}
         </form>
       ) : <p className="muted small pm-closed">Vous n’êtes plus amis avec {username} : vous ne pouvez plus lui écrire.</p>}
+      {report && <ReportDialog pa={pa} target={report} onClose={() => setReport(null)} />}
     </div>
   );
 }

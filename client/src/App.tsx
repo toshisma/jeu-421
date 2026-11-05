@@ -54,6 +54,7 @@ const AlbumScreen = lazyScreen(() => import('./ui/Collection'), 'AlbumScreen');
 const RecapScreen = lazyScreen(() => import('./ui/Collection'), 'RecapScreen');
 const ShopScreen = lazyScreen(() => import('./ui/ShopScreen'), 'ShopScreen');
 const AdminDashboard = lazyScreen(() => import('./ui/AdminDashboard'), 'AdminDashboard');
+const ModerationScreen = lazyScreen(() => import('./ui/Moderation'), 'ModerationScreen');
 /** Préchargés en arrière-plan une fois l'accueil affiché (les plus utilisés d'abord). */
 const LIKELY = [GameScreen, OnlineHub, OnlineFlow, TournamentFlow, ShopScreen, SpectateFlow, TutorialScreen, PartySetup, ClubScreen, AlbumScreen];
 
@@ -89,7 +90,8 @@ type Screen =
   | { name: 'collection' }
   | { name: 'duels' }
   | { name: 'duel'; duel: DuelPlay }
-  | { name: 'admin' };
+  | { name: 'admin' }
+  | { name: 'moderation' };
 
 /**
  * Nettoie l'adresse (lien d'invitation, page de confidentialité) sans recharger la page.
@@ -233,6 +235,7 @@ export function App() {
         onMessages={() => setScreen({ name: 'messages' })}
         onChangelog={() => setScreen({ name: 'changelog' })}
         onAdmin={() => setScreen({ name: 'admin' })}
+        onModeration={() => setScreen({ name: 'moderation' })}
         settings={settings} onChangeSettings={setSettings}
         onJoinRoom={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
         onJoinScheduled={(code, pay) => setScreen({ name: 'tournament', mode: { kind: 'join', code, pay } })}
@@ -320,6 +323,8 @@ export function App() {
       return <StatsScreen pa={pa} onBack={home} onAdmin={() => setScreen({ name: 'admin' })} />;
     case 'admin':
       return <AdminDashboard pa={pa} onBack={() => setScreen({ name: 'stats' })} />;
+    case 'moderation':
+      return <ModerationScreen pa={pa} onBack={home} />;
     case 'legal':
       return <LegalScreen onBack={() => (screen.back.name === 'home' ? home() : setScreen(screen.back))} />;
     case 'leaderboard':

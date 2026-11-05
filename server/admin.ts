@@ -248,6 +248,20 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     for (const s of socketsOf.get(userId) ?? []) { s.emit('account:banned', { text }); setTimeout(() => s.disconnect(true), 200); }
   };
 
+  /** Suspension (until null : définitive), utilisée par l'administration et la modération. */
+  const ban = (u: UserRow, reason: string, until: number | null, by: string) => {
+    db.prepare('INSERT OR REPLACE INTO admin_bans (user_id, reason, until, by_admin, at) VALUES (?, ?, ?, ?, ?)').run(u.id, reason, until, by, now());
+    tokenCache.clear();
+    cutSessions(u.id, banText(banOf(u.id)!));
+  };
+  const unban = (userId: string) => Number(db.prepare('DELETE FROM admin_bans WHERE user_id = ?').run(userId).changes) > 0;
+  /** Journal d'administration (décisions de modération comprises). */
+  const log = (by: string, action: string, target: UserRow | null, details: string) => {
+    db.prepare('INSERT INTO admin_log (at, admin, action, target_id, target_name, details) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(now(), by, action, target?.id ?? null, target?.username ?? null, details.slice(0, 500));
+    if (target) activity(target.id, 'admin', `${action.startsWith('mod') ? 'Modération' : 'Administration'} (${by}) : ${details}`);
+  };
+
   /** Fin d'un tournoi (comptage) : à brancher sur la levée du séquestre « T:… ». */
   const tournamentFinished = () => bumpCount.run(brusselsDay(now()), 'tournois');
 
@@ -411,11 +425,7 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     next();
   });
   const adminName = (req: Request) => (req as Request & { admin: UserRow }).admin.username;
-  const logAdmin = (req: Request, action: string, target: UserRow | null, details: string) => {
-    db.prepare('INSERT INTO admin_log (at, admin, action, target_id, target_name, details) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(now(), adminName(req), action, target?.id ?? null, target?.username ?? null, details.slice(0, 500));
-    if (target) activity(target.id, 'admin', `Administration (${adminName(req)}) : ${details}`);
-  };
+  const logAdmin = (req: Request, action: string, target: UserRow | null, details: string) => log(adminName(req), action, target, details);
   const target = (req: Request) => {
     const k = String(req.params.id ?? '');
     return store.userById(k) ?? store.userByName(k);
@@ -470,17 +480,14 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     const days = req.body?.days == null || req.body.days === '' ? null : Math.floor(Number(req.body.days));
     if (days != null && (!Number.isFinite(days) || days < 1 || days > 3650)) return fail(res, 400, 'Durée : de 1 à 3650 jours, ou vide pour une suspension définitive.');
     const until = days == null ? null : now() + days * DAY_MS;
-    db.prepare('INSERT OR REPLACE INTO admin_bans (user_id, reason, until, by_admin, at) VALUES (?, ?, ?, ?, ?)').run(u.id, reason, until, adminName(req), now());
-    tokenCache.clear();
+    ban(u, reason, until, adminName(req));
     logAdmin(req, 'ban', u, `suspension ${days == null ? 'définitive' : `de ${days} jour${days > 1 ? 's' : ''}`}${reason ? ` (motif : ${reason})` : ''}`);
-    cutSessions(u.id, banText(banOf(u.id)!));
     res.json({ ok: true, player: sheet(u) });
   });
   admin.post('/players/:id/unban', json, (req, res) => {
     const u = target(req);
     if (!u) return fail(res, 404, 'Joueur introuvable.');
-    const r = db.prepare('DELETE FROM admin_bans WHERE user_id = ?').run(u.id);
-    if (!r.changes) return fail(res, 400, 'Ce compte n’est pas suspendu.');
+    if (!unban(u.id)) return fail(res, 400, 'Ce compte n’est pas suspendu.');
     logAdmin(req, 'unban', u, 'suspension levée');
     res.json({ ok: true, player: sheet(u) });
   });
@@ -840,5 +847,5 @@ export function createAdmin(store: Store, opts: AdminOptions) {
   });
 
   router.use('/admin', admin);
-  return { router, attach, isBanned, banOf, tournamentFinished, activity };
+  return { router, attach, isBanned, banOf, banText, ban, unban, log, tournamentFinished, activity };
 }

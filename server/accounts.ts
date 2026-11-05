@@ -25,6 +25,7 @@ import { DEFAULT_APPEARANCE } from '../shared/progress/catalog';
 import { SEASONS, collectionDie } from '../shared/progress/dice-collection';
 import { createSocial } from './social';
 import { createMessages } from './messages';
+import { muteText } from '../shared/moderation';
 import { createDiscord } from './discord';
 import { DIVISIONS, SEASON_DIE_FROM, SEASON_TITLE_FROM, divisionIndex, divisionOf, nextSeasonStart, seasonDelta, seasonOf } from '../shared/season';
 import { today } from '../shared/progress/quests';
@@ -440,7 +441,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     }));
     return {
       id: c.id, name: c.name, emblem: c.emblem, members, max: CLUB_MAX, wins: store.clubWeekWins(week, clubId), chest: CLUB_CHEST, endsAt: weekEnd(),
-      chat: store.clubChat(clubId).map((x) => ({ username: x.username, phrase: x.phrase, at: x.created_at })),
+      chat: store.clubChat(clubId).map((x) => ({ id: x.id, username: x.username, phrase: x.phrase, at: x.created_at })),
     };
   }
   router.get('/clubs', auth, (req, res) => {
@@ -489,6 +490,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const c = store.clubOf(u.id);
     if (!c) return fail(res, 400, 'Vous n’êtes dans aucun club.');
     if (!PHRASES.includes(req.body?.phrase)) return fail(res, 400, 'Phrase inconnue.');
+    const mute = store.modMuteOf(u.id, opts.now?.() ?? Date.now());
+    if (mute) return fail(res, 403, muteText(mute));
     if (Date.now() - (chatLimit.get(u.id) ?? 0) < 3000) return fail(res, 429, 'Doucement !');
     chatLimit.set(u.id, Date.now());
     store.clubChatAdd(c.id, u.id, req.body.phrase);
@@ -622,6 +625,11 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const t = typeof req.body?.username === 'string' ? store.userByName(req.body.username) : undefined;
     if (!t || t.id === me.id) return fail(res, 400, 'Signalement impossible.');
     store.report(me.id, t.id, String(req.body?.reason ?? 'photo').slice(0, 200));
+    // Visible aussi dans le panel de modération (une fois par joueur tant que ce n'est pas traité).
+    if (!store.modDuplicate(me.id, t.id, null)) {
+      store.modAddReport({ reporter_id: me.id, reporter_name: me.username, target_id: t.id, target_name: t.username, kind: 'joueur', reason: 'profil',
+        comment: 'Photo de profil signalée', created_at: opts.now?.() ?? Date.now(), msg_ref: null, msg_place: null, msg_where: null, msg_text: null, msg_at: null, msg_context: null });
+    }
     res.json({ ok: true });
   });
 

@@ -62,7 +62,7 @@ export interface LiveEntry {
   startedAt: number;
 }
 /** Message de tchat de table (un spectateur est signalé comme tel). */
-export interface ChatMessage { playerId: string; name: string; account: string | null; text: string; at: number; spectator?: boolean }
+export interface ChatMessage { /** Identifiant (signalement). */ id?: string; playerId: string; name: string; account: string | null; text: string; at: number; spectator?: boolean }
 
 export interface RollMessage { roll: RollRecord; seed: number; gesture?: ThrowGesture; state: GameState }
 export interface Notice { kind: 'info' | 'warning'; text: string }

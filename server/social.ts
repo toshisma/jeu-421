@@ -214,7 +214,15 @@ export function createSocial(c: Ctx) {
     const duels = store.duelsOf(me.id, c.now()).map((d) => view(d, me.id));
     const toPlay = duels.filter((d) => d.status === 'ouvert' && !d.mine);
     const results = duels.filter((d) => d.status !== 'ouvert' && !d.seen);
-    res.json({ ok: true, requests, toPlay, results, count: requests.length + toPlay.filter((d) => !d.sent).length + results.length });
+    const notices = store.modNotices(me.id);
+    res.json({ ok: true, requests, toPlay, results, notices, count: requests.length + toPlay.filter((d) => !d.sent).length + results.length + notices.length });
+  });
+
+  /** Avis de la modération lus (affichés dans le panneau des notifications). */
+  router.post('/notifications/seen', auth, (req, res) => {
+    const ids = Array.isArray(req.body?.notices) ? req.body.notices.filter((x: unknown) => Number.isInteger(x)).slice(0, 50) : [];
+    store.modNoticesSeen(userOf(req).id, ids);
+    res.json({ ok: true });
   });
 
   // --- Rappels programmés (vérifiés toutes les 10 minutes) ------------------------------------
