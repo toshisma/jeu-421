@@ -119,6 +119,8 @@ export function App() {
   const openPm = useMemo(() => { const v = new URLSearchParams(location.search).get('messages'); if (v) cleanUrl(); return v ? v.slice(0, 20) : null; }, []);
   // Notification « X vous défie à Coups Fourrés » : le mode s'ouvre, le défi s'y affiche.
   const openCf = useMemo(() => { const v = new URLSearchParams(location.search).has('cf-defi'); if (v) cleanUrl(); return v; }, []);
+  // Lien partagé du défi du jour (« 421online.com/?defi ») : le défi s'ouvre directement.
+  const openDefi = useMemo(() => { const v = new URLSearchParams(location.search).has('defi'); if (v) cleanUrl(); return v; }, []);
   const openNotifs = useMemo(() => { const v = new URLSearchParams(location.search).has('notifs'); if (v) cleanUrl(); return v; }, []);
   // Lien de parrainage : le pseudo du parrain est retenu pour la création du compte.
   useMemo(() => {
@@ -131,7 +133,7 @@ export function App() {
       : watchLink ? { name: 'watch', code: watchLink.toUpperCase(), back: { name: 'home' } }
       : invite ? { name: 'online', mode: { kind: 'join', code: invite.toUpperCase() } }
         : tInvite && settings.name ? { name: 'tournament', mode: { kind: 'join', code: tInvite.toUpperCase() } }
-          : tInvite || tSched ? { name: 'hub', tab: 'tournois' } : openCf ? { name: 'cf' } : openPm ? { name: 'messages', with: openPm } : { name: 'home' });
+          : tInvite || tSched ? { name: 'hub', tab: 'tournois' } : openCf ? { name: 'cf' } : openDefi ? { name: 'challenge' } : openPm ? { name: 'messages', with: openPm } : { name: 'home' });
   const [resume, setResume] = useState(loadSession);
   // Profil : invité (sur l'appareil) ou compte (sur le serveur). Pas de comptes sans serveur.
   const pa = useProfile(!STANDALONE);
@@ -221,6 +223,7 @@ export function App() {
         onAccount={() => setScreen({ name: 'account' })} onLogin={() => setScreen({ name: 'account', tab: 'login' })} onLeaderboard={() => setScreen({ name: 'leaderboard' })}
         onSolo={() => setScreen({ name: 'solo-setup' })}
         onOnline={() => setScreen({ name: 'hub', tab: 'tables' })}
+        onQuick={() => { sound.unlock(); setScreen({ name: 'online', mode: { kind: 'quick' } }); }}
         onTournaments={() => setScreen({ name: 'hub', tab: 'tournois' })}
         onRules={() => setScreen({ name: 'rules' })}
         onSettings={() => setScreen({ name: 'settings' })}

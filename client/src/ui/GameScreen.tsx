@@ -4,7 +4,7 @@ import { askConfirm } from './confirm';
 import { Icon } from './Icon';
 import { flyTokens } from './flyTokens';
 import { isSuddenDeath } from '../../../shared/config';
-import { albumKey, finalPlace } from '../../../shared/progress/profile';
+import { albumKey, botTableRules, finalPlace } from '../../../shared/progress/profile';
 import { setPresence } from '../presence';
 import { fxDef } from '../../../shared/progress/dice-collection';
 import { Celebration } from './Celebration';
@@ -232,8 +232,10 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
         else if (ev.state.loserId === me || ev.state.ranking[ev.state.ranking.length - 1] === me) sound.lose();
         else sound.win();
         const bots = controller.getMeta().filter((m) => m.isBot);
+        // En ligne avec des ordinateurs : mêmes règles que le serveur (barème du solo, hors classement).
+        const botRules = controller.mode === 'online' ? botTableRules(controller.getMeta().length - bots.length, bots.map((b) => b.difficulty ?? 'normal')) : { mode: controller.mode };
         void Promise.resolve(onGameEndRef.current?.(ev.state, {
-          mode: controller.mode,
+          ...botRules,
           opponents: ev.state.players.length - 1,
           difficulty: bots[0]?.difficulty,
           count421: count421.current,

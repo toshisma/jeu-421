@@ -644,8 +644,11 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   function onlineGameEnd(userId: string, won: boolean, rounds: number, ctx: RewardContext, day: string, abandoned: boolean) {
     const u = store.userById(userId);
     if (!u) return null;
-    if (!ctx.suddenDeath) store.addOnlineResult(userId, won && !abandoned); // la mort subite ne compte pas au classement
+    // Avec des ordinateurs à la table (ctx.botLevel) : hors classement, et la partie compte dans le
+    // plafond quotidien des parties contre l'ordinateur (pas de « ferme » à pièces).
+    if (!ctx.suddenDeath && !ctx.botLevel) store.addOnlineResult(userId, won && !abandoned); // la mort subite ne compte pas au classement
     if (abandoned) return null; // partie quittée : comptée comme perdue, sans récompense
+    if (ctx.botLevel && store.bumpSolo(userId, day) > SOLO_CAP) return null;
     const reward = rewardFor(won, rounds, { ...ctx, day, now: Date.now() });
     const applied = applyGameEnd(store.profileOf(u), reward, { ...ctx, day, hour: brusselsHour() }, day);
     store.saveProfile(userId, applied.profile);

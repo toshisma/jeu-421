@@ -111,6 +111,18 @@ export const REWARDS = {
   levelBonus: (level: number) => 5 + 2 * level,
 };
 
+/**
+ * Partie en ligne où jouent des ordinateurs : comptée « en ligne » seulement s'il y a au moins un
+ * autre humain à la table (sinon c'est une partie contre l'ordinateur), avec le barème du solo au
+ * niveau du plus facile des ordinateurs. Sans ordinateur : rien ne change.
+ */
+export function botTableRules(humans: number, botLevels: Difficulty[]): { mode: 'solo' | 'online'; botLevel?: Difficulty } {
+  if (!botLevels.length) return { mode: 'online' };
+  const order: Difficulty[] = ['facile', 'normal', 'difficile'];
+  const botLevel = order.find((d) => botLevels.includes(d)) ?? 'normal';
+  return { mode: humans >= 2 ? 'online' : 'solo', botLevel };
+}
+
 /** Place finale d'un joueur (1 = premier ; ex æquo aux points : même place). */
 export function finalPlace(state: GameState, meId: string): number {
   if (state.config.variant === 'manches') {
@@ -249,6 +261,11 @@ export interface RewardContext {
   minutes?: number;
   /** Heure de fin de partie (ms) : happy hour. */
   now?: number;
+  /**
+   * Partie en ligne avec des ordinateurs : barème du solo selon leur niveau (le plus facile de la
+   * table), sans le bonus « en ligne ».
+   */
+  botLevel?: Difficulty;
 }
 
 export interface Reward {
@@ -286,7 +303,7 @@ export function rewardFor(won: boolean, rounds: number, ctx: RewardContext): Rew
   const durationF = ctx.minutes !== undefined
     ? Math.min(1, Math.max(REWARDS.minDurationFactor, ctx.minutes / REWARDS.fullMinutes))
     : Math.min(1, Math.max(REWARDS.minDurationFactor, rounds / REWARDS.fullLengthRounds));
-  const mult = ctx.mode === 'online' ? REWARDS.online : REWARDS.difficulty[ctx.difficulty ?? 'normal'];
+  const mult = ctx.botLevel ? REWARDS.difficulty[ctx.botLevel] : ctx.mode === 'online' ? REWARDS.online : REWARDS.difficulty[ctx.difficulty ?? 'normal'];
   const maxCoins = REWARDS.coinsBase + REWARDS.coinsPerPlayer * (players - 1);
   const coins = Math.round(maxCoins * placeF * durationF * mult);
   const xp = Math.round((REWARDS.playXp + REWARDS.placeXp * placeF) * durationF * mult * (1 + 0.15 * (players - 2)));

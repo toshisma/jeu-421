@@ -37,6 +37,8 @@ export interface HomeProps {
   profile: Profile; pa: ProfileApi; avatar: string; displayName: string; settings: Settings; onChangeSettings: (s: Settings) => void;
   onShop: () => void; onAccount: () => void; onLogin: () => void; onLeaderboard: () => void;
   onSolo: () => void; onOnline: () => void; onTournaments: () => void; onParty: () => void;
+  /** Partie rapide : une table publique tout de suite (complétée par des ordinateurs si personne ne vient). */
+  onQuick?: () => void;
   onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void;
   onChallenge: () => void; onBoss: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void;
   onCollection: () => void; onDuels: () => void; onFriends: () => void; onChangelog: () => void; onJoinRoom: (code: string) => void;
@@ -427,8 +429,10 @@ export function Home(props: HomeProps) {
                 <span>{liveLine}</span>
               </button>
               <div className="v2-multi-btns">
-                <button className="v2-mbtn gold" onClick={props.onOnline} disabled={!netOk}>Rejoindre une table</button>
-                <button className="v2-mbtn ghost" onClick={props.onParty}><Icon name="cheers" size={16} />Entre amis</button>
+                {props.onQuick && <button className="v2-mbtn gold v2-quick" onClick={props.onQuick} disabled={!netOk}><Icon name="dice" size={17} />Partie rapide</button>}
+                <button className={`v2-mbtn ${props.onQuick ? 'ghost v2-tables' : 'gold'}`} onClick={props.onOnline} disabled={!netOk}
+                  aria-label="Rejoindre une table">{props.onQuick ? 'Tables' : 'Rejoindre une table'}</button>
+                <button className="v2-mbtn ghost" onClick={props.onParty} aria-label="Entre amis"><Icon name="cheers" size={16} /><span className="v2-amis">Entre amis</span></button>
               </div>
             </div>
           </section>
