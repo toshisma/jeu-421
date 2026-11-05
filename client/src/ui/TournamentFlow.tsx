@@ -15,6 +15,7 @@ import { loadSession, type Settings } from '../settings';
 import { Avatar } from './Avatar';
 import { ConfigEditor } from './ConfigEditor';
 import { GameScreen } from './GameScreen';
+import { Chat } from './Chat';
 import { Icon } from './Icon';
 import { Seg, StakePicker } from './OnlineHub';
 import { BigAction, Choices, Section, Shell } from './kit';
@@ -100,9 +101,13 @@ export function TournamentFlow({ mode, settings, onSettings, onExit, onCancel, a
         return rank >= 0 && tb && rank < tb.qualified ? `Qualifié pour ${roundName(roundIdx + 1, total).toLowerCase()} !` : 'Éliminé du tournoi. Merci d’avoir joué !';
       };
       return (
+        <>
         <GameScreen key={room!.code} controller={controller} settings={settings} onSettings={onSettings} onExit={() => setWatchBracket(true)}
           appearance={appearance} pa={pa} onGameEnd={(st, ctx) => onGameEnd(st, controller.meId, ctx)}
           tableExit={{ label: 'Voir le tableau', note }} />
+          {/* Tchat de la table, comme à une table en ligne ordinaire. */}
+          <Chat session={session} pa={pa} />
+        </>
       );
     }
     return <TournamentView session={session} t={t} pa={pa} onExit={onExit}

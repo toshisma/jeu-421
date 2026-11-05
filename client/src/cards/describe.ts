@@ -15,7 +15,8 @@ const le = (v: number) => (v === 1 ? 'l’as' : `le ${v}`);
 /** « 421 » s'écrit 4-2-1 dans les phrases. */
 const lbl = (l: string) => (l === '421' ? '4-2-1' : l);
 
-export const meOf = (v: CfView): CfPlayerView => v.players.find((p) => p.id === v.you)!;
+// Spectateur : il n'a pas de siège (« spectateur ») ; il voit la partie depuis la place du premier joueur, sans sa main.
+export const meOf = (v: CfView): CfPlayerView => v.players.find((p) => p.id === v.you) ?? v.players[0];
 export const playerOf = (v: CfView, id: string): CfPlayerView | undefined => v.players.find((p) => p.id === id);
 export const opponentsOf = (v: CfView): CfPlayerView[] => v.players.filter((p) => p.id !== v.you && !p.out);
 export const nameIn = (v: CfView, id: string | undefined | null) => (id ? playerOf(v, id)?.name ?? '?' : '?');

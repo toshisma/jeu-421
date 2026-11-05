@@ -401,7 +401,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const banner = decisionBanner(v, legal, spectator);
   const steps = friseSteps(v, spectator ? null : me, stage);
   const title = v.phase === 'mulligan' ? 'Main de départ' : v.phase === 'over' ? 'Partie terminée'
-    : `Manche ${v.round}${mode ? ` · ${mode}` : ''} · ${turnP ? (turnP.id === me ? 'à vous' : `${turnP.name} joue`) : v.phase === 'lastword' ? 'Dernier mot' : 'comptes'}`;
+    : `Manche ${v.round}${mode ? ` · ${mode}` : ''} · ${turnP ? (turnP.id === me && !spectator ? 'à vous' : `${turnP.name} joue`) : v.phase === 'lastword' ? 'Dernier mot' : 'comptes'}`;
   const myTraps = v.traps.filter((t) => t.owner === me);
   const respWin = snap.responseWindow && snap.responseWindow.player !== me && snap.responseWindow.until > now ? snap.responseWindow : null;
   const overlayOpen = !!ann || animating;

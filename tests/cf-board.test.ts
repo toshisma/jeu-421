@@ -139,6 +139,13 @@ describe('file d’annonces', () => {
     const spec = planEvents([{ kind: 'piege-revele', player: 'b', card: 'faux-421', text: 'Bob révèle un piège : Faux 4-2-1 !' }], '', v, v);
     expect(spec[0].kind === 'ann' && spec[0].ann.block).toBeFalsy();
   });
+  it('spectateur (sans siège) : le plateau se calcule sans planter (écran vide en 0.38)', () => {
+    const v = viewFor(started(), 'spectateur');
+    expect(v.players.every((p) => p.hand === undefined)).toBe(true);
+    expect(() => handHints(v, [], false, false)).not.toThrow();
+    expect(() => decisionBanner(v, [], true)).not.toThrow();
+    expect(() => friseSteps(v, null, null)).not.toThrow();
+  });
   it('comptes : qui donne combien', () => {
     const c = structuredClone(s);
     c.lastRound = { round: 1, winner: 'a', loser: 'b', amount: 2, reversed: false, combos: { a: { dice: [4, 2, 1], label: '421', value: 2 }, b: { dice: [6, 5, 3], label: '6-5-3', value: 1 } }, text: '' };

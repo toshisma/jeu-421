@@ -129,6 +129,13 @@ describe('tournoi', () => {
     // Chaque joueur a été installé à sa table.
     await until(() => cs.every((c) => c.room?.tournament === created.code && c.game != null));
     expect(cs[2].profile.coins).toBe(35);
+    // Tchat de table pendant le tournoi : reçu par les joueurs de la même table.
+    const tb = t0.rounds[0].tables.find((x) => x.ids.length === 3)!;
+    const atTable = cs.filter((c) => c.room?.code === tb.code);
+    const heard: string[] = [];
+    atTable[1].s.on('room:chat', (m: { text: string }) => heard.push(m.text));
+    expect((await emit(atTable[0], 'room:chat', { text: 'Bonne chance à tous' })).ok).toBe(true);
+    await until(() => heard.includes('Bonne chance à tous'));
     // Tout le monde abandonne : le serveur joue les parties jusqu'au bout.
     for (const c of cs) await emit(c, 'tournament:leave');
     await until(() => srv.tournaments.get(created.code)?.status === 'termine', 30000);

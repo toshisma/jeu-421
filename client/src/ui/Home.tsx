@@ -502,9 +502,10 @@ export function Home(props: HomeProps) {
       {burst && <RewardBurst kind={burst.kind} phase={burst.phase} title={burst.title} detail={burst.detail} onClose={closeBurst} />}
       {sheet === 'menu' && <PlusMenu {...props} onProfile={() => setShowProfile(true)} onClose={() => setSheet(null)} onDiscord={discord?.invite ? () => setSheet('discord') : undefined} discordDot={discordDot} />}
       {sheet === 'discord' && discord && <Sheet title="Discord" onClose={() => { setSheet(null); setDiscordMsg(null); }}>{discordMsg && <p className={`discord-msg${discordMsg.ok ? ' ok' : ''}`}>{discordMsg.text}</p>}<DiscordCard pa={pa} state={discord} onAccount={() => { setSheet(null); props.onAccount(); }} /></Sheet>}
-      {sheet === 'tournoi' && props.onJoinScheduled && <Sheet title="Tournois de 11 h et 21 h" onClose={() => setSheet(null)}>
+      {sheet === 'tournoi' && props.onJoinScheduled && <Sheet title="Tournois" onClose={() => setSheet(null)}>
         <ScheduledCard pa={pa} onJoin={(c, pay) => { setSheet(null); props.onJoinScheduled!(c, pay); }} onAccount={() => { setSheet(null); props.onAccount(); }} />
-        <button className="btn ghost small" onClick={() => { setSheet(null); props.onTournaments(); }}>Autres tournois</button>
+        {/* Tournois perso (créés par les joueurs) : bien visibles sous le tournoi programmé. */}
+        <button className="btn secondary wide" style={{ marginTop: 10 }} onClick={() => { setSheet(null); props.onTournaments(); }}><Icon name="trophy" size={18} /> Créer ou rejoindre un tournoi perso</button>
       </Sheet>}
       {sheet === 'coffre' && <Sheet title="Coffre du comptoir" onClose={() => setSheet(null)}><EveningChest pa={pa} /></Sheet>}
       {sheet === 'cadeau' && <Sheet title="Cadeau du jour" onClose={() => setSheet(null)}><DailyStreak pa={pa} /></Sheet>}
