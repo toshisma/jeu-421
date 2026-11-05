@@ -29,6 +29,11 @@ export interface CfSnapshot {
   reserve?: Record<string, number>;
   /** Partie terminée : vainqueur(s) dans l'ordre et récompenses éventuelles (capsules, points…). */
   finished?: { standings: string[]; reward?: unknown } | null;
+  /**
+   * En ligne : fenêtre de réponse en cours (Riposte ou Dernier mot). Elle dure toujours le même
+   * temps, qu'on ait une carte ou non : afficher « Réponse possible… » jusqu'à `until`.
+   */
+  responseWindow?: { player: string; until: number; kind: 'respond' | 'lastword' } | null;
 }
 
 export interface CfController {

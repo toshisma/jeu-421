@@ -375,6 +375,9 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   /** Où se trouve un compte en ce moment (fourni par le serveur de jeu). */
   let presence: (userId: string) => { code: string; status: 'salon' | 'partie'; joinable: boolean; watchable?: boolean } | null = () => null;
   const setPresence = (f: typeof presence) => { presence = f; };
+  /** Présence dans « Coups Fourrés » (menu du mode, ou partie qu'on peut regarder). */
+  let cfPresence: (userId: string) => { status: 'menu' | 'partie'; code?: string; watchable?: boolean } | null = () => null;
+  const setCfPresence = (f: typeof cfPresence) => { cfPresence = f; };
   const ONLINE_MS = 90_000;
 
   // --- Classement et amis -----------------------------------------------------------------------
@@ -395,8 +398,9 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
       .map((u, i) => {
         // Présence façon Steam : en partie / dans un salon (qu'on peut rejoindre) / en ligne / vu il y a…
         const room = presence(u.id);
+        const cf = u.id === me.id ? null : cfPresence(u.id);
         const lastSeen = store.lastSeenOf(u.id);
-        return { ...row(u, i + 1), me: u.id === me.id, lastSeen, online: !!room || t - lastSeen < ONLINE_MS, room };
+        return { ...row(u, i + 1), me: u.id === me.id, lastSeen, online: !!room || !!cf || t - lastSeen < ONLINE_MS, room, cf };
       });
     res.json({ ok: true, friends: list });
   });
@@ -862,5 +866,5 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   // Coups Fourrés (mode cartes) : collection, decks, boosters, ligue et missions.
   const cards = createCards({ router, store, auth, userOf, fail, now: () => opts.now?.() ?? Date.now(), push: (u, t, b, url) => void social.push(u, t, b, url), rng: opts.cardsRng });
 
-  return { social, messages, cards, router, setPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
+  return { social, messages, cards, router, setPresence, setCfPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
 }

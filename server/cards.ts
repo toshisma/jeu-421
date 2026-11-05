@@ -8,7 +8,7 @@
  *
  * Routes (préfixe /api) : GET /cf/me, POST /cf/discover, POST /cf/booster/buy, POST /cf/booster/open,
  * POST /cf/craft, POST /cf/recycle, POST /cf/recycle-extras, POST /cf/legend-pick,
- * POST /cf/decks, POST /cf/decks/:id, DELETE /cf/decks/:id, POST /cf/decks/:id/active, GET /cf/league.
+ * POST /cf/decks, POST /cf/decks/auto, POST /cf/decks/:id, DELETE /cf/decks/:id, POST /cf/decks/:id/active, GET /cf/league.
  *
  * À brancher plus tard sur les vraies parties : recordCfGame, progressCfMission, rollCfSeason.
  */
@@ -16,7 +16,8 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import type { NextFunction, Request, Response, Router } from 'express';
 import type { CfDeckRow, CfPlayerRow, Store, UserRow } from './db';
 import { brusselsDay } from './stats';
-import { BOOSTER, CAPSULES, CARDS, SHARDS, STARTER_DECKS, cardDef, deckProblems } from '../shared/cards/catalog';
+import { BOOSTER, CAPSULES, CARDS, CF_RULES, SHARDS, STARTER_DECKS, cardDef, deckProblems } from '../shared/cards/catalog';
+import { buildAutoDeck, usableCount } from '../shared/cards/autodeck';
 import {
   CF_DECK_NAME_MAX, CF_DIVISIONS, CF_LEGEND_COUNT, CF_LEGEND_NAME, CF_MAX_DECKS, cfApplyDelta, cfDailyMissions, cfDecksBroken,
   cfDivisionOf, cfFloor, cfLeagueDelta, cfMaxUseful, cfNextSeasonPoints, cfRollBooster, cfSeasonEnd, cfSeasonOf,
@@ -129,6 +130,8 @@ export interface CfGameInput {
   vsBot: boolean;
   /** Le perdant a abandonné (ou n'est pas revenu à temps) : il ne gagne rien. */
   abandoned?: boolean;
+  /** Partie à 3-4 : n'enregistrer que le perdant (le gagnant est enregistré une seule fois, à part). */
+  onlyLoser?: boolean;
 }
 export interface CfGameReward { userId: string; won: boolean; capsules: number; booster: boolean; points: number; leaguePoints: number | null; missions: string[] }
 
@@ -260,6 +263,7 @@ export function createCards(c: CardsCtx) {
       for (const [userId, won] of [[g.winnerId, true], [g.loserId, false]] as [string | null, boolean][]) {
         if (!userId || !store.userById(userId)) continue;
         if (!won && userId === g.winnerId) continue;
+        if (won && g.onlyLoser) continue;
         const quit = !won && !!g.abandoned;
         const p = store.cfPlayer(userId, t);
         let capsules = 0, booster = false;
@@ -458,6 +462,29 @@ export function createCards(c: CardsCtx) {
       return { id };
     });
   }
+  /** « Construire un deck automatiquement » à partir des cartes possédées (20 cartes utilisables au moins). */
+  function autoDeck(userId: string, rawName: unknown): Err | { id: string } {
+    return store.cfTx(() => {
+      const p = store.cfPlayer(userId, c.now());
+      const e = needDiscovered(p); if (e) return e;
+      const decks = store.cfDecks(userId);
+      if (decks.length >= CF_MAX_DECKS) return { error: `${CF_MAX_DECKS} decks au plus : supprimez-en un d’abord.`, status: 400 };
+      const owned = cfCounts(cfCollection(store, userId));
+      const cards = buildAutoDeck(owned);
+      if (!cards) {
+        const n = usableCount(owned);
+        return { error: `Il faut au moins ${CF_RULES.deckSize} cartes utilisables pour construire un deck (vous en avez ${n}). Ouvrez des boosters pour en gagner.`, status: 400 };
+      }
+      let name = rawName === undefined || rawName === '' ? 'Deck automatique' : cleanName(rawName);
+      if (!name) return { error: 'Nom de deck invalide.', status: 400 };
+      const base = name;
+      for (let k = 2; decks.some((d) => d.name === name); k++) name = `${base.slice(0, CF_DECK_NAME_MAX - 3)} ${k}`;
+      const id = randomUUID(), t = c.now();
+      store.cfDeckSave({ id, user_id: userId, name, cards: JSON.stringify(cards), created_at: t, updated_at: t });
+      if (!p.active_deck) store.cfPlayerSet(userId, { active_deck: id });
+      return { id };
+    });
+  }
   function updateDeck(userId: string, id: string, rawName: unknown, rawCards: unknown): Err | { id: string } {
     return store.cfTx(() => {
       const d = store.cfDecks(userId).find((x) => x.id === id);
@@ -512,6 +539,8 @@ export function createCards(c: CardsCtx) {
     router.post('/cf/recycle-extras', auth, (req, res) => send(res, id(req), recycleExtras(id(req))));
     router.post('/cf/legend-pick', auth, (req, res) => send(res, id(req), legendPick(id(req), String(req.body?.cardId ?? ''))));
     router.post('/cf/decks', auth, (req, res) => send(res, id(req), createDeck(id(req), req.body?.name, req.body?.cards)));
+    // Avant « /cf/decks/:id » (sinon « auto » serait pris pour un identifiant de deck).
+    router.post('/cf/decks/auto', auth, (req, res) => send(res, id(req), autoDeck(id(req), req.body?.name)));
     router.post('/cf/decks/:id/active', auth, (req, res) => send(res, id(req), setActive(id(req), String(req.params.id))));
     router.post('/cf/decks/:id', auth, (req, res) => send(res, id(req), updateDeck(id(req), String(req.params.id), req.body?.name, req.body?.cards)));
     router.delete('/cf/decks/:id', auth, (req, res) => send(res, id(req), deleteDeck(id(req), String(req.params.id))));
@@ -519,7 +548,7 @@ export function createCards(c: CardsCtx) {
   }
 
   return {
-    state, discover, buyBooster, openBooster, craft, recycle, recycleExtras, legendPick, createDeck, updateDeck, deleteDeck, setActive, league,
+    state, discover, buyBooster, openBooster, craft, recycle, recycleExtras, legendPick, createDeck, autoDeck, updateDeck, deleteDeck, setActive, league,
     recordCfGame, progressCfMission, rollCfSeason, missions,
   };
 }

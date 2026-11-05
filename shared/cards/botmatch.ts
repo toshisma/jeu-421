@@ -79,14 +79,18 @@ export function playMine(match: BotMatch, action: CfAction): { ok: boolean; erro
  * Rejoue une partie à partir de la graine et des actions du joueur (vérification serveur).
  * Après chaque action humaine, les ordinateurs jouent tout ce qu'ils ont à jouer avant l'action suivante
  * (ordre identique à celui du client, qui doit vider les tours des ordinateurs avant de rendre la main).
+ * `onEvents` (facultatif) reçoit tous les événements bruts, dans l'ordre (missions côté serveur).
  */
-export function replayBotMatch(setup: BotMatchSetup, mine: CfAction[]): { ok: true; state: CfState } | { ok: false; error: string } {
+export function replayBotMatch(setup: BotMatchSetup, mine: CfAction[], onEvents?: (events: CfEvent[]) => void): { ok: true; state: CfState } | { ok: false; error: string } {
   try {
-    const { match } = startBotMatch(setup);
+    const { match, events } = startBotMatch(setup);
+    onEvents?.(events);
     for (const a of mine) {
       const r = playMine(match, a);
       if (!r.ok) return { ok: false, error: r.error ?? 'Action refusée.' };
-      advanceBots(match);
+      onEvents?.(r.events);
+      const bots = advanceBots(match);
+      onEvents?.(bots);
     }
     return { ok: true, state: match.state };
   } catch (e) {
