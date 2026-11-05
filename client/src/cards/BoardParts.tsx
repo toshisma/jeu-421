@@ -123,7 +123,8 @@ export const Hand = memo(function Hand({ cards, hints, onPick, sel, focus, quiet
       })}
       {!quiet && cards.map((k, i) => {
         const h = hints[k.uid];
-        if (!h) return null;
+        // Moins d'infos à l'écran : seules les cartes jouables portent une étiquette ; la raison des autres est dans leur fiche.
+        if (!h || !h.playable) return null;
         const ok = h.playable;
         const bg = h.tone === 'moment' ? TYPE_META[h.type].color : PILL_BG[h.tone];
         const low = crowded && i % 2 === 1;

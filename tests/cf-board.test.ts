@@ -155,7 +155,7 @@ describe('rendu serveur du plateau (aucune erreur)', () => {
     expect(render(h(BigCard, { id: 'tete-tourne' }))).toContain('Coup · Pendant votre tour');
     const hand = render(h(Hand, { cards: v.players[0].hand!, hints: handHints(v, legal).hints, onPick: noop }));
     expect(hand).toContain('6 → 1 : 4-2-1 !');
-    expect(hand).toContain('Tour adverse');
+    expect(hand).not.toContain('Tour adverse'); // cartes non jouables : grisées, sans étiquette (raison dans la fiche)
     const opp = render(h(OppPanel, { p: v.players[1], v, active: true, compact: false, refEl: noop, onTrap: noop, onCard: noop, seat: { id: 'b', name: 'Bob', bot: true, label: 'Habitué' } }));
     // Habitués adverses : pastilles discrètes dans sa barre, touchables (fiche), pas de ligne à part.
     const withHab = { ...v.players[1], habitues: [{ uid: 'hx', id: 'josiane' }] };
