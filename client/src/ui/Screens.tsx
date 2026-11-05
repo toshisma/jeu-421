@@ -24,7 +24,8 @@ import { MessagesButton } from './Messages';
 import { ScheduledCard } from './Scheduled';
 import { changelogUnseen } from './Changelog';
 import { CURRENT_VERSION } from '../../../shared/changelog';
-import { fxDef, fxGlows } from '../../../shared/progress/dice-collection';
+import { fxDef } from '../../../shared/progress/dice-collection';
+import { Celebration } from './Celebration';
 import { NotifBell, NotifPanel, useNotifications } from './Social';
 import type { DuelPlay } from './ChallengeScreen';
 import { Icon } from './Icon';
@@ -359,23 +360,42 @@ export function SettingsScreen({ settings, onChange, onBack }: { settings: Setti
 
 // ---------------------------------------------------------------------------------------------
 
-/** Bac d'essai : lancers libres pour juger la physique, relances partielles comprises. */
-export function Sandbox({ settings, appearance, onBack, onSettings, trail }: { settings: Settings; appearance: Appearance; onBack: () => void; onSettings: (s: Settings) => void; trail?: string }) {
+/**
+ * Bac d'essai : lancers libres pour juger la physique, relances partielles comprises.
+ * Montre la traînée et la célébration équipées ; `tryFx` (depuis la collection) en essaie une autre.
+ */
+export function Sandbox({ settings, appearance, onBack, onSettings, trail, fete, tryFx }: {
+  settings: Settings; appearance: Appearance; onBack: () => void; onSettings: (s: Settings) => void; trail?: string; fete?: string; tryFx?: string;
+}) {
   const tray = useRef<DiceTrayHandle>(null);
-  // Le bac d'essai montre aussi la traînée équipée.
-  useEffect(() => { tray.current?.setTrail(fxDef(trail)?.colors ?? null, fxGlows(trail)); }, [trail]);
+  const tried = fxDef(tryFx);
+  const trailId = tried?.kind === 'trainee' ? tried.id : trail;
+  const feteId = tried?.kind === 'fete' ? tried.id : fete;
+  // Le bac d'essai montre aussi la traînée équipée (ou celle qu'on essaie).
+  useEffect(() => { tray.current?.setTrail(trailId ?? null); }, [trailId]);
+  const [shot, setShot] = useState<{ id: number; text: string } | null>(null);
+  useEffect(() => { if (!shot) return; const t = setTimeout(() => setShot(null), 2400); return () => clearTimeout(t); }, [shot]);
   const [dice, setDice] = useState<number[]>([4, 2, 1]);
   const [keep, setKeep] = useState([false, false, false]);
   const [rolling, setRolling] = useState(false);
   const [count, setCount] = useState(0);
   useEffect(() => { tray.current?.setKept(keep); tray.current?.setInteractive(!rolling && count > 0); }, [keep, rolling, count]);
-  const roll = async (gesture?: ThrowGesture) => {
-    if (rolling || keep.every(Boolean)) return;
+  const roll = async (gesture?: ThrowGesture, force421 = false) => {
+    if (rolling || (!force421 && keep.every(Boolean))) return;
     sound.unlock();
     const r = crypto.getRandomValues(new Uint32Array(4));
-    const next = dice.map((d, i) => (keep[i] ? d : 1 + (r[i] % 6)));
+    const k = force421 ? [false, false, false] : keep;
+    const next = force421 ? [4, 2, 1] : dice.map((d, i) => (keep[i] ? d : 1 + (r[i] % 6)));
+    if (force421) setKeep([false, false, false]);
     setRolling(true);
-    await tray.current?.roll(next, keep, r[3] >>> 1, gesture);
+    // Les mêmes règles qu'en partie : seuls le 4-2-1 et les trois as ont le ralenti et la célébration.
+    const big = evaluate(next, DEFAULT_CONFIG.values).kind === '421' || evaluate(next, DEFAULT_CONFIG.values).kind === '111';
+    await tray.current?.roll(next, k, r[3] >>> 1, gesture, big);
+    if (big) {
+      sound.jackpot();
+      tray.current?.celebrate(feteId ?? null);
+      setShot({ id: Date.now(), text: next[0] === 1 ? 'Trois as !' : '4-2-1 !' });
+    }
     setDice(next);
     setCount((c) => c + 1);
     setRolling(false);
@@ -411,8 +431,17 @@ export function Sandbox({ settings, appearance, onBack, onSettings, trail }: { s
             🎲 {keep.some(Boolean) ? `Relancer (${keep.filter((k) => !k).length})` : 'Lancer les dés'}
           </button>
           {keep.some(Boolean) && <button className="btn ghost small" onClick={() => setKeep([false, false, false])}>Tout relancer</button>}
+          <button className="btn ghost small" disabled={rolling} onClick={() => void roll(undefined, true)}>
+            ✨ {tried ? `Essayer « ${tried.name} »` : 'Voir la célébration du 4-2-1'}
+          </button>
         </div>
       </div>
+      {shot && (
+        <div key={shot.id} className="bigshot" aria-live="assertive">
+          {feteId && <Celebration id={feteId} />}
+          <div className="bs-text">{shot.text}</div>
+        </div>
+      )}
     </div>
   );
 }

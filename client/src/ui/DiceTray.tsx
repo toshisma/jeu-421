@@ -13,8 +13,10 @@ export interface DiceTrayHandle {
   setInteractive(on: boolean): void;
   /** Dés d'un autre joueur (identifiant du catalogue), ou les miens (null). */
   setDiceSkin(id: string | null): void;
-  /** Traînée de lancer (couleurs) ou aucune. */
-  setTrail(colors: string[] | null, glow?: boolean): void;
+  /** Traînée de lancer (identifiant de l'effet) ou aucune. */
+  setTrail(id: string | null): void;
+  /** Célébration du 4-2-1 / trois as dans le bac (effet équipé, ou célébration par défaut). */
+  celebrate(id: string | null): void;
 }
 
 interface Props {
@@ -44,7 +46,7 @@ const afterPaint = async () => {
   if (w.requestIdleCallback) await new Promise<void>((r) => w.requestIdleCallback!(() => r(), { timeout: 400 }));
 };
 
-type Pending = Partial<{ swipe: boolean; values: number[]; kept: boolean[]; interactive: boolean; skin: string | null; trail: [string[] | null, boolean | undefined] }>;
+type Pending = Partial<{ swipe: boolean; values: number[]; kept: boolean[]; interactive: boolean; skin: string | null; trail: string | null }>;
 
 /** Composant React qui héberge la scène Three.js du bac. */
 export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ appearance, quality, insets, onDieClick, onSwipe, cup = false }, ref) {
@@ -78,13 +80,14 @@ export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ ap
         onDieClick: (i) => clickRef.current?.(i),
         cup: l.cup,
         onShake: () => sound.rattle(),
+        onFx: (k, st) => sound.party(k, st),
       });
       scene.current = s;
       if (l.insets) s.setInsets(l.insets);
       const p = pending.current;
       pending.current = {};
       if (p.skin !== undefined) s.setDiceSkin(p.skin);
-      if (p.trail) s.setTrail(p.trail[0], p.trail[1]);
+      if (p.trail !== undefined) s.setTrail(p.trail);
       if (p.values) s.showValues(p.values);
       if (p.kept) s.setKept(p.kept);
       if (p.interactive !== undefined) s.setInteractive(p.interactive);
@@ -116,7 +119,8 @@ export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ ap
     setKept: (m) => { if (scene.current) scene.current.setKept(m); else pending.current.kept = m; },
     setInteractive: (on) => { if (scene.current) scene.current.setInteractive(on); else pending.current.interactive = on; },
     setDiceSkin: (id) => { if (scene.current) scene.current.setDiceSkin(id); else pending.current.skin = id; },
-    setTrail: (c, g) => { if (scene.current) scene.current.setTrail(c, g); else pending.current.trail = [c, g]; },
+    setTrail: (id) => { if (scene.current) scene.current.setTrail(id); else pending.current.trail = id; },
+    celebrate: (id) => scene.current?.celebrate(id),
   }), []);
 
   return <div ref={host} className={`tray-host${ready ? '' : ' tray-loading'}`} />;

@@ -2,7 +2,8 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../../../shared/rng';
 import type { DicePattern } from '../../../shared/progress/dice-collection';
-import { faceSurface, paintFace, type Layer } from './dieArt';
+import { faceLook, faceSurface, paintFace, type Layer } from './dieArt';
+import type { Rarity } from '../../../shared/progress/dice-collection';
 
 function canvas(w: number, h: number) {
   const c = document.createElement('canvas');
@@ -11,7 +12,7 @@ function canvas(w: number, h: number) {
   return [c, c.getContext('2d')!] as const;
 }
 
-export interface DieStyle { body: string; body2: string; pip: string; accent?: string; pattern?: DicePattern; glow?: boolean; id?: string }
+export interface DieStyle { body: string; body2: string; pip: string; accent?: string; pattern?: DicePattern; glow?: boolean; id?: string; rarity?: Rarity; shiny?: boolean }
 const IVORY: DieStyle = { body: '#fbf9f3', body2: '#ebe5d8', pip: '#111111' };
 
 export interface DieFaceMaps {
@@ -23,17 +24,26 @@ export interface DieFaceMaps {
   orm: THREE.Texture;
   /** R = vernis (absent au fond des points), G = rugosité du vernis, A = intensité des reflets (commun à tous les dés). */
   coat: THREE.Texture;
+  /** Effets animés (dés de collection) : R = scintillement, G = phase, B = pulsation / reflet. */
+  fx: THREE.Texture | null;
+  /** Cartes de relief propres à ce dé (à libérer avec lui). */
+  own: boolean;
 }
 
 const FACE = 256;
+const imgTex = (img: ImageData, S: number) => { const [c, g] = canvas(S, S); g.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(c); t.anisotropy = 4; t.premultiplyAlpha = false; return t; };
 /** Cartes de relief : ne dépendent que de la valeur de la face, partagées par tous les dés. */
 const surfaces = new Map<number, { normal: THREE.Texture; orm: THREE.Texture; coat: THREE.Texture }>();
 function surface(value: number) {
   let s = surfaces.get(value);
   if (s) return s;
-  const { normal, orm } = faceSurface(value, FACE);
-  const tex = (img: ImageData) => { const [c, g] = canvas(FACE, FACE); g.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(c); t.anisotropy = 4; t.premultiplyAlpha = false; return t; };
-  const coat = new ImageData(FACE, FACE);
+  s = surfaceMaps(...Object.values(faceSurface(value, FACE)) as [ImageData, ImageData], FACE);
+  surfaces.set(value, s);
+  return s;
+}
+function surfaceMaps(normal: ImageData, orm: ImageData, S: number) {
+  const tex = (img: ImageData) => imgTex(img, S);
+  const coat = new ImageData(S, S);
   for (let i = 0; i < orm.data.length; i += 4) {
     const pip = orm.data[i + 1] === 255; // fond peint du point
     const near = orm.data[i + 2] === 0;
@@ -42,21 +52,33 @@ function surface(value: number) {
     coat.data[i + 2] = 0;
     coat.data[i + 3] = pip ? 90 : near ? 210 : 255; // alpha = intensité des reflets (peinture mate au fond)
   }
-  s = { normal: tex(normal), orm: tex(orm), coat: tex(coat) };
-  surfaces.set(value, s);
-  return s;
+  return { normal: tex(normal), orm: tex(orm), coat: tex(coat) };
 }
 
 /** Face de dé : couleur, points lumineux éventuels, et cartes de relief communes. */
-export function dieFace(value: number, style: DieStyle = IVORY): DieFaceMaps {
+/**
+ * Dés de collection : matière détaillée (motif, relief, rugosité, effets) à la résolution `size`
+ * (512 en qualité haute, 256 en normale). Les autres dés gardent les cartes communes en 256.
+ */
+export function dieFace(value: number, style: DieStyle = IVORY, size = FACE): DieFaceMaps {
+  const S = style.rarity ? size : FACE;
   const art = { ...style, seed: style.id };
-  const layer = (l: Layer) => { const [c, g] = canvas(FACE, FACE); paintFace(g, FACE, value, art, l); return c; };
+  const look = style.rarity ? faceLook(value, art, S) : null;
+  const layer = (l: Layer) => { const [c, g] = canvas(S, S); paintFace(g, S, value, art, l); return c; };
   const map = new THREE.CanvasTexture(layer('color'));
   map.colorSpace = THREE.SRGBColorSpace;
   map.anisotropy = 8;
   let emissive: THREE.Texture | null = null;
-  if (style.glow) { emissive = new THREE.CanvasTexture(layer('emissive')); emissive.colorSpace = THREE.SRGBColorSpace; }
-  return { map, emissive, ...surface(value) };
+  if (style.glow || look?.emissive) { emissive = new THREE.CanvasTexture(layer('emissive')); emissive.colorSpace = THREE.SRGBColorSpace; }
+  if (!look) return { map, emissive, fx: null, own: false, ...surface(value) };
+  const { normal, orm } = faceSurface(value, S, look);
+  const fx = imgTex(look.fx, S);
+  return { map, emissive, fx, own: true, ...surfaceMaps(normal, orm, S) };
+}
+/** Libère les textures d'une face (les cartes communes restent partagées). */
+export function disposeFace(f: DieFaceMaps) {
+  f.map.dispose(); f.emissive?.dispose(); f.fx?.dispose();
+  if (f.own) { f.normal.dispose(); f.orm.dispose(); f.coat.dispose(); }
 }
 
 /** Feutrine : fibres fines et irrégularités, avec une carte de relief assortie. */

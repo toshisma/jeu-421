@@ -107,6 +107,13 @@ class SoundEngine {
     [784, 988, 1175, 1568].forEach((f, i) => this.tone(f, i * 0.07, 0.9, 0.11));
     this.tone(392, 0, 1.1, 0.12, 'sine');
   }
+  /** Petits sons des célébrations du 4-2-1 (discrets : le son du jackpot reste le principal). */
+  party(kind: 'coin' | 'boom' | 'pop' | 'thunder', s: number) {
+    if (kind === 'coin') { const f = 2400 + Math.random() * 900; this.tone(f, 0, 0.18, 0.03 * s, 'sine'); this.tone(f * 1.5, 0.01, 0.12, 0.015 * s, 'sine'); }
+    else if (kind === 'boom') { this.hit(0, 0.5, 0.12 * s, 180, 0.7); this.hit(0.03, 0.9, 0.04 * s, 3200, 0.5); }
+    else if (kind === 'pop') { this.hit(0, 0.12, 0.08 * s, 900, 1.2); this.hit(0.05, 0.1, 0.06 * s, 1300, 1.2); }
+    else { this.hit(0, 0.25, 0.14 * s, 2500, 0.4); this.hit(0.05, 1.3, 0.12 * s, 90, 0.6); }
+  }
   /** Dernières secondes du temps de jeu. */
   tick() { this.tone(1250, 0, 0.04, 0.05, 'square'); }
   turn() { this.tone(880, 0, 0.08, 0.05, 'sine'); }
