@@ -8,7 +8,7 @@
  * Les événements sont animés un par un (carte qui vole au centre, piège révélé, jetons qui passent).
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { CARD_BY_ID, CF_RULES, FAMILY_LABEL, TYPE_LABEL } from '../../../shared/cards/catalog';
+import { CARD_BY_ID, CARDS, CF_RULES, FAMILY_LABEL, TYPE_LABEL, type CardFamily } from '../../../shared/cards/catalog';
 import type { CfAction, CfEvent, CfPlayerView, CfView, PlayParams } from '../../../shared/cards/engine';
 import type { ProfileApi } from '../account/useProfile';
 import type { Settings } from '../settings';
@@ -59,7 +59,9 @@ const nextSeed = () => (rollSeed = (Math.imul(rollSeed, 1664525) + 1013904223) >
 
 interface Fly { key: number; ms: number; cardId: string | null; kind: 'card' | 'trap' | 'reveal'; dx: number; dy: number; tx: number; ty: number; who: string; label?: string }
 interface Headline { key: number; text: string; tone: string }
-interface LogLine { key: number; text: string; tone: string; round: number }
+interface LogLine { key: number; text: string; tone: string; round: number; card?: string }
+/** Carte montrée en grand au centre (carte adverse jouée, piège révélé, Fouine). */
+interface Spot { key: number; cardId: string; title: string; caption?: string; tone: 'carte' | 'piege' }
 
 export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onAgain, onAccount, online }: Props) {
   const tray = useRef<DiceTrayHandle>(null);
@@ -85,6 +87,9 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const [bigShot, setBigShot] = useState<{ text: string; who: string; key: number } | null>(null);
   const [zoom, setZoom] = useState<{ id: string; owner?: string } | null>(null);
   const [toast, setToast] = useState<{ text: string; key: number } | null>(null);
+  const [spot, setSpot] = useState<Spot | null>(null);
+  const spotDone = useRef<(() => void) | null>(null);
+  const [trapInfo, setTrapInfo] = useState<{ owner: string; id: string | null } | null>(null);
   const [now, setNow] = useState(Date.now());
   const panels = useRef<Record<string, HTMLElement | null>>({});
   const trayZone = useRef<HTMLDivElement>(null);
@@ -162,10 +167,20 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   }, []);
 
   const pushLog = useCallback((e: CfEvent, round: number) => {
-    setLog((l) => [{ key: ++logKey.current, text: e.text, tone: eventTone(e), round }, ...l].slice(0, 220));
+    const card = e.card && e.kind !== 'pioche-privee' ? e.card : undefined;
+    setLog((l) => [{ key: ++logKey.current, text: e.text, tone: eventTone(e), round, card }, ...l].slice(0, 220));
   }, []);
 
-  const playEvent = useCallback(async (e: CfEvent, prev: CfSnapshot | null, next: CfSnapshot) => {
+  /** Montre une carte en grand, lisible, au centre ; un toucher la ferme plus tôt. */
+  const showSpot = useCallback((sp: Omit<Spot, 'key'>, ms: number) => new Promise<void>((resolve) => {
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const done = () => { if (t) clearTimeout(t); t = null; spotDone.current = null; if (alive.current) setSpot(null); resolve(); };
+    spotDone.current = done;
+    setSpot({ ...sp, key: Date.now() + Math.random() });
+    t = setTimeout(done, reduced() ? Math.max(ms, 3000) : ms);
+  }), []);
+
+  const playEvent = useCallback(async (e: CfEvent, prev: CfSnapshot | null, next: CfSnapshot, after?: CfEvent) => {
     const round = next.view.round;
     pushLog(e, round);
     const prevDice = (id: string) => prev?.view.players.find((p) => p.id === id)?.r.dice ?? [0, 0, 0];
@@ -177,7 +192,9 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       case 'carte': {
         if (!e.player || !e.card) break;
         sound.party('pop', 0.5);
-        await playFly({ cardId: e.card, kind: 'card', who: e.player }, e.player, undefined, e.player === me ? 850 : 1350);
+        if (e.player === me) { await playFly({ cardId: e.card, kind: 'card', who: e.player }, e.player, undefined, 850); return; }
+        // Carte adverse : en grand et lisible, assez longtemps pour lire son texte.
+        await showSpot({ cardId: e.card, title: e.text, tone: 'carte' }, 3200);
         return;
       }
       case 'pose':
@@ -193,8 +210,13 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       case 'piege-revele':
         if (!e.player || !e.card) break;
         sound.party('thunder', 0.7);
-        setHeadline({ key: Date.now(), text: e.text, tone: 'piege' });
-        await playFly({ cardId: e.card, kind: 'reveal', who: e.player, label: 'Piège !' }, e.player, undefined, 1500);
+        // Piège révélé : la carte en grand, avec ce qu'elle fait (l'événement suivant le raconte).
+        await showSpot({ cardId: e.card, title: e.text, caption: after && after.kind !== 'lancer' && after.kind !== 'piege-revele' ? after.text : undefined, tone: 'piege' }, 3400);
+        return;
+      case 'fouine':
+      case 'revele':
+        if (!e.card) break;
+        await showSpot({ cardId: e.card, title: e.kind === 'fouine' ? 'La Fouine vous montre le piège' : e.text, tone: 'piege' }, 2600);
         return;
       case 'comptes': {
         const lr = next.view.lastRound;
@@ -229,7 +251,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       setHeadline({ key: Date.now(), text: e.text, tone });
       await wait(tone === 'piege' || tone === 'annule' ? 1000 : 650);
     }
-  }, [me, playFly, pushLog, rollTray]);
+  }, [me, playFly, pushLog, rollTray, showSpot]);
 
   const pump = useCallback(async () => {
     if (busy.current) return;
@@ -238,9 +260,9 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
     while (queue.current.length && alive.current) {
       const item = queue.current.shift()!;
       const prev = snapRef.current;
-      for (const e of item.events) {
+      for (let i = 0; i < item.events.length; i++) {
         if (!alive.current) break;
-        await playEvent(e, prev, item.snap);
+        await playEvent(item.events[i], prev, item.snap, item.events[i + 1]);
       }
       snapRef.current = item.snap;
       setSnap(item.snap);
@@ -327,6 +349,15 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const clock = left === null || !mine ? null : inReserve
     ? { text: `Réserve ${Math.ceil(reserveLeft)} s`, low: true, pct: (100 * reserveLeft) / Math.max(1, CF_RULES.reserveSeconds) }
     : { text: `${Math.min(CF_RULES.decisionSeconds, Math.ceil(left))} s`, low: left <= 8, pct: (100 * left) / CF_RULES.decisionSeconds };
+  // Pause de réponse en ligne (durée fixe, la même pour tous) : petit compte à rebours lisible.
+  const rwStart = useRef<{ until: number; at: number } | null>(null);
+  const win = snap?.responseWindow ?? null;
+  if (win && rwStart.current?.until !== win.until) rwStart.current = { until: win.until, at: Math.min(now, Date.now()) };
+  const rw = win && win.until > now && !(win.player === me && legal.some((a) => a.type === 'play')) ? {
+    text: win.player === me ? 'Pause de réponse… la partie reprend' : `${win.kind === 'lastword' ? 'Dernier mot possible' : 'Réponse possible'} : ${snap?.view.players.find((p) => p.id === win.player)?.name ?? '?'}…`,
+    secs: Math.max(1, Math.ceil((win.until - now) / 1000)),
+    pct: Math.max(0, Math.min(100, (100 * (win.until - now)) / Math.max(1, win.until - (rwStart.current?.at ?? now)))),
+  } : null;
   const tickSec = clock ? Math.ceil(inReserve ? reserveLeft : left!) : 0;
   const lastTick = useRef(0);
   useEffect(() => { if (clock && tickSec <= 5 && tickSec > 0 && lastTick.current !== tickSec) { lastTick.current = tickSec; sound.tick(); } }, [clock, tickSec]);
@@ -382,6 +413,8 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   // Bulle de la carte choisie : ce qu'elle fait maintenant + paramètres + Jouer.
   const selDef = selCard ? def(selCard.id) : undefined;
   const ready = selOpts.length ? resolveOption(selOpts, chosen) : null;
+  // Choix d'une cible (à 3-4) : les panneaux des adversaires visables deviennent des boutons.
+  const targetIds = nextKey === 'target' && !discardMode ? valuesFor(selOpts, chosen, 'target').map(String) : [];
   const preview = selCard && selDef ? (
     <div className={`cf-bubble ${selDef.family}`} role="dialog" aria-label={selDef.name}>
       <div className="cf-bubble-head">
@@ -427,7 +460,9 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       <div className={`cf-opps n${opps.length}`}>
         {opps.map((o) => (
           <OppPanel key={o.id} p={o} v={v} seat={seat(o.id)} emote={emotes[o.id]?.e} active={turnId === o.id || v.waiting.includes(o.id)} compact={opps.length > 1}
-            refEl={(el) => { panels.current[o.id] = el; }} onHabitue={(id) => setZoom({ id, owner: o.id })} />
+            leader={v.order[0] === o.id && v.phase !== 'over'} playing={turnId === o.id ? 'joue' : v.waiting.includes(o.id) ? 'réfléchit' : null}
+            target={targetIds.includes(o.id) ? () => { sound.click(); setChosen((c) => ({ ...c, target: o.id })); } : undefined}
+            refEl={(el) => { panels.current[o.id] = el; }} onHabitue={(id) => setZoom({ id, owner: o.id })} onTrap={(id) => (id ? setZoom({ id, owner: o.id }) : setTrapInfo({ owner: o.id, id: null }))} />
         ))}
       </div>
 
@@ -435,8 +470,10 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         <DiceTray ref={tray} appearance={pa.profile.equipped} quality={settings.quality} onDieClick={onDie} cup={settings.cup} />
         {strip}
         {lastwordMine && <div className="cf-lastword-tag">Dernier mot</div>}
-        {snap.responseWindow && snap.responseWindow.player !== me && snap.responseWindow.until > now && !headline && (
-          <div className="cf-respwin" role="status">{snap.responseWindow.kind === 'lastword' ? 'Dernier mot possible' : 'Réponse possible'} : {nameIn(v, snap.responseWindow.player)}… <b>{Math.ceil((snap.responseWindow.until - now) / 1000)} s</b></div>
+        {rw && (
+          <div className="cf-respwin" role="status" style={{ ['--p' as string]: `${rw.pct}%` }}>
+            <span>{rw.text}</span><b>{rw.secs} s</b><i aria-hidden />
+          </div>
         )}
         <div className="cf-tray-chip">
           {turnP && turnP.id !== me ? <span><b>{turnP.name}</b>{turnP.r.throwsUsed ? ` : ${comboOf(v, turnP)?.label ?? ''}` : ' va lancer'}</span>
@@ -463,6 +500,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
 
       <div className={`cf-me-panel${mine ? ' mine' : ''}${fx('me')}`} ref={(el) => { panels.current[me] = el; }}>
         <div className="cf-me-row">
+          {v.order[0] === me && v.phase !== 'over' && <span className="cf-badge-lead" title="Vous menez cette manche">Mène</span>}
           <span className="cf-tokens" aria-label={`${meP.tokens} jetons`}><i aria-hidden />{meP.tokens}</span>
           <Glasses n={meP.tournees} max={v.rules.tourneesMax} />
           <span className="cf-me-hab">
@@ -506,11 +544,22 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       {toast && <div key={toast.key} className="cf-toast is-err" role="alert">{toast.text}</div>}
 
       {mulliganMine && <Mulligan v={v} legal={legal} pending={pending} onAct={act} clock={clock?.text} />}
-      {respondMine && !onlyPass && <RespondWindow v={v} legal={legal} pending={pending} onAct={act} clock={clock?.text} />}
+      {respondMine && !onlyPass && <RespondWindow v={v} legal={legal} pending={pending} onAct={act} clock={clock?.text} onZoom={(id) => setZoom({ id })} />}
       {choiceMine && <ChoiceWindow v={v} legal={legal} pending={pending} onAct={act} />}
       {(snap.finished || v.phase === 'over') && !animating && <EndScreen snap={snap} v={v} me={me} onExit={() => { const c = controller as { close?: () => void }; if (c.close) c.close(); else controller.leave(); onExit(); }} onAgain={onAgain} onAccount={onAccount}
         bot={controller.kind === 'bot'} guest={!pa.isAccount} ranked={controller.ranked} spectator={spectator} rewarded={(controller as { rewarded?: boolean }).rewarded ?? controller.kind === 'online'} />}
 
+      {spot && (
+        <div key={spot.key} className={`cf-spot ${spot.tone}`} role="dialog" aria-label={spot.title} onClick={() => spotDone.current?.()}>
+          <p className="cf-spot-title">{spot.title}</p>
+          <CardView id={spot.cardId} width={Math.min(250, vw() - 56)} />
+          {spot.caption && <p className="cf-spot-caption">{spot.caption}</p>}
+          <small>Touchez pour continuer · la carte reste dans le journal</small>
+        </div>
+      )}
+      {trapInfo && (
+        <Sheet title="Piège face cachée" onClose={() => setTrapInfo(null)}><TrapExplain v={v} owner={trapInfo.owner} onZoom={(id) => setZoom({ id })} /></Sheet>
+      )}
       {zoom && (
         <div className="cf-zoom" role="dialog" aria-modal="true" aria-label={def(zoom.id)?.name} onClick={() => setZoom(null)}>
           <CardView id={zoom.id} width={Math.min(260, vw() - 60)} />
@@ -519,7 +568,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         </div>
       )}
       {logOpen && <Sheet title={`Journal · manche ${v.round}`} onClose={() => setLogOpen(false)}>
-        <ol className="cf-log">{log.map((l) => <li key={l.key} className={l.tone}><small>M{l.round}</small>{l.text}</li>)}</ol>
+        <ol className="cf-log">{log.map((l) => <li key={l.key} className={l.tone}><small>M{l.round}</small>{l.card ? <button className="cf-log-card" onClick={() => setZoom({ id: l.card! })}>{l.text} <em>Voir la carte</em></button> : l.text}</li>)}</ol>
       </Sheet>}
       {rulesOpen && <Sheet title="Règles de Coups Fourrés" onClose={() => setRulesOpen(false)}><RulesContent short /></Sheet>}
     </div>
@@ -537,12 +586,14 @@ function Glasses({ n, max, small }: { n: number; max: number; small?: boolean })
   );
 }
 
-function OppPanel({ p, v, seat, active, compact, refEl, onHabitue, emote }: { p: CfPlayerView; v: CfView; seat?: CfSeat & { away?: boolean; left?: boolean }; active: boolean; compact: boolean; refEl: (el: HTMLElement | null) => void; onHabitue: (id: string) => void; emote?: string }) {
+function OppPanel({ p, v, seat, active, compact, refEl, onHabitue, onTrap, emote, leader, playing, target }: { p: CfPlayerView; v: CfView; seat?: CfSeat & { away?: boolean; left?: boolean }; active: boolean; compact: boolean; refEl: (el: HTMLElement | null) => void; onHabitue: (id: string) => void; onTrap: (id: string | null) => void; emote?: string; leader?: boolean; playing?: string | null; target?: () => void }) {
   const traps = v.traps.filter((t) => t.owner === p.id);
   const c = comboOf(v, p);
   const fams = p.families.map((f) => FAMILY_SHORT[f]).join(' / ');
   return (
-    <section className={`cf-opp${active ? ' active' : ''}${p.out ? ' out' : ''}`} ref={refEl} aria-label={`${p.name} : ${p.tokens} jetons, ${p.tournees} Tournées, ${p.handCount} cartes en main, ${traps.length} pièges posés`}>
+    <section className={`cf-opp${active ? ' active' : ''}${p.out ? ' out' : ''}${target ? ' targetable' : ''}`} ref={refEl} aria-label={`${p.name}${leader ? ', meneur' : ''} : ${p.tokens} jetons, ${p.tournees} Tournées, ${p.handCount} cartes en main, ${traps.length} pièges posés`}>
+      {(leader || playing || p.out) && <div className="cf-opp-badges">{leader && <span className="cf-badge-lead">Mène</span>}{playing && <span className="cf-badge-turn">{playing}</span>}{p.out && p.place ? <span className="cf-badge-out">{p.place === 1 ? '1er' : `${p.place}e`}</span> : null}</div>}
+      {target && <button className="cf-opp-target" onClick={target} aria-label={`Viser ${p.name}`}><span>Viser {p.name}</span></button>}
       <div className="cf-opp-row">
         <Avatar photo={seat?.photo} emoji={seat?.avatar ?? '🎲'} size={compact ? 30 : 40} />
         <span className="cf-opp-name"><b>{p.name}</b>{seat?.left ? <small className="away">A quitté la partie</small> : seat?.away ? <small className="away">Déconnecté : 60 s pour revenir</small> : !compact && <small>{[seat?.label, fams].filter(Boolean).join(' · ')}</small>}</span>
@@ -553,8 +604,10 @@ function OppPanel({ p, v, seat, active, compact, refEl, onHabitue, emote }: { p:
         {compact ? <span className="cf-mini-stat" aria-hidden>🍺 {p.tournees}</span> : <Glasses n={p.tournees} max={v.rules.tourneesMax} small />}
         <span className="cf-backs" aria-hidden>{compact ? <><CardBack width={14} /><em>{p.handCount}</em></> : Array.from({ length: Math.min(p.handCount, 8) }, (_, i) => <CardBack key={i} width={18} />)}</span>
         <span className="cf-grow" />
-        {traps.length > 0 && <span className="cf-opp-traps" aria-hidden>{traps.map((t) => t.id ? <span key={t.uid} className="cf-seen-trap" title={def(t.id)?.name}>{shortName(t.id).slice(0, 7)}</span> : <TrapBack key={t.uid} width={compact ? 16 : 24} />)}</span>}
-        {p.habitues.map((h) => <button key={h.uid} className={`cf-hab-chip ${def(h.id)?.family}`} onClick={() => onHabitue(h.id)}>{shortName(h.id)}</button>)}
+        {traps.length > 0 && <span className="cf-opp-traps">{traps.map((t) => <button key={t.uid} className="cf-trap-btn" onClick={() => onTrap(t.id)} aria-label={t.id ? `Piège vu : ${def(t.id)?.name}` : 'Piège face cachée : explications'}>{t.id ? <span className="cf-seen-trap">{shortName(t.id).slice(0, 7)}</span> : <TrapBack width={compact ? 16 : 24} />}</button>)}</span>}
+        {p.habitues.map((h) => compact
+          ? <button key={h.uid} className={`cf-hab-dot ${def(h.id)?.family}`} onClick={() => onHabitue(h.id)} aria-label={`Habitué : ${def(h.id)?.name}`}>{shortName(h.id).slice(0, 1)}</button>
+          : <button key={h.uid} className={`cf-hab-chip ${def(h.id)?.family}`} onClick={() => onHabitue(h.id)}>{shortName(h.id)}</button>)}
       </div>
       {compact && c && <div className="cf-opp-combo">{c.dice.map((d, i) => <Pip key={i} v={d} size={14} />)}<small>{c.label}</small></div>}
     </section>
@@ -572,7 +625,7 @@ function ParamChooser({ k, v, cardId, opts, chosen, onPick }: { k: ParamKey; v: 
       <div className="cf-param-row">
         {vals.map((x) => {
           switch (k) {
-            case 'target': return <button key={x} onClick={() => onPick(k, x)}>{nameIn(v, String(x))}</button>;
+            case 'target': { const t = v.players.find((p) => p.id === String(x)); return <button key={x} className="target" onClick={() => onPick(k, x)}><b>{nameIn(v, String(x))}</b>{t && <small>{t.tokens} jetons · {t.tournees} 🍺</small>}</button>; }
             case 'die': return <button key={x} className="die" onClick={() => onPick(k, x)} aria-label={`Dé ${Number(x) + 1} : ${diceOf[Number(x)]}`}><Pip v={diceOf[Number(x)]} size={30} /></button>;
             case 'delta': return <button key={x} onClick={() => onPick(k, x)}>{Number(x) > 0 ? '+1' : '−1'} <small>({me.r.dice[chosen.die ?? 0]} → {me.r.dice[chosen.die ?? 0] + Number(x)})</small></button>;
             case 'face': return <button key={x} className="die" onClick={() => onPick(k, x)} aria-label={`Face ${x}`}><Pip v={Number(x)} size={28} /></button>;
@@ -633,7 +686,28 @@ export function Mulligan({ v, legal, pending, onAct, clock }: { v: CfView; legal
   );
 }
 
-export function RespondWindow({ v, legal, pending, onAct, clock }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void; clock?: string }) {
+/** Pièges possibles d'après les familles visibles du deck adverse (information publique). */
+export function possibleTraps(families: CardFamily[]): string[] {
+  return CARDS.filter((c) => c.type === 'piege' && families.includes(c.family)).map((c) => c.id);
+}
+
+/** Explication d'un piège posé face cachée : la règle, et la liste des pièges possibles. */
+export function TrapExplain({ v, owner, onZoom }: { v: CfView; owner: string; onZoom: (id: string) => void }) {
+  const p = v.players.find((x) => x.id === owner);
+  const ids = possibleTraps(p?.families ?? []);
+  return (
+    <div className="cf-trap-explain">
+      <p><b>Piège face cachée</b> : son effet reste secret jusqu’à ce qu’il se déclenche (ou qu’une Fouine le regarde). Il revient dans la main de {nameIn(v, owner)} s’il ne s’est pas déclenché en {v.rules.trapReturnRounds} manches.</p>
+      {ids.length ? <>
+        <small>Les pièges possibles du deck de {nameIn(v, owner)} (familles {p!.families.map((f) => FAMILY_SHORT[f]).join(', ')}) : touchez pour lire.</small>
+        <div className="cf-trap-list">{ids.map((id) => <button key={id} onClick={() => onZoom(id)}><MiniCard id={id} width={64} /><span>{def(id)?.name}</span></button>)}</div>
+      </> : <small>Aucune famille de son deck ne contient de piège… c’est donc un Leurre ou une surprise.</small>}
+    </div>
+  );
+}
+
+export function RespondWindow({ v, legal, pending, onAct, clock, onZoom }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void; clock?: string; onZoom?: (id: string) => void }) {
+  const zoomTo = onZoom ?? (() => {});
   const top = v.stack[v.stack.length - 1];
   const who = top ? nameIn(v, top.owner) : 'L’adversaire';
   const me = meOf(v);
@@ -646,17 +720,26 @@ export function RespondWindow({ v, legal, pending, onAct, clock }: { v: CfView; 
     <div className="cf-modal respond" role="dialog" aria-modal="true" aria-label="Riposte">
       <div className="cf-modal-card">
         <div className="cf-resp-head"><h3>{who} {what} : répondre ?</h3>{clock && <span className="cf-clock low">{clock}</span>}</div>
-        <div className="cf-resp-body">
+        <div className="cf-resp-body col">
           <div className="cf-resp-their">
-            {top?.kind === 'card' && top.cardId ? <CardView id={top.cardId} width={118} /> : top?.kind === 'card' ? <TrapBack width={60} />
-              : top?.kind === 'keep' ? <span className="cf-resp-keep">{v.players.find((p) => p.id === top.owner)?.r.dice.map((d, i) => <Pip key={i} v={d} size={28} on={top.keep[i]} />)}</span> : null}
+            {top?.kind === 'card' && top.cardId ? <CardView id={top.cardId} width={Math.min(240, vw() - 64)} onClick={() => zoomTo(top.cardId!)} />
+              : top?.kind === 'card' ? <div className="cf-resp-trap"><TrapBack width={56} /><TrapExplain v={v} owner={top.owner} onZoom={zoomTo} /></div>
+                : top?.kind === 'keep' ? <span className="cf-resp-keep">{v.players.find((p) => p.id === top.owner)?.r.dice.map((d, i) => <Pip key={i} v={d} size={28} on={top.keep[i]} />)}</span> : null}
           </div>
           <div className="cf-resp-mine">
+            <small className="cf-resp-label">Votre réponse possible</small>
             <div className="cf-resp-cards">{[...new Set(plays.map((a) => a.card))].map((uid) => {
               const k = me.hand?.find((x) => x.uid === uid);
               return k ? <MiniCard key={uid} id={k.id} width={64} selected={pick === uid} playable onClick={() => setPick(uid)} /> : null;
             })}</div>
-            {card && <p>{describeNow(v, card.id)}</p>}
+            {card && def(card.id) && (
+              <div className="cf-resp-read">
+                <b>{def(card.id)!.name} · {plural(costNow(v, card.id), 'Tournée')}</b>
+                <span>{def(card.id)!.text}</span>
+                <em>{describeNow(v, card.id)}</em>
+                <button className="cf-link" onClick={() => zoomTo(card.id)}>Voir la carte en grand</button>
+              </div>
+            )}
           </div>
         </div>
         <div className="cf-modal-btns">
