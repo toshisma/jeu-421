@@ -32,42 +32,42 @@ const c = (id: string, name: string, family: CardFamily, type: CardType, cost: n
 
 export const CARDS: CardDef[] = [
   // --- Les Habitués ---
-  c('patron', 'Le Patron', 'habitues', 'habitue', 3, 'legendaire', 'Au début de chaque manche, +1 Tournée. Vos Habitués ne peuvent pas être chassés par une carte qui coûte 2 ou moins.', '« Ici, c’est moi qui sers. »'),
-  c('josiane', 'Josiane, la serveuse', 'habitues', 'habitue', 2, 'rare', 'Une fois par manche, relancez un de vos dés sans utiliser de lancer.', '« Je vous remets la même ? »'),
-  c('vieux-marcel', 'Le Vieux Marcel', 'habitues', 'habitue', 2, 'commune', 'Vos suites valent 3 au lieu de 2.', '« De mon temps, on comptait jusqu’à trois. »'),
-  c('pilier', 'Le Pilier de comptoir', 'habitues', 'habitue', 1, 'commune', 'Quand vous perdez une manche, vous recevez 1 jeton de moins (au moins 1).', '« Trente ans au même tabouret. Rien ne le bouge. »'),
-  c('videur', 'Le Videur', 'habitues', 'habitue', 3, 'epique', 'Le premier piège adverse qui se déclenche dans chaque manche est annulé et défaussé.', '« Pas de ça chez nous. »'),
-  c('tournee-patron', 'Tournée du patron', 'habitues', 'coup', 1, 'commune', 'Gagnez 2 Tournées.', '« C’est la maison qui offre ! »'),
-  c('ticket-caisse', 'Ticket de caisse', 'habitues', 'riposte', 1, 'commune', 'Annulez un Coup adverse qui coûte 1 ou moins.', '« Ça, ce n’est pas sur l’addition. »'),
+  c('patron', 'Le Patron', 'habitues', 'habitue', 3, 'legendaire', 'Au début de chaque manche, +1 Tournée (et 1 carte si vous avez perdu la manche précédente). Vos Habitués ne peuvent être ni chassés ni annulés par une carte qui coûte 2 ou moins.', '« Ici, c’est moi qui sers. »'),
+  c('josiane', 'Josiane, la serveuse', 'habitues', 'habitue', 3, 'rare', 'Une fois par manche, relancez un de vos dés sans utiliser de lancer.', '« Je vous remets la même ? »'),
+  c('vieux-marcel', 'Le Vieux Marcel', 'habitues', 'habitue', 1, 'commune', 'Vos suites valent 4 au lieu de 2.', '« De mon temps, on comptait jusqu’à trois. »'),
+  c('pilier', 'Le Pilier de comptoir', 'habitues', 'habitue', 1, 'commune', 'Quand vous perdez une manche, vous recevez 1 jeton de moins (au moins 1). Plusieurs Piliers ne se cumulent pas.', '« Trente ans au même tabouret. Rien ne le bouge. »'),
+  c('videur', 'Le Videur', 'habitues', 'habitue', 2, 'epique', 'Le premier piège adverse qui se déclenche dans chaque manche est annulé et défaussé.', '« Pas de ça chez nous. »'),
+  c('tournee-patron', 'Tournée du patron', 'habitues', 'coup', 0, 'commune', 'Gagnez 2 Tournées.', '« C’est la maison qui offre ! »'),
+  c('ticket-caisse', 'Ticket de caisse', 'habitues', 'riposte', 1, 'commune', 'Annulez un Coup adverse qui coûte 2 ou moins.', '« Ça, ce n’est pas sur l’addition. »'),
   c('fermeture', 'Fermeture !', 'habitues', 'coup', 3, 'rare', 'Un Habitué adverse retourne dans la main de son propriétaire.', '« On ferme, messieurs-dames ! »'),
-  c('note-salee', 'La note est salée', 'habitues', 'dernier-mot', 2, 'rare', 'Si vous gagnez la manche, le perdant reçoit 1 jeton de plus.', '« Et le service n’est pas compris. »'),
+  c('note-salee', 'La note est salée', 'habitues', 'dernier-mot', 1, 'rare', 'Si vous gagnez la manche, le perdant reçoit 1 jeton de plus.', '« Et le service n’est pas compris. »'),
   // --- L'Ivresse ---
   c('cul-sec', 'Cul sec', 'ivresse', 'coup', 1, 'commune', 'Faites un lancer de plus ce tour, au-delà de la limite.', '« Allez, la dernière ! »'),
-  c('tete-tourne', 'Tête qui tourne', 'ivresse', 'coup', 1, 'commune', 'Retournez un de vos dés sur sa face opposée (1 devient 6, 2 devient 5, 3 devient 4).', '« Le comptoir bouge, ou c’est moi ? »'),
+  c('tete-tourne', 'Tête qui tourne', 'ivresse', 'coup', 2, 'commune', 'Retournez un de vos dés sur sa face opposée (1 devient 6, 2 devient 5, 3 devient 4).', '« Le comptoir bouge, ou c’est moi ? »'),
   c('pari-comptoir', 'Pari de comptoir', 'ivresse', 'coup', 0, 'rare', 'Si vous gagnez la manche, le perdant reçoit 2 jetons de plus ; si vous la perdez, vous en recevez 2 de plus.', '« Tope là, et que le meilleur gagne. »'),
   c('double-tournee', 'Double tournée', 'ivresse', 'coup', 3, 'epique', 'Si vous gagnez la manche, votre combinaison vaut le double.', '« Et une deuxième pour la table ! »'),
   c('de-sous-table', 'Le dé sous la table', 'ivresse', 'coup', 3, 'rare', 'Seulement si vous jouez en second : relancez un dé de l’adversaire.', '« Oups, il a roulé. Je relance ? »'),
-  c('yeux-piquent', 'Les yeux qui piquent', 'ivresse', 'riposte', 2, 'rare', 'Quand l’adversaire garde des dés, il doit en relâcher un de votre choix.', '« Tu es sûr de ce que tu vois ? »'),
-  c('gueule-bois', 'Gueule de bois', 'ivresse', 'piege', 2, 'commune', 'Quand l’adversaire gagne une manche, il aura un lancer de moins à la suivante (au moins 1).', '« Ça se paie le lendemain. »'),
+  c('yeux-piquent', 'Les yeux qui piquent', 'ivresse', 'riposte', 1, 'rare', 'Quand l’adversaire garde des dés, il doit tous les relâcher.', '« Tu es sûr de ce que tu vois ? »'),
+  c('gueule-bois', 'Gueule de bois', 'ivresse', 'piege', 0, 'commune', 'Quand l’adversaire gagne une manche, il n’aura qu’un seul lancer à la suivante.', '« Ça se paie le lendemain. »'),
   c('tournee-generale', 'Tournée générale', 'ivresse', 'coup', 4, 'legendaire', 'Seulement si vous jouez en second : les deux joueurs relancent tous leurs dés, puis vous pouvez relancer un des vôtres.', '« Tout le monde reboit, c’est ma tournée ! »'),
   // --- Les Pièges ---
   c('leurre', 'Leurre', 'pieges', 'piege', 0, 'commune', 'Ne fait rien. Quand il est révélé ou qu’il revient en main, piochez 1 carte.', '« Rien dans les mains, rien dans les poches. »'),
-  c('croche-patte', 'Croche-patte', 'pieges', 'piege', 1, 'commune', 'Quand l’adversaire garde 2 dés, l’un d’eux est relancé au hasard.', '« Attention à la marche. »'),
-  c('main-sac', 'Main dans le sac', 'pieges', 'piege', 1, 'commune', 'Quand l’adversaire gagne des Tournées grâce à une carte, vous en gagnez autant.', '« On partage, entre amis. »'),
-  c('fouine', 'Fouine', 'pieges', 'coup', 1, 'commune', 'Regardez un piège adverse. Payez 1 Tournée de plus pour le défausser.', '« Ça sent le coup fourré. »'),
-  c('ardoise-piegee', 'Ardoise piégée', 'pieges', 'piege', 2, 'commune', 'Quand l’adversaire joue un Coup, il paie 1 Tournée de plus, sinon le Coup est annulé.', '« Tout se paie, un jour ou l’autre. »'),
-  c('faux-421', 'Faux 4-2-1', 'pieges', 'piege', 2, 'rare', 'Quand l’adversaire termine avec un 4-2-1, il ne vaut que 2 cette manche.', '« Regarde mieux : c’est un 4 ou un 3 ? »'),
-  c('coup-nenette', 'Le coup de la nénette', 'pieges', 'piege', 3, 'epique', 'Quand l’adversaire termine avec une combinaison qui vaut 1, elle devient une nénette.', '« Deux, deux, un. Et bonne nuit. »'),
-  c('retournement-veste', 'Retournement de veste', 'pieges', 'piege', 4, 'legendaire', 'Quand l’adversaire devrait vous donner 4 jetons ou plus, c’est lui qui les reçoit.', '« Je n’ai jamais dit que j’étais de ton côté. »'),
+  c('croche-patte', 'Croche-patte', 'pieges', 'piege', 0, 'commune', 'Quand l’adversaire garde des dés, l’un d’eux est relancé au hasard.', '« Attention à la marche. »'),
+  c('main-sac', 'Main dans le sac', 'pieges', 'piege', 0, 'commune', 'Quand l’adversaire gagne des Tournées ou pioche des cartes grâce à une carte, vous en gagnez ou en piochez autant.', '« On partage, entre amis. »'),
+  c('fouine', 'Fouine', 'pieges', 'coup', 0, 'commune', 'Regardez un piège adverse. Payez 1 Tournée pour le défausser. Si l’adversaire n’a aucun piège, piochez 1 carte.', '« Ça sent le coup fourré. »'),
+  c('ardoise-piegee', 'Ardoise piégée', 'pieges', 'piege', 0, 'commune', 'Quand l’adversaire joue un Coup, il paie 2 Tournées de plus, sinon le Coup est annulé.', '« Tout se paie, un jour ou l’autre. »'),
+  c('faux-421', 'Faux 4-2-1', 'pieges', 'piege', 1, 'rare', 'Quand l’adversaire termine avec un 4-2-1, il ne vaut que 2 cette manche.', '« Regarde mieux : c’est un 4 ou un 3 ? »'),
+  c('coup-nenette', 'Le coup de la nénette', 'pieges', 'piege', 0, 'epique', 'Quand l’adversaire devrait gagner la manche avec une combinaison qui vaut 1, elle devient une nénette.', '« Deux, deux, un. Et bonne nuit. »'),
+  c('retournement-veste', 'Retournement de veste', 'pieges', 'piege', 4, 'legendaire', 'Quand l’adversaire devrait vous donner 4 jetons ou plus, c’est lui qui les reçoit à votre place.', '« Je n’ai jamais dit que j’étais de ton côté. »'),
   // --- Les Chaînes ---
-  c('coup-coude', 'Coup de coude', 'chaines', 'coup', 0, 'commune', 'Piochez 1 carte.', '« Psst, regarde un peu ça. »'),
+  c('coup-coude', 'Coup de coude', 'chaines', 'coup', 1, 'commune', 'Piochez 1 carte.', '« Psst, regarde un peu ça. »'),
   c('mise-bouche', 'Mise en bouche', 'chaines', 'coup', 1, 'commune', 'Votre prochaine carte de la manche coûte 2 de moins.', '« Juste de quoi ouvrir l’appétit. »'),
-  c('coup-pouce', 'Coup de pouce', 'chaines', 'coup', 1, 'commune', 'Ajoutez ou retirez 1 à un de vos dés (un 6 ne monte pas, un 1 ne descend pas).', '« Un tout petit coup de pouce, personne n’a rien vu. »'),
+  c('coup-pouce', 'Coup de pouce', 'chaines', 'coup', 2, 'commune', 'Ajoutez ou retirez 1 à un de vos dés (un 6 ne monte pas, un 1 ne descend pas).', '« Un tout petit coup de pouce, personne n’a rien vu. »'),
   c('calcul-mental', 'Calcul mental', 'chaines', 'coup', 1, 'commune', 'Regardez les 3 cartes du dessus de votre deck, gardez-en une, remettez les autres dessous.', '« Je retiens deux, et je pose quatre. »'),
-  c('recompter', 'Recompter', 'chaines', 'dernier-mot', 1, 'commune', 'Si vous avez joué au moins 2 autres cartes dans la manche : ajoutez ou retirez 1 à un de vos dés.', '« Attendez, je recompte. »'),
-  c('domino', 'Domino', 'chaines', 'coup', 2, 'rare', 'L’adversaire perd 1 Tournée par carte que vous avez déjà jouée dans la manche.', '« Et un, et deux, et trois… »'),
+  c('recompter', 'Recompter', 'chaines', 'dernier-mot', 2, 'commune', 'Si vous avez joué au moins 3 autres cartes dans la manche : ajoutez ou retirez 1 à un de vos dés.', '« Attendez, je recompte. »'),
+  c('domino', 'Domino', 'chaines', 'coup', 1, 'rare', 'L’adversaire perd 1 Tournée par carte que vous avez déjà jouée dans la manche.', '« Et un, et deux, et trois… »'),
   c('reaction-chaine', 'Réaction en chaîne', 'chaines', 'riposte', 2, 'rare', 'Annulez une carte adverse. Si c’est au moins votre 3e carte de la manche, elle revient dans votre main.', '« Un qui tombe, et tout le zinc suit. »'),
-  c('bon-numero', 'Le bon numéro', 'chaines', 'coup', 4, 'epique', 'Mettez un de vos dés sur la face de votre choix. Coûte 1 de moins par carte déjà jouée dans la manche.', '« Celui-là, je l’ai vu venir. »'),
+  c('bon-numero', 'Le bon numéro', 'chaines', 'coup', 4, 'epique', 'Mettez un de vos dés sur la face de votre choix.', '« Celui-là, je l’ai vu venir. »'),
   c('grand-enchainement', 'Le grand enchaînement', 'chaines', 'coup', 3, 'legendaire', 'Rejouez gratuitement le dernier Coup que vous avez joué dans cette manche.', '« Et on remet ça, dans le même ordre. »'),
 ];
 
@@ -77,9 +77,9 @@ export const cardDef = (id: string): CardDef | undefined => CARD_BY_ID[id];
 /** Réglages de départ (livre de règles). */
 export const CF_RULES = {
   /** Duel : jetons de départ de chaque joueur ; le premier à 0 gagne (décharge). */
-  startTokens: 21,
+  startTokens: 11,
   /** Partie libre à 3 ou 4 joueurs. */
-  startTokensMulti: 10,
+  startTokensMulti: 7,
   deckSize: 20,
   maxCopies: 2,
   maxLegendaryCopies: 1,
@@ -89,12 +89,18 @@ export const CF_RULES = {
   tourneesPerRound: 2,
   tourneesLoserBonus: 1,
   tourneesMax: 6,
-  maxTraps: 2,
-  maxHabitues: 3,
+  maxTraps: 3,
+  maxHabitues: 4,
   /** Un piège non déclenché depuis ce nombre de manches revient en main. */
   trapReturnRounds: 3,
   /** L'ardoise, une fois par partie : emprunter ces Tournées tout de suite, rien à la manche suivante. */
   ardoiseLoan: 3,
+  /** Lancers par tour (le meneur fixe le maximum des autres). */
+  maxThrows: 3,
+  /** Deck vide : on mélange sa défausse pour refaire un deck et on reçoit ces jetons (0 = ancienne règle : 1 jeton par pioche manquante). */
+  reshufflePenalty: 1,
+  /** Garde-fou : après cette manche, la partie s'arrête et le joueur qui a le moins de jetons gagne. */
+  maxRounds: 20,
   /** Temps par décision et réserve pour toute la partie (secondes). */
   decisionSeconds: 30,
   reserveSeconds: 60,
@@ -108,7 +114,7 @@ export const STARTER_DECKS: { id: string; name: string; cards: Record<string, nu
   } },
   { id: 'la-bringue', name: 'La Bringue', cards: {
     'cul-sec': 2, 'tete-tourne': 2, 'pari-comptoir': 2, 'de-sous-table': 1, 'yeux-piquent': 1, 'gueule-bois': 2,
-    leurre: 2, 'croche-patte': 2, 'main-sac': 1, fouine: 2, 'ardoise-piegee': 2, 'faux-421': 1,
+    leurre: 2, 'croche-patte': 2, 'main-sac': 1, fouine: 1, 'ardoise-piegee': 2, 'faux-421': 2,
   } },
 ];
 
