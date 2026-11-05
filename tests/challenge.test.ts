@@ -53,3 +53,32 @@ describe('défi du jour : serveur', () => {
     expect(board.mine.points).toBe(r1.result.points);
   });
 });
+
+describe('défi du jour : texte à partager', () => {
+  it('grille d’émojis sans dévoiler les dés, total et lien du défi', async () => {
+    const { challengeShareText, shortDay, turnSquare } = await import('../shared/challenge');
+    expect(shortDay('2026-11-05')).toBe('5 nov.');
+    expect(shortDay('2026-02-01')).toBe('1 févr.');
+    expect([8, 7, 6, 4, 3, 2, 1].map(turnSquare).join('')).toBe('🟩🟩🟨🟨🟧🟧⬜');
+    const text = challengeShareText('2026-11-05', [
+      { throws: 3, points: 8 }, { throws: 1, points: 1 }, { throws: 2, points: 4 }, { throws: 1, points: 2 }, { throws: 2, points: 6 },
+    ]);
+    expect(text).toBe([
+      '421 du jour · 5 nov. · 21 pts',
+      '🎲🎲🎲🟩',
+      '🎲▫️▫️⬜',
+      '🎲🎲▫️🟨',
+      '🎲▫️▫️🟧',
+      '🎲🎲▫️🟨',
+      '9 lancers · 421online.com/?defi',
+    ].join('\n'));
+    // Rien ne trahit les dés ni les combinaisons.
+    expect(text).not.toMatch(/4-2-1|brelan|as|[1-6]-[1-6]/i);
+    // Partie rejouée par le moteur : le texte se construit à partir du résultat officiel.
+    const res = playChallenge('2026-11-05', Array.from({ length: 5 }, () => []))!;
+    const t2 = challengeShareText('2026-11-05', res.turns.map((x) => ({ throws: x.throws, points: x.combo.value })));
+    expect(t2.split('\n')).toHaveLength(7);
+    expect(t2).toContain(`${res.points} pt`);
+    expect(t2.endsWith('5 lancers · 421online.com/?defi')).toBe(true);
+  });
+});

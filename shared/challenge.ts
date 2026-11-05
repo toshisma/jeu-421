@@ -66,3 +66,35 @@ export function playChallenge(day: string, decisions: unknown): ChallengeResult 
 
 /** Récompense du défi (une fois par jour) : pièces selon le score, un peu d'XP. */
 export const challengeReward = (points: number) => ({ coins: 10 + points, xp: 20 });
+
+/** Mois abrégés à la française (indépendant de la langue de l'appareil). */
+const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+/** « 2026-11-05 » → « 5 nov. » */
+export function shortDay(day: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  return m ? `${Number(m[3])} ${MONTHS[Number(m[2]) - 1] ?? ''}`.trim() : day;
+}
+/** Couleur d'un coup selon ses points, sans dire quels dés sont sortis. */
+export function turnSquare(points: number): string {
+  return points >= 7 ? '🟩' : points >= 4 ? '🟨' : points >= 2 ? '🟧' : '⬜';
+}
+export const CHALLENGE_SHARE_URL = '421online.com/?defi';
+
+/**
+ * Texte à partager après le défi du jour, façon Wordle : une ligne par coup (un 🎲 par lancer
+ * utilisé, puis un carré de couleur selon les points), le total, et le lien qui ouvre le défi.
+ * Ni les dés ni les combinaisons ne sont dévoilés.
+ */
+export function challengeShareText(day: string, turns: { throws: number; points: number }[], url = CHALLENGE_SHARE_URL): string {
+  const points = turns.reduce((a, t) => a + t.points, 0);
+  const throws = turns.reduce((a, t) => a + t.throws, 0);
+  const lines = turns.map((t) => {
+    const n = Math.max(1, Math.min(CHALLENGE_THROWS, Math.floor(t.throws)));
+    return '🎲'.repeat(n) + '▫️'.repeat(CHALLENGE_THROWS - n) + turnSquare(t.points);
+  });
+  return [
+    `421 du jour · ${shortDay(day)} · ${points} pt${points > 1 ? 's' : ''}`,
+    ...lines,
+    `${throws} lancer${throws > 1 ? 's' : ''} · ${url}`,
+  ].join('\n');
+}

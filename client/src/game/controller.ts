@@ -15,6 +15,8 @@ export interface MetaPlayer {
   color: string;
   isBot: boolean;
   difficulty?: Difficulty;
+  /** En ligne : ordinateur assis à la table (étiquette « ordi » toujours visible, même sur téléphone). */
+  botTag?: boolean;
   tagline?: string;
   connected: boolean;
   isMe: boolean;

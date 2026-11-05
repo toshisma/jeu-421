@@ -206,6 +206,8 @@ export class OnlineSession {
   detach() { this.closed = true; this.socket.disconnect(); }
 
   addBot(difficulty: string) { return this.call('room:addBot', { difficulty }); }
+  /** « Compléter avec l'ordinateur » : des ordinateurs prennent les places libres (ils cèdent leur place à un vrai joueur). */
+  fill(difficulty: string) { return this.call('room:fill', { difficulty }); }
   removeBot(id: string) { return this.call('room:removeBot', { id }); }
   kick(playerId: string) { return this.call('room:kick', { playerId }); }
   tFillBots(difficulty: string) { return this.call('tournament:fillBots', { difficulty }); }
@@ -260,6 +262,7 @@ export class OnlineSession {
         avatar: m?.avatar ?? '🎲',
         color: COLORS[i % COLORS.length],
         isBot: !!m?.bot,
+        ...(m?.bot ? { difficulty: m.bot, botTag: true } : {}),
         connected: !!m && m.connected && !m.left,
         isMe: id === this.playerId,
         isHost: m?.isHost && !this.room?.tournament,

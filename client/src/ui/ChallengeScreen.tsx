@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CHALLENGE_THROWS, CHALLENGE_TURNS, nextDice } from '../../../shared/challenge';
+import { CHALLENGE_THROWS, CHALLENGE_TURNS, challengeShareText, nextDice } from '../../../shared/challenge';
 import { evaluate } from '../../../shared/combos';
 import { DEFAULT_CONFIG } from '../../../shared/config';
 import { today } from '../../../shared/progress/quests';
@@ -102,6 +102,18 @@ export function ChallengeScreen({ pa, settings, appearance, onBack, duel }: { pa
   useEffect(() => { tray.current?.setInteractive(canKeep); }, [canKeep]);
 
   const total = scores.reduce((a, s) => a + s.value, 0);
+  // Partage façon Wordle : lancers et couleurs, sans dévoiler les dés.
+  const [shared, setShared] = useState<string | null>(null);
+  const share = async () => {
+    const text = challengeShareText(day, scores.map((s, i) => ({ points: s.value, throws: (decisions[i]?.length ?? 0) + 1 })));
+    if (typeof navigator.share === 'function') {
+      try { await navigator.share({ text }); setShared('Partagé !'); return; }
+      catch (e) { if ((e as Error).name === 'AbortError') return; }
+    }
+    try { await navigator.clipboard.writeText(text); setShared('Copié : collez-le où vous voulez !'); }
+    catch { window.prompt('Copiez votre résultat :', text); }
+  };
+  useEffect(() => { if (!shared) return; const t = setTimeout(() => setShared(null), 3000); return () => clearTimeout(t); }, [shared]);
   return (
     <div className="game challenge">
       <DiceTray ref={tray} appearance={appearance} quality={settings.quality} cup={settings.cup}
@@ -183,7 +195,11 @@ export function ChallengeScreen({ pa, settings, appearance, onBack, duel }: { pa
                 </ol>
               </>
             )}
-            <div className="end-buttons"><button className="btn primary" onClick={onBack}>Accueil</button></div>
+            {!duel && shared && <p className="ok ch-shared" role="status">{shared}</p>}
+            <div className="end-buttons">
+              {!duel && <button className="btn ch-share" onClick={() => void share()}><Icon name="share" size={18} />Partager</button>}
+              <button className="btn primary" onClick={onBack}>Accueil</button>
+            </div>
           </div>
         </div>
       )}
