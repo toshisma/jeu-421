@@ -81,7 +81,7 @@ export function resolveOption(opts: PlayParams[], chosen: PlayParams): PlayParam
 export function paramQuestion(k: ParamKey, cardId: string): string {
   switch (k) {
     case 'target': return cardId === 'de-sous-table' || cardId === 'tournee-generale' ? 'Quel adversaire ?' : 'Sur qui ?';
-    case 'trap': return 'Quel piège regarder ?';
+    case 'trap': return 'Quel piège défausser ?';
     case 'habitue': return 'Quel Habitué chasser ?';
     case 'die': return cardId === 'de-sous-table' ? 'Quel dé relancer ?' : 'Quel dé ?';
     case 'delta': return 'Ajouter ou retirer 1 ?';
@@ -92,14 +92,14 @@ export function paramQuestion(k: ParamKey, cardId: string): string {
 // ------------------------------------------------------------------ ce que fait une carte maintenant
 
 const conditionOf: Record<string, string> = {
-  'gueule-bois': 'il gagne une manche (il n’aura qu’un lancer à la suivante)',
+  'gueule-bois': 'il perd une manche (il n’aura qu’un lancer à la suivante)',
   leurre: 'il est révélé ou revient dans votre main (vous piochez 1 carte) ; sinon il ne fait rien',
-  'croche-patte': 'il garde des dés (l’un d’eux repart au lancer)',
-  'main-sac': 'il gagne des Tournées ou pioche grâce à une carte (vous en faites autant)',
+  'croche-patte': 'il finit son tour (un de ses dés est relancé au hasard)',
+  'main-sac': 'il joue un Coup qui coûte 2 ou plus (ce Coup est annulé)',
   'ardoise-piegee': 'il joue un Coup (il paie 2 Tournées de plus, sinon le Coup est annulé)',
   'faux-421': 'il termine avec un 4-2-1 (qui ne vaudra que 2)',
-  'coup-nenette': 'il devrait gagner avec une combinaison qui vaut 1 (elle devient une nénette)',
-  'retournement-veste': 'il devrait vous donner 5 jetons ou plus (c’est lui qui les reçoit)',
+  'coup-nenette': 'il devrait gagner avec une combinaison qui vaut 1 ou 2 (elle devient une nénette)',
+  'retournement-veste': 'il devrait vous donner 6 jetons ou plus (c’est lui qui les reçoit)',
 };
 
 /** Effet d'un dé modifié : « Le 6 devient un 1 : vous passez à 4-2-1 (vaut 8). » */
@@ -137,7 +137,7 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
   switch (cardId) {
     case 'tournee-patron': {
       const after = Math.min(v.rules.tourneesMax, p.tournees - costNow(v, cardId) + 2);
-      return `Vous gagnez 2 Tournées : vous en aurez ${after} sur ${v.rules.tourneesMax}.`;
+      return `Vous gagnez 2 Tournées (vous en aurez ${after} sur ${v.rules.tourneesMax}) et piochez 1 carte.`;
     }
     case 'cul-sec': {
       const lim = p.throwLimit ?? v.rules.maxThrows;
@@ -179,8 +179,8 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
       if (!params.target && opts.length && opts.every((o) => !o.target)) return 'Personne n’a fini son tour : vous relancez tous vos dés, sans utiliser de lancer.';
       return `${tName} et vous relancez tous vos dés, puis vous pourrez encore relancer un des vôtres.`;
     case 'domino': {
-      const n = target ? Math.min(target.tournees, 2) : 2;
-      return n > 0 ? `${tName} perd ${plural(n, 'Tournée')}.` : `${tName} n’a plus de Tournées : il ne perdrait rien.`;
+      const n = target ? target.tournees : 0;
+      return n > 0 ? `${tName} perd toutes ses Tournées (${n}).` : `${tName} n’a plus de Tournées : il ne perdrait rien.`;
     }
     case 'fermeture': {
       if (params.habitue) {
@@ -193,9 +193,9 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
     }
     case 'fouine':
       if (!opts.some((o) => o.trap) && !params.trap) return 'Aucun piège adverse posé : vous piochez 1 carte.';
-      return `Vous regardez un piège adverse${p.tournees - costNow(v, cardId) >= 1 ? ', puis vous pourrez payer 1 Tournée pour le défausser' : ''}.`;
+      return 'Vous défaussez le piège adverse choisi (vous découvrez lequel c’était).';
     case 'coup-coude': return `Vous piochez 1 carte (il en reste ${p.deckCount} dans votre deck).`;
-    case 'mise-bouche': return 'Votre prochaine carte de la manche coûtera 2 Tournées de moins.';
+    case 'mise-bouche': return 'Votre prochaine carte de la manche sera gratuite (Riposte et Dernier mot compris).';
     case 'calcul-mental': return p.deckCount > 0 ? `Vous regardez les ${Math.min(3, p.deckCount)} cartes du dessus de votre deck et en gardez une ; les autres repartent dessous.` : 'Votre deck est vide : rien à regarder.';
     case 'grand-enchainement': {
       const last = p.r.lastCoup;
@@ -244,7 +244,7 @@ export function whyNot(v: CfView, cardId: string, legal: CfAction[], uid: string
       const top = v.stack[v.stack.length - 1];
       if (cost > p.tournees) return `Il vous manque ${plural(cost - p.tournees, 'Tournée')}.`;
       if (cardId === 'yeux-piquent') return 'N’annule qu’un Coup qui change des dés.';
-      if (cardId === 'ticket-caisse' && top?.kind === 'card') return 'N’annule qu’un Coup qui coûte 2 ou moins.';
+      if (cardId === 'ticket-caisse' && top?.kind === 'card') return 'N’annule qu’un Coup qui coûte 3 ou moins.';
       return 'Ne peut pas répondre à cette action.';
     }
     return 'Riposte : se joue en réponse à une carte adverse (on vous le proposera).';
@@ -378,7 +378,7 @@ export function deckAlerts(cards: Record<string, number>, size = 20): { level: '
   if (s.total < size) out.push({ level: 'bloque', text: `Encore ${plural(size - s.total, 'carte')} pour arriver à ${size}.` });
   if (s.total > size) out.push({ level: 'bloque', text: `${plural(s.total - size, 'carte')} en trop : un deck compte exactement ${size} cartes.` });
   const expensive = s.curve[3] + s.curve[4];
-  if (expensive > 6) out.push({ level: 'conseil', text: `Trop cher : ${expensive} cartes à 3 Tournées ou plus, votre main risque d’être bloquée (6 au plus conseillé).` });
+  if (expensive > 4) out.push({ level: 'conseil', text: `Trop cher : ${expensive} cartes à 3 Tournées ou plus, votre main risque d’être bloquée (4 au plus conseillé).` });
   else if (s.total >= 10 && s.avgCost > 1.9) out.push({ level: 'conseil', text: `Coût moyen élevé (${s.avgCost.toFixed(1).replace('.', ',')} Tournée) : ajoutez des cartes à 0 ou 1.` });
   const parades = (cards['ticket-caisse'] ?? 0) + (cards['reaction-chaine'] ?? 0) + (cards['yeux-piquent'] ?? 0) + (cards.fouine ?? 0) + (cards.videur ?? 0);
   if (s.total >= 10 && parades === 0) out.push({ level: 'conseil', text: 'Sans parade : aucune Riposte, Fouine ou Videur pour répondre aux coups adverses.' });

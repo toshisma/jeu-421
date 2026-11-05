@@ -30,7 +30,7 @@ function aliceSecond(): CfState {
   b.r.dice = [6, 5, 3]; b.r.throwsUsed = 2; b.r.done = true;
   a.r.dice = [6, 4, 2]; a.r.throwsUsed = 2; a.r.done = false;
   a.tournees = 2;
-  a.hand = [{ uid: 'h1', id: 'reaction-chaine' }, { uid: 'h2', id: 'tete-tourne' }, { uid: 'h3', id: 'fouine' }, { uid: 'h4', id: 'patron' }, { uid: 'h5', id: 'note-salee' }];
+  a.hand = [{ uid: 'h1', id: 'reaction-chaine' }, { uid: 'h2', id: 'tete-tourne' }, { uid: 'h3', id: 'fouine' }, { uid: 'h4', id: 'bon-numero' }, { uid: 'h5', id: 'note-salee' }];
   s.traps = [{ uid: 't1', id: 'faux-421', owner: 'b', target: 'a', posedRound: s.round, seenBy: ['b'] }];
   return s;
 }
@@ -42,9 +42,9 @@ describe('cartes en main : jouable (raison) ou pas (moment / ce qui manque)', ()
     const legal = legalActions(s, 'a');
     const { hints, playable } = handHints(v, legal);
     expect(hints.h2).toMatchObject({ playable: true, label: '6 → 1 : 4-2-1 !', tone: 'ok' });
-    expect(hints.h3).toMatchObject({ playable: true, label: 'Voir son piège' });
+    expect(hints.h3).toMatchObject({ playable: true, label: 'Défausser son piège' });
     expect(hints.h1).toMatchObject({ playable: false, label: 'Tour adverse', tone: 'moment', type: 'riposte' });
-    expect(hints.h4).toMatchObject({ playable: false, label: '3 Tournées', tone: 'cost' });
+    expect(hints.h4).toMatchObject({ playable: false, label: '4 Tournées', tone: 'cost' });
     expect(hints.h5).toMatchObject({ playable: false, label: 'Dernier mot', tone: 'moment' });
     expect(playable).toBe(2);
   });
@@ -176,7 +176,7 @@ describe('rendu serveur du plateau (aucune erreur)', () => {
     expect(fiche).toContain('Maintenant :');
     expect(fiche).toContain('Jouer · 2 Tournées');
     expect(fiche).toContain('Les 5 types de cartes');
-    const why = render(h(Fiche, { t: { uid: 'h4', id: 'patron' }, v, legal, snapLegal: legal, pending: false, discard: false, onAct: noop, onClose: noop }));
+    const why = render(h(Fiche, { t: { uid: 'h4', id: 'bon-numero' }, v, legal, snapLegal: legal, pending: false, discard: false, onAct: noop, onClose: noop }));
     expect(why).toContain('Pas maintenant :');
     const r = structuredClone(s);
     r.turn = 0; r.order = ['b', 'a'];
@@ -241,15 +241,18 @@ describe('dés gardés : la sélection reste d’un lancer à l’autre et suit 
     expect(events.some((e) => e.kind === 'lancer')).toBe(true);
     expect(after([true, false, true], events)).toEqual([true, false, true]);
   });
-  it('Croche-patte : le dé qu’il renvoie au lancer n’est plus gardé', () => {
+  it('Croche-patte : garder des dés ne déclenche plus rien ; il relance un dé à la fin du tour', () => {
     const s = aliceSecond();
     s.players.find((p) => p.id === 'a')!.r.throwsUsed = 1;
     s.traps = [{ uid: 't9', id: 'croche-patte', owner: 'b', target: 'a', posedRound: s.round, seenBy: ['b'] }];
-    const { events } = relance(s, [true, true, false]);
-    expect(events.some((e) => e.kind === 'croche-patte')).toBe(true);
-    const k = after([true, true, false], events);
-    expect(k.filter(Boolean)).toHaveLength(1);
-    expect(k[2]).toBe(false);
+    const { st, events } = relance(s, [true, true, false]);
+    expect(events.some((e) => e.kind === 'croche-patte')).toBe(false);
+    expect(after([true, true, false], events)).toEqual([true, true, false]);
+    const r = apply(st, 'a', { type: 'stop' });
+    expect(r.ok).toBe(true);
+    const ev = r.events.find((e) => e.kind === 'croche-patte');
+    expect(ev?.rolled).toHaveLength(1);
+    expect(r.state.traps).toHaveLength(0);
   });
   it('Les yeux qui piquent relâchent tout ; un dé relancé par une carte n’est plus gardé ; un dé changé garde son état', () => {
     expect(keepAfter([true, true, false], { kind: 'lancer', player: 'a', dice: [1, 2, 3], kept: [false, false, false], rolled: [0, 1, 2], text: '' }, 'a')).toEqual([false, false, false]);

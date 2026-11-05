@@ -301,30 +301,12 @@ function draw(c: Ctx, p: CfPlayer, n: number, silent = false, viaCard = false) {
       emit(c, { kind: 'pioche-privee', player: p.id, card: card.id, to: [p.id], text: `Vous piochez ${cardName(card.id)}.` });
     }
   }
-  if (viaCard && got > 0) mainSac(c, p, 0, got);
 }
 
-/** Main dans le sac : l'adversaire gagne des Tournées ou pioche grâce à une carte → le poseur en fait autant. */
-function mainSac(c: Ctx, p: CfPlayer, tournees: number, cards: number) {
-  for (const t of trapsOn(c.s, p.id, 'main-sac')) {
-    if (!triggerTrap(c, t)) continue;
-    const o = pl(c.s, t.owner);
-    if (tournees > 0) {
-      const g = gainTournees(c, o, tournees, false);
-      emit(c, { kind: 'piege', player: o.id, card: t.id, who: o.id, text: `Main dans le sac ! ${o.name} gagne aussi ${plural(g, 'Tournée')}.`, textYou: `Main dans le sac ! Vous gagnez aussi ${plural(g, 'Tournée')}.` });
-    } else {
-      emit(c, { kind: 'piege', player: o.id, card: t.id, who: o.id, text: `Main dans le sac ! ${o.name} pioche aussi ${plural(cards, 'carte')}.`, textYou: `Main dans le sac ! Vous piochez aussi ${plural(cards, 'carte')}.` });
-      draw(c, o, cards);
-    }
-    return;
-  }
-}
-
-/** Gain de Tournées (réserve max). `viaCard` : gain dû à une carte (déclenche Main dans le sac). */
+/** Gain de Tournées (réserve max). `viaCard` : gain dû à une carte (sans effet depuis la refonte de Main dans le sac). */
 function gainTournees(c: Ctx, p: CfPlayer, n: number, viaCard: boolean): number {
   const got = Math.max(0, Math.min(n, c.s.rules.tourneesMax - p.tournees));
   p.tournees += got;
-  if (viaCard && got > 0) mainSac(c, p, got, 0);
   return got;
 }
 
@@ -389,7 +371,7 @@ function finalTraps(c: Ctx, p: CfPlayer) {
 function nenetteTrap(c: Ctx, best: CfPlayer, ranks: Record<string, number>): boolean {
   const s = c.s;
   const e = evalPlayer(s, best);
-  if (best.r.forcedNenette || e.value !== 1 || e.combo.kind === 'nenette') return false;
+  if (best.r.forcedNenette || e.value > 2 || e.combo.kind === 'nenette') return false;
   const t = s.traps.find((x) => x.id === 'coup-nenette' && x.target === best.id && x.owner !== best.id && ranks[x.owner] < e.rank);
   if (!t || !triggerTrap(c, t)) return false;
   best.r.forcedNenette = true;
@@ -479,6 +461,14 @@ function rollDice(c: Ctx, p: CfPlayer, keep: boolean[]) {
 function endTurn(c: Ctx, p: CfPlayer) {
   const s = c.s;
   p.r.done = true;
+  // Croche-patte : à la fin du tour, un dé du joueur piégé est relancé au hasard.
+  const cp = trapsOn(s, p.id, 'croche-patte')[0];
+  if (cp && triggerTrap(c, cp)) {
+    const i = Math.floor(rnd(s) * 3);
+    const before = p.r.dice[i];
+    setDice(p, i, c.die());
+    emit(c, { kind: 'croche-patte', player: p.id, who: p.id, dice: [...p.r.dice], rolled: [i], text: `Croche-patte : le ${before} de ${p.name} est relancé (${p.r.dice.join('-')}).`, textYou: `Croche-patte : votre ${before} est relancé (${p.r.dice.join('-')}).` });
+  }
   const e = evalPlayer(s, p);
   emit(c, { kind: 'fin-tour', player: p.id, dice: [...p.r.dice], who: p.id, text: `${p.name} s'arrête sur ${e.combo.label}.`, textYou: `Vous vous arrêtez sur ${e.combo.label}.` });
   finalTraps(c, p);
@@ -570,7 +560,7 @@ function settle(c: Ctx) {
     if (L.habitues.some((h) => h.id === 'pilier') && amount > 1) step('Pilier de comptoir', amount - 1);
     if (ev[worst].combo.kind === 'nenette' && amount < s.values.nenetteMin) step('nénette', s.values.nenetteMin);
     let reversed = false;
-    if (amount >= 5) {
+    if (amount >= VESTE_MIN) {
       const t = s.traps.find((x) => x.id === 'retournement-veste' && x.owner === L.id && x.target === W.id);
       if (t && triggerTrap(c, t)) reversed = true;
     }
@@ -590,11 +580,11 @@ function settle(c: Ctx) {
       : `${W.name} gagne la manche avec ${ev[best].combo.label} et donne ${plural(given, 'jeton')} à ${L.name}${extra}.`;
     summary = { round: s.round, winner: W.id, loser: L.id, amount: given, reversed, combos, text, detail, ...(given < amount ? { cappedFrom: amount } : {}) };
     emit(c, { kind: 'comptes', player: W.id, text });
-    // Gueule de bois : le gagnant aura un lancer de moins à la manche suivante.
-    for (const t of trapsOn(s, W.id, 'gueule-bois')) {
+    // Gueule de bois (0.40) : le perdant n'aura qu'un seul lancer à la manche suivante (qu'il mènera).
+    for (const t of trapsOn(s, L.id, 'gueule-bois')) {
       if (triggerTrap(c, t)) {
-        W.penaltyNext = 1;
-        emit(c, { kind: 'gueule-bois', player: W.id, who: W.id, text: `${W.name} n'aura qu'un seul lancer à la prochaine manche (Gueule de bois).`, textYou: 'Vous n’aurez qu’un seul lancer à la prochaine manche (Gueule de bois).' });
+        L.penaltyNext = 1;
+        emit(c, { kind: 'gueule-bois', player: L.id, who: L.id, text: `${L.name} n'aura qu'un seul lancer à la prochaine manche (Gueule de bois).`, textYou: 'Vous n’aurez qu’un seul lancer à la prochaine manche (Gueule de bois).' });
       }
       break;
     }
@@ -673,6 +663,12 @@ export function costOf(_s: CfState, p: CfPlayer, id: string): number {
 }
 
 const diceIdx = [0, 1, 2];
+/** Ticket de caisse : annule un Coup adverse qui coûte au plus ce nombre de Tournées (coût imprimé). */
+export const TICKET_MAX = 3;
+/** Mise en bouche : réduction qui rend la prochaine carte gratuite. */
+const MISE_FREE = 99;
+/** Retournement de veste : se déclenche quand le perdant devrait recevoir au moins ce nombre de jetons. */
+export const VESTE_MIN = 6;
 /** Coups qui changent des dés (Les yeux qui piquent peut les annuler). */
 export const DICE_COUPS = new Set(['tete-tourne', 'coup-pouce', 'bon-numero', 'de-sous-table', 'tournee-generale']);
 
@@ -743,7 +739,7 @@ function cardOptions(s: CfState, p: CfPlayer, k: CardInst, respond: boolean): Pl
     if (!top || top.owner === p.id) return [];
     if (top.kind !== 'card') return [];
     if (k.id === 'yeux-piquent') return top.type === 'coup' && top.card && DICE_COUPS.has(top.card.id) ? [{}] : [];
-    if (k.id === 'ticket-caisse') return top.type === 'coup' && def(top.card.id).cost <= 2 ? [{}] : [];
+    if (k.id === 'ticket-caisse') return top.type === 'coup' && def(top.card.id).cost <= TICKET_MAX ? [{}] : [];
     if (k.id === 'reaction-chaine') {
       if (top.type === 'habitue' && patronProtects(s, top.owner, d)) return [];
       return [{}];
@@ -997,16 +993,6 @@ function doMulligan(c: Ctx, p: CfPlayer, uids: string[]) {
 function doRoll(c: Ctx, p: CfPlayer, keep: boolean[]) {
   const s = c.s;
   keep = [...keep];
-  const kept = keep.filter(Boolean).length;
-  if (kept >= 1) {
-    const t = trapsOn(s, p.id, 'croche-patte')[0];
-    if (t && triggerTrap(c, t)) {
-      const ks = diceIdx.filter((i) => keep[i]);
-      const i = ks[Math.floor(rnd(s) * ks.length)];
-      keep[i] = false;
-      emit(c, { kind: 'croche-patte', player: p.id, who: p.id, text: `Croche-patte : le ${p.r.dice[i]} de ${p.name} repart au lancer.`, textYou: `Croche-patte : votre ${p.r.dice[i]} repart au lancer.` });
-    }
-  }
   if (keep.some(Boolean)) {
     s.stack.push({ kind: 'keep', owner: p.id, keep, cancelled: false });
     openRespond(c);
@@ -1035,6 +1021,15 @@ function doPlay(c: Ctx, p: CfPlayer, a: Extract<CfAction, { type: 'play' }>) {
   } else {
     const verb = d.type === 'habitue' ? 'installe' : 'joue';
     emit(c, { kind: 'carte', player: p.id, card: k.id, who: p.id, text: `${p.name} ${verb} ${d.name}${cost !== d.cost ? ` (pour ${plural(cost, 'Tournée')})` : ''}.`, textYou: `Vous ${verb === 'joue' ? 'jouez' : 'installez'} ${d.name}.` });
+  }
+  if (d.type === 'coup' && d.cost >= 2) {
+    // Main dans le sac : un Coup qui coûte 2 ou plus (coût imprimé) est annulé.
+    const t = trapsOn(s, p.id, 'main-sac')[0];
+    if (t && triggerTrap(c, t)) {
+      p.discard.push(k);
+      emit(c, { kind: 'annule', player: p.id, card: k.id, who: p.id, text: `Main dans le sac : ${d.name} de ${p.name} est annulé.`, textYou: `Main dans le sac : votre ${d.name} est annulé.` });
+      return;
+    }
   }
   if (d.type === 'coup') {
     for (const t of trapsOn(s, p.id, 'ardoise-piegee')) {
@@ -1070,7 +1065,7 @@ export function mightRespond(_s: CfState, p: CfPlayer, top: StackItem): boolean 
   if (top.kind === 'keep') return false; // 0.39 : plus aucune riposte sur des dés gardés (moins d'interruptions)
   if (f.includes('ivresse') && top.type === 'coup' && DICE_COUPS.has(top.card.id) && canPay(p, def('yeux-piquent').cost)) return true;
   if (f.includes('chaines') && canPay(p, def('reaction-chaine').cost)) return true;
-  return f.includes('habitues') && top.type === 'coup' && def(top.card.id).cost <= 2 && canPay(p, def('ticket-caisse').cost);
+  return f.includes('habitues') && top.type === 'coup' && def(top.card.id).cost <= TICKET_MAX && canPay(p, def('ticket-caisse').cost);
 }
 /** Ce joueur pourrait-il avoir un Dernier mot jouable ? */
 export function mightHaveLastword(_s: CfState, p: CfPlayer): boolean {
@@ -1182,7 +1177,8 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
   switch (id) {
     case 'tournee-patron': {
       const g = gainTournees(c, p, 2, true);
-      you(`${p.name} gagne ${plural(g, 'Tournée')}.`, `Vous gagnez ${plural(g, 'Tournée')}.`);
+      you(`${p.name} gagne ${plural(g, 'Tournée')} et pioche 1 carte.`, `Vous gagnez ${plural(g, 'Tournée')} et piochez 1 carte.`);
+      draw(c, p, 1, false, true);
       break;
     }
     case 'fermeture': {
@@ -1244,8 +1240,8 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
     }
     case 'domino': {
       const o = pl(s, prm.target!);
-      const n = Math.min(o.tournees, 2);
-      o.tournees -= n;
+      const n = o.tournees;
+      o.tournees = 0;
       emit(c, { kind: 'effet', player: o.id, card: id, who: o.id, text: `Domino : ${o.name} perd ${plural(n, 'Tournée')}.`, textYou: `Domino : vous perdez ${plural(n, 'Tournée')}.` });
       break;
     }
@@ -1257,27 +1253,26 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       }
       const t = s.traps.find((x) => x.uid === prm.trap);
       if (!t) break;
-      if (!t.seenBy.includes(p.id)) t.seenBy.push(p.id);
-      emit(c, { kind: 'fouine', player: p.id, card: t.id, to: [p.id], text: `La Fouine vous montre le piège : ${cardName(t.id)}.` });
-      emit(c, { kind: 'fouine-public', player: p.id, text: `${p.name} regarde un piège de ${nm(s, t.owner)}.` });
-      if (t.id === 'leurre' && !t.revealed) {
-        t.revealed = true;
-        const o = pl(s, t.owner);
+      // 0.40 : la Fouine défausse directement le piège choisi (plus de paiement ni de choix).
+      const o = pl(s, t.owner);
+      s.traps = s.traps.filter((x) => x.uid !== t.uid);
+      o.discard.push({ uid: t.uid, id: t.id });
+      emit(c, { kind: 'fouine-defausse', player: p.id, card: t.id, who: p.id, text: `La Fouine de ${p.name} défausse le piège ${cardName(t.id)} de ${o.name}.`, textYou: `La Fouine défausse le piège ${cardName(t.id)} de ${o.name}.` });
+      if (t.id === 'leurre') {
         emit(c, { kind: 'leurre', player: o.id, who: o.id, text: `C'était un Leurre : ${o.name} pioche 1 carte.`, textYou: 'Votre Leurre est découvert : vous piochez 1 carte.' });
         draw(c, o, 1, false, true);
       }
-      if (p.tournees >= 1) s.choice = { kind: 'fouine', player: p.id, trap: t.uid, cardId: t.id };
       break;
     }
     case 'coup-coude': draw(c, p, 1, false, true); break;
     case 'mise-bouche':
-      p.r.discount += 2;
-      you(`${p.name} : sa prochaine carte coûtera 2 de moins.`, 'Votre prochaine carte coûtera 2 de moins.');
+      p.r.discount = MISE_FREE;
+      you(`${p.name} : sa prochaine carte sera gratuite.`, 'Votre prochaine carte sera gratuite.');
       break;
     case 'calcul-mental': {
       const top = p.deck.splice(0, 3);
       if (top.length === 0) { you(`${p.name} n'a plus de cartes à regarder.`, 'Votre deck est vide.'); break; }
-      if (top.length === 1) { p.hand.push(top[0]); mainSac(c, p, 0, 1); break; }
+      if (top.length === 1) { p.hand.push(top[0]); break; }
       s.choice = { kind: 'calcul', player: p.id, cards: top };
       break;
     }
@@ -1293,7 +1288,6 @@ function doChoose(c: Ctx, p: CfPlayer, index: number) {
     p.hand.push(keep);
     p.deck.push(...ch.cards.filter((_, i) => i !== index));
     emit(c, { kind: 'calcul', player: p.id, who: p.id, text: `${p.name} garde une carte et remet les autres sous son deck.`, textYou: `Vous gardez ${cardName(keep.id)}.` });
-    mainSac(c, p, 0, 1);
   } else if (ch.kind === 'fouine') {
     const t = s.traps.find((x) => x.uid === ch.trap);
     if (index === 1 && t) {

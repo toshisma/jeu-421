@@ -219,21 +219,22 @@ describe('Coups Fourrés : les 34 cartes', () => {
     let { s, L } = setup();
     hab(s, L, 'videur');
     trap(s, 'p1' === L ? 'p0' : 'p1', L, 'croche-patte');
-    s = act(s, L, roll(), [4, 2, 6]);
-    s = act(s, L, roll([true, true, false]), [1]);
+    s = act(s, L, roll(), [4, 2, 1]);
+    s = act(s, L, stop);
     expect(P(s, L).r.dice).toEqual([4, 2, 1]);
     expect(s.traps).toHaveLength(0);
     expect(lastEvents.some((e) => e.kind === 'videur')).toBe(true);
   });
 
-  it('Tournée du patron : +2 Tournées', () => {
+  it('Tournée du patron : +2 Tournées et 1 carte', () => {
     let { s, L } = setup();
     P(s, L).tournees = 2;
     s = act(s, L, play(give(s, L, 'tournee-patron')));
     expect(P(s, L).tournees).toBe(2 - cost('tournee-patron') + 2);
+    expect(P(s, L).hand).toHaveLength(1);
   });
 
-  it('Ticket de caisse : annule un Coup qui coûte 2 ou moins', () => {
+  it('Ticket de caisse : annule un Coup qui coûte 3 ou moins', () => {
     let { s, L, O } = setup();
     const t = give(s, O, 'ticket-caisse');
     s = act(s, L, play(give(s, L, 'cul-sec')));
@@ -242,10 +243,13 @@ describe('Coups Fourrés : les 34 cartes', () => {
     s = act(s, O, play(t));
     expect(P(s, L).r.bonusThrows).toBe(0);
     expect(P(s, L).discard.some((k) => k.id === 'cul-sec')).toBe(true);
-    // un Coup à 3 ne peut pas être annulé
+    // un Coup à 4 ne peut pas être annulé
     give(s, O, 'ticket-caisse');
-    s = act(s, L, play(give(s, L, 'double-tournee')));
+    s = act(s, L, roll(), [3, 2, 1]);
+    expect(cost('bon-numero')).toBeGreaterThan(3);
+    s = act(s, L, play(give(s, L, 'bon-numero'), { die: 0, face: 4 }));
     expect(waitingFor(s)).toEqual([L]);
+    expect(P(s, L).r.dice).toEqual([4, 2, 1]);
   });
 
   it('Fermeture ! : un Habitué adverse rentre chez lui ; sans Habitué, on pioche 2 cartes', () => {
@@ -350,15 +354,17 @@ describe('Coups Fourrés : les 34 cartes', () => {
     expect(waitingFor(s)).toEqual([L]);
   });
 
-  it('Gueule de bois : le gagnant n’aura qu’un seul lancer à la manche suivante', () => {
+  it('Gueule de bois : le perdant n’aura qu’un seul lancer à la manche suivante (qu’il mène)', () => {
     let { s, L, O } = setup();
     trap(s, O, L, 'gueule-bois');
-    s = quickRound(s, L, O, [6, 6, 6], [6, 3, 2]);
-    expect(s.order).toEqual([O, L]);
-    s = act(s, O, roll(), [6, 3, 2]);
-    s = act(s, O, roll(), [6, 3, 2]);
-    s = act(s, O, stop);
+    s = quickRound(s, L, O, [6, 6, 6], [6, 3, 2]); // L gagne : rien
+    expect(s.traps).toHaveLength(1);
+    s = quickRound(s, O, L, [6, 6, 6], [6, 3, 2]); // L perd : le piège se déclenche
+    expect(s.traps).toHaveLength(0);
+    expect(s.order).toEqual([L, O]);
     expect(throwLimit(s, L)).toBe(1);
+    s = act(s, L, roll(), [6, 3, 2]);
+    expect(throwLimit(s, O)).toBe(3); // un meneur limité ne limite pas les autres
   });
 
   it('Tournée générale : en second, les deux relancent tout, puis un dé de plus', () => {
@@ -376,47 +382,51 @@ describe('Coups Fourrés : les 34 cartes', () => {
     expect(P(s, O).r.dice).toEqual([4, 2, 1]);
   });
 
-  it('Leurre : regardé par une Fouine, son propriétaire pioche 1 carte', () => {
+  it('Leurre : défaussé par une Fouine, son propriétaire pioche 1 carte', () => {
     let { s, L, O } = setup();
     const t = trap(s, O, L, 'leurre');
     s = act(s, L, play(give(s, L, 'fouine'), { trap: t }));
     expect(P(s, O).hand).toHaveLength(1);
-    expect(s.choice?.kind).toBe('fouine');
-    s = act(s, L, { type: 'choose', index: 0 });
-    expect(s.traps).toHaveLength(1); // laissé en place
+    expect(s.choice).toBeNull();
+    expect(s.traps).toHaveLength(0);
   });
 
-  it('Croche-patte : un dé gardé repart au lancer', () => {
+  it('Croche-patte : à la fin du tour, un dé est relancé au hasard', () => {
     let { s, L, O } = setup();
     trap(s, O, L, 'croche-patte');
     s = act(s, L, roll(), [4, 2, 6]);
-    s = act(s, L, roll([true, true, false]), [1, 1]);
-    const ev = lastEvents.find((e) => e.kind === 'lancer')!;
-    expect(ev.rolled).toHaveLength(2);
+    s = act(s, L, roll([true, true, false]), [6]); // garder des dés ne déclenche plus rien
+    expect(s.traps).toHaveLength(1);
+    s = act(s, L, stop, [1]);
+    const ev = lastEvents.find((e) => e.kind === 'croche-patte')!;
+    expect(ev.rolled).toHaveLength(1);
+    expect(P(s, L).r.dice.filter((d) => d === 1)).toHaveLength(1);
     expect(s.traps).toHaveLength(0);
   });
 
-  it('Main dans le sac : vous gagnez autant de Tournées (ou de cartes) que l’adversaire', () => {
+  it('Main dans le sac : un Coup qui coûte 2 ou plus est annulé (pas les petits)', () => {
     let { s, L, O } = setup();
     trap(s, O, L, 'main-sac');
-    P(s, L).tournees = 2; P(s, O).tournees = 1;
-    s = act(s, L, play(give(s, L, 'tournee-patron')));
-    expect(P(s, O).tournees).toBe(3);
-    const t = setup(2, 4);
-    trap(t.s, t.O, t.L, 'main-sac');
-    s = act(t.s, t.L, play(give(t.s, t.L, 'coup-coude')));
-    expect(P(s, t.O).hand).toHaveLength(1);
+    s = act(s, L, play(give(s, L, 'cul-sec')));
+    expect(P(s, L).r.bonusThrows).toBe(1);
+    expect(s.traps).toHaveLength(1);
+    s = act(s, L, roll(), [3, 2, 1]);
+    s = act(s, L, play(give(s, L, 'tete-tourne'), { die: 0 }));
+    expect(P(s, L).r.dice).toEqual([3, 2, 1]);
+    expect(P(s, L).tournees).toBe(6 - cost('cul-sec') - cost('tete-tourne'));
+    expect(P(s, L).discard.some((k) => k.id === 'tete-tourne')).toBe(true);
+    expect(s.traps).toHaveLength(0);
   });
 
-  it('Fouine : regarder un piège, payer 1 Tournée pour le défausser ; sans piège, piocher', () => {
+  it('Fouine : défausse le piège choisi ; sans piège, piocher', () => {
     let { s, L, O } = setup();
     const t = trap(s, O, L, 'faux-421');
     s = act(s, L, play(give(s, L, 'fouine'), { trap: t }));
-    expect(viewFor(s, L).traps[0].id).toBe('faux-421');
-    expect(viewFor(s, O).traps[0].id).toBe('faux-421');
-    s = act(s, L, { type: 'choose', index: 1 });
+    expect(s.choice).toBeNull();
     expect(s.traps).toHaveLength(0);
-    expect(P(s, L).tournees).toBe(6 - cost('fouine') - 1);
+    expect(P(s, O).discard.some((k) => k.id === 'faux-421')).toBe(true);
+    expect(eventsFor(lastEvents, L).some((e) => e.kind === 'fouine-defausse' && e.card === 'faux-421')).toBe(true);
+    expect(P(s, L).tournees).toBe(6 - cost('fouine'));
     const n = P(s, L).hand.length;
     s = act(s, L, play(give(s, L, 'fouine')));
     expect(P(s, L).hand.length).toBe(n + 1);
@@ -446,12 +456,17 @@ describe('Coups Fourrés : les 34 cartes', () => {
     expect(P(s, O).tokens).toBe(13);
   });
 
-  it('Le coup de la nénette : un gagnant à 1 jeton devient une nénette', () => {
+  it('Le coup de la nénette : un gagnant à 1 ou 2 jetons devient une nénette', () => {
     let { s, L, O } = setup();
     trap(s, O, L, 'coup-nenette');
     s = quickRound(s, L, O, [6, 5, 3], [6, 4, 2]);
     expect(P(s, L).tokens).toBe(13); // a perdu avec une nénette : au moins 2
-    expect(P(s, O).tokens).toBe(9);
+    expect(P(s, O).tokens).toBe(9);    // une suite (vaut 2) aussi
+    const t = setup(2, 5);
+    trap(t.s, t.L, t.O, 'coup-nenette');
+    s = quickRound(t.s, t.L, t.O, [6, 3, 2], [4, 3, 2]);
+    expect(lastEvents.some((e) => e.kind === 'coup-nenette')).toBe(true);
+    expect(P(s, t.O).tokens).toBe(13);
   });
 
   it('Retournement de veste : l’adversaire reçoit les jetons à votre place', () => {
@@ -460,7 +475,7 @@ describe('Coups Fourrés : les 34 cartes', () => {
     s = quickRound(s, L, O, [6, 6, 6], [6, 3, 2]);
     expect(P(s, L).tokens).toBe(17);
     expect(P(s, O).tokens).toBe(11);
-    // en dessous de 4 jetons, rien
+    // en dessous de 6 jetons, rien
     const t = setup(2, 3);
     trap(t.s, t.O, t.L, 'retournement-veste');
     s = quickRound(t.s, t.L, t.O, [3, 3, 3], [6, 3, 2]);
@@ -474,13 +489,15 @@ describe('Coups Fourrés : les 34 cartes', () => {
     expect(P(s, L).hand).toHaveLength(1);
   });
 
-  it('Mise en bouche : la prochaine carte coûte 2 de moins', () => {
+  it('Mise en bouche : la prochaine carte est gratuite (seulement la suivante)', () => {
     let { s, L } = setup();
     s = act(s, L, roll(), [3, 2, 1]);
     s = act(s, L, play(give(s, L, 'mise-bouche')));
     s = act(s, L, play(give(s, L, 'bon-numero'), { die: 0, face: 4 }));
-    expect(P(s, L).tournees).toBe(6 - cost('mise-bouche') - (cost('bon-numero') - 2));
+    expect(P(s, L).tournees).toBe(6 - cost('mise-bouche'));
     expect(P(s, L).r.dice).toEqual([4, 2, 1]);
+    s = act(s, L, play(give(s, L, 'tete-tourne'), { die: 2 }));
+    expect(P(s, L).tournees).toBe(6 - cost('mise-bouche') - cost('tete-tourne'));
   });
 
   it('Coup de pouce : +1 ou −1 à un dé (bornes respectées)', () => {
@@ -516,12 +533,11 @@ describe('Coups Fourrés : les 34 cartes', () => {
     expect(P(s, L).tokens).toBe(3); // 4-2-1 : il donne 8
   });
 
-  it('Domino : l’adversaire perd 1 Tournée par carte déjà jouée', () => {
+  it('Domino : l’adversaire perd toutes ses Tournées', () => {
     let { s, L, O } = setup();
-    s = act(s, L, play(give(s, L, 'coup-coude')));
-    s = act(s, L, play(give(s, L, 'coup-coude')));
+    P(s, O).tournees = 5;
     s = act(s, L, play(give(s, L, 'domino'), { target: O }));
-    expect(P(s, O).tournees).toBe(4);
+    expect(P(s, O).tournees).toBe(0);
   });
 
   it('Réaction en chaîne : chaîne LIFO, et retour en main dès la 3e carte', () => {

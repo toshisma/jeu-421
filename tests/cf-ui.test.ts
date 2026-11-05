@@ -4,7 +4,7 @@ import { LocalCfController, deckList } from '../client/src/cards/local';
 import type { CfSnapshot } from '../client/src/cards/controller';
 import { replayBotMatch } from '../shared/cards/botmatch';
 import { cfDecide, type CfLevel } from '../shared/cards/ai';
-import { STARTER_DECKS } from '../shared/cards/catalog';
+import { STARTER_DECKS, cardDef } from '../shared/cards/catalog';
 import { newGame, apply, viewFor, legalActions, type CfState, type CfAction } from '../shared/cards/engine';
 import { mulberry32 } from '../shared/rng';
 import {
@@ -150,8 +150,8 @@ describe('ce que fait une carte ici et maintenant', () => {
     const v = viewFor(s, leader);
     expect(describeNow(v, 'faux-421')).toMatch(/face cachée devant .*1\/3 pièges.*4-2-1/);
     expect(describeNow(v, 'josiane')).toMatch(/^S’installe devant vous/);
-    expect(describeNow(v, 'tournee-patron')).toBe('Vous gagnez 2 Tournées : vous en aurez 6 sur 6.');
-    expect(costNow(v, 'josiane')).toBe(2);
+    expect(describeNow(v, 'tournee-patron')).toBe('Vous gagnez 2 Tournées (vous en aurez 6 sur 6) et piochez 1 carte.');
+    expect(costNow(v, 'josiane')).toBe(cardDef('josiane')!.cost);
     const s2 = structuredClone(s);
     s2.players.find((p) => p.id === leader)!.r.discount = 2;
     expect(costNow(viewFor(s2, leader), 'josiane')).toBe(0);
@@ -221,7 +221,7 @@ describe('rendu des écrans du mode', () => {
     expect(extrasOf(st.collection).copies).toBeGreaterThan(0);
     expect(renderToString(h(CollectionScreen, { token: null, state: null, onState: noop, onBack: noop, onAccount: noop }))).toContain('Créer un compte');
     expect(renderToString(h(DecksScreen, { token: 't', state: st, onState: noop, onBack: noop, onAccount: noop, onEdit: noop }))).toContain('Construire automatiquement');
-    const ed = renderToString(h(DeckEditor, { token: 't', state: st, onState: noop, deckId: null, initial: { 'bon-numero': 2, 'tournee-generale': 1, 'double-tournee': 2, patron: 1, 'retournement-veste': 1, 'grand-enchainement': 1 }, onBack: noop }));
+    const ed = renderToString(h(DeckEditor, { token: 't', state: st, onState: noop, deckId: null, initial: { 'bon-numero': 2, 'tournee-generale': 1, 'coup-pouce': 2, patron: 1, 'retournement-veste': 1, 'grand-enchainement': 1 }, onBack: noop }));
     expect(ed).toContain('Trop cher');
     expect(ed).toContain('Encore 12 cartes');
     expect(renderToString(h(LeagueScreen, { token: null, state: null, onState: noop, onBack: noop, onAccount: noop }))).toContain('Grand Café');
