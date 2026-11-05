@@ -468,7 +468,7 @@ export function Home(props: HomeProps) {
             {props.onCards && <button className="v2-promo cf" onClick={props.onCards}>
               <span className="v2-promo-art cf-fanart" aria-hidden><i className="h" /><i className="v" /><i className="p" /></span>
               <span className="promo-shine" aria-hidden />
-              <em className="promo-badge cf-new-badge">Nouveau</em>
+              <em className="promo-badge cf-new-badge">Bêta</em>
               <span className="v2-promo-text"><b>Coups Fourrés</b><small>Le 421 aux cartes</small></span>
             </button>}
           </section>

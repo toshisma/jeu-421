@@ -371,6 +371,7 @@ function CfMenu(p: CfModeProps & {
           </div>
           <h1>Coups Fourrés</h1>
           <p>Le 421 aux cartes : bluff, fouine et coups bas · <button className="cf-link" onClick={p.onRules}>Règles</button></p>
+          <p className="cf-beta"><b>Bêta</b> Une nouvelle version de l’écran de partie, plus claire, est en préparation. Merci de votre patience !</p>
         </section>
 
         {acc && league && prog ? (
