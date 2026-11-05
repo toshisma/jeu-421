@@ -7,6 +7,14 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.38', date: '2026-11-05T19:20:00+01:00', title: 'Coups Fourrés plus fluide', items: [
+    'Un sélecteur « 421 / Coups Fourrés » en haut de l’accueil, au même endroit dans les deux modes, pour passer de l’un à l’autre d’un geste.',
+    'Coups Fourrés : plateau épuré (moins de textes en même temps) et enchaînements sans temps mort après chaque décision.',
+    'Coups Fourrés : les dés choisis pour la relance restent sélectionnés, comme dans le 421 classique.',
+    'Coups Fourrés : les jetons changent de pile dès qu’ils arrivent, pendant les comptes de la manche.',
+    'Coups Fourrés : 3 Habitués au plus devant soi, et jamais deux fois le même.',
+    'Coups Fourrés a maintenant ses pages de présentation, de règles et de cartes, pour le faire découvrir.',
+  ] },
   { version: '0.37', date: '2026-11-05T16:15:00+01:00', title: 'Coups Fourrés : un plateau bien plus clair', items: [
     'Nouvel écran de partie : une frise montre où en est la manche, un bandeau dit quoi faire, et les cartes jouables brillent avec la raison (« 6 → 1 : 4-2-1 ! »).',
     'Chaque coup de l’adversaire est annoncé en grand et lisible : carte jouée, piège posé face cachée (avec les pièges possibles), piège déclenché et ce qu’il a fait.',
