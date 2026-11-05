@@ -45,7 +45,7 @@ const PATH_SOURCES: [RegExp, string][] = [
 ];
 
 /** Étapes du parcours d'un visiteur (voir POST /visit/event). */
-export const VISIT_EVENTS = ['guide_play', 'solo', 'online', 'invite', 'invited'] as const;
+export const VISIT_EVENTS = ['guide_play', 'solo', 'online', 'invite', 'invited', 'cards'] as const;
 
 /** Temps de présence : plafond par battement, tolérance, et plafond par visiteur et par jour. */
 export const BEAT_MAX_S = 60;
@@ -368,7 +368,8 @@ export function createAdmin(store: Store, opts: AdminOptions) {
   //  - solo : première partie contre l'ordinateur lancée ;
   //  - online : première table en ligne rejointe ou créée (partie rapide, salon, tournoi) ;
   //  - invite : invitation envoyée (lien ou code de table partagé) ;
-  //  - invited : arrivée par un lien d'invitation (table, tournoi, partie à regarder, parrainage).
+  //  - invited : arrivée par un lien d'invitation (table, tournoi, partie à regarder, parrainage) ;
+  //  - cards : première partie de Coups Fourrés lancée (ordinateur, partie guidée, en ligne, tournoi).
   const addEvent = db.prepare('INSERT OR IGNORE INTO visit_events (visitor, kind, at, day, page) VALUES (?, ?, ?, ?, ?)');
   router.post('/visit/event', express.json({ limit: '1kb', type: () => true }), (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
@@ -651,8 +652,8 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     const step = (rows: typeof freshRows) => {
       const has = (k: string) => rows.filter((r) => evOf.get(r.visitor)?.has(k)).length;
       return {
-        visitors: rows.length, guidePlay: has('guide_play'), solo: has('solo'), online: has('online'),
-        played: rows.filter((r) => { const e = evOf.get(r.visitor); return !!e && (e.has('solo') || e.has('online')); }).length,
+        visitors: rows.length, guidePlay: has('guide_play'), solo: has('solo'), online: has('online'), cards: has('cards'),
+        played: rows.filter((r) => { const e = evOf.get(r.visitor); return !!e && (e.has('solo') || e.has('online') || e.has('cards')); }).length,
         invite: has('invite'), invited: has('invited'), returned: rows.filter((r) => r.days > 1).length,
       };
     };

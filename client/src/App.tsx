@@ -32,6 +32,7 @@ import type { DuelPlay } from './ui/ChallengeScreen';
 import { restartPresence, setPresence, startPresence } from './presence';
 import { MessagesScreen } from './ui/Messages';
 import { connectMessages } from './messages';
+import { cfModeParam } from './cfLink';
 import { linkVisitor, trackVisit } from './visit';
 import { askConfirm } from './ui/confirm';
 import { CfChallengeBanner } from './cards/ChallengeBanner';
@@ -117,7 +118,8 @@ export function App() {
   // Clic sur une notification de message : la conversation s'ouvre.
   const openPm = useMemo(() => { const v = new URLSearchParams(location.search).get('messages'); if (v) cleanUrl(); return v ? v.slice(0, 20) : null; }, []);
   // Notification « X vous défie à Coups Fourrés » : le mode s'ouvre, le défi s'y affiche.
-  const openCf = useMemo(() => { const q = new URLSearchParams(location.search); const v = q.has('cf-defi') ? 'defi' : q.has('cf-tournoi') ? 'tournoi' : null; if (v) cleanUrl(); return v; }, []);
+  // Lien « Jouer gratuitement » des pages Coups Fourrés (/?mode=cartes) : le mode s'ouvre directement.
+  const openCf = useMemo(() => { const q = new URLSearchParams(location.search); const v = q.has('cf-defi') ? 'defi' : q.has('cf-tournoi') ? 'tournoi' : cfModeParam(location.search) ? 'menu' : null; if (v) cleanUrl(); return v; }, []);
   // Lien partagé du défi du jour (« 421online.com/?defi ») : le défi s'ouvre directement.
   const openDefi = useMemo(() => { const v = new URLSearchParams(location.search).has('defi'); if (v) cleanUrl(); return v; }, []);
   const openNotifs = useMemo(() => { const v = new URLSearchParams(location.search).has('notifs'); if (v) cleanUrl(); return v; }, []);
