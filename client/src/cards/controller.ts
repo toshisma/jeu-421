@@ -64,4 +64,6 @@ export interface CfController {
   act(action: CfAction): Promise<string | null>;
   /** Abandonner / quitter. */
   leave(): void;
+  /** L'écran a fini d'animer et montre la décision au joueur (le minuteur peut partir). */
+  ready?(): void;
 }

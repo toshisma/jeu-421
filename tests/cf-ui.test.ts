@@ -120,7 +120,7 @@ describe('ce que fait une carte ici et maintenant', () => {
     expect(valuesFor(opts, { die: 2 }, 'delta')).toEqual([1]); // un 1 ne descend pas
     expect(nextParam(opts, { die: 0 })).toBe('delta');
     expect(filterOptions(opts, { die: 0, delta: 1 })).toEqual([{ die: 0, delta: 1 }]);
-    expect(describeNow(v, 'coup-pouce', { die: 0, delta: 1 }, opts)).toBe('Le 3 devient un 4 : vous passez à 421 (vaut 8).');
+    expect(describeNow(v, 'coup-pouce', { die: 0, delta: 1 }, opts)).toBe('Le 3 devient un 4 : vous passez à 4-2-1 (vaut 8).');
   });
 
   it('explique pourquoi une carte n’est pas jouable', () => {
@@ -186,7 +186,7 @@ import { CollectionScreen, BoosterOpening, extrasOf } from '../client/src/cards/
 import { DecksScreen, DeckEditor } from '../client/src/cards/CfDecks';
 import { LeagueScreen, RulesScreen, MissionsList } from '../client/src/cards/CfInfo';
 import { CfMode } from '../client/src/cards/CfMode';
-import { EndScreen, Mulligan, RespondWindow, ChoiceWindow } from '../client/src/cards/CfGame';
+import { EndScreen, Mulligan, RespondPanel, ChoiceWindow } from '../client/src/cards/CfGame';
 import { CARDS } from '../shared/cards/catalog';
 import { cfDailyMissions, type CfState as CfPlayerState } from '../shared/cards/progress';
 import { deckAlerts, deckStats } from '../client/src/cards/describe';
@@ -246,9 +246,11 @@ describe('rendu des écrans du mode', () => {
     bob.r.dice = [4, 2, 6]; bob.r.throwsUsed = 1;
     const alice = t.players.find((p) => p.id === 'a')!;
     alice.hand = [{ uid: 'y1', id: 'yeux-piquent' }]; alice.tournees = 3;
-    const resp = renderToString(h(RespondWindow, { v: viewFor(t, 'a'), legal: legalActions(t, 'a'), pending: false, onAct: noop }));
-    expect(resp).toContain('Bob garde 2 dés : répondre ?');
-    expect(resp).toContain('Laisser passer');
+    const resp = renderToString(h(RespondPanel, { v: viewFor(t, 'a'), legal: legalActions(t, 'a'), pending: false, onAct: noop }));
+    expect(resp).toContain('Bob garde des dés');
+    expect(resp).toContain('Bob garde 4-2 et va relancer le reste.');
+    expect(resp).toContain('Vous pouvez riposter');
+    expect(resp).toContain('Laisser faire');
     const c = structuredClone(s);
     c.choice = { kind: 'calcul', player: 'a', cards: [{ uid: 'c1', id: 'cul-sec' }, { uid: 'c2', id: 'fouine' }, { uid: 'c3', id: 'leurre' }] };
     expect(renderToString(h(ChoiceWindow, { v: viewFor(c, 'a'), legal: legalActions(c, 'a'), pending: false, onAct: noop }))).toContain('Calcul mental');

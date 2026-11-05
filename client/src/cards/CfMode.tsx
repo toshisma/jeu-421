@@ -36,6 +36,8 @@ import { BoosterOpening, CollectionScreen } from './CfCollection';
 import { DeckEditor, DecksScreen } from './CfDecks';
 import { LeagueScreen, MissionsList, RulesScreen } from './CfInfo';
 import { CardsCatalogScreen, LearnBlock, LearnHero, LexiconScreen, TipsScreen } from './CfLearn';
+import { TutorialCfController, markTutorialSeen, tutorialSeen } from './tutorial';
+import { askConfirm } from '../ui/confirm';
 import { TournamentCard, TournamentScreen } from './CfTournament';
 import './fonts';
 
@@ -165,8 +167,26 @@ export function CfMode(props: CfModeProps) {
 
   // --- parties ---------------------------------------------------------------------------------
   const activeDeck = st?.decks.find((d) => d.id === st.activeDeck && d.valid) ?? st?.decks.find((d) => d.valid) ?? null;
+  // --- partie guidée : proposée à la première partie, relançable depuis « Bien débuter » ---------------
+  const startTutorial = useCallback(() => {
+    sound.unlock();
+    markTutorialSeen('propose');
+    const ctrl = new TutorialCfController({ me: { name, avatar: props.avatar, photo: pa.photo, account: pa.session?.username }, token: pa.token, onReward: () => void reload() });
+    setSheet(null);
+    setRoute({ r: 'game', ctrl, mode: 'partie guidée', again: () => { setRoute({ r: 'menu' }); setSheet('bot'); } });
+  }, [name, props.avatar, pa.photo, pa.session, pa.token, reload]);
+  /** Première partie dans le mode (ni partie jouée, ni partie guidée vue) : on propose la partie guidée. */
+  const offerTutorial = useCallback(async (): Promise<boolean> => {
+    if (tutorialSeen() || st?.tutorialDone || (st?.history.length ?? 0) > 0) return false;
+    markTutorialSeen('propose');
+    const yes = await askConfirm(`Première partie de Coups Fourrés ? Une partie guidée de 3 minutes vous montre tout, pas à pas${acc ? ' (et rapporte 20 capsules, une fois)' : ''}.`, 'Partie guidée', 'Jouer directement');
+    if (yes) startTutorial();
+    return yes;
+  }, [st, acc, startTutorial]);
+
   const startBot = useCallback(async (level: CfLevel, deckId: string | null) => {
     if (starting) return;
+    if (await offerTutorial()) return;
     sound.unlock();
     setStarting(true);
     try {
@@ -181,7 +201,7 @@ export function CfMode(props: CfModeProps) {
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Impossible de lancer la partie.', 'err');
     } finally { setStarting(false); }
-  }, [starting, st, pa.token, pa.photo, pa.session, name, props.avatar, showToast]);
+  }, [starting, st, pa.token, pa.photo, pa.session, name, props.avatar, showToast, offerTutorial]);
 
   /** Commande en ligne : erreur claire en français si elle échoue. */
   const tryOnline = useCallback(async (f: (o: CfOnline) => Promise<unknown>): Promise<boolean> => {
@@ -194,7 +214,7 @@ export function CfMode(props: CfModeProps) {
     if (!acc) { showToast('La partie classée demande un compte (gratuit).', 'err'); return; }
     if (needDeck()) return;
     sound.unlock();
-    void tryOnline((o) => o.queueJoin(activeDeck!.id)).then((ok) => { if (ok) setWaiting({ kind: 'queue', title: 'Partie classée' }); });
+    void offerTutorial().then((t) => { if (!t) void tryOnline((o) => o.queueJoin(activeDeck!.id)).then((ok) => { if (ok) setWaiting({ kind: 'queue', title: 'Partie classée' }); }); });
   };
   const challenge = (username: string) => {
     if (needDeck()) return;
@@ -250,7 +270,7 @@ export function CfMode(props: CfModeProps) {
         onDecks={() => setRoute({ r: 'decks' })} onBoosters={() => setSheet('boosters')} onCollection={() => setRoute({ r: 'collection' })}
         onMissions={() => setSheet('missions')} onLeague={() => setRoute({ r: 'league' })} onRules={() => setRoute({ r: 'rules' })}
         onChallenge={challenge} onWatch={(f) => f.code && watch(f.code)} onRetry={() => void reload()} onTournament={() => setRoute({ r: 'tournoi' })}
-        onLearn={(r) => setRoute({ r })}
+        onLearn={(r) => setRoute({ r })} onTuto={startTutorial}
         top={<>
           {resumeGame && <button className="cf-banner gold" onClick={() => void tryOnline((o) => o.resume(resumeGame.id))}><b>Partie en cours</b><span>{resumeGame.ranked ? 'Classée' : 'Entre amis'} : reprenez-la avant d’être compté absent.</span><em>Reprendre</em></button>}
           {online?.challenges.map((c) => (
@@ -330,6 +350,7 @@ function CfMenu(p: CfModeProps & {
   onBot: () => void; onFriendsPlay: () => void; onRanked: () => void; onDecks: () => void; onBoosters: () => void; onCollection: () => void;
   onMissions: () => void; onLeague: () => void; onRules: () => void; onChallenge: (u: string) => void; onWatch: (f: CfFriend) => void; onRetry: () => void;
   onLearn: (r: 'cards' | 'tips' | 'lexicon') => void;
+  onTuto: () => void;
   onTournament: () => void; token?: string | null; top?: React.ReactNode;
 }) {
   const { pa, st } = p;
@@ -373,7 +394,7 @@ function CfMenu(p: CfModeProps & {
 
       <main className="cf-menu-main">
         {p.top}
-        {fresh && <LearnHero onRules={p.onRules} />}
+        {fresh && <LearnHero onTuto={p.onTuto} />}
         {present.length > 0 && (
           <div className="cf-present">
             <span className="cf-faces" aria-hidden>{present.map((f, i) => f.photo
@@ -394,7 +415,7 @@ function CfMenu(p: CfModeProps & {
           </div>
           <h1>Coups Fourrés</h1>
           <p>Le 421 aux cartes : bluff, fouine et coups bas · <button className="cf-link" onClick={p.onRules}>Règles</button></p>
-          <p className="cf-beta"><b>Bêta</b> Une nouvelle version de l’écran de partie, plus claire, est en préparation. Merci de votre patience !</p>
+          <p className="cf-beta"><b>Bêta</b> Nouvel écran de partie, plus clair : en partie, touchez « ? » pour l’aide et le rappel des 5 types de cartes.</p>
         </section>
 
         {acc && league && prog ? (
@@ -462,7 +483,7 @@ function CfMenu(p: CfModeProps & {
           </button>
         </div>
 
-        <LearnBlock fresh={fresh} onRules={p.onRules} onCards={() => p.onLearn('cards')} onTips={() => p.onLearn('tips')} onLexicon={() => p.onLearn('lexicon')} />
+        <LearnBlock fresh={fresh} onTuto={p.onTuto} onRules={p.onRules} onCards={() => p.onLearn('cards')} onTips={() => p.onLearn('tips')} onLexicon={() => p.onLearn('lexicon')} />
 
         {last ? (
           <div className="cf-last">
