@@ -22,6 +22,7 @@ import { CATEGORY_LABELS, ITEMS, getItem } from '../shared/progress/catalog';
 import { FX, FX_KIND_LABEL, RARITY_LABEL, fxDef } from '../shared/progress/dice-collection';
 import { ACHIEVEMENTS } from '../shared/progress/achievements';
 import { BAGS_MAX, levelInfo, newProfile, sanitizeProfile, type Profile } from '../shared/progress/profile';
+import { CF_CARD_LIST, cfAdminAdjust, cfAdminView } from './cards';
 import { COUNTRY_SOURCE_LABEL, countryName, flag, guessCountry, type CountrySource } from '../shared/geo';
 
 export const BANNED_MESSAGE = 'Votre compte est suspendu.';
@@ -456,6 +457,7 @@ export function createAdmin(store: Store, opts: AdminOptions) {
       achievements: Object.keys(p.achievements).length,
       ban: b ? { reason: b.reason, until: b.until, by: b.by_admin, at: b.at, text: banText(b) } : null,
       photo: toPublic(u).photo,
+      cf: (({ discovered, capsules, shards, boosters, total }) => ({ discovered, capsules, shards, boosters, cards: total }))(cfAdminView(store, u.id)),
     };
   }
 
@@ -536,6 +538,24 @@ export function createAdmin(store: Store, opts: AdminOptions) {
       // Retrait : l'objet équipé est remplacé par celui par défaut (recalcul au nettoyage du profil).
       return { ...p, owned: p.owned.filter((x) => x !== id), showcase: p.showcase?.filter((x) => x !== id) };
     }, give ? 'item+' : 'item-', () => `${give ? 'don' : 'retrait'} de l’objet « ${itemName(id)} »`);
+  });
+
+  // Coups Fourrés (mode cartes) : collection, capsules, éclats, boosters d'un joueur.
+  admin.get('/players/:id/cf', (req, res) => {
+    const u = target(req);
+    if (!u) return fail(res, 404, 'Joueur introuvable.');
+    res.json({ ok: true, username: u.username, cf: cfAdminView(store, u.id), cards: CF_CARD_LIST });
+  });
+  /** { what: 'capsules' | 'shards' | 'boosters' | 'card', delta, cardId?, shiny? } */
+  admin.post('/players/:id/cf', json, (req, res) => {
+    const u = target(req);
+    if (!u) return fail(res, 404, 'Joueur introuvable.');
+    const what = String(req.body?.what ?? '');
+    const delta = Math.trunc(Number(req.body?.delta));
+    const out = cfAdminAdjust(store, u.id, what, delta, typeof req.body?.cardId === 'string' ? req.body.cardId : undefined, req.body?.shiny === true);
+    if ('error' in out) return fail(res, 400, out.error);
+    logAdmin(req, `cf-${what}${delta > 0 ? '+' : '-'}`, u, `Coups Fourrés : ${out.details}`);
+    res.json({ ok: true, username: u.username, cf: cfAdminView(store, u.id) });
   });
 
   admin.get('/catalog', (_req, res) => {

@@ -27,6 +27,7 @@ import { createSocial } from './social';
 import { createMessages } from './messages';
 import { muteText } from '../shared/moderation';
 import { createDiscord } from './discord';
+import { createCards } from './cards';
 import { DIVISIONS, SEASON_DIE_FROM, SEASON_TITLE_FROM, divisionIndex, divisionOf, nextSeasonStart, seasonDelta, seasonOf } from '../shared/season';
 import { today } from '../shared/progress/quests';
 import type { ComboKind } from '../shared/combos';
@@ -41,6 +42,8 @@ export interface AccountsOptions {
   soloDailyCap?: number;
   /** Tentatives d'authentification par IP et par fenêtre de 10 minutes. */
   authAttempts?: number;
+  /** Tirage des boosters Coups Fourrés (tests) ; par défaut cryptographique. */
+  cardsRng?: () => number;
   /** Horloge (tests des ligues). */
   now?: () => number;
   /** Partie solo d'un compte réellement terminée (statistiques). */
@@ -856,6 +859,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   const social = createSocial({ router, store, auth, userOf, fail, adjust, coinsOf, brusselsDate, brusselsHour, now: () => opts.now?.() ?? Date.now() });
   const messages = createMessages({ router, store, auth, userOf, fail, push: social.push, userFromToken, now: () => opts.now?.() ?? Date.now() });
   createDiscord({ router, store, auth, userOf, userFromToken, now: () => opts.now?.() ?? Date.now(), env: opts.discord?.env, discordApi: opts.discord?.api });
+  // Coups Fourrés (mode cartes) : collection, decks, boosters, ligue et missions.
+  const cards = createCards({ router, store, auth, userOf, fail, now: () => opts.now?.() ?? Date.now(), push: (u, t, b, url) => void social.push(u, t, b, url), rng: opts.cardsRng });
 
-  return { social, messages, router, setPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
+  return { social, messages, cards, router, setPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
 }

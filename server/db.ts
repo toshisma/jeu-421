@@ -834,8 +834,154 @@ export class Store {
       .all(clubId, id, limit) as unknown as { username: string; phrase: string; created_at: number }[]).reverse();
   }
 
+  // --- Coups Fourrés (mode cartes) : tables préfixées cf_ (voir server/cards.ts) ---
+  private cfReady = false;
+  private cfDepth = 0;
+  private cfInit() {
+    if (this.cfReady) return;
+    this.cfReady = true;
+    this.db.exec(`
+      -- Un joueur du mode : monnaie (capsules), éclats de verre, boosters à ouvrir, découverte faite.
+      CREATE TABLE IF NOT EXISTS cf_players (
+        user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        discovered INTEGER NOT NULL DEFAULT 0, capsules INTEGER NOT NULL DEFAULT 0, shards INTEGER NOT NULL DEFAULT 0,
+        boosters INTEGER NOT NULL DEFAULT 0, legend_picks INTEGER NOT NULL DEFAULT 0, active_deck TEXT,
+        cosmetics TEXT NOT NULL DEFAULT '[]', titles TEXT NOT NULL DEFAULT '[]',
+        bot_day TEXT NOT NULL DEFAULT '', bot_capsules INTEGER NOT NULL DEFAULT 0, first_win_day TEXT NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL
+      );
+      -- Collection : exemplaires possédés de chaque carte, dont brillants.
+      CREATE TABLE IF NOT EXISTS cf_cards (
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, card_id TEXT NOT NULL,
+        count INTEGER NOT NULL, shiny INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, card_id)
+      );
+      CREATE TABLE IF NOT EXISTS cf_decks (
+        id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, name TEXT NOT NULL,
+        cards TEXT NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_cf_decks_user ON cf_decks(user_id, created_at);
+      -- Ligue : points par saison (mois de Bruxelles) ; best = plus haut total de la saison (plancher).
+      CREATE TABLE IF NOT EXISTS cf_league (
+        season TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        points INTEGER NOT NULL, best INTEGER NOT NULL, games INTEGER NOT NULL DEFAULT 0, wins INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL, PRIMARY KEY (season, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_cf_league_rank ON cf_league(season, points DESC, updated_at ASC);
+      -- Historique des parties (classées ou non) du point de vue de chaque compte.
+      CREATE TABLE IF NOT EXISTS cf_games (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        opponent_id TEXT, opponent_name TEXT, ranked INTEGER NOT NULL, vs_bot INTEGER NOT NULL,
+        result TEXT NOT NULL, points INTEGER NOT NULL DEFAULT 0, capsules INTEGER NOT NULL DEFAULT 0, at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_cf_games_user ON cf_games(user_id, at DESC);
+      CREATE TABLE IF NOT EXISTS cf_missions (
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, day TEXT NOT NULL, mission_id TEXT NOT NULL,
+        progress INTEGER NOT NULL DEFAULT 0, done INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day, mission_id)
+      );
+    `);
+  }
+  /** Transaction du mode cartes, réentrante (une fonction peut en appeler une autre). */
+  cfTx<T>(fn: () => T): T {
+    this.cfInit();
+    if (this.cfDepth > 0) { this.cfDepth++; try { return fn(); } finally { this.cfDepth--; } }
+    this.db.exec('BEGIN IMMEDIATE');
+    this.cfDepth = 1;
+    try { const out = fn(); this.db.exec('COMMIT'); return out; } catch (e) { this.db.exec('ROLLBACK'); throw e; } finally { this.cfDepth = 0; }
+  }
+  cfPlayer(userId: string, at = Date.now()): CfPlayerRow {
+    this.cfInit();
+    this.db.prepare('INSERT OR IGNORE INTO cf_players (user_id, created_at) VALUES (?, ?)').run(userId, at);
+    return this.db.prepare('SELECT * FROM cf_players WHERE user_id = ?').get(userId) as unknown as CfPlayerRow;
+  }
+  cfPlayerFind(userId: string): CfPlayerRow | undefined {
+    this.cfInit();
+    return this.db.prepare('SELECT * FROM cf_players WHERE user_id = ?').get(userId) as unknown as CfPlayerRow | undefined;
+  }
+  cfPlayerSet(userId: string, patch: Partial<Omit<CfPlayerRow, 'user_id' | 'created_at'>>) {
+    this.cfPlayer(userId);
+    for (const [k, v] of Object.entries(patch)) this.db.prepare(`UPDATE cf_players SET ${k} = ? WHERE user_id = ?`).run(v as never, userId);
+  }
+  cfCards(userId: string): { card_id: string; count: number; shiny: number }[] {
+    this.cfInit();
+    return this.db.prepare('SELECT card_id, count, shiny FROM cf_cards WHERE user_id = ? AND count > 0').all(userId) as unknown as { card_id: string; count: number; shiny: number }[];
+  }
+  /** Fixe le nombre d'exemplaires (0 : la carte disparaît de la collection). */
+  cfCardSet(userId: string, cardId: string, count: number, shiny: number) {
+    this.cfInit();
+    if (count <= 0) this.db.prepare('DELETE FROM cf_cards WHERE user_id = ? AND card_id = ?').run(userId, cardId);
+    else this.db.prepare('INSERT OR REPLACE INTO cf_cards (user_id, card_id, count, shiny) VALUES (?, ?, ?, ?)').run(userId, cardId, count, Math.min(shiny, count));
+  }
+  cfDecks(userId: string): CfDeckRow[] {
+    this.cfInit();
+    return this.db.prepare('SELECT * FROM cf_decks WHERE user_id = ? ORDER BY rowid').all(userId) as unknown as CfDeckRow[];
+  }
+  cfDeckSave(d: CfDeckRow) {
+    this.cfInit();
+    // UPSERT (pas REPLACE) : la ligne garde sa place, l'ordre de création est conservé.
+    this.db.prepare(`INSERT INTO cf_decks (id, user_id, name, cards, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET name = excluded.name, cards = excluded.cards, updated_at = excluded.updated_at`)
+      .run(d.id, d.user_id, d.name, d.cards, d.created_at, d.updated_at);
+  }
+  cfDeckDelete(userId: string, id: string): boolean {
+    this.cfInit();
+    return Number(this.db.prepare('DELETE FROM cf_decks WHERE user_id = ? AND id = ?').run(userId, id).changes) > 0;
+  }
+  cfLeagueRow(season: string, userId: string): CfLeagueRow | undefined {
+    this.cfInit();
+    return this.db.prepare('SELECT * FROM cf_league WHERE season = ? AND user_id = ?').get(season, userId) as unknown as CfLeagueRow | undefined;
+  }
+  cfLeagueSet(r: CfLeagueRow) {
+    this.cfInit();
+    this.db.prepare('INSERT OR REPLACE INTO cf_league (season, user_id, points, best, games, wins, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(r.season, r.user_id, r.points, r.best, r.games, r.wins, r.updated_at);
+  }
+  /** Classement d'une saison (seulement ceux qui ont joué au moins une partie classée). */
+  cfLeagueTop(season: string, limit: number): (CfLeagueRow & { username: string })[] {
+    this.cfInit();
+    return this.db.prepare(`SELECT l.*, u.username FROM cf_league l JOIN users u ON u.id = l.user_id
+      WHERE l.season = ? AND l.games > 0 ORDER BY l.points DESC, l.updated_at ASC LIMIT ?`).all(season, limit) as unknown as (CfLeagueRow & { username: string })[];
+  }
+  cfLeagueAll(season: string): CfLeagueRow[] {
+    this.cfInit();
+    return this.db.prepare('SELECT * FROM cf_league WHERE season = ?').all(season) as unknown as CfLeagueRow[];
+  }
+  cfLeagueRank(season: string, r: CfLeagueRow): number {
+    this.cfInit();
+    return 1 + (this.db.prepare('SELECT COUNT(*) AS n FROM cf_league WHERE season = ? AND games > 0 AND (points > ? OR (points = ? AND updated_at < ?))')
+      .get(season, r.points, r.points, r.updated_at) as { n: number }).n;
+  }
+  cfLeagueSeasonsBefore(season: string): string[] {
+    this.cfInit();
+    return (this.db.prepare('SELECT DISTINCT season FROM cf_league WHERE season < ? ORDER BY season').all(season) as { season: string }[]).map((r) => r.season);
+  }
+  cfGameAdd(g: Omit<CfGameRow, 'id'>) {
+    this.cfInit();
+    this.db.prepare('INSERT INTO cf_games (user_id, opponent_id, opponent_name, ranked, vs_bot, result, points, capsules, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(g.user_id, g.opponent_id, g.opponent_name, g.ranked, g.vs_bot, g.result, g.points, g.capsules, g.at);
+  }
+  cfGames(userId: string, limit = 20, rankedOnly = false): CfGameRow[] {
+    this.cfInit();
+    return this.db.prepare(`SELECT * FROM cf_games WHERE user_id = ? ${rankedOnly ? 'AND ranked = 1' : ''} ORDER BY at DESC, id DESC LIMIT ?`).all(userId, limit) as unknown as CfGameRow[];
+  }
+  cfMissions(userId: string, day: string): { mission_id: string; progress: number; done: number }[] {
+    this.cfInit();
+    return this.db.prepare('SELECT mission_id, progress, done FROM cf_missions WHERE user_id = ? AND day = ?').all(userId, day) as unknown as { mission_id: string; progress: number; done: number }[];
+  }
+  cfMissionSet(userId: string, day: string, missionId: string, progress: number, done: boolean) {
+    this.cfInit();
+    this.db.prepare('INSERT OR REPLACE INTO cf_missions (user_id, day, mission_id, progress, done) VALUES (?, ?, ?, ?, ?)').run(userId, day, missionId, progress, done ? 1 : 0);
+  }
+
   close() { this.db.close(); }
 }
+
+export interface CfPlayerRow {
+  user_id: string; discovered: number; capsules: number; shards: number; boosters: number; legend_picks: number; active_deck: string | null;
+  cosmetics: string; titles: string; bot_day: string; bot_capsules: number; first_win_day: string; created_at: number;
+}
+export interface CfDeckRow { id: string; user_id: string; name: string; cards: string; created_at: number; updated_at: number }
+export interface CfLeagueRow { season: string; user_id: string; points: number; best: number; games: number; wins: number; updated_at: number }
+export interface CfGameRow { id: number; user_id: string; opponent_id: string | null; opponent_name: string | null; ranked: number; vs_bot: number; result: string; points: number; capsules: number; at: number }
 
 export interface ModReportRow {
   id: number; reporter_id: string; reporter_name: string; target_id: string; target_name: string; kind: 'joueur' | 'message';
