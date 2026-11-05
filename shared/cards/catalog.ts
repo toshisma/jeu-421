@@ -106,7 +106,7 @@ export const CF_RULES = {
   reserveSeconds: 60,
 } as const;
 
-/** Decks de départ (20 cartes chacun, sans légendaire) : pour les invités (essai contre l'ordinateur) et les ordinateurs. Les comptes construisent leur premier deck avec leurs 5 boosters de bienvenue. */
+/** Decks de départ offerts à la découverte du mode (20 cartes chacun, sans légendaire) ; aussi utilisés par les invités et les ordinateurs. */
 export const STARTER_DECKS: { id: string; name: string; cards: Record<string, number> }[] = [
   { id: 'le-zinc', name: 'Le Zinc', cards: {
     josiane: 1, 'vieux-marcel': 2, pilier: 2, 'tournee-patron': 2, 'ticket-caisse': 2, fermeture: 1, 'note-salee': 1,
@@ -141,8 +141,8 @@ export const CAPSULES = {
   rankedLoss: 5,
   vsBot: 3,
   vsBotDailyMax: 10,
-  /** Découverte du mode : 5 boosters à ouvrir d'office ; le premier deck se construit avec ces cartes (décision de Sam). Les decks de départ ne servent plus qu'aux invités et aux ordinateurs. */
-  welcomeBoosters: 5,
+  /** Découverte du mode : 3 boosters offerts en plus des 2 decks de départ. */
+  welcomeBoosters: 3,
 };
 
 /** Vérifie un deck : renvoie la liste des problèmes (vide si le deck est valide). */
