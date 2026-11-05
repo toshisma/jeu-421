@@ -177,6 +177,8 @@ function Lobby({ session, onExit, pa }: { session: OnlineSession; onExit: () => 
   const max = room.table.maxPlayers;
   const [botLevel, setBotLevel] = useState<'facile' | 'normal' | 'difficile'>('normal');
   const addBot = async () => { setErr(null); const a = await session.addBot(botLevel); if (!a.ok) setErr(a.error); };
+  const fill = async () => { setErr(null); const a = await session.fill(botLevel); if (!a.ok) setErr(a.error); };
+  const quick = room.quick;
   const humans = room.members.filter((m) => !m.bot).length;
   const start = async () => { setErr(null); const a = await session.start(); if (!a.ok) setErr(a.error); };
 
@@ -195,6 +197,7 @@ function Lobby({ session, onExit, pa }: { session: OnlineSession; onExit: () => 
               ? <button className="btn small" onClick={share}><Icon name="share" size={16} />Inviter</button>
               : <button className="btn small" onClick={() => copy(link, 'lien')}><Icon name="share" size={16} />{copied === 'lien' ? 'Copié' : 'Lien'}</button>}
           </div>
+          {quick && <QuickBanner quick={quick} isHost={isHost} canFill={count < max && room.table.stake === 0} onFill={fill} />}
           {pa.isAccount && count < max && <InviteFriends pa={pa} inRoom={room.members.map((m) => m.name)} />}
           {isHost && count < max && room.table.stake === 0 && (
             <div className="bot-add">
@@ -202,12 +205,14 @@ function Lobby({ session, onExit, pa }: { session: OnlineSession; onExit: () => 
                 {(['facile', 'normal', 'difficile'] as const).map((d) => <button key={d} className={botLevel === d ? 'on' : ''} onClick={() => setBotLevel(d)}>{d[0].toUpperCase() + d.slice(1)}</button>)}
               </div>
               <button className="btn small" onClick={addBot}><Icon name="plus" size={18} />Ajouter un ordinateur</button>
+              {!quick && <button className="btn small" onClick={fill} title="Des ordinateurs prennent les places libres ; un ami qui arrive prend la place de l’un d’eux">
+                <Icon name="people" size={18} />Compléter avec l’ordinateur</button>}
             </div>
           )}
-          {isHost && humans === 1 && count < 2 && <p className="muted small">Personne pour l'instant : ajoutez un ordinateur pour jouer tout de suite, ou partagez le code.</p>}
+          {isHost && humans === 1 && count < 2 && !quick && <p className="muted small">Personne pour l'instant : ajoutez un ordinateur pour jouer tout de suite, ou partagez le code.</p>}
           {!session.connected && <p className="error">Connexion perdue, reconnexion en cours…</p>}
           <div className="lobby-actions">
-            {!isHost && me && (
+            {!isHost && me && !quick && (
               <button className={`btn big wide ${me.ready ? '' : 'primary'}`} onClick={() => session.setReady(!me.ready)}>
                 {me.ready ? 'Je ne suis plus prêt' : 'Je suis prêt'}
               </button>
@@ -271,7 +276,7 @@ function LobbyTable({ room, meId, isHost, max, onInvite, onKick, onRemoveBot }: 
                 {!m.connected && !m.bot && <i className="seat-off" />}
                 {m.isHost && <i className="seat-host" title="Hôte">★</i>}</span>
               <span className="seat-name">{mine ? `${m.name} (vous)` : m.name}</span>
-              <small>{m.bot ? `Ordi · ${m.bot}` : !m.connected ? 'hors ligne' : m.ready ? 'prêt' : 'pas prêt'}</small>
+              <small>{m.filler ? 'Ordinateur · cède sa place' : m.bot ? `Ordinateur · ${m.bot}` : !m.connected ? 'hors ligne' : m.ready ? 'prêt' : 'pas prêt'}</small>
               {isHost && !mine && (m.bot
                 ? <button className="seat-kick" onClick={() => onRemoveBot(m.id)} aria-label={`Retirer ${m.name}`}>Retirer</button>
                 : <button className="seat-kick" onClick={() => onKick(m.id)} aria-label={`Exclure ${m.name}`}>Exclure</button>)}
@@ -279,6 +284,26 @@ function LobbyTable({ room, meId, isHost, max, onInvite, onKick, onRemoveBot }: 
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/** Partie rapide : compte à rebours avant les ordinateurs de complément, puis avant le départ. */
+function QuickBanner({ quick, isHost, canFill, onFill }: { quick: NonNullable<NonNullable<OnlineSession['room']>['quick']>; isHost: boolean; canFill: boolean; onFill: () => void }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(t); }, []);
+  const secs = (at: number) => Math.max(0, Math.ceil((at - now) / 1000));
+  return (
+    <div className="quick-banner" role="status">
+      <span className="quick-clock" aria-hidden>{quick.startAt ? secs(quick.startAt) : quick.fillAt ? secs(quick.fillAt) : '…'}</span>
+      <div>
+        {quick.startAt
+          ? <><b>Départ dans {secs(quick.startAt)} s</b><small>Un joueur qui arrive d’ici là prend la place d’un ordinateur.</small></>
+          : quick.fillAt
+            ? <><b>On cherche des joueurs…</b><small>Sans renfort, des ordinateurs complètent la table dans {secs(quick.fillAt)} s.</small></>
+            : <><b>Partie rapide</b><small>En attente de joueurs.</small></>}
+      </div>
+      {isHost && canFill && !quick.startAt && <button className="btn small" onClick={onFill}>Compléter avec l’ordinateur</button>}
     </div>
   );
 }

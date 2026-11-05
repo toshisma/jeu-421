@@ -40,7 +40,7 @@ export interface CfWireSnapshot {
   responseWindow: CfResponseWindow | null;
 }
 
-export type CfGameMode = 'classee' | 'ami' | 'table';
+export type CfGameMode = 'classee' | 'ami' | 'table' | 'tournoi';
 
 /** `cf:state` : nouvel état de la partie, pour ce destinataire (joueur ou spectateur). */
 export interface CfStateMsg {

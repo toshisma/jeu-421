@@ -2,12 +2,16 @@
  * Tableau de bord et commandes d'administration. Réservé aux comptes ADMIN_USERS : le serveur
  * vérifie chaque appel (403 sinon), cet écran ne fait qu'afficher.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { lazyScreen } from '../lazy';
 import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
 import { askConfirm } from './confirm';
 import { Shell } from './Screens';
 import { ModerationPanel, useModeration } from './Moderation';
+
+/** Statistiques des cartes de Coups Fourrés : chargées à la demande (illustrations des cartes). */
+const CfAdminStats = lazyScreen(() => import('../cards/CfAdminStats'), 'CfAdminStats');
 
 const nf = (n: number) => Math.round(n).toLocaleString('fr-BE');
 const pct = (a: number, b: number) => (b ? `${Math.round((100 * a) / b)} %` : '–');
@@ -15,10 +19,10 @@ const dayShort = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('f
 const dayLong = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 const dateTime = (t: number | null) => (t ? new Date(t).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–');
 
-type Tab = 'apercu' | 'signalements' | 'personnes' | 'joueurs' | 'visiteurs' | 'retention' | 'activite' | 'economie' | 'journal';
+type Tab = 'apercu' | 'signalements' | 'personnes' | 'joueurs' | 'visiteurs' | 'retention' | 'activite' | 'economie' | 'cf' | 'journal';
 const TABS: [Tab, string][] = [
   ['apercu', 'Vue d’ensemble'], ['signalements', 'Signalements'], ['personnes', 'Personnes'], ['joueurs', 'Joueurs'], ['visiteurs', 'Visiteurs'], ['retention', 'Rétention'],
-  ['activite', 'Activité'], ['economie', 'Économie'], ['journal', 'Journal admin'],
+  ['activite', 'Activité'], ['economie', 'Économie'], ['cf', 'Coups Fourrés'], ['journal', 'Journal admin'],
 ];
 
 /** Chargement d'une route admin, avec rechargement à la demande. */
@@ -671,6 +675,7 @@ export function AdminDashboard({ pa, onBack }: { pa: ProfileApi; onBack: () => v
           {tab === 'retention' && <RetentionTab token={token} />}
           {tab === 'activite' && <ActivityTab token={token} user={activityUser} setUser={setActivityUser} />}
           {tab === 'economie' && <EconomyTab token={token} coins={o.coins} />}
+          {tab === 'cf' && <Suspense fallback={<p className="muted">Chargement…</p>}><CfAdminStats token={token} /></Suspense>}
           {tab === 'journal' && <LogTab token={token} />}
         </div>
       )}

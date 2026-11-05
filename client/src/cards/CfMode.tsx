@@ -31,9 +31,12 @@ import { CF_BOTS, LocalCfController, deckList } from './local';
 import type { CfController } from './controller';
 import { CfOnline, type CfOnlineController } from './online';
 import { CfGame } from './CfGame';
+import { CfChatPanel } from './CfChat';
 import { BoosterOpening, CollectionScreen } from './CfCollection';
 import { DeckEditor, DecksScreen } from './CfDecks';
 import { LeagueScreen, MissionsList, RulesScreen } from './CfInfo';
+import { CardsCatalogScreen, LearnBlock, LearnHero, LexiconScreen, TipsScreen } from './CfLearn';
+import { TournamentCard, TournamentScreen } from './CfTournament';
 import './fonts';
 
 export interface CfModeProps {
@@ -55,7 +58,7 @@ export interface CfModeProps {
   onAdmin?: () => void;
   onModeration?: () => void;
   /** À faire dès l'ouverture (venu de la liste d'amis) : défier ce pseudo, ou regarder cette partie. */
-  pending?: { challenge?: string; watch?: string };
+  pending?: { challenge?: string; watch?: string; tournoi?: boolean };
 }
 
 type Route =
@@ -67,6 +70,10 @@ type Route =
   | { r: 'deck'; id: string | null; cards?: Record<string, number>; name?: string }
   | { r: 'league' }
   | { r: 'rules' }
+  | { r: 'cards' }
+  | { r: 'tips' }
+  | { r: 'lexicon' }
+  | { r: 'tournoi' }
   | { r: 'game'; ctrl: CfController; mode: string; again?: () => void; online?: boolean };
 
 type SheetKind = 'bot' | 'friends' | 'boosters' | 'missions' | null;
@@ -103,7 +110,7 @@ export function CfMode(props: CfModeProps) {
   const acc = pa.isAccount;
   const [st, setSt] = useState<CfState | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
-  const [route, setRoute] = useState<Route>({ r: 'menu' });
+  const [route, setRoute] = useState<Route>(() => (props.pending?.tournoi ? { r: 'tournoi' } : { r: 'menu' }));
   const [sheet, setSheet] = useState<SheetKind>(null);
   const [toast, showToast] = useCfToast();
   const [waiting, setWaiting] = useState<{ kind: 'queue' | 'challenge'; title: string } | null>(null);
@@ -198,7 +205,7 @@ export function CfMode(props: CfModeProps) {
   // --- écrans ----------------------------------------------------------------------------------
   if (route.r === 'game') {
     return <CfGame key={gameKey(route.ctrl)} controller={route.ctrl} mode={route.mode} settings={props.settings} onSettings={props.onSettings} pa={pa}
-      online={route.online ? online : null} onExit={() => { menu(); }} onAgain={route.again ? () => { route.again!(); } : undefined}
+      online={route.online ? online : null} onExit={() => { if (route.mode === 'tournoi') { setRoute({ r: 'tournoi' }); void reload(); } else menu(); }} onAgain={route.again ? () => { route.again!(); } : undefined}
       onAccount={props.onAccount} />;
   }
   if (route.r === 'discover' && st) {
@@ -223,6 +230,16 @@ export function CfMode(props: CfModeProps) {
   }
   if (route.r === 'league') return <LeagueScreen token={pa.token} state={st} onState={setSt} onBack={menu} onAccount={props.onAccount} username={pa.session?.username} />;
   if (route.r === 'rules') return <RulesScreen onBack={menu} />;
+  if (route.r === 'cards') return <CardsCatalogScreen onBack={menu} />;
+  if (route.r === 'tips') return <TipsScreen onBack={menu} />;
+  if (route.r === 'lexicon') return <LexiconScreen onBack={menu} />;
+  if (route.r === 'tournoi') {
+    return <>
+      <TournamentScreen token={pa.token} acc={acc} onBack={menu} onWatch={watch} onAccount={props.onAccount} onError={(t) => showToast(t, 'err')}
+        onResume={() => void tryOnline((o) => o.resume())} />
+      {toast}
+    </>;
+  }
 
   const q = online?.queue;
   const resumeGame = online?.hello?.game && !online.game ? online.hello.game : null;
@@ -232,7 +249,8 @@ export function CfMode(props: CfModeProps) {
         onBot={() => setSheet('bot')} onFriendsPlay={() => setSheet('friends')} onRanked={ranked}
         onDecks={() => setRoute({ r: 'decks' })} onBoosters={() => setSheet('boosters')} onCollection={() => setRoute({ r: 'collection' })}
         onMissions={() => setSheet('missions')} onLeague={() => setRoute({ r: 'league' })} onRules={() => setRoute({ r: 'rules' })}
-        onChallenge={challenge} onWatch={(f) => f.code && watch(f.code)} onRetry={() => void reload()}
+        onChallenge={challenge} onWatch={(f) => f.code && watch(f.code)} onRetry={() => void reload()} onTournament={() => setRoute({ r: 'tournoi' })}
+        onLearn={(r) => setRoute({ r })}
         top={<>
           {resumeGame && <button className="cf-banner gold" onClick={() => void tryOnline((o) => o.resume(resumeGame.id))}><b>Partie en cours</b><span>{resumeGame.ranked ? 'Classée' : 'Entre amis'} : reprenez-la avant d’être compté absent.</span><em>Reprendre</em></button>}
           {online?.challenges.map((c) => (
@@ -254,7 +272,7 @@ export function CfMode(props: CfModeProps) {
           catch (e) { showToast(e instanceof Error ? e.message : 'Achat impossible.', 'err'); }
         }} />}
       {sheet === 'missions' && <Sheet title="Missions du jour" onClose={() => setSheet(null)}><MissionsList st={st} onAccount={props.onAccount} /></Sheet>}
-      {online?.table && <TableLobby online={online} st={st} me={pa.session?.username ?? ''} onError={(t) => showToast(t, 'err')} />}
+      {online?.table && <TableLobby online={online} st={st} pa={pa} me={pa.session?.username ?? ''} onError={(t) => showToast(t, 'err')} />}
       {waiting?.kind === 'queue' && <WaitingOverlay title={waiting.title} status={q?.text ?? 'Recherche d’un adversaire de votre niveau…'}
         onCancel={() => { void online?.queueLeave(); setWaiting(null); }}
         extra={q?.offer ? <button className="cf-btn violet" onClick={() => { void online?.queueLeave(); setWaiting(null); setSheet('bot'); }}>Jouer contre l’ordinateur en attendant</button> : undefined} />}
@@ -265,10 +283,10 @@ export function CfMode(props: CfModeProps) {
   );
 }
 
-const modeLabel = (c: CfOnlineController) => (c.spectator ? 'spectateur' : c.mode === 'classee' ? 'classée' : c.mode === 'ami' ? 'défi' : 'entre amis');
+const modeLabel = (c: CfOnlineController) => (c.spectator ? 'spectateur' : c.mode === 'classee' ? 'classée' : c.mode === 'ami' ? 'défi' : c.mode === 'tournoi' ? 'tournoi' : 'entre amis');
 
 /** Table privée à code (avant le départ) : joueurs, decks, code à partager, lancer. */
-function TableLobby({ online, st, me, onError }: { online: CfOnline; st: CfState | null; me: string; onError: (t: string) => void }) {
+function TableLobby({ online, st, me, pa, onError }: { online: CfOnline; st: CfState | null; me: string; pa: ProfileApi; onError: (t: string) => void }) {
   const t = online.table!;
   const host = t.host === me;
   const mine = t.players.find((p) => p.account === me);
@@ -297,6 +315,7 @@ function TableLobby({ online, st, me, onError }: { online: CfOnline; st: CfState
         {decks.length > 1 && <div className="cf-chips">{decks.map((d) => <button key={d.id} className={mine?.deck === d.name ? 'on' : ''} onClick={() => run(() => online.tableDeck(d.id))}>{d.name}</button>)}</div>}
         <p>{host ? (t.players.length < 2 ? 'Partagez le code : la partie se lance dès 2 joueurs (4 au plus).' : 'Tout le monde est là ? Lancez la partie.') : 'L’hôte lancera la partie dès que tout le monde est prêt.'}</p>
         {host && <button className="cf-btn gold big" disabled={t.players.length < 2} onClick={() => run(() => online.tableStart())}>Lancer la partie</button>}
+        <CfChatPanel inline pa={pa} src={{ chat: online.tableChat, send: (t) => online.tableSay(t) }} />
         <button className="cf-btn ghost" onClick={() => void online.tableLeave()}>Quitter la table</button>
       </div>
     </div>
@@ -310,7 +329,8 @@ function CfMenu(p: CfModeProps & {
   st: CfState | null; loadErr: string | null; name: string;
   onBot: () => void; onFriendsPlay: () => void; onRanked: () => void; onDecks: () => void; onBoosters: () => void; onCollection: () => void;
   onMissions: () => void; onLeague: () => void; onRules: () => void; onChallenge: (u: string) => void; onWatch: (f: CfFriend) => void; onRetry: () => void;
-  token?: string | null; top?: React.ReactNode;
+  onLearn: (r: 'cards' | 'tips' | 'lexicon') => void;
+  onTournament: () => void; token?: string | null; top?: React.ReactNode;
 }) {
   const { pa, st } = p;
   const acc = pa.isAccount;
@@ -329,6 +349,8 @@ function CfMenu(p: CfModeProps & {
   const last: CfGameView | undefined = st?.history[0];
   const divName = league ? CF_DIVISIONS.find((d) => d.id === league.division)?.name : null;
   const present = (friends ?? []).slice(0, 3);
+  // Nouveau joueur (aucune partie jouée) : la section « Bien débuter » est mise en avant.
+  const fresh = !st?.history.length;
   return (
     <div className="cf-menu">
       <span className="cf-stars" aria-hidden />
@@ -351,6 +373,7 @@ function CfMenu(p: CfModeProps & {
 
       <main className="cf-menu-main">
         {p.top}
+        {fresh && <LearnHero onRules={p.onRules} />}
         {present.length > 0 && (
           <div className="cf-present">
             <span className="cf-faces" aria-hidden>{present.map((f, i) => f.photo
@@ -408,6 +431,8 @@ function CfMenu(p: CfModeProps & {
           </div>
         </div>
 
+        <TournamentCard token={pa.token} acc={acc} onOpen={p.onTournament} />
+
         <div className="cf-tiles">
           <button className="cf-tile" onClick={p.onDecks}>
             <span className="cf-tile-art minis" aria-hidden><i className="cf-hab" /><i className="cf-cha" /><i className="cf-ivr" /></span>
@@ -436,6 +461,8 @@ function CfMenu(p: CfModeProps & {
             <b>421 classique</b><small>Jeu de base</small>
           </button>
         </div>
+
+        <LearnBlock fresh={fresh} onRules={p.onRules} onCards={() => p.onLearn('cards')} onTips={() => p.onLearn('tips')} onLexicon={() => p.onLearn('lexicon')} />
 
         {last ? (
           <div className="cf-last">

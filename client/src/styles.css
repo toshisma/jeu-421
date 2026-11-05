@@ -3294,3 +3294,211 @@ button.cf-banner { cursor: pointer; }
 .cf-more-item em { font-style: normal; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: #e04a3a; color: #fff; font: 800 12px/22px var(--font); text-align: center; }
 .cf-beta { margin: 6px auto 0; max-width: 320px; padding: 6px 10px; border-radius: 10px; background: rgba(241,204,125,.12); border: 1px solid rgba(241,204,125,.35); font: 500 12px/1.35 var(--font); color: #f3e3bd; text-align: center; }
 .cf-beta b { display: inline-block; margin-right: 6px; padding: 1px 6px; border-radius: 5px; background: #f1cc7d; color: #2a1a05; font: 800 10.5px/1.4 var(--font); letter-spacing: .06em; text-transform: uppercase; }
+
+/* 421 classique : partie rapide et défi partagé */
+.v2-multi-btns .v2-mbtn.v2-quick { flex: 1.4; min-width: 0; padding: 0 10px; }
+.v2-multi-btns .v2-mbtn.v2-tables { flex: none; padding: 0 11px; }
+.v2-multi-btns .v2-mbtn.ghost { flex: none; }
+@media (max-width: 400px) {
+  /* Petit téléphone : « Entre amis » ne garde que son icône (nom lu par les lecteurs d'écran). */
+  .v2-multi-btns .v2-amis { display: none; }
+  .v2-multi-btns .v2-mbtn.ghost { padding: 0 10px; }
+}
+.quick-banner { display: flex; align-items: center; gap: 12px; margin: 12px 0 4px; padding: 10px 12px; border-radius: 14px;
+  background: linear-gradient(180deg, rgba(246,217,141,0.14), rgba(215,159,60,0.08)); border: 1px solid rgba(246,217,141,0.35); }
+.quick-banner > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.quick-banner b { font: 800 17px/1.1 var(--cond); color: #fff; }
+.quick-banner small { color: var(--texte-2); font-size: 12.5px; line-height: 1.3; }
+.quick-clock { flex: none; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font: 800 18px/1 var(--cond);
+  color: #3a1a08; background: linear-gradient(180deg, #f6d98d, #d79f3c); box-shadow: inset 0 2px 0 rgba(255,255,255,0.5), 0 2px 0 #7a4a10; font-variant-numeric: tabular-nums; }
+.quick-banner .btn { flex: none; }
+@media (max-width: 400px) { .quick-banner { flex-wrap: wrap; } .quick-banner .btn { width: 100%; } }
+.ch-share { display: inline-flex; align-items: center; gap: 6px; }
+.ch-shared { text-align: center; margin: 4px 0 0; }
+.pc-sub .pc-bot { display: none; padding: 0 5px; border-radius: 6px; background: rgba(255,255,255,0.12); color: var(--blanc); font-weight: 700; letter-spacing: 0.02em; }
+@media (max-width: 720px) { .pc-sub .pc-bot { display: inline-block; } }
+/* Coups Fourrés : finitions */
+/* Menu : « Bien débuter » / « Apprendre » */
+.cf-learn-hero { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 14px; border-radius: 16px; border: 1.5px solid var(--cf-gold); background: linear-gradient(135deg, rgba(241,204,125,0.22), rgba(90,59,133,0.35)); color: #fff; text-align: left; cursor: pointer; animation: cf-learn-glow 2.4s ease-in-out infinite; }
+.cf-learn-hero > span:nth-child(2) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cf-learn-hero b { font: 800 15px/1.15 var(--font); }
+.cf-learn-hero small { font: 500 12px/1.25 var(--font); color: var(--cf-lilac); }
+.cf-learn-hero-ic { font-size: 26px; line-height: 1; }
+@keyframes cf-learn-glow { 50% { box-shadow: 0 0 18px rgba(241,204,125,0.45); } }
+@media (prefers-reduced-motion: reduce) { .cf-learn-hero { animation: none; } }
+.cf-learn { flex: none; display: flex; flex-direction: column; gap: 8px; }
+.cf-learn h2 { margin: 4px 0 0; font: 800 14px/1 var(--cond); letter-spacing: 0.1em; text-transform: uppercase; color: var(--cf-mauve); }
+.cf-learn.fresh h2 { color: var(--cf-gold); }
+.cf-learn-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cf-learn-grid button { display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 52px; padding: 8px 10px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.28); color: #fbf6e9; text-align: left; cursor: pointer; }
+.cf-learn-grid button.hot { border-color: var(--cf-gold); background: rgba(241,204,125,0.12); }
+.cf-learn-grid button > span:last-child { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cf-learn-grid b { font: 700 13.5px/1.1 var(--font); }
+.cf-learn-grid small { font: 500 11.5px/1.2 var(--font); color: var(--cf-lilac); }
+.cf-learn-grid .icon { flex: none; color: var(--cf-gold); }
+.cf-learn-n { flex: none; width: 22px; text-align: center; font: 800 15px/1 var(--cond); color: var(--cf-gold); }
+/* Les 34 cartes, conseils, lexique */
+.cf-cat-chips { justify-content: center; margin-bottom: 8px; }
+.cf-cat-chips.small button { min-height: 30px; padding: 0 10px; font-size: 12.5px; }
+.cf-cat-fam { display: flex; align-items: flex-start; gap: 8px; margin: 4px 0 12px; font: 500 13.5px/1.35 var(--font); color: var(--cf-lilac); }
+.cf-cat-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.cf-cat-list li { display: flex; flex-direction: column; align-items: center; gap: 7px; max-width: 100%; }
+.cf-cat-list small { max-width: 280px; font: 500 12.5px/1.3 var(--font); color: var(--cf-lilac); text-align: center; }
+.cf-cat-list small b { color: #fff; }
+.cf-tips { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.cf-tips li { display: flex; gap: 12px; padding: 12px; border-radius: 14px; background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.08); }
+.cf-tips li > span { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--cf-gold); color: #2a1a05; font: 800 15px/1 var(--cond); }
+.cf-tips b { display: block; font: 700 15px/1.2 var(--font); color: #fff; }
+.cf-tips p { margin: 4px 0 0; font: 500 13.5px/1.4 var(--font); color: var(--cf-lilac); }
+.cf-lexicon { margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.cf-lexicon div { padding: 10px 12px; border-radius: 12px; background: rgba(0,0,0,0.25); }
+.cf-lexicon dt { font: 400 15px/1.2 'Alfa Slab One', Rockwell, serif; color: var(--cf-gold); }
+.cf-lexicon dd { margin: 4px 0 0; font: 500 13.5px/1.4 var(--font); color: #ece4f5; }
+.cf-rules-combos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cf-rules-combos li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 8px; border-radius: 10px; background: rgba(0,0,0,0.22); }
+.cf-rules-dice { display: inline-flex; gap: 3px; flex: none; }
+.cf-rules-combos b { flex: 1; min-width: 90px; font: 700 13.5px/1.2 var(--font); }
+.cf-rules-combos em { font: 600 12.5px/1.2 var(--font); font-style: normal; color: var(--cf-gold); }
+/* Tchat du salon d'attente (tables à code) : dans la carte, pas en fenêtre flottante */
+.cf-chat-panel.inline { position: static; width: 100%; max-height: none; background: rgba(0,0,0,0.3); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); text-align: left; }
+.cf-chat-panel.inline ul { max-height: 120px; min-height: 44px; }
+.cf-chat-panel.inline .cf-phrases { display: flex; flex-wrap: nowrap; gap: 5px; overflow-x: auto; scrollbar-width: none; }
+.cf-chat-panel.inline .cf-phrases button { flex: none; }
+.cf-wait-card.cf-table { max-height: calc(100dvh - 32px); overflow-y: auto; }
+/* Plateau (lisibilité des cartes adverses, pièges expliqués, repères, partie guidée) */
+.cf-spot { position: fixed; inset: 0; z-index: 58; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; background: rgba(10,6,20,0.8); animation: fade 0.15s; cursor: pointer; }
+.cf-spot .cf-card-box { animation: cf-spot-in 0.35s cubic-bezier(.3,.7,.3,1.2); }
+.cf-spot-title { margin: 0; max-width: 320px; font: 800 16px/1.25 var(--font); text-align: center; color: #fff; }
+.cf-spot.piege .cf-spot-title { color: var(--cf-violet); }
+.cf-spot-caption { margin: 0; max-width: 320px; padding: 7px 12px; border-radius: 10px; background: rgba(58,26,90,0.9); border: 1px solid var(--cf-violet); font: 600 14px/1.3 var(--font); text-align: center; }
+.cf-spot > small { font: 500 12px/1 var(--font); color: var(--cf-mauve); }
+@keyframes cf-spot-in { from { transform: scale(0.6) translateY(40px); opacity: 0; } }
+.cf-trap-btn { padding: 0; border: 0; background: none; cursor: pointer; display: inline-flex; }
+.cf-trap-explain { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+.cf-trap-explain p { margin: 0; font: 500 13.5px/1.4 var(--font); }
+.cf-trap-explain small { font: 600 12.5px/1.3 var(--font); color: var(--cf-lilac); }
+.cf-trap-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.cf-trap-list button { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 72px; padding: 0; border: 0; background: none; color: #fff; cursor: pointer; font: 600 11px/1.15 var(--font); text-align: center; }
+.cf-resp-body.col { flex-direction: column; align-items: stretch; }
+.cf-resp-body.col .cf-resp-their { display: flex; justify-content: center; }
+.cf-resp-trap { display: flex; gap: 10px; align-items: flex-start; }
+.cf-resp-label { font: 700 11px/1 var(--font); letter-spacing: 0.06em; text-transform: uppercase; color: var(--cf-mauve); }
+.cf-resp-read { display: flex; flex-direction: column; gap: 4px; padding: 9px 11px; border-radius: 10px; background: linear-gradient(180deg, #fbf3df, #efe2c4); color: #2a1d12; }
+.cf-resp-read b { font: 800 14px/1.2 var(--font); }
+.cf-resp-read span { font: 500 13.5px/1.35 var(--font); }
+.cf-resp-read em { font: 700 13px/1.3 var(--font); font-style: normal; color: #4a0d18; }
+.cf-resp-read .cf-link { align-self: flex-start; color: #5a3b85; }
+.cf-log-card { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.cf-log-card em { font-style: normal; font-weight: 700; color: var(--cf-gold); white-space: nowrap; }
+.cf-opp { position: relative; }
+.cf-opp-badges { position: absolute; top: -8px; right: 8px; z-index: 1; display: flex; gap: 4px; }
+.cf-badge-lead, .cf-badge-turn, .cf-badge-out { padding: 3px 7px; border-radius: 999px; font: 800 10px/1 var(--font); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+.cf-badge-lead { background: var(--cf-gold); color: #2a1a05; }
+.cf-badge-turn { background: #5a3b85; color: #fff; box-shadow: 0 0 0 1.5px var(--cf-violet); }
+.cf-badge-out { background: #2f7a55; color: #fff; }
+.cf-me-row .cf-badge-lead { flex: none; }
+.cf-opp-target { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; border: 2px solid var(--cf-gold); border-radius: 16px; background: rgba(241,204,125,0.18); color: #fff; cursor: pointer; animation: pulse 1.4s ease-in-out infinite; }
+.cf-opp-target span { padding: 5px 10px; border-radius: 999px; background: rgba(28,16,48,0.92); font: 800 12.5px/1 var(--font); }
+.cf-hab-dot { flex: none; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; font: 800 10px/20px var(--font); color: #fff; cursor: pointer; background: #2f7a55; }
+.cf-param-row button.target { flex-direction: column; align-items: flex-start; gap: 2px; min-height: 44px; padding: 5px 11px; }
+.cf-respwin { top: auto; bottom: 42px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; overflow: hidden; }
+.cf-respwin span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cf-respwin i { position: absolute; left: 0; bottom: 0; height: 3px; width: var(--p, 100%); background: var(--cf-gold); transition: width 0.25s linear; }
+.cf-guide { position: fixed; left: 50%; top: max(54px, calc(env(safe-area-inset-top) + 50px)); z-index: 70; transform: translateX(-50%); width: min(420px, calc(100% - 20px)); display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 14px; background: rgba(28,16,48,0.97); border: 1.5px solid var(--cf-gold); box-shadow: 0 10px 28px rgba(0,0,0,0.55); animation: fade 0.25s ease-out; }
+.cf-guide.low { top: auto; bottom: max(20px, env(safe-area-inset-bottom)); }
+.cf-guide-head { display: flex; align-items: center; gap: 8px; }
+.cf-guide-head b { flex: 1; font: 400 15px/1.1 'Alfa Slab One', Rockwell, serif; color: var(--cf-gold); }
+.cf-guide-step { flex: none; padding: 3px 7px; border-radius: 999px; background: rgba(255,255,255,0.1); font: 800 11px/1 var(--font); }
+.cf-guide-skip { margin-left: auto; padding: 4px 8px; border: 0; background: none; color: var(--cf-mauve); font: 700 12px/1 var(--font); text-decoration: underline; cursor: pointer; }
+.cf-guide p { margin: 0; font: 500 14px/1.38 var(--font); color: #fff; }
+.cf-guide .cf-btn { align-self: flex-end; width: auto; min-height: 38px; padding: 0 16px; }
+.cf-focus { outline: 2.5px solid var(--cf-gold); outline-offset: 2px; animation: pulse 1.4s ease-in-out infinite; }
+
+/* Coups Fourrés : tournoi et statistiques */
+.cf-tour-card { flex: none; display: flex; align-items: center; gap: 11px; width: 100%; min-width: 0; padding: 10px 12px; border-radius: 14px; cursor: pointer; text-align: left; color: #fbf6e9;
+  background: linear-gradient(180deg, #4a2f6e, #2a1848); border: 1.5px solid rgba(241,204,125,0.6); box-shadow: 0 4px 0 #120a20, inset 0 1px 0 rgba(255,255,255,0.12); }
+.cf-tour-card:active { transform: translateY(2px); }
+.cf-tour-ic { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 12px; color: #2a1a05; background: linear-gradient(180deg, #e7c160, #b8892c); box-shadow: inset 0 0 0 1.5px #ffe6a3; }
+.cf-tour-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cf-tour-text b { font: 800 18px/1.05 var(--cond); }
+.cf-tour-text small { font: 600 12px/1.2 var(--font); color: var(--cf-lilac); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-tour-card em { flex: none; font: 700 12px/1 var(--font); font-style: normal; padding: 7px 10px; border-radius: 999px; background: rgba(255,255,255,0.12); color: #fbf6e9; white-space: nowrap; }
+.cf-tour-card em.gold { background: var(--cf-gold); color: #2a1a05; }
+.cf-tour-card em.ok { background: rgba(127,224,178,0.18); color: #9ff0c8; }
+.cf-tour-card em.live { background: #e04a3a; color: #fff; animation: cf-tour-pulse 1.6s ease-in-out infinite; }
+@keyframes cf-tour-pulse { 50% { box-shadow: 0 0 0 4px rgba(224,74,58,0.25); } }
+@media (prefers-reduced-motion: reduce) { .cf-tour-card em.live { animation: none; } }
+
+.cf-tour-hero { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 12px; border-radius: 16px; text-align: center;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(241,204,125,0.18), rgba(0,0,0,0.3)); border: 1px solid rgba(241,204,125,0.35); }
+.cf-tour-hero > small { font: 700 12px/1 var(--font); text-transform: uppercase; letter-spacing: 0.08em; color: var(--cf-lilac); }
+.cf-tour-clock { display: inline-flex; align-items: center; gap: 8px; font: 400 30px/1.1 'Alfa Slab One', Rockwell, serif; color: var(--cf-gold); text-shadow: 0 2px 0 #120a20; font-variant-numeric: tabular-nums; max-width: 100%; overflow-wrap: anywhere; }
+.cf-tour-clock.champ { font-size: 24px; }
+.cf-tour-reason { font: 600 14px/1.35 var(--font); color: #ffd0c8; }
+.cf-tour-stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; font: 500 13px/1.3 var(--font); color: var(--cf-lilac); }
+.cf-tour-stats b { color: #fbf6e9; font-weight: 800; }
+.cf-tour-next { margin: 0; font: 500 12.5px/1.3 var(--font); color: var(--cf-mauve); }
+.cf-tour-actions { display: flex; flex-direction: column; gap: 9px; }
+.cf-tour-me { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: 12px; background: rgba(0,0,0,0.28); font: 500 13.5px/1.35 var(--font); color: var(--cf-lilac); }
+.cf-tour-me.ok { color: #d9f6e7; background: rgba(63,191,138,0.14); border: 1px solid rgba(127,224,178,0.35); }
+.cf-tour-me .ico { flex: none; margin-top: 1px; }
+.cf-tour-rounds { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.cf-tour-rounds button { flex: none; }
+.cf-tour-bracket { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cf-tm-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cf-tm { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 10px; border-radius: 12px; background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.08); }
+.cf-tm.mine { border-color: var(--cf-gold); background: rgba(241,204,125,0.1); }
+.cf-tm.live { box-shadow: inset 3px 0 0 #e04a3a; }
+.cf-tm-players { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cf-tm-row { display: flex; align-items: center; gap: 8px; min-width: 0; color: #fbf6e9; }
+.cf-tm-row b { flex: 1; min-width: 0; font: 700 14.5px/1.2 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-tm-row.win b { color: var(--cf-gold); }
+.cf-tm-row.win .ico { color: #7fe0b2; flex: none; }
+.cf-tm-row.lose { opacity: 0.55; }
+.cf-tm-face { width: 26px; height: 26px; flex: none; display: grid; place-items: center; border-radius: 50%; font: 800 11px/1 var(--cond); font-style: normal; background: linear-gradient(135deg, #5a3b85, #2a1848); color: #fbf6e9; }
+.cf-tm-face.empty { background: rgba(255,255,255,0.08); color: var(--cf-mauve); }
+.cf-tm-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; max-width: 46%; }
+.cf-tm-side small { font: 600 11.5px/1.2 var(--font); color: var(--cf-lilac); text-align: right; }
+.cf-tm.live .cf-tm-side small { color: #ffb4a8; }
+.cf-tour-info { display: flex; flex-direction: column; gap: 8px; }
+.cf-tour-info h3 { margin: 6px 0 0; font: 800 18px/1.1 var(--cond); color: #fbf6e9; }
+.cf-tour-h { display: flex; align-items: center; gap: 8px; }
+.cf-tour-prizes { display: flex; flex-direction: column; gap: 6px; }
+.cf-tour-prizes > div { display: flex; align-items: center; justify-content: space-between; gap: 4px 10px; flex-wrap: wrap; padding: 9px 10px; border-radius: 12px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); font: 500 12.5px/1.3 var(--font); color: var(--cf-lilac); }
+.cf-tour-prizes > div.on { border-color: var(--cf-gold); background: rgba(241,204,125,0.1); }
+.cf-tour-prizes > div > small { font-weight: 700; color: #fbf6e9; }
+.cf-tour-prizes > div > span { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.cf-tour-prize { white-space: nowrap; }
+.cf-tour-prizes b { color: var(--cf-gold); }
+.cf-tour-rules { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font: 500 13px/1.4 var(--font); color: var(--cf-lilac); }
+
+/* Administration : statistiques des cartes */
+.cf-adm { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.cf-adm .seg { align-self: flex-start; max-width: 100%; }
+.cf-adm-sort { margin-bottom: 10px; }
+.cf-adm-warn { margin: 0; padding: 10px 12px; border-radius: 10px; background: rgba(224,160,58,0.15); border: 1px solid rgba(241,204,125,0.4); color: #ffe2a8; font-size: 0.875rem; }
+.cf-adm-table th .cf-fam { font-size: 12px; }
+.cf-adm-table td.up, .cf-adm-nums .up b { color: #ff9f8f; }
+.cf-adm-table td.down, .cf-adm-nums .down b { color: #8fc4ff; }
+.cf-adm-table tr.small td { opacity: 0.55; }
+.cf-adm-cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cf-adm-cards > li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 6px 10px; align-items: center; padding: 8px; border-radius: 12px; background: var(--ardoise-2, rgba(255,255,255,0.05)); border: 1px solid transparent; min-width: 0; }
+.cf-adm-cards > li.is-forte { border-color: rgba(255,120,100,0.6); }
+.cf-adm-cards > li.is-faible { border-color: rgba(110,170,255,0.6); }
+.cf-adm-cards > li.small { opacity: 0.6; }
+.cf-adm-art { width: 64px; height: 37px; border-radius: 6px; overflow: hidden; display: block; background: linear-gradient(160deg, var(--cf-c1), var(--cf-c2)); box-shadow: inset 0 0 0 1.5px var(--cf-edge); }
+.cf-adm-art svg { width: 100%; height: 100%; display: block; }
+.cf-adm-name { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cf-adm-name b { font-weight: 700; overflow-wrap: anywhere; }
+.cf-adm-name small { color: var(--texte-3); font-size: 0.75rem; }
+.cf-adm-name em { align-self: flex-start; font-style: normal; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: rgba(255,120,100,0.18); color: #ffb4a8; }
+.cf-adm-cards > li.is-faible .cf-adm-name em { background: rgba(110,170,255,0.18); color: #b4d4ff; }
+.cf-adm-name em.warn { background: rgba(241,204,125,0.15); color: #ffe2a8; }
+.cf-adm-nums { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; font-variant-numeric: tabular-nums; }
+.cf-adm-nums > span { display: flex; flex-direction: column; padding: 4px 6px; border-radius: 6px; background: rgba(0,0,0,0.18); min-width: 0; }
+.cf-adm-nums small { font-size: 0.6875rem; color: var(--texte-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-adm-nums b { font-size: 0.9375rem; }
+@media (min-width: 760px) {
+  .cf-adm-cards > li { grid-template-columns: 72px minmax(160px, 1fr) minmax(0, 2.2fr); }
+  .cf-adm-nums { grid-column: auto; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}

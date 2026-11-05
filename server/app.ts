@@ -26,7 +26,7 @@ import { createAdmin } from './admin';
 import { createModeration, type TableChatEntry } from './moderation';
 import { muteText } from '../shared/moderation';
 import { canonicalHostRedirect, serveClient } from './static';
-import { albumKey, didWin, finalPlace } from '../shared/progress/profile';
+import { albumKey, botTableRules, didWin, finalPlace } from '../shared/progress/profile';
 import type { ComboKind } from '../shared/combos';
 import { getItem } from '../shared/progress/catalog';
 import { COLLECTION } from '../shared/progress/dice-collection';
@@ -34,6 +34,8 @@ import { SCHED_CONFIG, SCHED_LOBBY_MS, SCHED_MAX, bagPrizes, bagsLabel, hourLabe
 import { createScheduled, slotLabel } from './scheduled';
 import { createDiscordHooks } from './discord-hooks';
 import { createCfOnline, type CfOnlineOptions } from './cards-online';
+import { createCfStats } from './cf-stats';
+import { createCfTournament, type CfTourOptions } from './cf-tournament';
 
 interface Member {
   id: string;
@@ -51,6 +53,8 @@ interface Member {
   bot?: Difficulty;
   /** Dés affichés quand il lance (invités : dés de la boutique seulement ; comptes : lus sur le serveur). */
   dice?: string;
+  /** Ordinateur de complément : il cède sa place au premier vrai joueur qui arrive avant le départ. */
+  filler?: boolean;
 }
 
 type TableStats = { count421: number; combos: Partial<Record<ComboKind, number>>; gestures: number; roundsLost: number; maxTokens: number; keys: string[]; best: { label: string; rank: number } | null };
@@ -87,6 +91,11 @@ interface Room {
   games: number;
   /** Spectateurs (par socket) : ils voient tout, ne jouent pas, ne comptent pas comme joueurs. */
   spectators: Map<string, Spectator>;
+  /**
+   * Partie rapide : table publique sans mise qui se complète toute seule avec des ordinateurs
+   * après un moment d'attente, puis démarre après un court compte à rebours.
+   */
+  quick?: { waitSince: number; fillAt: number | null; startAt: number | null; timer: NodeJS.Timeout | null };
 }
 
 interface Spectator { name: string; userId?: string }
@@ -151,6 +160,11 @@ export interface ServerOptions {
   discordHooks?: { env?: Record<string, string | undefined>; send?: (url: string, body: unknown) => Promise<void>; newsDelayMs?: number };
   /** Coups Fourrés en ligne (délais réduits dans les tests). */
   cf?: CfOnlineOptions;
+  /** Partie rapide : attente avant que des ordinateurs complètent la table, puis compte à rebours du départ (ms). */
+  quickFillMs?: number;
+  quickStartMs?: number;
+  /** Tournoi Coups Fourrés du samedi (tests : horloge manuelle, pauses courtes, duels courts). */
+  cfTour?: CfTourOptions;
 }
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -183,6 +197,8 @@ function botIdentity(taken: string[]) {
   const b = free.length ? free[randomInt(free.length)] : { name: `Ordi ${taken.length + 1}`, avatar: '🎲' };
   return b;
 }
+/** Partie rapide : nombre de joueurs visé quand des ordinateurs complètent la table. */
+const QUICK_TARGET = 3;
 const emptyStats = (): TableStats => ({ count421: 0, combos: {}, gestures: 0, roundsLost: 0, maxTokens: 0, keys: [], best: null });
 
 export async function startServer(opts: ServerOptions) {
@@ -193,6 +209,8 @@ export async function startServer(opts: ServerOptions) {
   const STOP_GRACE = opts.stopGraceMs ?? 1_500;
   const T_PAUSE = opts.tournamentPauseMs ?? 12_000;
   const T_FULL_START = opts.tournamentFullStartMs ?? 6_000;
+  const QUICK_FILL = opts.quickFillMs ?? 30_000;
+  const QUICK_START = opts.quickStartMs ?? 10_000;
   /**
    * Horloge des tournois programmés. Pour les essais, SCHED_TEST_NOW (date ISO) fait croire au
    * serveur qu'il est cette heure-là au démarrage ; ignoré en production (NODE_ENV=production ou Render).
@@ -216,6 +234,8 @@ export async function startServer(opts: ServerOptions) {
   const rooms = new Map<string, Room>();
   const tournaments = new Map<string, Tournament>();
   const humanConnected = (m: Member) => !m.bot && !m.left && m.socketId != null;
+  /** Places prises à une table en attente (les ordinateurs de complément cèdent la leur). */
+  const seatsTaken = (r: Room) => r.members.filter((m) => !m.filler).length;
   stats = createStats(store, {
     minSoloMs: opts.accounts?.minSoloMs, ...opts.stats, userFromToken: accounts.userFromToken,
     notifyAdmins: (title, body) => {
@@ -238,6 +258,9 @@ export async function startServer(opts: ServerOptions) {
   const admin = createAdmin(store, { ...opts.admin, isAdmin: stats.isAdmin, userFromToken: accounts.userFromToken });
   app.use('/api', admin.router);
   app.use('/api', stats.router);
+  // Coups Fourrés : statistiques réelles des cartes (onglet d'administration).
+  const cfStats = createCfStats({ store, now: opts.accounts?.now ?? Date.now, isAdmin: stats.isAdmin, userFromToken: accounts.userFromToken });
+  app.use('/api', cfStats.router);
   // Tchat de table : derniers messages gardés en mémoire (signalements : le serveur retrouve le texte).
   const tableChat: TableChatEntry[] = [];
   let tableChatSeq = 0;
@@ -262,7 +285,7 @@ export async function startServer(opts: ServerOptions) {
       const m = r.members.find((x) => x.userId === userId && x.socketId != null);
       if (!m) continue;
       const lobby = r.status === 'lobby';
-      return { code: r.code, status: lobby ? 'salon' : 'partie', joinable: lobby && !r.tournament && r.members.length < r.table.maxPlayers, watchable: !lobby && !!r.game && r.game.phase !== 'fini' };
+      return { code: r.code, status: lobby ? 'salon' : 'partie', joinable: lobby && !r.tournament && seatsTaken(r) < r.table.maxPlayers, watchable: !lobby && !!r.game && r.game.phase !== 'fini' };
     }
     return null;
   });
@@ -270,12 +293,12 @@ export async function startServer(opts: ServerOptions) {
   // Listes publiques : salons en attente de joueurs et tournois ouverts aux inscriptions.
   app.get('/api/lobbies', (_req, res) => {
     const lobbies: LobbyEntry[] = [...rooms.values()]
-      .filter((r) => r.status === 'lobby' && !r.tournament && r.table.visibility === 'public' && r.members.length < r.table.maxPlayers
+      .filter((r) => r.status === 'lobby' && !r.tournament && r.table.visibility === 'public' && seatsTaken(r) < r.table.maxPlayers
         && r.members.some((m) => m.socketId != null))
-      .sort((a, b) => b.members.length - a.members.length)
+      .sort((a, b) => seatsTaken(b) - seatsTaken(a))
       .slice(0, 50)
       .map((r) => ({
-        code: r.code, title: r.title, host: r.members.find((m) => m.id === r.hostId)?.name ?? '?', players: r.members.length,
+        code: r.code, title: r.title, host: r.members.find((m) => m.id === r.hostId)?.name ?? '?', players: seatsTaken(r),
         max: r.table.maxPlayers, stake: r.table.stake, variant: r.config.variant, turnSeconds: r.config.turnSeconds,
       }));
     const tours: TournamentEntry[] = [...tournaments.values()]
@@ -368,9 +391,16 @@ export async function startServer(opts: ServerOptions) {
     io, store, cards: accounts.cards, userFromToken: accounts.userFromToken, banOf: admin.banOf, muteOf: moderation.muteOf,
     push: (u, title, body, url) => void accounts.social.push(u, title, body, url),
     recordChat: (e) => { tableChat.push(e); if (tableChat.length > TABLE_CHAT_KEEP) tableChat.splice(0, tableChat.length - TABLE_CHAT_KEEP); },
-    now: opts.accounts?.now, opts: { minBotMs: opts.accounts?.minSoloMs, ...opts.cf },
+    now: opts.accounts?.now, opts: { minBotMs: opts.accounts?.minSoloMs, ...opts.cf }, stats: cfStats,
   });
   cfMount.use(cfOnline.router);
+  // Tournoi Coups Fourrés du samedi (20 h 30). Essais : SCHED_TEST_NOW (horloge), SCHED_TEST_QUICK=1 (duels à 3 jetons, pauses de 10 s).
+  const cfTour = createCfTournament({
+    store, cards: accounts.cards, online: cfOnline, now: clock, userFromToken: accounts.userFromToken,
+    push: (u, title, body, url) => void accounts.social.push(u, title, body, url), discord: (ev) => dHooks.cfTournament(ev),
+    opts: opts.cfTour ?? (testing && process.env.SCHED_TEST_QUICK ? { pauseMs: 10_000, config: { startTokens: 3 } } : undefined),
+  });
+  cfMount.use(cfTour.router);
   accounts.setCfPresence(cfOnline.presence);
 
   app.get('/health', (_req, res) => res.json({ ok: true, rooms: rooms.size, tournaments: tournaments.size }));
@@ -425,9 +455,10 @@ export async function startServer(opts: ServerOptions) {
     pot: r.pot,
     tournament: r.tournament,
     spectators: r.spectators.size,
+    ...(r.quick ? { quick: { fillAt: r.quick.fillAt, startAt: r.quick.startAt } } : {}),
     members: r.members.map((m) => ({
       id: m.id, name: m.name, avatar: m.avatar, ready: m.ready,
-      connected: m.socketId != null || !!m.bot, left: m.left, isHost: m.id === r.hostId, ...(m.bot ? { bot: m.bot } : {}),
+      connected: m.socketId != null || !!m.bot, left: m.left, isHost: m.id === r.hostId, ...(m.bot ? { bot: m.bot } : {}), ...(m.filler ? { filler: true } : {}),
       ...(m.dice ? { dice: m.dice } : {}),
       ...(m.userId ? accounts.publicInfo(m.userId) ?? {} : {}),
     })),
@@ -459,7 +490,9 @@ export async function startServer(opts: ServerOptions) {
     let mode: 'ai' | 'timeout';
     if (m.bot) {
       // L'ordinateur « réfléchit » un peu, après l'animation du lancer précédent ; pas de compte à rebours affiché.
-      r.turnTimer = setTimeout(() => autoPlay(r, pid, 'ai'), grace + Math.round(AUTOPLAY_DELAY * (0.3 + Math.random() * 0.4)));
+      // Rythme naturel : parfois vif, parfois un temps d'hésitation (surtout avant de relancer).
+      const think = AUTOPLAY_DELAY * (0.3 + Math.random() * 0.5) + (g.throwsUsed > 0 && Math.random() < 0.25 ? AUTOPLAY_DELAY * 0.5 : 0);
+      r.turnTimer = setTimeout(() => autoPlay(r, pid, 'ai'), grace + Math.round(think));
       return;
     }
     if (m.left) { delay = AUTOPLAY_DELAY; mode = 'ai'; }
@@ -562,11 +595,14 @@ export async function startServer(opts: ServerOptions) {
       r.pot = 0;
     }
     accounts.release(`R:${r.code}:${r.games}`);
+    // Ordinateurs à la table : barème du solo, plafond quotidien du solo, hors classement.
+    const inGame = r.members.filter((m) => g.players.some((p) => p.id === m.id));
+    const botRules = botTableRules(inGame.filter((m) => !m.bot).length, inGame.flatMap((m) => (m.bot ? [m.bot] : [])));
     for (const m of r.members) {
       if (!m.userId || !g.players.some((p) => p.id === m.id)) continue;
       const st = r.stats.get(m.id) ?? emptyStats();
       const out = accounts.onlineGameEnd(m.userId, didWin(g, m.id), g.round, {
-        mode: 'online', opponents: g.players.length - 1, count421: st.count421, combos: st.combos, gestureThrows: st.gestures,
+        ...botRules, opponents: g.players.length - 1, count421: st.count421, combos: st.combos, gestureThrows: st.gestures,
         rounds: g.round, roundsLost: g.config.variant === 'manches' ? undefined : st.roundsLost, maxTokens: st.maxTokens,
         suddenDeath: isSuddenDeath(g.config),
         comboKeys: st.keys, best: st.best ?? undefined,
@@ -576,9 +612,9 @@ export async function startServer(opts: ServerOptions) {
       }, m.day, m.left);
       if (out && m.socketId) io.to(m.socketId).emit('profile:reward', out);
     }
-    // Saison classée : entre au moins deux humains, sans mort subite. Places parmi les humains.
+    // Saison classée : entre au moins deux humains, sans mort subite ni ordinateur. Places parmi les humains.
     const humans = r.members.filter((m) => !m.bot && g.players.some((p) => p.id === m.id));
-    if (humans.length >= 2 && !isSuddenDeath(g.config)) {
+    if (humans.length >= 2 && !isSuddenDeath(g.config) && !botRules.botLevel) {
       // Un joueur parti est dernier ; sinon : 1 + humains restés et mieux classés (ex æquo possibles).
       const placed = humans.map((m) => ({ m, place: m.left ? humans.length : 1 + humans.filter((x) => !x.left && finalPlace(g, x.id) < finalPlace(g, m.id)).length }));
       accounts.seasonGame(placed.filter((x) => x.m.userId).map((x) => ({ userId: x.m.userId!, place: x.place, won: x.place === 1 })), humans.length);
@@ -611,7 +647,9 @@ export async function startServer(opts: ServerOptions) {
   function startTableGame(r: Room, players: Member[]) {
     r.pot = 0;
     r.games++;
-    if (r.table.stake > 0 && !r.tournament) {
+    if (r.quick) { if (r.quick.timer) clearTimeout(r.quick.timer); r.quick.timer = null; r.quick.fillAt = null; r.quick.startAt = null; }
+    const withBots = players.some((m) => m.bot);
+    if (r.table.stake > 0 && !r.tournament && !withBots) {
       for (const m of players) {
         const p = accounts.stake(m.userId!, r.table.stake, `R:${r.code}:${r.games}`);
         sendProfile(m.socketId, p);
@@ -630,6 +668,62 @@ export async function startServer(opts: ServerOptions) {
     io.to(r.code).emit('game:state', { state: r.game });
     scheduleTurn(r, STOP_GRACE);
     broadcastRoom(r);
+    if (withBots && !r.tournament) notice(r, 'Partie avec des ordinateurs : sans mise et hors classement, récompenses comme contre l’ordinateur.');
+  }
+
+  // --- Partie rapide : ordinateurs de complément et départ automatique ------------------------
+  /** La partie rapide s'applique : table publique, sans mise, en attente, hors tournoi. */
+  const quickOn = (r: Room) => !!r.quick && r.status === 'lobby' && !r.tournament && r.table.visibility === 'public' && r.table.stake === 0;
+
+  /** Des ordinateurs de complément prennent les places libres jusqu'à `target` joueurs. Renvoie leur nombre. */
+  function fillWithBots(r: Room, target: number, level: Difficulty = 'normal'): number {
+    let added = 0;
+    while (r.members.length < Math.min(target, r.table.maxPlayers)) {
+      const b = botIdentity(r.members.map((m) => m.name));
+      r.members.push({ id: randomUUID(), token: randomUUID(), name: b.name, avatar: b.avatar, dice: botDice(), ready: true, socketId: null, left: false, disconnectedAt: null, day: '', bot: level, filler: true });
+      added++;
+    }
+    return added;
+  }
+
+  /**
+   * (Re)programme la partie rapide : tant qu'on est moins de QUICK_TARGET humains sans ordinateur,
+   * des ordinateurs complètent la table QUICK_FILL après l'ouverture ; dès qu'il y a assez de
+   * monde (ou des ordinateurs), départ automatique après QUICK_START.
+   */
+  function quickPlan(r: Room) {
+    const q = r.quick;
+    if (!q) return;
+    if (q.timer) clearTimeout(q.timer);
+    q.timer = null;
+    if (!quickOn(r) || !r.members.some(humanConnected)) { q.fillAt = null; q.startAt = null; return; }
+    const humans = r.members.filter((m) => !m.bot).length;
+    if (humans >= QUICK_TARGET || r.members.some((m) => m.bot)) { q.fillAt = null; q.startAt ??= Date.now() + QUICK_START; }
+    else { q.startAt = null; q.fillAt = q.waitSince + QUICK_FILL; }
+    const at = q.startAt ?? q.fillAt!;
+    q.timer = setTimeout(() => quickFire(r), Math.max(0, at - Date.now()));
+  }
+
+  function quickFire(r: Room) {
+    const q = r.quick;
+    if (!q || rooms.get(r.code) !== r) return;
+    q.timer = null;
+    if (!quickOn(r) || !r.members.some(humanConnected)) { quickPlan(r); return; }
+    if (q.startAt == null) {
+      // Personne n'est venu à temps : des ordinateurs prennent les places libres.
+      const n = fillWithBots(r, QUICK_TARGET);
+      if (n) notice(r, `${n > 1 ? `${n} ordinateurs complètent` : 'Un ordinateur complète'} la table. Départ dans ${Math.round(QUICK_START / 1000)} s : un joueur qui arrive d’ici là prend la place d’un ordinateur.`);
+      quickPlan(r);
+      broadcastRoom(r);
+      return;
+    }
+    if (Date.now() < q.startAt) { quickPlan(r); return; }
+    // Départ : les joueurs partis du salon ne sont pas attendus.
+    r.members = r.members.filter((m) => m.bot || m.socketId != null);
+    if (!r.members.some((m) => m.id === r.hostId)) r.hostId = r.members.find(humanConnected)!.id;
+    fillWithBots(r, 2);
+    for (const m of r.members) m.ready = true;
+    startTableGame(r, r.members.slice());
   }
 
   function transferHost(r: Room, reason: string) {
@@ -646,6 +740,7 @@ export async function startServer(opts: ServerOptions) {
     if (r.members.every((m) => m.socketId == null || m.left)) {
       if (r.turnTimer) clearTimeout(r.turnTimer);
       if (r.hostTimer) clearTimeout(r.hostTimer);
+      if (r.quick?.timer) clearTimeout(r.quick.timer);
       closeSpectators(r, 'Tous les joueurs ont quitté la table.');
       rooms.delete(r.code);
     }
@@ -942,6 +1037,7 @@ export async function startServer(opts: ServerOptions) {
     for (const r of rooms.values())
       if (!r.tournament && r.members.every((m) => m.socketId == null) && now - r.lastActivity > 10 * 60_000) {
         if (r.turnTimer) clearTimeout(r.turnTimer);
+        if (r.quick?.timer) clearTimeout(r.quick.timer);
         closeSpectators(r, 'La table a été fermée.');
         rooms.delete(r.code);
       }
@@ -1008,6 +1104,7 @@ export async function startServer(opts: ServerOptions) {
         if (r.game) socket.emit('game:state', { state: r.game });
         // Seul le retour du joueur actif change son minuteur (fin du délai de déconnexion).
         if (r.status === 'playing' && r.game && wasAway && currentPlayerId(r.game) === existing.id) scheduleTurn(r, STOP_GRACE);
+        if (r.status === 'lobby') quickPlan(r);
         return;
       }
       if (r.tournament) return reply({ ok: false, error: 'Cette table fait partie d’un tournoi.' });
@@ -1019,7 +1116,7 @@ export async function startServer(opts: ServerOptions) {
       const name = cleanName(p?.name);
       if (!name) return { ok: false, error: 'Choisissez un nom' };
       if (r.status !== 'lobby') return { ok: false, error: 'La partie a déjà commencé.' };
-      if (r.members.length >= r.table.maxPlayers) return { ok: false, error: `Le salon est complet (${r.table.maxPlayers} joueurs).` };
+      if (seatsTaken(r) >= r.table.maxPlayers) return { ok: false, error: `Le salon est complet (${r.table.maxPlayers} joueurs).` };
       const userId = accounts.userFromToken(p?.auth)?.id;
       const problem = stakeProblem(userId, r.table.stake);
       if (problem) return { ok: false, error: problem };
@@ -1034,10 +1131,15 @@ export async function startServer(opts: ServerOptions) {
       }
       let finalName = name;
       for (let k = 2; r.members.some((m) => m.name === finalName); k++) finalName = `${name} ${k}`;
-      const m: Member = { id: randomUUID(), token: randomUUID(), name: finalName, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), ready: false, socketId: null, left: false, disconnectedAt: null, userId, day: clientDay(p?.day) };
+      // Partie rapide : pas de bouton « prêt », le départ est automatique.
+      const m: Member = { id: randomUUID(), token: randomUUID(), name: finalName, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), ready: !!r.quick, socketId: null, left: false, disconnectedAt: null, userId, day: clientDay(p?.day) };
+      // Un vrai joueur prend la place d'un ordinateur de complément.
+      const filler = [...r.members].reverse().find((x) => x.filler);
+      if (filler) r.members = r.members.filter((x) => x !== filler);
       r.members.push(m);
       attach(r, m);
-      notice(r, `${m.name} a rejoint le salon.`);
+      notice(r, filler ? `${m.name} prend la place de ${filler.name} (ordinateur).` : `${m.name} a rejoint le salon.`);
+      quickPlan(r);
       broadcastRoom(r);
       return { ok: true, code: r.code, playerId: m.id, token: m.token };
     }
@@ -1047,14 +1149,20 @@ export async function startServer(opts: ServerOptions) {
       const reply = safeAck(ack);
       if (!cleanName(p?.name)) return reply({ ok: false, error: 'Choisissez un nom' });
       const userId = accounts.userFromToken(p?.auth)?.id;
+      // Tables compatibles : publiques, sans mise, avec une place (un ordinateur de complément cède la sienne).
+      // D'abord celles où il y a le plus de vrais joueurs, puis les parties rapides, puis les plus anciennes.
+      const humansAt = (r: Room) => r.members.filter((m) => !m.bot).length;
       const candidates = [...rooms.values()].filter((r) => r.status === 'lobby' && !r.tournament && r.table.visibility === 'public' && r.table.stake === 0
-        && r.members.length < r.table.maxPlayers && r.members.some((m) => m.socketId != null) && !blockedAt(userId, r.members))
-        .sort((a, b) => b.members.filter((m) => !m.bot).length - a.members.filter((m) => !m.bot).length);
+        && seatsTaken(r) < r.table.maxPlayers && r.members.some((m) => m.socketId != null) && !blockedAt(userId, r.members)
+        && !(userId && r.kicked?.has(userId)))
+        .sort((a, b) => humansAt(b) - humansAt(a) || Number(!!b.quick) - Number(!!a.quick) || a.startedAt - b.startedAt);
       if (candidates.length) return reply(seatNew(candidates[0], p));
       const name = cleanName(p.name)!;
       const m: Member = { id: randomUUID(), token: randomUUID(), name, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), ready: true, socketId: null, left: false, disconnectedAt: null, userId, day: clientDay(p?.day) };
       const r = makeRoom({ title: `Partie rapide de ${name}`, host: m, members: [m], config: DEFAULT_CONFIG, table: { visibility: 'public', maxPlayers: 4, stake: 0 } });
+      r.quick = { waitSince: Date.now(), fillAt: null, startAt: null, timer: null };
       attach(r, m);
+      quickPlan(r);
       reply({ ok: true, code: r.code, playerId: m.id, token: m.token, created: true });
       broadcastRoom(r);
     });
@@ -1071,6 +1179,22 @@ export async function startServer(opts: ServerOptions) {
       const bot: Member = { id: randomUUID(), token: randomUUID(), name: b.name, avatar: b.avatar, dice: botDice(), ready: true, socketId: null, left: false, disconnectedAt: null, day: '', bot: cleanDiff(p?.difficulty) };
       c.r.members.push(bot);
       reply({ ok: true });
+      quickPlan(c.r);
+      broadcastRoom(c.r);
+    });
+    // « Compléter avec l'ordinateur » : demandé explicitement par l'hôte (jamais avec une mise).
+    socket.on('room:fill', (p: any, ack: unknown) => {
+      const reply = safeAck(ack);
+      const c = ctx();
+      if (!c || c.r.status !== 'lobby' || c.r.tournament) return reply({ ok: false, error: 'Action impossible' });
+      if (c.m.id !== c.r.hostId) return reply({ ok: false, error: "Seul l'hôte complète la table" });
+      if (c.r.table.stake > 0) return reply({ ok: false, error: 'Pas d’ordinateur aux tables avec mise.' });
+      const n = c.r.members.length;
+      const added = fillWithBots(c.r, n < QUICK_TARGET ? QUICK_TARGET : n + 1, cleanDiff(p?.difficulty));
+      if (!added) return reply({ ok: false, error: 'La table est complète.' });
+      reply({ ok: true });
+      notice(c.r, `${added > 1 ? `${added} ordinateurs complètent` : 'Un ordinateur complète'} la table : un joueur qui arrive avant le départ prend la place d’un ordinateur.`);
+      quickPlan(c.r);
       broadcastRoom(c.r);
     });
     socket.on('room:removeBot', (p: any, ack: unknown) => {
@@ -1079,6 +1203,8 @@ export async function startServer(opts: ServerOptions) {
       if (!c || c.r.status !== 'lobby' || c.m.id !== c.r.hostId) return reply({ ok: false, error: 'Action impossible' });
       c.r.members = c.r.members.filter((m) => !(m.bot && m.id === p?.id));
       reply({ ok: true });
+      if (c.r.quick && !c.r.members.some((m) => m.bot)) { c.r.quick.waitSince = Date.now(); c.r.quick.startAt = null; }
+      quickPlan(c.r);
       broadcastRoom(c.r);
     });
 
@@ -1105,8 +1231,9 @@ export async function startServer(opts: ServerOptions) {
         c.r.table = table;
       }
       // Changer les règles annule les « prêt » : chacun doit relire.
-      for (const m of c.r.members) if (m.id !== c.r.hostId && !m.bot) m.ready = false;
+      for (const m of c.r.members) if (m.id !== c.r.hostId && !m.bot && !c.r.quick) m.ready = false;
       reply({ ok: true });
+      quickPlan(c.r);
       broadcastRoom(c.r);
     });
 
@@ -1119,6 +1246,7 @@ export async function startServer(opts: ServerOptions) {
       const players = r.members.filter((x) => !x.left);
       if (players.length < 2) return reply({ ok: false, error: 'Il faut au moins 2 joueurs' });
       if (players.some((x) => !x.ready)) return reply({ ok: false, error: 'Tous les joueurs doivent être prêts' });
+      if (r.table.stake > 0 && players.some((x) => x.bot)) return reply({ ok: false, error: 'Pas d’ordinateur aux tables avec mise.' });
       for (const x of players.filter((y) => !y.bot)) {
         const problem = stakeProblem(x.userId, r.table.stake);
         if (problem) return reply({ ok: false, error: `${x.name} : ${problem}` });
@@ -1232,9 +1360,11 @@ export async function startServer(opts: ServerOptions) {
       r.status = 'lobby';
       r.game = null;
       r.members = r.members.filter((m) => !m.left);
-      for (const m of r.members) m.ready = m.id === r.hostId || !!m.bot;
+      for (const m of r.members) m.ready = m.id === r.hostId || !!m.bot || !!r.quick;
+      if (r.quick) { r.quick.waitSince = Date.now(); r.quick.startAt = null; }
       reply({ ok: true });
       notice(r, "L'hôte propose une revanche : retour au salon.");
+      quickPlan(r);
       broadcastRoom(r);
     });
 
@@ -1253,6 +1383,7 @@ export async function startServer(opts: ServerOptions) {
         scheduleTurn(r);
       }
       if (wasHost) transferHost(r, `L'hôte ${m.name} a quitté la partie.`);
+      if (r.status === 'lobby') quickPlan(r);
       broadcastRoom(r);
       removeIfEmpty(r);
     }
@@ -1475,6 +1606,7 @@ export async function startServer(opts: ServerOptions) {
       r.lastActivity = Date.now();
       notice(r, `${m.name} s'est déconnecté.`, 'warning');
       if (r.status === 'playing' && r.game && currentPlayerId(r.game) === m.id) scheduleTurn(r);
+      if (r.status === 'lobby') quickPlan(r);
       if (m.id === r.hostId && !r.tournament) {
         if (r.hostTimer) clearTimeout(r.hostTimer);
         r.hostTimer = setTimeout(() => {
@@ -1499,13 +1631,16 @@ export async function startServer(opts: ServerOptions) {
     store,
     schedTick,
     cfOnline,
+    cfTour,
+    cfStats,
     close: () => new Promise<void>((resolve) => {
       accounts.social.close();
+      cfTour.close();
       cfOnline.close();
       clearInterval(sweeper);
       if (schedTimer) clearInterval(schedTimer);
       if (newsTimer) clearTimeout(newsTimer);
-      for (const r of rooms.values()) { if (r.turnTimer) clearTimeout(r.turnTimer); if (r.hostTimer) clearTimeout(r.hostTimer); }
+      for (const r of rooms.values()) { if (r.turnTimer) clearTimeout(r.turnTimer); if (r.hostTimer) clearTimeout(r.hostTimer); if (r.quick?.timer) clearTimeout(r.quick.timer); }
       for (const t of tournaments.values()) if (t.timer) clearTimeout(t.timer);
       rooms.clear();
       tournaments.clear();

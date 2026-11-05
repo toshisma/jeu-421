@@ -27,6 +27,8 @@ export interface PublicMember {
   fete?: string;
   /** Joueur ordinateur : son niveau. */
   bot?: 'facile' | 'normal' | 'difficile';
+  /** Ordinateur de complément : il cède sa place au premier vrai joueur qui arrive avant le départ. */
+  filler?: boolean;
 }
 
 export interface PublicRoom {
@@ -46,6 +48,11 @@ export interface PublicRoom {
   turnDeadline: number | null;
   /** Nombre de spectateurs qui regardent la partie. */
   spectators?: number;
+  /**
+   * Partie rapide : heure (ms) à laquelle des ordinateurs complètent la table, et heure du départ
+   * automatique (null tant que rien n'est prévu).
+   */
+  quick?: { fillAt: number | null; startAt: number | null };
 }
 
 /** Mode spectateur : nombre maximal de spectateurs par partie. */

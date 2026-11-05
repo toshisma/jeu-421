@@ -34,26 +34,20 @@ export interface CfSnapshot {
    * temps, qu'on ait une carte ou non : afficher « Réponse possible… » jusqu'à `until`.
    */
   responseWindow?: { player: string; until: number; kind: 'respond' | 'lastword' } | null;
-  /** Partie guidée : bulle à afficher et seule action attendue (le reste est désactivé). */
+  /** Partie guidée : bulle d'explication de l'étape en cours (affichée une fois les animations jouées). */
   guide?: CfGuide | null;
 }
 
-/**
- * Partie guidée : la bulle en cours. `focus` désigne la seule chose à toucher :
- * 'continue' (bouton de la bulle), 'roll', 'keep', 'stop', 'ardoise', 'pass', 'riposte',
- * 'card:<identifiant>', 'choose:<n>' ; `keep` et `params` précisent les dés à garder et les choix attendus.
- */
+/** Bulle de la partie guidée. */
 export interface CfGuide {
+  title?: string;
   text: string;
-  focus: string;
-  /** Où placer la bulle pour ne pas cacher ce qu'elle montre. */
-  at?: 'top' | 'middle' | 'bottom';
-  step: number;
+  /** Étape d'explication : libellé du bouton « Continuer » (sinon on attend une action). */
+  next?: string;
+  /** Zone mise en avant (voir TutoFocus). */
+  focus?: string;
+  index: number;
   total: number;
-  keep?: boolean[];
-  params?: Record<string, unknown>;
-  /** Fin de la partie guidée (récompense éventuelle, texte prêt à afficher). */
-  final?: { reward: string | null } | null;
 }
 
 export interface CfController {
@@ -72,7 +66,4 @@ export interface CfController {
   leave(): void;
   /** L'écran a fini d'animer et montre la décision au joueur (le minuteur peut partir). */
   ready?(): void;
-  /** Partie guidée : bouton « Continuer » de la bulle, et « Passer le tutoriel ». */
-  next?(): void;
-  skipGuide?(): void;
 }

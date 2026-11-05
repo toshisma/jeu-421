@@ -33,7 +33,7 @@ import type { ProfileApi } from '../account/useProfile';
 import { QuestsPanel } from './AccountScreens';
 import { Avatar } from './Avatar';
 import { ProfileView } from './ProfileView';
-import { MusicControl, VolumeControl } from './VolumeControl';
+import { VolumeControl } from './VolumeControl';
 import { needsMotionPermission, requestMotionPermission, useShakeToThrow } from '../game/shake';
 import type { ThrowGesture } from '../../../shared/gesture';
 import { DiceRow, MiniDie } from './MiniDie';
@@ -89,7 +89,7 @@ export function Home(props: {
           </span>
         </button>
         {!STANDALONE && !props.pa.isAccount && <button className="install-chip login-chip" onClick={props.onLogin}>Connexion</button>}
-        <div className="home-audio"><MusicControl settings={props.settings} onSettings={props.onChangeSettings} /><VolumeControl settings={props.settings} onSettings={props.onChangeSettings} /></div>
+        <div className="home-audio"><VolumeControl settings={props.settings} onSettings={props.onChangeSettings} /></div>
         {!STANDALONE && props.pa.isAccount && <div className="home-social">
           <FriendsButton pa={props.pa} onOpen={props.onFriends} />
           {props.onMessages && <MessagesButton pa={props.pa} onOpen={props.onMessages} />}
@@ -329,8 +329,6 @@ export function SettingsScreen({ settings, onChange, onBack }: { settings: Setti
             <label className="k-range"><span><Icon name={vol ? 'sound' : 'mute'} size={20} /><b>Effets</b><em>{vol} %</em></span>
               <input type="range" min={0} max={100} step={1} value={vol}
                 onChange={(e) => { const v = Number(e.target.value); set({ volume: v / 100, muted: v === 0 }); }} /></label>
-            <label className="k-range"><span><Icon name="cheers" size={20} /><b>Musique d'ambiance</b><em>{Math.round(settings.music * 100)} %</em></span>
-              <input type="range" min={0} max={100} step={1} value={Math.round(settings.music * 100)} onChange={(e) => set({ music: Number(e.target.value) / 100 })} /></label>
             <Toggle label="Couper tous les sons" checked={settings.muted} onChange={(b) => set({ muted: b })} />
           </div>
         </Section>

@@ -4,7 +4,7 @@ import { askConfirm } from './confirm';
 import { Icon } from './Icon';
 import { flyTokens } from './flyTokens';
 import { isSuddenDeath } from '../../../shared/config';
-import { albumKey, finalPlace } from '../../../shared/progress/profile';
+import { albumKey, botTableRules, finalPlace } from '../../../shared/progress/profile';
 import { setPresence } from '../presence';
 import { fxDef } from '../../../shared/progress/dice-collection';
 import { Celebration } from './Celebration';
@@ -20,7 +20,7 @@ import { DiceTray, type DiceTrayHandle } from './DiceTray';
 import { DiceRow, MiniDie } from './MiniDie';
 import { PlayerCard } from './PlayerCard';
 import { EndOverlay } from './EndOverlay';
-import { MusicControl, VolumeControl } from './VolumeControl';
+import { VolumeControl } from './VolumeControl';
 import { RoundTracker, WhatIf } from './RoundTracker';
 import { RulesContent } from './Screens';
 import { ProfileView } from './ProfileView';
@@ -232,8 +232,10 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
         else if (ev.state.loserId === me || ev.state.ranking[ev.state.ranking.length - 1] === me) sound.lose();
         else sound.win();
         const bots = controller.getMeta().filter((m) => m.isBot);
+        // En ligne avec des ordinateurs : mêmes règles que le serveur (barème du solo, hors classement).
+        const botRules = controller.mode === 'online' ? botTableRules(controller.getMeta().length - bots.length, bots.map((b) => b.difficulty ?? 'normal')) : { mode: controller.mode };
         void Promise.resolve(onGameEndRef.current?.(ev.state, {
-          mode: controller.mode,
+          ...botRules,
           opponents: ev.state.players.length - 1,
           difficulty: bots[0]?.difficulty,
           count421: count421.current,
@@ -449,7 +451,6 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
               )}
             </div>}
             <button className="icon-btn" onClick={() => setRulesOpen(true)} aria-label="Règles du jeu"><Icon name="rules" /></button>
-            <MusicControl settings={settings} onSettings={onSettings} />
             <VolumeControl settings={settings} onSettings={onSettings} />
           </div>
         </div>

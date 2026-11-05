@@ -284,7 +284,8 @@ export function useProfile(enabled: boolean) {
       setProfile(applied.profile);
       return { reward, applied };
     }
-    if (ctx.mode === 'online') {
+    // Partie en ligne (y compris avec des ordinateurs, comptée « solo » s'il n'y a pas d'autre humain) : récompense du serveur.
+    if (ctx.mode === 'online' || ctx.botLevel) {
       if (pendingOnline.current) { const r = pendingOnline.current; pendingOnline.current = null; return r; }
       return new Promise((resolve) => {
         const t = setTimeout(() => resolve(null), 4000);

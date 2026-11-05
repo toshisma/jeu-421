@@ -68,6 +68,7 @@ export function PlayerCard({ p, meta, state, active, thinking, leader, strugglin
         {rare && <span className="pc-dice" style={{ '--rc': RARITY_COLOR[rare.rarity!] } as CSSProperties} title={`Ses dés : ${rare.name} (${RARITY_LABEL[rare.rarity!].toLowerCase()})`}>
           <MiniDie value={5} size={14} body={rare.body} pip={rare.pip} />{rare.shiny ? '✦' : ''}</span>}
         {meta?.isBot && meta.difficulty && <span className="diff">{DIFF_LABEL[meta.difficulty]}</span>}
+        {meta?.botTag && <span className="pc-bot" title="Joueur ordinateur">ordi</span>}
         {meta?.isHost && <span>Hôte</span>}
         {meta?.connected === false && <span className="warn">hors ligne</span>}
       </div>

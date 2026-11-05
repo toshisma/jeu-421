@@ -23,7 +23,7 @@ import { ReferralCard, useReferral } from './Referral';
 import { FriendsButton, NewsTicker, OpenLobbies } from './Friends';
 import { NotifBell, NotifPanel, useNotifications } from './Social';
 import { InstallPrompt } from './InstallPrompt';
-import { MusicControl, VolumeControl } from './VolumeControl';
+import { VolumeControl } from './VolumeControl';
 import { DiceTray, type DiceTrayHandle } from './DiceTray';
 import { changelogUnseen } from './Changelog';
 import { STANDALONE } from './Screens';
@@ -37,6 +37,8 @@ export interface HomeProps {
   profile: Profile; pa: ProfileApi; avatar: string; displayName: string; settings: Settings; onChangeSettings: (s: Settings) => void;
   onShop: () => void; onAccount: () => void; onLogin: () => void; onLeaderboard: () => void;
   onSolo: () => void; onOnline: () => void; onTournaments: () => void; onParty: () => void;
+  /** Partie rapide : une table publique tout de suite (complétée par des ordinateurs si personne ne vient). */
+  onQuick?: () => void;
   onRules: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onTutorial: () => void;
   onChallenge: () => void; onBoss: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void;
   onCollection: () => void; onDuels: () => void; onFriends: () => void; onChangelog: () => void; onJoinRoom: (code: string) => void;
@@ -177,7 +179,7 @@ function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void; o
   const pick = (go: () => void) => { p.onClose(); go(); };
   return (
     <Sheet title="Tout le comptoir" onClose={p.onClose}>
-      <div className="plus-audio"><span>Son</span><MusicControl settings={p.settings} onSettings={p.onChangeSettings} /><VolumeControl settings={p.settings} onSettings={p.onChangeSettings} /><InstallPrompt compact /></div>
+      <div className="plus-audio"><span>Son</span><VolumeControl settings={p.settings} onSettings={p.onChangeSettings} /><InstallPrompt compact /></div>
       <label className="plus-search"><Icon name="search" size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher : règles, réglages, club…" aria-label="Chercher dans le menu" /></label>
       {groups.map((g) => {
         const items = g.items.filter((i) => i.show !== false && (!nq || norm(`${i.label} ${i.keys ?? ''}`).includes(nq)));
@@ -427,8 +429,10 @@ export function Home(props: HomeProps) {
                 <span>{liveLine}</span>
               </button>
               <div className="v2-multi-btns">
-                <button className="v2-mbtn gold" onClick={props.onOnline} disabled={!netOk}>Rejoindre une table</button>
-                <button className="v2-mbtn ghost" onClick={props.onParty}><Icon name="cheers" size={16} />Entre amis</button>
+                {props.onQuick && <button className="v2-mbtn gold v2-quick" onClick={props.onQuick} disabled={!netOk}><Icon name="dice" size={17} />Partie rapide</button>}
+                <button className={`v2-mbtn ${props.onQuick ? 'ghost v2-tables' : 'gold'}`} onClick={props.onOnline} disabled={!netOk}
+                  aria-label="Rejoindre une table">{props.onQuick ? 'Tables' : 'Rejoindre une table'}</button>
+                <button className="v2-mbtn ghost" onClick={props.onParty} aria-label="Entre amis"><Icon name="cheers" size={16} /><span className="v2-amis">Entre amis</span></button>
               </div>
             </div>
           </section>

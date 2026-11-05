@@ -83,8 +83,8 @@ export function HandCard({ id, ok, off, sel, focus, style, onClick, small }: { i
 const PILL_BG: Record<string, string> = { ok: '#f1cc7d', cost: 'rgba(255,255,255,.78)', wait: 'rgba(255,255,255,.5)' };
 
 /** Main en éventail : cartes jouables soulevées et dorées, étiquette de raison sous chaque carte. */
-export function Hand({ cards, hints, onPick, sel, focusId, locked }: {
-  cards: { uid: string; id: string }[]; hints: Record<string, CardHint>; onPick: (uid: string) => void; sel?: string | null; focusId?: string | null; locked?: boolean;
+export function Hand({ cards, hints, onPick, sel, focus }: {
+  cards: { uid: string; id: string }[]; hints: Record<string, CardHint>; onPick: (uid: string) => void; sel?: string | null; focus?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(340);
@@ -100,16 +100,15 @@ export function Hand({ cards, hints, onPick, sel, focusId, locked }: {
   const crowded = step < 74;
   const lift = small ? 12 : 16;
   return (
-    <div className={`cfn-hand${small ? ' small' : ''}${crowded ? ' crowded' : ''}`} ref={ref}>
+    <div className={`cfn-hand${small ? ' small' : ''}${crowded ? ' crowded' : ''}${focus ? ' cfn-focus-zone' : ''}`} ref={ref}>
       {cards.map((k, i) => {
         const h = hints[k.uid];
         const off = i - (n - 1) / 2;
         const rot = off * (n <= 4 ? 7 : Math.min(7, 26 / (n - 1)));
         const ok = !!h?.playable;
-        const isFocus = focusId === k.id;
         return (
-          <HandCard key={k.uid} id={k.id} ok={ok} off={!ok} sel={sel === k.uid} focus={isFocus} small={small}
-            style={{ left: start + i * step, bottom: (ok ? lift : 0) + 14, transform: `rotate(${rot.toFixed(1)}deg)`, zIndex: i + 1, pointerEvents: locked && !isFocus ? 'none' : undefined }}
+          <HandCard key={k.uid} id={k.id} ok={ok} off={!ok} sel={sel === k.uid} focus={focus && ok} small={small}
+            style={{ left: start + i * step, bottom: (ok ? lift : 0) + 14, transform: `rotate(${rot.toFixed(1)}deg)`, zIndex: i + 1 }}
             onClick={() => onPick(k.uid)} />
         );
       })}
@@ -152,8 +151,8 @@ export function TrapBox({ n, seen, sub, onClick, compact }: { n: number; seen: s
 }
 
 /** Panneau d'un adversaire (prototype : avatar, nom, deck, jetons, Tournées, cartes en main, pièges, Habitués). */
-export function OppPanel({ p, v, seat, active, compact, refEl, tokRef, onTrap, onCard, emote }: {
-  p: CfPlayerView; v: CfView; seat?: CfSeat & { away?: boolean; left?: boolean }; active: boolean; compact: boolean;
+export function OppPanel({ p, v, seat, active, compact, refEl, tokRef, onTrap, onCard, emote, focus }: {
+  p: CfPlayerView; v: CfView; seat?: CfSeat & { away?: boolean; left?: boolean }; active: boolean; compact: boolean; focus?: boolean;
   refEl: (el: HTMLElement | null) => void; tokRef?: (el: HTMLElement | null) => void; onTrap: () => void; onCard: (id: string, owner?: string) => void; emote?: string;
 }) {
   const traps = v.traps.filter((t) => t.owner === p.id);
@@ -161,7 +160,7 @@ export function OppPanel({ p, v, seat, active, compact, refEl, tokRef, onTrap, o
   const fresh = traps.some((t) => t.posedRound === v.round) && v.order[v.turn] === p.id && v.phase === 'turn';
   const sub = [seat?.label ? (seat.bot ? `Ordinateur ${seat.label}` : seat.label) : null, p.families.length ? `deck ${familiesLabel(p.families)}` : null].filter(Boolean).join(' · ');
   return (
-    <section className={`cfn-opp${active ? ' active' : ''}${p.out ? ' out' : ''}${compact ? ' compact' : ''}`} ref={refEl}
+    <section className={`cfn-opp${active ? ' active' : ''}${p.out ? ' out' : ''}${compact ? ' compact' : ''}${focus ? ' cfn-focus-zone' : ''}`} ref={refEl}
       aria-label={`${p.name} : ${plural(p.tokens, 'jeton')}, ${plural(p.tournees, 'Tournée')}, ${plural(p.handCount, 'carte')} en main, ${plural(traps.length, 'piège')} posé${traps.length > 1 ? 's' : ''}`}>
       <div className="cfn-row">
         <Avatar photo={seat?.photo} emoji={seat?.avatar ?? '🎲'} size={compact ? 28 : 38} />
@@ -261,7 +260,7 @@ export function AnnounceView({ a, onDone, spectator, me, v }: { a: Announce; onD
 
 // ------------------------------------------------------------------ fenêtre de riposte (à moi)
 
-export function RespondPanel({ v, legal, pending, onAct, deadline, focus }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void; deadline?: number | null; focus?: string | null }) {
+export function RespondPanel({ v, legal, pending, onAct, deadline, focus }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void; deadline?: number | null; focus?: boolean }) {
   const top = v.stack[v.stack.length - 1];
   const me = meOf(v);
   const plays = legal.filter((a): a is Extract<CfAction, { type: 'play' }> => a.type === 'play');
@@ -274,7 +273,6 @@ export function RespondPanel({ v, legal, pending, onAct, deadline, focus }: { v:
   useEffect(() => { if (!deadline) return; const t = setInterval(() => setNow(Date.now()), 200); return () => clearInterval(t); }, [deadline]);
   const pct = deadline ? Math.max(0, Math.min(100, (100 * (deadline - now)) / Math.max(1, deadline - start))) : 100;
   const kicker = !top ? `${who} agit` : top.kind === 'keep' ? `${who} garde des dés` : top.cardId ? `${who} joue une carte contre vous` : `${who} pose un piège`;
-  const tut = !!focus;
   return (
     <div className="cfn-resp" role="dialog" aria-modal="true" aria-label="Fenêtre de riposte">
       <div className="cfn-resp-in">
@@ -299,8 +297,8 @@ export function RespondPanel({ v, legal, pending, onAct, deadline, focus }: { v:
         })}
         {deadline ? <div className="cfn-timebar" aria-hidden><i style={{ width: `${pct}%` }} /></div> : null}
         <div className="cfn-acts">
-          <button className="cfn-act ghost" disabled={pending || (tut && focus !== 'pass')} onClick={() => onAct({ type: 'pass' })}>Laisser faire</button>
-          <button className={`cfn-act riposte${focus === 'riposte' ? ' cfn-focus' : ''}`} disabled={pending || !action || (tut && focus !== 'riposte')} onClick={() => action && onAct(action)}>Riposter</button>
+          <button className="cfn-act ghost" disabled={pending || !legal.some((a) => a.type === 'pass')} onClick={() => onAct({ type: 'pass' })}>Laisser faire</button>
+          <button className={`cfn-act riposte${focus ? ' cfn-focus' : ''}`} disabled={pending || !action} onClick={() => action && onAct(action)}>Riposter</button>
         </div>
       </div>
     </div>
@@ -312,9 +310,9 @@ export function RespondPanel({ v, legal, pending, onAct, deadline, focus }: { v:
 export interface FicheTarget { uid?: string; id: string; owner?: string | null; trapUid?: string }
 
 /** Fiche d'une carte (prototype 5) : carte en grand, « Maintenant : … », Jouer, choix des paramètres. */
-export function Fiche({ t, v, legal, snapLegal, pending, discard, onAct, onClose, guide }: {
+export function Fiche({ t, v, legal, snapLegal, pending, discard, onAct, onClose, tuto }: {
   t: FicheTarget; v: CfView; legal: CfAction[]; snapLegal: CfAction[]; pending: boolean; discard: boolean;
-  onAct: (a: CfAction) => void; onClose: () => void; guide?: { focus: string; params?: Record<string, unknown> } | null;
+  onAct: (a: CfAction) => void; onClose: () => void; tuto?: string | null;
 }) {
   const d = def(t.id)!;
   const opts = t.uid ? playOptions(legal, t.uid) : [];
@@ -328,31 +326,31 @@ export function Fiche({ t, v, legal, snapLegal, pending, discard, onAct, onClose
   const opps = v.players.filter((p) => p.id !== me.id && !p.out);
   const trapsAgainst = v.traps.filter((x) => x.target === me.id && x.owner !== me.id).length;
   const verb = d.type === 'piege' ? 'Poser le piège' : d.type === 'habitue' ? 'Installer' : 'Jouer';
-  const tutBlocked = !!guide && guide.focus !== `card:${t.id}`;
   let now: ReactNode;
   if (t.owner && t.owner !== me.id) now = <><b>En jeu chez {nameIn(v, t.owner)}.</b> {d.type === 'habitue' ? 'Il reste devant lui et agit à chaque manche. « Fermeture ! » peut le renvoyer dans sa main.' : ''}</>;
   else if (t.trapUid) now = <><b>Votre piège, posé face cachée.</b> Il se déclenchera tout seul quand sa condition arrivera chez {opps.length === 1 ? opps[0].name : 'sa cible'}.</>;
   else if (!mineInHand) now = null;
   else if (discard) now = <><b>Main pleine :</b> défaussez cette carte pour revenir à {v.rules.handMax} cartes.</>;
-  else if (opts.length) now = <><b>Maintenant :</b> {describeNow(v, t.id === 'grand-enchainement' ? t.id : t.id, chosen, opts)}{trapsAgainst > 0 && !choosing ? ` ${opps.length === 1 ? opps[0].name : 'Un adversaire'} a ${plural(trapsAgainst, 'piège')} caché${trapsAgainst > 1 ? 's' : ''}.` : ''}</>;
-  else now = <><b>Pas maintenant :</b> {whyNot(v, t.id, snapLegal, t.uid!)}</>;
+  else if (opts.length) now = <><b>Maintenant :</b> {describeNow(v, t.id, chosen, opts)}{trapsAgainst > 0 && !choosing ? ` ${opps.length === 1 ? opps[0].name : 'Un adversaire'} a ${plural(trapsAgainst, 'piège')} caché${trapsAgainst > 1 ? 's' : ''}.` : ''}</>;
+  else now = <><b>Pas maintenant :</b> {tuto ? 'pas à cette étape de la partie guidée.' : whyNot(v, t.id, snapLegal, t.uid!)}</>;
   const playable = mineInHand && opts.length > 0 && !discard;
   return (
     <div className="cfn-fiche-back" onClick={onClose}>
       <div className="cfn-fiche" role="dialog" aria-modal="true" aria-label={d.name} onClick={(e) => e.stopPropagation()}>
         <div className="cfn-fiche-top"><i className="cfn-grip" aria-hidden /><button className="cfn-x" onClick={onClose} aria-label="Fermer"><Icon name="close" size={18} /></button></div>
+        {tuto && <p className="cfn-tuto-inline">{tuto}</p>}
         <BigCard id={t.id} width={Math.min(250, vw() - 60)} />
         {now && <div className={`cfn-now${playable || discard ? '' : ' no'}`}>{now}</div>}
         {playable && choosing && next && (
-          <ParamChooser k={next} v={v} cardId={t.id === 'grand-enchainement' ? me.r.lastCoup ?? t.id : t.id} opts={opts} chosen={chosen} guide={guide?.params}
+          <ParamChooser k={next} v={v} cardId={t.id === 'grand-enchainement' ? me.r.lastCoup ?? t.id : t.id} opts={opts} chosen={chosen}
             onPick={(k, x) => setChosen((c) => ({ ...c, [k]: x }))} />
         )}
         {discard && mineInHand && <button className="cfn-act violet full" disabled={pending} onClick={() => onAct({ type: 'discard', card: t.uid! })}>Défausser</button>}
         {playable && (
           <div className="cfn-acts">
             {choosing && Object.keys(chosen).length > 0 && <button className="cfn-act ghost" onClick={() => setChosen({})}>Changer</button>}
-            <button className={`cfn-act play${!tutBlocked && guide ? ' cfn-focus' : ''}`} style={{ background: `linear-gradient(180deg, ${FAMILY_STYLE[d.family].c1}, ${FAMILY_STYLE[d.family].c2})` }}
-              disabled={pending || tutBlocked || (choosing && !ready)}
+            <button className={`cfn-act play${tuto ? ' cfn-focus' : ''}`} style={{ background: `linear-gradient(180deg, ${FAMILY_STYLE[d.family].c1}, ${FAMILY_STYLE[d.family].c2})` }}
+              disabled={pending || (choosing && !ready)}
               onClick={() => {
                 if (ready) onAct({ type: 'play', card: t.uid!, ...ready });
                 else setChoosing(true);
@@ -367,13 +365,13 @@ export function Fiche({ t, v, legal, snapLegal, pending, discard, onAct, onClose
   );
 }
 
-function ParamChooser({ k, v, cardId, opts, chosen, onPick, guide }: { k: ParamKey; v: CfView; cardId: string; opts: PlayParams[]; chosen: PlayParams; onPick: (k: ParamKey, x: string | number) => void; guide?: Record<string, unknown> }) {
+function ParamChooser({ k, v, cardId, opts, chosen, onPick }: { k: ParamKey; v: CfView; cardId: string; opts: PlayParams[]; chosen: PlayParams; onPick: (k: ParamKey, x: string | number) => void }) {
   const vals = valuesFor(opts, chosen, k);
   const me = meOf(v);
   const target = chosen.target ? v.players.find((p) => p.id === chosen.target) : undefined;
   const diceOf = cardId === 'de-sous-table' && target ? target.r.dice : me.r.dice;
-  const off = (x: string | number) => !!guide && guide[k] !== undefined && guide[k] !== x;
-  const on = (x: string | number) => !!guide && guide[k] === x;
+  const off = (_x: string | number) => false;
+  const on = (_x: string | number) => vals.length === 1;
   return (
     <div className="cfn-param">
       <b>{paramQuestion(k, cardId)}</b>
@@ -536,12 +534,12 @@ export function Mulligan({ v, legal, pending, onAct, clock }: { v: CfView; legal
   );
 }
 
-export function ChoiceWindow({ v, legal, pending, onAct, focus }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void; focus?: string | null }) {
+export function ChoiceWindow({ v, legal, pending, onAct, focus }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void; focus?: boolean }) {
   const ch = v.choice;
   if (!ch) return null;
   const has = (i: number) => legal.some((a) => a.type === 'choose' && a.index === i);
   const me = meOf(v);
-  const lock = (i: number) => !!focus && focus !== `choose:${i}`;
+  const lock = (i: number) => !has(i);
   if (ch.kind === 'calcul' && 'cards' in ch) {
     return (
       <div className="cf-modal" role="dialog" aria-modal="true" aria-label="Calcul mental">
@@ -564,7 +562,7 @@ export function ChoiceWindow({ v, legal, pending, onAct, focus }: { v: CfView; l
           <div className="cfn-reveal-box"><b>Payer 1 Tournée pour le défausser ?</b><span>Vous en avez {me.tournees}. Sinon, il reste posé : au moins, vous savez ce qui vous attend.</span></div>
           <div className="cfn-acts">
             <button className="cfn-act ghost" disabled={pending || lock(0)} onClick={() => onAct({ type: 'choose', index: 0 })}>Le laisser</button>
-            <button className={`cfn-act violet${focus === 'choose:1' ? ' cfn-focus' : ''}`} disabled={pending || !has(1) || lock(1)} onClick={() => onAct({ type: 'choose', index: 1 })}>Défausser · 1 Tournée</button>
+            <button className={`cfn-act violet${focus && has(1) ? ' cfn-focus' : ''}`} disabled={pending || !has(1) || lock(1)} onClick={() => onAct({ type: 'choose', index: 1 })}>Défausser · 1 Tournée</button>
           </div>
         </div>
       </div>

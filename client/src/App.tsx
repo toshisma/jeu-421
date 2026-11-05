@@ -1,5 +1,4 @@
 import { api } from './account/api';
-import { music } from './audio/music';
 import { ChangelogScreen } from './ui/Changelog';
 import { FriendOnlineToast, FriendsScreen, InviteBanner } from './ui/Friends';
 import { Suspense, useEffect, useRef, useMemo, useState } from 'react';
@@ -68,7 +67,7 @@ type Screen =
   | { name: 'hub'; tab: HubTab }
   | { name: 'friends'; from?: 'cf' }
   | { name: 'messages'; with?: string; from?: 'cf' }
-  | { name: 'cf'; pending?: { challenge?: string; watch?: string } }
+  | { name: 'cf'; pending?: { challenge?: string; watch?: string; tournoi?: boolean } }
   | { name: 'changelog' }
   | { name: 'online'; mode: OnlineMode }
   | { name: 'watch'; code: string; back: Screen }
@@ -118,7 +117,9 @@ export function App() {
   // Clic sur une notification de message : la conversation s'ouvre.
   const openPm = useMemo(() => { const v = new URLSearchParams(location.search).get('messages'); if (v) cleanUrl(); return v ? v.slice(0, 20) : null; }, []);
   // Notification « X vous défie à Coups Fourrés » : le mode s'ouvre, le défi s'y affiche.
-  const openCf = useMemo(() => { const v = new URLSearchParams(location.search).has('cf-defi'); if (v) cleanUrl(); return v; }, []);
+  const openCf = useMemo(() => { const q = new URLSearchParams(location.search); const v = q.has('cf-defi') ? 'defi' : q.has('cf-tournoi') ? 'tournoi' : null; if (v) cleanUrl(); return v; }, []);
+  // Lien partagé du défi du jour (« 421online.com/?defi ») : le défi s'ouvre directement.
+  const openDefi = useMemo(() => { const v = new URLSearchParams(location.search).has('defi'); if (v) cleanUrl(); return v; }, []);
   const openNotifs = useMemo(() => { const v = new URLSearchParams(location.search).has('notifs'); if (v) cleanUrl(); return v; }, []);
   // Lien de parrainage : le pseudo du parrain est retenu pour la création du compte.
   useMemo(() => {
@@ -131,7 +132,7 @@ export function App() {
       : watchLink ? { name: 'watch', code: watchLink.toUpperCase(), back: { name: 'home' } }
       : invite ? { name: 'online', mode: { kind: 'join', code: invite.toUpperCase() } }
         : tInvite && settings.name ? { name: 'tournament', mode: { kind: 'join', code: tInvite.toUpperCase() } }
-          : tInvite || tSched ? { name: 'hub', tab: 'tournois' } : openCf ? { name: 'cf' } : openPm ? { name: 'messages', with: openPm } : { name: 'home' });
+          : tInvite || tSched ? { name: 'hub', tab: 'tournois' } : openCf ? { name: 'cf', ...(openCf === 'tournoi' ? { pending: { tournoi: true } } : {}) } : openDefi ? { name: 'challenge' } : openPm ? { name: 'messages', with: openPm } : { name: 'home' });
   const [resume, setResume] = useState(loadSession);
   // Profil : invité (sur l'appareil) ou compte (sur le serveur). Pas de comptes sans serveur.
   const pa = useProfile(!STANDALONE);
@@ -149,15 +150,6 @@ export function App() {
 
   const setSettings = (s: Settings) => { setSettingsState(s); saveSettings(s); };
   useEffect(() => { sound.configure({ volume: settings.volume, muted: settings.muted }); }, [settings.volume, settings.muted]);
-  // Musique d'ambiance : démarre au premier geste, se met en pause quand l'onglet est caché.
-  useEffect(() => { music.setVolume(settings.muted ? 0 : settings.music); }, [settings.music, settings.muted]);
-  useEffect(() => {
-    const go = () => music.unlock();
-    const vis = () => music.pause(document.visibilityState !== 'visible');
-    window.addEventListener('pointerdown', go); window.addEventListener('keydown', go);
-    document.addEventListener('visibilitychange', vis);
-    return () => { window.removeEventListener('pointerdown', go); window.removeEventListener('keydown', go); document.removeEventListener('visibilitychange', vis); };
-  }, []);
   useEffect(() => { setHaptics(settings.vibrate); }, [settings.vibrate]);
   // Présence (statistiques publiques) : seulement avec un serveur.
   useEffect(() => { if (!STANDALONE) startPresence(); }, []);
@@ -221,6 +213,7 @@ export function App() {
         onAccount={() => setScreen({ name: 'account' })} onLogin={() => setScreen({ name: 'account', tab: 'login' })} onLeaderboard={() => setScreen({ name: 'leaderboard' })}
         onSolo={() => setScreen({ name: 'solo-setup' })}
         onOnline={() => setScreen({ name: 'hub', tab: 'tables' })}
+        onQuick={() => { sound.unlock(); setScreen({ name: 'online', mode: { kind: 'quick' } }); }}
         onTournaments={() => setScreen({ name: 'hub', tab: 'tournois' })}
         onRules={() => setScreen({ name: 'rules' })}
         onSettings={() => setScreen({ name: 'settings' })}

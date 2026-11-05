@@ -10,7 +10,7 @@ import { sound } from '../audio/sound';
 import { askConfirm } from '../ui/confirm';
 import { cfLeague, cfLegendPick, type CfState } from './api';
 import { CardView, FamilyBadge } from './components';
-import { Capsules, CfShell, DivisionShield, divisionProgress, seasonEndsIn, seasonName, useCfToast } from './cfui';
+import { Capsules, CfShell, DivisionShield, Pip, divisionProgress, seasonEndsIn, seasonName, useCfToast } from './cfui';
 
 type Tok = string | null;
 
@@ -146,6 +146,17 @@ export function RulesContent({ short }: { short?: boolean }) {
         <p>On joue au 421 en <b>décharge</b> : chacun commence avec <b>{R.startTokens} jetons</b> ({R.startTokensMulti} à 3 ou 4 joueurs). Le premier à n’avoir plus aucun jeton gagne. Après la {R.maxRounds}e manche, le bistrot ferme : celui qui a le moins de jetons gagne.</p>
         <p>Les combinaisons sont celles du 421 : 4-2-1 vaut {v.v421}, trois as {v.v111}, deux as + x vaut x, brelan de x vaut x, suite {v.suite}, le reste {v.autre}. La nénette (2-2-1) est la plus faible : son perdant reçoit au moins {v.nenetteMin}.</p>
       </section>
+      {!short && (
+        <section>
+          <h3>Les combinaisons</h3>
+          <ul className="cf-rules-combos">
+            {([[[4, 2, 1], '4-2-1', v.v421], [[1, 1, 1], 'Trois as', v.v111], [[1, 1, 5], 'Deux as + x', 'x (ici 5)'], [[6, 6, 6], 'Brelan de x', 'x (ici 6)'], [[3, 4, 5], 'Suite', v.suite], [[6, 5, 2], 'Le reste', v.autre], [[2, 2, 1], 'Nénette (la plus faible)', `son perdant reçoit au moins ${v.nenetteMin}`]] as [number[], string, string | number][]).map(([d, n, val]) => (
+              <li key={n}><span className="cf-rules-dice">{d.map((x, i) => <Pip key={i} v={x} size={20} />)}</span><b>{n}</b><em>{typeof val === 'number' ? `vaut ${val}` : val}</em></li>
+            ))}
+          </ul>
+          <p className="cf-muted">Du plus fort au plus faible. La valeur est le nombre de jetons que le gagnant donne au perdant (avant les cartes).</p>
+        </section>
+      )}
       <section>
         <h3>Une manche</h3>
         <ol>
@@ -172,6 +183,12 @@ export function RulesContent({ short }: { short?: boolean }) {
         <section>
           <h3>Les quatre familles</h3>
           {FAMS.map(({ f, text }) => <p key={f} className="cf-rules-fam"><FamilyBadge family={f} /> <span>{text}</span></p>)}
+        </section>
+      )}
+      {!short && (
+        <section>
+          <h3>Fin de partie</h3>
+          <p>Dès qu’un joueur n’a plus aucun jeton, il gagne. Si la partie dure, le bistrot ferme après la {R.maxRounds}e manche : celui qui a le moins de jetons l’emporte. En classée, quitter la partie compte comme une défaite ; après une déconnexion, vous avez 60 secondes pour revenir.</p>
         </section>
       )}
       <section>

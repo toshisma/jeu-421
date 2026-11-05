@@ -879,6 +879,8 @@ export class Store {
         progress INTEGER NOT NULL DEFAULT 0, done INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day, mission_id)
       );
     `);
+    // Partie guidée du mode récompensée (une seule fois).
+    try { this.db.exec('ALTER TABLE cf_players ADD COLUMN tutorial INTEGER NOT NULL DEFAULT 0'); } catch { /* déjà présente */ }
   }
   /** Transaction du mode cartes, réentrante (une fonction peut en appeler une autre). */
   cfTx<T>(fn: () => T): T {
@@ -978,6 +980,8 @@ export class Store {
 export interface CfPlayerRow {
   user_id: string; discovered: number; capsules: number; shards: number; boosters: number; legend_picks: number; active_deck: string | null;
   cosmetics: string; titles: string; bot_day: string; bot_capsules: number; first_win_day: string; created_at: number;
+  /** Partie guidée récompensée (0 / 1). */
+  tutorial?: number;
 }
 export interface CfDeckRow { id: string; user_id: string; name: string; cards: string; created_at: number; updated_at: number }
 export interface CfLeagueRow { season: string; user_id: string; points: number; best: number; games: number; wins: number; updated_at: number }
