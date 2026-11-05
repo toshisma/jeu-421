@@ -312,6 +312,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
     const k = meP.r.throwsUsed === 0 ? NO_KEEP : keep;
     const a = legal.find((x) => x.type === 'roll' && x.keep.every((b, i) => b === k[i]));
     if (a) void act(a);
+    else if (snap?.guide) setToast({ text: 'Gardez exactement les dés indiqués dans la bulle.', key: Date.now() });
   };
 
   // Minuteur de décision et réserve.
@@ -368,6 +369,15 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const allKept = keep.every(Boolean);
   const seat = (id: string) => snap.seats.find((s) => s.id === id);
   const throwsLeft = meP.throwLimit !== null ? meP.throwLimit - meP.r.throwsUsed : null;
+  // Partie guidée : bulle de l'étape (après les animations) et zone mise en avant.
+  const guide = !animating ? snap.guide ?? null : null;
+  const fx = (k: string) => (guide?.focus === k ? ' cf-focus' : '');
+  const guideCtl = controller as { guideNext?: () => void };
+  const skipGuide = async () => {
+    if (!(await askConfirm('Passer la partie guidée ? Vous pourrez la refaire quand vous voulez depuis le menu du mode (« Apprendre »).', 'Passer'))) return;
+    controller.leave();
+    onExit();
+  };
 
   // Bulle de la carte choisie : ce qu'elle fait maintenant + paramètres + Jouer.
   const selDef = selCard ? def(selCard.id) : undefined;
@@ -421,7 +431,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         ))}
       </div>
 
-      <div className="cf-trayzone" ref={trayZone}>
+      <div className={`cf-trayzone${fx('tray')}`} ref={trayZone}>
         <DiceTray ref={tray} appearance={pa.profile.equipped} quality={settings.quality} onDieClick={onDie} cup={settings.cup} />
         {strip}
         {lastwordMine && <div className="cf-lastword-tag">Dernier mot</div>}
@@ -436,7 +446,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         {(josiane || (dieChooser && selCard)) && <div className="cf-tray-hint">Touchez un dé {josiane ? 'à faire relancer par Josiane' : 'dans le bac ou ci-dessous'}</div>}
       </div>
 
-      <div className="cf-hand-zone" ref={handRef}>
+      <div className={`cf-hand-zone${fx('hand')}`} ref={handRef}>
         {preview}
         {mine && (discardMode || lastwordMine) && !selCard && <div className="cf-hand-tip">{discardMode ? `Main pleine : touchez une carte à défausser (${hand.length}/${v.rules.handMax}).` : 'Dernier mot : jouez une carte « Dernier mot » ou passez.'}</div>}
         {spectator ? (
@@ -451,7 +461,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         ) : <div className="cf-hand-empty">Aucune carte en main</div>}
       </div>
 
-      <div className={`cf-me-panel${mine ? ' mine' : ''}`} ref={(el) => { panels.current[me] = el; }}>
+      <div className={`cf-me-panel${mine ? ' mine' : ''}${fx('me')}`} ref={(el) => { panels.current[me] = el; }}>
         <div className="cf-me-row">
           <span className="cf-tokens" aria-label={`${meP.tokens} jetons`}><i aria-hidden />{meP.tokens}</span>
           <Glasses n={meP.tournees} max={v.rules.tourneesMax} />
@@ -460,20 +470,31 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
             {v.traps.filter((t) => t.owner === me).map((t) => <button key={t.uid} className="cf-mytrap" onClick={() => t.id && setZoom({ id: t.id })} aria-label={`Votre piège posé : ${def(t.id)?.name ?? ''}`}><TrapBack width={18} /></button>)}
           </span>
           {clock && <span className={`cf-clock${clock.low ? ' low' : ''}`} style={{ ['--p' as string]: `${Math.max(0, Math.min(100, clock.pct))}%` }}>{clock.text}</span>}
-          {ardoise ? <button className="cf-ardoise" disabled={pending} onClick={async () => { if (await askConfirm(`L’ardoise (une fois par partie) : +${v.rules.ardoiseLoan} Tournées tout de suite, mais rien à la prochaine manche.`, 'Prendre l’ardoise')) void act(ardoise); }}>Ardoise</button>
+          {ardoise ? <button className={`cf-ardoise${fx('ardoise')}`} disabled={pending} onClick={async () => { if (await askConfirm(`L’ardoise (une fois par partie) : +${v.rules.ardoiseLoan} Tournées tout de suite, mais rien à la prochaine manche.`, 'Prendre l’ardoise')) void act(ardoise); }}>Ardoise</button>
             : meP.ardoiseUsed ? <span className="cf-ardoise used">Ardoise prise</span> : null}
         </div>
         <div className="cf-actions">
-          {myTurn && meP.r.throwsUsed === 0 && <button className="cf-act roll" disabled={pending} onClick={roll}><Icon name="dice" size={20} />Lancer les dés</button>}
-          {canRollAgain && <button className="cf-act blue" disabled={pending || allKept} onClick={roll}>{rerollLabel(meP.r.dice, keep)}</button>}
+          {myTurn && meP.r.throwsUsed === 0 && <button className={`cf-act roll${fx('roll')}`} disabled={pending} onClick={roll}><Icon name="dice" size={20} />Lancer les dés</button>}
+          {canRollAgain && <button className={`cf-act blue${fx('tray')}`} disabled={pending || allKept} onClick={roll}>{rerollLabel(meP.r.dice, keep)}</button>}
           {myTurn && josianeAct && !josiane && <button className="cf-act ghost" onClick={() => { setSel(null); setJosiane(true); }}>Josiane</button>}
           {josiane && <button className="cf-act ghost" onClick={() => setJosiane(false)}>Annuler</button>}
-          {stopAct && <button className="cf-act ghost" disabled={pending} onClick={() => void act(stopAct)}>M’arrêter</button>}
-          {lastwordMine && <button className="cf-act ghost" disabled={pending} onClick={() => void act({ type: 'pass' })}>Passer</button>}
+          {stopAct && <button className={`cf-act ghost${fx('stop')}`} disabled={pending} onClick={() => void act(stopAct)}>M’arrêter</button>}
+          {lastwordMine && <button className="cf-act ghost" disabled={pending || !legal.some((a) => a.type === 'pass')} onClick={() => void act({ type: 'pass' })}>Passer</button>}
           {!mine && v.phase !== 'over' && <div className="cf-wait-line">{animating ? '…' : decisionLine(v)}</div>}
         </div>
       </div>
 
+      {guide && !snap.finished && (
+        <div className={`cf-guide${guide.focus === 'opp' ? ' low' : ''}`} role="status" aria-live="polite">
+          <div className="cf-guide-head">
+            <span className="cf-guide-step">{guide.index}/{guide.total}</span>
+            {guide.title && <b>{guide.title}</b>}
+            <button className="cf-guide-skip" onClick={() => void skipGuide()}>Passer</button>
+          </div>
+          <p>{guide.text}</p>
+          {guide.next && <button className="cf-btn gold" onClick={() => { sound.click(); guideCtl.guideNext?.(); }}>{guide.next}</button>}
+        </div>
+      )}
       {fly && <FlyLayer f={fly} />}
       {bigShot && (
         <div key={bigShot.key} className="bigshot cf-bigshot" aria-live="assertive">
@@ -639,7 +660,7 @@ export function RespondWindow({ v, legal, pending, onAct, clock }: { v: CfView; 
           </div>
         </div>
         <div className="cf-modal-btns">
-          <button className="cf-btn ghost" disabled={pending} onClick={() => onAct({ type: 'pass' })}>Laisser passer</button>
+          <button className="cf-btn ghost" disabled={pending || !legal.some((a) => a.type === 'pass')} onClick={() => onAct({ type: 'pass' })}>Laisser passer</button>
           <button className="cf-btn red" disabled={pending || !action} onClick={() => action && onAct(action)}>{card ? `Jouer ${def(card.id)?.name}` : 'Répondre'}</button>
         </div>
       </div>
@@ -673,7 +694,7 @@ export function ChoiceWindow({ v, legal, pending, onAct }: { v: CfView; legal: C
           <div className="cf-choice-row"><CardView id={ch.cardId} width={150} /></div>
           <p>Payer 1 Tournée pour défausser ce piège ? (vous en avez {me.tournees})</p>
           <div className="cf-modal-btns">
-            <button className="cf-btn ghost" disabled={pending} onClick={() => onAct({ type: 'choose', index: 0 })}>Le laisser</button>
+            <button className="cf-btn ghost" disabled={pending || !has(0)} onClick={() => onAct({ type: 'choose', index: 0 })}>Le laisser</button>
             <button className="cf-btn red" disabled={pending || !has(1)} onClick={() => onAct({ type: 'choose', index: 1 })}>Défausser · 1 Tournée</button>
           </div>
         </div>

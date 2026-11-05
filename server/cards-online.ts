@@ -76,6 +76,13 @@ interface Ctx {
   opts?: CfOnlineOptions;
 }
 
+/**
+ * Pause de réponse en ligne (Riposte, Dernier mot) : durée FIXE, la même qu'on ait la carte ou non
+ * (sinon on devinerait qui a une Riposte). Seul endroit où la régler. Après des dés gardés, plus courte.
+ */
+export const CF_RESPONSE_WINDOW_MS = 4000;
+export const CF_KEEP_WINDOW_MS = 2500;
+
 // --- Parties contre l'ordinateur ------------------------------------------------------------------
 const LEVELS: CfLevel[] = ['debutant', 'habitue', 'fine-fouine'];
 /** Noms de bistrot originaux pour les ordinateurs. */
@@ -181,8 +188,8 @@ export function createCfOnline(c: Ctx) {
   const BOT_TTL = o.botTtlMs ?? 6 * 3600_000;
   const DECISION = o.decisionMs ?? CF_RULES.decisionSeconds * 1000;
   const RESERVE = o.reserveMs ?? CF_RULES.reserveSeconds * 1000;
-  const WINDOW = o.windowMs ?? 5000;
-  const KEEP_WINDOW = o.keepWindowMs ?? 3000;
+  const WINDOW = o.windowMs ?? CF_RESPONSE_WINDOW_MS;
+  const KEEP_WINDOW = o.keepWindowMs ?? CF_KEEP_WINDOW_MS;
   const AWAY = o.disconnectMs ?? 60_000;
   const BOT_OFFER = o.botOfferMs ?? 60_000;
   const CHALLENGE = o.challengeMs ?? 120_000;

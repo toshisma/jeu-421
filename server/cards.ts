@@ -6,7 +6,7 @@
  * calculés ici. Les boosters sont tirés ici avec un générateur cryptographique, au pur hasard
  * (aucune garantie de rareté, voir cfRollBooster).
  *
- * Routes (préfixe /api) : GET /cf/me, POST /cf/discover, POST /cf/booster/buy, POST /cf/booster/open,
+ * Routes (préfixe /api) : GET /cf/me, POST /cf/discover, POST /cf/tutorial/done, POST /cf/booster/buy, POST /cf/booster/open,
  * POST /cf/craft, POST /cf/recycle, POST /cf/recycle-extras, POST /cf/legend-pick,
  * POST /cf/decks, POST /cf/decks/auto, POST /cf/decks/:id, DELETE /cf/decks/:id, POST /cf/decks/:id/active, GET /cf/league.
  *
@@ -18,6 +18,7 @@ import type { CfDeckRow, CfPlayerRow, Store, UserRow } from './db';
 import { brusselsDay } from './stats';
 import { BOOSTER, CAPSULES, CARDS, CF_RULES, SHARDS, STARTER_DECKS, cardDef, deckProblems } from '../shared/cards/catalog';
 import { buildAutoDeck, usableCount } from '../shared/cards/autodeck';
+import { CF_TUTORIAL_CAPSULES } from '../shared/cards/tutorial';
 import {
   CF_DECK_NAME_MAX, CF_DIVISIONS, CF_LEGEND_COUNT, CF_LEGEND_NAME, CF_MAX_DECKS, cfApplyDelta, cfDailyMissions, cfDecksBroken,
   cfDivisionOf, cfFloor, cfLeagueDelta, cfMaxUseful, cfNextSeasonPoints, cfRollBooster, cfSeasonEnd, cfSeasonOf,
@@ -308,7 +309,7 @@ export function createCards(c: CardsCtx) {
       collection: col, decks: store.cfDecks(userId).map((x) => deckView(x, owned)), activeDeck: p.active_deck,
       cosmetics: parseList(p.cosmetics), titles: parseList(p.titles), missions: missions(userId),
       botCapsulesToday: p.bot_day === d ? p.bot_capsules : 0, firstWinToday: p.first_win_day === d,
-      league: leagueMe(userId), history: store.cfGames(userId, 20).map(gameView),
+      league: leagueMe(userId), history: store.cfGames(userId, 20).map(gameView), tutorialDone: !!p.tutorial,
     };
   }
   const gameView = (g: { opponent_name: string | null; vs_bot: number; ranked: number; result: string; points: number; capsules: number; at: number }): CfGameView =>
@@ -333,6 +334,15 @@ export function createCards(c: CardsCtx) {
       });
       store.cfPlayerSet(userId, { discovered: 1, boosters: Math.min(CF_BOOSTERS_MAX, p.boosters + CAPSULES.welcomeBoosters), active_deck: p.active_deck ?? first });
       return { boosters: CAPSULES.welcomeBoosters };
+    });
+  }
+  /** Partie guidée terminée : petite récompense, une seule fois par compte. */
+  function tutorialDone(userId: string): Err | { capsules: number } {
+    return store.cfTx(() => {
+      const p = store.cfPlayer(userId, c.now());
+      if (p.tutorial) return { error: 'Partie guidée déjà récompensée.', status: 409 };
+      store.cfPlayerSet(userId, { tutorial: 1, capsules: p.capsules + CF_TUTORIAL_CAPSULES });
+      return { capsules: CF_TUTORIAL_CAPSULES };
     });
   }
   function buyBooster(userId: string): Err | { capsules: number } {
@@ -531,6 +541,7 @@ export function createCards(c: CardsCtx) {
     const id = (req: Request) => userOf(req).id;
     router.get('/cf/me', auth, (req, res) => { res.setHeader('Cache-Control', 'no-store'); res.json({ ok: true, state: state(id(req)) }); });
     router.post('/cf/discover', auth, (req, res) => send(res, id(req), discover(id(req))));
+    router.post('/cf/tutorial/done', auth, (req, res) => send(res, id(req), tutorialDone(id(req))));
     router.post('/cf/booster/buy', auth, (req, res) => send(res, id(req), buyBooster(id(req))));
     router.post('/cf/booster/open', auth, (req, res) => send(res, id(req), openBooster(id(req))));
     router.post('/cf/craft', auth, (req, res) => send(res, id(req), craft(id(req), String(req.body?.cardId ?? ''))));
@@ -548,7 +559,7 @@ export function createCards(c: CardsCtx) {
   }
 
   return {
-    state, discover, buyBooster, openBooster, craft, recycle, recycleExtras, legendPick, createDeck, autoDeck, updateDeck, deleteDeck, setActive, league,
+    state, discover, tutorialDone, buyBooster, openBooster, craft, recycle, recycleExtras, legendPick, createDeck, autoDeck, updateDeck, deleteDeck, setActive, league,
     recordCfGame, progressCfMission, rollCfSeason, missions,
   };
 }

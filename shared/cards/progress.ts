@@ -155,6 +155,8 @@ export interface CfState {
   firstWinToday: boolean;
   league: CfLeagueMe;
   history: CfGameView[];
+  /** Partie guidée déjà faite (et récompensée). */
+  tutorialDone?: boolean;
 }
 export interface CfOpenedCard extends CfPulledCard { rarity: CardRarity; isNew: boolean }
 export interface CfLeagueBoard { me: CfLeagueMe; divisions: CfDivision[]; top: { rank: number; username: string; points: number; division: CfDivisionId; games: number; wins: number }[] }
