@@ -2506,3 +2506,5 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .discord-err, .discord-msg { margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; font: 600 13px/1.4 var(--font); background: rgba(200,49,43,0.18); border: 1px solid rgba(255,120,110,0.4); color: #ffd9d4; }
 .discord-msg.ok { background: rgba(63,191,138,0.16); border-color: rgba(127,224,178,0.45); color: #c9f5df; }
 .discord-err { margin: 0; }
+.plus-grid button { position: relative; }
+.plus-dot { position: absolute; top: 7px; right: calc(50% - 22px); width: 10px; height: 10px; border-radius: 50%; background: #e04a3a; box-shadow: 0 0 0 2px #1b2824, 0 0 8px rgba(224,74,58,.7); }

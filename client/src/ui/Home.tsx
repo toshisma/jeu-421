@@ -127,7 +127,7 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
 }
 
 /** Menu « Plus » : tout le reste du jeu, rangé par thème, avec une recherche. */
-function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void; onDiscord?: () => void }) {
+function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void; onDiscord?: () => void; discordDot?: boolean }) {
   const [q, setQ] = useState('');
   const acc = p.pa.isAccount && !STANDALONE;
   const [admin, setAdmin] = useState(false);
@@ -154,7 +154,7 @@ function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void; o
       { label: 'Tournois', icon: 'trophy', go: p.onTournaments, show: !STANDALONE },
       { label: 'Regarder une partie', icon: 'eye', go: p.onOnline, show: !STANDALONE, keys: 'spectateur parties en cours' },
       { label: 'Soirée (un téléphone)', icon: 'cheers', go: p.onParty, keys: 'vrais des arbitre' },
-      { label: 'Discord du jeu', icon: 'chat', go: () => p.onDiscord?.(), show: !STANDALONE && !!p.onDiscord, keys: 'discord communaute serveur sac offert' },
+      { label: 'Discord du jeu', icon: 'chat', go: () => p.onDiscord?.(), show: !STANDALONE && !!p.onDiscord, dot: p.discordDot, keys: 'discord communaute serveur sac offert' },
     ] },
     { title: 'Apprendre et régler', items: [
       { label: 'Règles', icon: 'rules', go: p.onRules, keys: 'combinaisons charge decharge' },
@@ -179,7 +179,7 @@ function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void; o
           <section key={g.title} className="plus-group">
             <h3>{g.title}</h3>
             <div className="plus-grid">
-              {items.map((i) => <button key={i.label} onClick={() => pick(i.go)}><Icon name={i.icon} size={22} /><span>{i.label}</span></button>)}
+              {items.map((i) => <button key={i.label} onClick={() => pick(i.go)}><Icon name={i.icon} size={22} /><span>{i.label}</span>{i.dot && <i className="plus-dot" aria-label="à récupérer" />}</button>)}
             </div>
           </section>
         );
@@ -247,6 +247,8 @@ export function Home(props: HomeProps) {
   const prog = useProgramme(pa.token);
   const referral = useReferral(pa);
   const { discord, reload: reloadDiscord } = useDiscord(pa);
+  // Sac Discord pas encore récupéré (compte, vérification active) : point rouge jusqu'à la récupération.
+  const discordDot = pa.isAccount && !STANDALONE && !!discord?.invite && !!discord.verify && !discord.claimed;
   // Retour de la vérification Discord (/?discord=…) : message dans la fiche Discord, profil rafraîchi.
   const [discordMsg, setDiscordMsg] = useState<{ ok: boolean; text: string } | null>(null);
   useEffect(() => {
@@ -479,12 +481,12 @@ export function Home(props: HomeProps) {
         {!STANDALONE && <button onClick={props.onCollection}><Icon name="grid" size={22} /><span>Collection</span>{bags > 0 && <i className="tab-dot">{bags}</i>}</button>}
         <button onClick={props.onShop}><Icon name="shop" size={22} /><span>Boutique</span></button>
         {!STANDALONE && <button onClick={props.onLeaderboard}><Icon name="chart" size={22} /><span>Classement</span></button>}
-        <button onClick={() => setSheet('menu')}><Icon name="menu" size={22} /><span>Plus</span>{changelogUnseen() && <i className="tab-dot small" />}</button>
+        <button onClick={() => setSheet('menu')}><Icon name="menu" size={22} /><span>Plus</span>{(changelogUnseen() || discordDot) && <i className="tab-dot small" />}</button>
       </nav>
 
       {toast && <div className="h2-toast" role="status">{toast}</div>}
       {burst && <RewardBurst kind={burst.kind} phase={burst.phase} title={burst.title} detail={burst.detail} onClose={closeBurst} />}
-      {sheet === 'menu' && <PlusMenu {...props} onProfile={() => setShowProfile(true)} onClose={() => setSheet(null)} onDiscord={discord?.invite ? () => setSheet('discord') : undefined} />}
+      {sheet === 'menu' && <PlusMenu {...props} onProfile={() => setShowProfile(true)} onClose={() => setSheet(null)} onDiscord={discord?.invite ? () => setSheet('discord') : undefined} discordDot={discordDot} />}
       {sheet === 'discord' && discord && <Sheet title="Discord" onClose={() => { setSheet(null); setDiscordMsg(null); }}>{discordMsg && <p className={`discord-msg${discordMsg.ok ? ' ok' : ''}`}>{discordMsg.text}</p>}<DiscordCard pa={pa} state={discord} onAccount={() => { setSheet(null); props.onAccount(); }} /></Sheet>}
       {sheet === 'tournoi' && props.onJoinScheduled && <Sheet title="Tournois de 11 h et 21 h" onClose={() => setSheet(null)}>
         <ScheduledCard pa={pa} onJoin={(c, pay) => { setSheet(null); props.onJoinScheduled!(c, pay); }} onAccount={() => { setSheet(null); props.onAccount(); }} />

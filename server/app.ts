@@ -30,6 +30,7 @@ import { getItem } from '../shared/progress/catalog';
 import { COLLECTION } from '../shared/progress/dice-collection';
 import { SCHED_CONFIG, SCHED_LOBBY_MS, SCHED_MAX, bagPrizes, bagsLabel, hourLabel, nextSlots, schedTables, type SlotStatus } from '../shared/scheduled';
 import { createScheduled, slotLabel } from './scheduled';
+import { createDiscordHooks } from './discord-hooks';
 
 interface Member {
   id: string;
@@ -143,6 +144,8 @@ export interface ServerOptions {
   stats?: StatsOptions;
   /** Administration (horloge des tests). */
   admin?: { now?: () => number };
+  /** Annonces Discord (tests : liens et envoi simulés ; délai avant l'annonce des nouveautés, 0 = jamais automatiquement). */
+  discordHooks?: { env?: Record<string, string | undefined>; send?: (url: string, body: unknown) => Promise<void>; newsDelayMs?: number };
 }
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -327,6 +330,7 @@ export async function startServer(opts: ServerOptions) {
     },
   });
   app.use('/api', schedRouter);
+  const dHooks = createDiscordHooks({ store, env: opts.discordHooks?.env, send: opts.discordHooks?.send });
   app.use('/api', accounts.router);
   const http = createServer(app);
   const io = new Server(http, { cors: { origin: true } });
@@ -804,6 +808,7 @@ export async function startServer(opts: ServerOptions) {
     if (t.sched) {
       // Tournoi programmé : sacs de dés selon la place et le nombre de partants (enregistré en base).
       const bags = sched.finish(t.sched.slot, standings.map((id) => t.players.find((x) => x.id === id)!.userId!));
+      void dHooks.tournament({ kind: 'fin', slotId: t.sched.slot, hour: t.sched.hour, bags: bags[0] ?? 0, podium: standings.slice(0, 3).map((id) => t.players.find((x) => x.id === id)!.name) });
       tNotice(t, `${champ.name} remporte le ${slotLabel(t.sched.slot)}${bags[0] ? ` et ${bagsLabel(bags[0])} de dés` : ''} !`);
       standings.forEach((id, place) => {
         const p = t.players.find((x) => x.id === id)!;
@@ -853,12 +858,16 @@ export async function startServer(opts: ServerOptions) {
     for (const p of t.players) if (!present.includes(p) && p.socketId) io.to(p.socketId).emit('tournament:removed', { reason: 'Absent au départ : vous êtes remboursé.' });
     t.players = present;
     const res = sched.begin(t.sched!.slot, present.map((p) => p.userId!));
-    if (!res.ok) return schedCancelled(t, `${res.reason} Tous les inscrits sont remboursés.`);
+    if (!res.ok) {
+      void dHooks.tournament({ kind: 'annule', slotId: t.sched!.slot, hour: t.sched!.hour, players: present.length });
+      return schedCancelled(t, `${res.reason} Tous les inscrits sont remboursés.`);
+    }
     t.sched!.starters = present.length;
     t.status = 'en-cours';
     const order = present.map((p) => p.id);
     for (let i = order.length - 1; i > 0; i--) { const j = randomInt(i + 1); [order[i], order[j]] = [order[j], order[i]]; }
     const bags = bagPrizes(present.length);
+    void dHooks.tournament({ kind: 'depart', slotId: t.sched!.slot, hour: t.sched!.hour, players: present.length, prizes: bags });
     tNotice(t, `Départ avec ${present.length} joueurs. À gagner : ${bags.map((b, i) => `${i === 0 ? '1er' : `${i + 1}e`} ${bagsLabel(b)}`).join(', ')}.`);
     startRound(t, order);
   }
@@ -873,6 +882,12 @@ export async function startServer(opts: ServerOptions) {
         store.schedEnsureSlot(s.id, s.startsAt);
         openSalon(s);
       }
+      // Annonces Discord : 30 minutes avant, puis à l'ouverture du salon (pas en retard après un redémarrage).
+      if (now >= s.startsAt - 30 * 60_000 && now < s.startsAt - 20 * 60_000)
+        void dHooks.tournament({ kind: 'bientot', slotId: s.id, hour: s.hour, registered: store.schedCount(s.id) });
+      const salon = schedOf(s.id);
+      if (salon && salon.status === 'inscriptions' && now < s.startsAt + 2 * 60_000)
+        void dHooks.tournament({ kind: 'salon', slotId: s.id, hour: s.hour, registered: store.schedCount(s.id), code: salon.code });
     }
     for (const t of [...tournaments.values()]) {
       if (t.sched && t.status === 'inscriptions' && !t.sched.cancelled && now >= t.sched.beginsAt) schedBegin(t);
@@ -1424,6 +1439,9 @@ export async function startServer(opts: ServerOptions) {
   });
 
   await new Promise<void>((resolve) => http.listen(opts.port, resolve));
+  // Nouveautés de la version publiée : annoncées sur Discord peu après le démarrage.
+  const newsDelay = opts.discordHooks?.newsDelayMs ?? (process.env.VITEST ? 0 : 20_000);
+  const newsTimer = newsDelay ? setTimeout(() => void dHooks.news(), newsDelay) : null;
   const address = http.address();
   const port = typeof address === 'object' && address ? address.port : opts.port;
   return {
@@ -1437,6 +1455,7 @@ export async function startServer(opts: ServerOptions) {
       accounts.social.close();
       clearInterval(sweeper);
       if (schedTimer) clearInterval(schedTimer);
+      if (newsTimer) clearTimeout(newsTimer);
       for (const r of rooms.values()) { if (r.turnTimer) clearTimeout(r.turnTimer); if (r.hostTimer) clearTimeout(r.hostTimer); }
       for (const t of tournaments.values()) if (t.timer) clearTimeout(t.timer);
       rooms.clear();
