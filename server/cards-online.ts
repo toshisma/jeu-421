@@ -85,8 +85,9 @@ interface Ctx {
  * Pause de réponse en ligne (Riposte, Dernier mot) : durée FIXE, la même qu'on ait la carte ou non
  * (sinon on devinerait qui a une Riposte). Seul endroit où la régler. Après des dés gardés, plus courte.
  */
-export const CF_RESPONSE_WINDOW_MS = 4000;
-export const CF_KEEP_WINDOW_MS = 2500;
+// Sam (0.39) : 4 s ne suffisaient pas pour lire la carte et riposter.
+export const CF_RESPONSE_WINDOW_MS = 7000;
+export const CF_KEEP_WINDOW_MS = 4000;
 /** Fin d'une partie en ligne (tournoi du samedi : avancement du tableau). */
 export interface CfGameEnd { id: string; mode: CfGameMode; winner: string; losers: string[]; abandon: string | null }
 

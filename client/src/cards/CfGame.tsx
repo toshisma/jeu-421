@@ -206,7 +206,14 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         }
       }
       if (lines.length) setLog((l) => [...l, ...lines].slice(-300));
-      const steps = planEvents(item.events, viewer, item.snap.view, prev?.view ?? null);
+      let steps = planEvents(item.events, viewer, item.snap.view, prev?.view ?? null);
+      // En ligne, c'est à moi de riposter et le temps est compté : la fenêtre de riposte montre déjà la carte
+      // adverse en grand, donc pas de grande annonce avant (elle mangeait la moitié du temps de réponse).
+      const w = item.snap.responseWindow;
+      if (!spectator && w && w.player === controller.me && item.snap.legal.some((a) => a.type === 'play')) {
+        const last = steps[steps.length - 1];
+        if (last && last.kind === 'ann' && last.ann.style !== 'comptes') steps = steps.slice(0, -1);
+      }
       for (const [si, st] of steps.entries()) {
         if (!alive.current) break;
         // Dernière annonce de la mise à jour : l'état nouveau s'affiche derrière (le piège posé apparaît devant l'adversaire).
