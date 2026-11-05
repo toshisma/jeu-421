@@ -17,6 +17,7 @@ import { DEFAULT_TABLE, STAKES, stakeLabel, type TableSettings } from '../../../
 import { Icon } from './Icon';
 import { Avatar } from './Avatar';
 import { Seg, StakePicker } from './OnlineHub';
+import { trackEvent } from '../visit';
 
 export type OnlineMode = { kind: 'create'; invite?: string } | { kind: 'join'; code?: string; auto?: boolean } | { kind: 'resume' } | { kind: 'quick' };
 type Mode = OnlineMode;
@@ -162,11 +163,11 @@ function Lobby({ session, onExit, pa }: { session: OnlineSession; onExit: () => 
   // Sur téléphone : menu de partage natif (SMS, WhatsApp, Messenger…).
   const canShare = typeof navigator.share === 'function';
   const share = async () => {
-    try { await navigator.share({ title: 'Partie de 421', text: `Viens jouer au 421 avec moi ! Code : ${room.code}`, url: link }); }
+    try { await navigator.share({ title: 'Partie de 421', text: `Viens jouer au 421 avec moi ! Code : ${room.code}`, url: link }); trackEvent('invite'); }
     catch { /* partage annulé */ }
   };
   const copy = async (text: string, what: string) => {
-    try { await navigator.clipboard.writeText(text); setCopied(what); setTimeout(() => setCopied(null), 1800); }
+    try { await navigator.clipboard.writeText(text); setCopied(what); setTimeout(() => setCopied(null), 1800); trackEvent('invite'); }
     catch { window.prompt('Copiez :', text); }
   };
   const allReady = room.members.filter((m) => !m.left).every((m) => m.ready);

@@ -23,7 +23,7 @@ import { Store } from './db';
 import { clientDay, createAccounts, type AccountsOptions } from './accounts';
 import { createStats, type StatsOptions } from './stats';
 import { createAdmin } from './admin';
-import { serveClient } from './static';
+import { canonicalHostRedirect, serveClient } from './static';
 import { albumKey, didWin, finalPlace } from '../shared/progress/profile';
 import type { ComboKind } from '../shared/combos';
 import { getItem } from '../shared/progress/catalog';
@@ -199,6 +199,8 @@ export async function startServer(opts: ServerOptions) {
 
   const app = express();
   app.set('trust proxy', 1); // adresse IP réelle derrière l'hébergeur (limite de tentatives)
+  // En production sur Render : l'adresse technique *.onrender.com et le « www » renvoient vers le domaine officiel.
+  if (process.env.RENDER) canonicalHostRedirect(app);
   const store = new Store(opts.dbPath ?? (process.env.VITEST ? ':memory:' : process.env.DATABASE_PATH ?? 'data/421.sqlite'));
   // eslint-disable-next-line prefer-const
   let stats: ReturnType<typeof createStats>;

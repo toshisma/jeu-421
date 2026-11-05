@@ -13,6 +13,7 @@ import { challengeReward, playChallenge, type ChallengeResult } from '../../../s
 import { today } from '../../../shared/progress/quests';
 import { loadGuestPhoto, photoToDataUrl, saveGuestPhoto } from './photo';
 import { deviceId, setPresence } from '../presence';
+import { trackEvent } from '../visit';
 import type { FxKind } from '../../../shared/progress/dice-collection';
 
 export interface EndReward { reward: Reward; applied: Applied }
@@ -248,6 +249,7 @@ export function useProfile(enabled: boolean) {
     statToken.current = null;
     if (!enabled) return;
     setPresence('solo');
+    trackEvent('solo');
     const s = ref.current.session;
     if (s) api<{ gameToken: string }>('/solo/start', { body: {}, token: s.token }).then((r) => { soloToken.current = r.gameToken; }).catch(() => {});
     else api<{ token: string }>('/stats/solo/start', { body: {} }).then((r) => { statToken.current = r.token; }).catch(() => {});

@@ -89,8 +89,19 @@ export function serveClient(app: Express, clientDir: string) {
     if (req.method === 'HEAD') res.end(); else res.end(body);
   };
 
+  // Une seule adresse par page (référencement) : /regles-du-421.html et /regles-du-421/ → /regles-du-421
+  // (redirection permanente), /index.html → /. La requête (?…) est conservée.
   app.use((req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    const target = canonicalPath(req.path, (name) => existsSync(join(clientDir, name)));
+    if (!target) return next();
+    const q = req.originalUrl.indexOf('?');
+    res.redirect(301, target + (q >= 0 ? req.originalUrl.slice(q) : ''));
+  });
+
+  app.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     const file = resolve(req.path);
     if (!file || !TYPES[extname(file)]) return next();
     sendText(req, res, file, req.path);
@@ -103,6 +114,40 @@ export function serveClient(app: Express, clientDir: string) {
   // Ancien fichier d'une version précédente : vraie erreur 404 (et non la page du jeu), pour que
   // le navigateur recharge la nouvelle version au lieu d'exécuter du HTML comme du JavaScript.
   app.get('/assets/*', (_req, res) => { res.setHeader('Cache-Control', 'no-store'); res.status(404).end(); });
-  // Autres adresses (/confidentialite…) : la page du jeu.
-  app.get('*', (req, res) => sendText(req, res, join(clientDir, 'index.html'), '/'));
+  // Autres adresses : la page du jeu (le jeu s'ouvre quand même), mais avec le statut 404 pour les
+  // adresses inconnues, afin que les moteurs de recherche n'indexent pas des doublons de l'accueil.
+  app.get('*', (req, res) => {
+    if (!isAppPath(req.path)) res.status(404);
+    sendText(req, res, join(clientDir, 'index.html'), '/');
+  });
+}
+
+/** Adresses servies par le jeu lui-même (application d'une seule page). */
+export const isAppPath = (p: string) => p === '/' || p === '/confidentialite' || p.startsWith('/confidentialite/');
+
+/**
+ * Adresse canonique d'une page statique, ou null si l'adresse demandée l'est déjà.
+ * `exists(nom)` dit si un fichier existe dans le dossier du jeu.
+ */
+export function canonicalPath(p: string, exists: (name: string) => boolean): string | null {
+  if (p === '/index.html') return '/';
+  const m = /^\/([a-z0-9-]+)(\.html|\/)$/.exec(p);
+  if (m && m[1] !== 'index' && exists(`${m[1]}.html`)) return `/${m[1]}`;
+  return null;
+}
+
+/**
+ * Domaine unique : l'adresse technique de l'hébergeur (ex. jeu-421.onrender.com) et le « www »
+ * renvoient vers https://421online.com, pour éviter un site en double dans Google. Actif seulement
+ * sur Render (variable RENDER) ; l'API, Socket.IO, les photos et /health ne sont jamais redirigés
+ * (application mobile, contrôle de santé de l'hébergeur).
+ */
+export function canonicalHostRedirect(app: Express, host = process.env.PUBLIC_HOST || '421online.com') {
+  app.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    const h = String(req.headers.host ?? '').toLowerCase().split(':')[0];
+    if (!h || h === host || !(h.endsWith('.onrender.com') || h === `www.${host}`)) return next();
+    if (/^\/(api|socket\.io|photos|health)(\/|$)/.test(req.path)) return next();
+    res.redirect(301, `https://${host}${req.originalUrl}`);
+  });
 }

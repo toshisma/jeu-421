@@ -173,6 +173,33 @@ interface Visitors {
   referrers: { k: string; n: number; v: number }[]; countries: { k: string; n: number; v: number }[]; langs: { k: string; n: number; v: number }[];
   devices: { k: string; n: number; v: number }[]; landings: { k: string; n: number; v: number }[];
   utm: { source: string; medium: string; campaign: string; n: number }[];
+  funnel?: Funnel & { byLanding: (Funnel & { landing: string })[] };
+}
+interface Funnel { visitors: number; guidePlay: number; solo: number; online: number; played: number; invite: number; invited: number; returned: number }
+/** Parcours des nouveaux visiteurs : arrivée → partie lancée → multijoueur → invitation → retour. */
+function FunnelBlock({ f }: { f: NonNullable<Visitors['funnel']> }) {
+  return (
+    <section className="adm-card">
+      <h3>Parcours des nouveaux visiteurs <small className="muted">première visite dans la période</small></h3>
+      <div className="stat-row">
+        <Kpi value={pct(f.played, f.visitors)} label={`ont lancé une partie (${nf(f.played)})`} hint="Solo ou en ligne, à n’importe quel moment depuis leur arrivée" />
+        <Kpi value={pct(f.online, f.visitors)} label={`ont joué en ligne (${nf(f.online)})`} hint="Table rejointe ou créée : partie rapide, salon privé, tournoi" />
+        <Kpi value={pct(f.invite, f.visitors)} label={`ont invité quelqu’un (${nf(f.invite)})`} hint="Lien ou code de table partagé depuis le salon" />
+        <Kpi value={pct(f.returned, f.visitors)} label={`sont revenus un autre jour (${nf(f.returned)})`} />
+      </div>
+      <p className="muted small">{nf(f.invited)} sont arrivés par un lien d’invitation ; {nf(f.guidePlay)} ont cliqué sur « Jouer » depuis une page d’aide (règles, stratégie…).</p>
+      {f.byLanding.length > 0 && (
+        <div className="adm-table-wrap">
+          <table className="adm-table">
+            <thead><tr><th>Page d’arrivée</th><th>Nouveaux</th><th>Clic Jouer</th><th>Partie</th><th>En ligne</th><th>Retour</th></tr></thead>
+            <tbody>{f.byLanding.map((r) => (
+              <tr key={r.landing}><th>{r.landing}</th><td>{nf(r.visitors)}</td><td>{r.landing === '/' ? '–' : pct(r.guidePlay, r.visitors)}</td><td>{pct(r.played, r.visitors)}</td><td>{pct(r.online, r.visitors)}</td><td>{pct(r.returned, r.visitors)}</td></tr>
+            ))}</tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
 }
 function VisitorsTab({ token }: { token: string | null }) {
   const [range, setRange] = useState(30);
@@ -183,12 +210,13 @@ function VisitorsTab({ token }: { token: string | null }) {
     <>
       <div className="seg"><button className={range === 7 ? 'on' : ''} onClick={() => setRange(7)}>7 jours</button><button className={range === 30 ? 'on' : ''} onClick={() => setRange(30)}>30 jours</button><button className={range === 90 ? 'on' : ''} onClick={() => setRange(90)}>90 jours</button></div>
       <div className="stat-row">
-        <Kpi value={nf(v.totals.visits)} label="visites" hint="Une visite = une arrivée sur le jeu (au plus une par demi-heure et par visiteur)" />
+        <Kpi value={nf(v.totals.visits)} label="visites" hint="Une visite = une arrivée sur le jeu ou sur une page d’aide (au plus une par demi-heure et par visiteur)" />
         <Kpi value={nf(v.totals.visitors)} label="visiteurs différents" />
         <Kpi value={nf(v.conversion.newVisitors)} label="nouveaux visiteurs" />
         <Kpi value={pct(v.conversion.converted, v.conversion.newVisitors)} label={`ont créé un compte (${nf(v.conversion.converted)})`} hint="Nouveaux visiteurs de la période qui ont ensuite créé leur compte" />
       </div>
       <section className="adm-card"><Bars title="Visiteurs par jour" rows={v.days} series={[{ key: 'visitors', label: 'Visiteurs', cls: 's2' }]} /></section>
+      {v.funnel && <FunnelBlock f={v.funnel} />}
       <AudienceBlock token={token} range={range} />
       <div className="adm-grid">
         <TopList title="Provenance" rows={v.referrers} />

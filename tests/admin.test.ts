@@ -150,6 +150,23 @@ describe('administration', () => {
     expect(ret.rows[0].size).toBe(3);
     expect(ret.rows[0].d1).toBeNull(); // trop tôt
   });
+
+  it('parcours des visiteurs : étapes comptées une fois, par page d’arrivée', async () => {
+    const ua = { 'User-Agent': 'Mozilla/5.0 (Linux; Android 14) Mobile' };
+    await api('/visit', { device: 'parcours-0003', ref: 'https://www.google.com/', landing: '/strategie-421' }, undefined, 'POST', ua);
+    expect((await api('/visit/event', { device: 'parcours-0003', kind: 'guide_play', page: '/strategie-421' }, undefined, 'POST', ua)).first).toBe(true);
+    expect((await api('/visit/event', { device: 'parcours-0003', kind: 'solo' }, undefined, 'POST', ua)).first).toBe(true);
+    expect((await api('/visit/event', { device: 'parcours-0003', kind: 'solo' }, undefined, 'POST', ua)).first).toBe(false); // une seule fois
+    await api('/visit/event', { device: 'parcours-0003', kind: 'online' }, undefined, 'POST', ua);
+    await api('/visit/event', { device: 'parcours-0003', kind: 'invite' }, undefined, 'POST', ua);
+    await api('/visit/event', { device: 'visiteur-0002', kind: 'invited' }, undefined, 'POST', ua);
+    expect((await api('/visit/event', { device: 'parcours-0003', kind: 'achat' }, undefined, 'POST', ua)).status).toBe(400);
+    expect((await api('/visit/event', { device: 'x', kind: 'solo' }, undefined, 'POST', ua)).status).toBe(400);
+    expect((await api('/visit/event', { device: 'robot-00001', kind: 'solo' }, undefined, 'POST', { 'User-Agent': 'Googlebot/2.1' })).skipped).toBe(true);
+    const f = (await api('/admin/visitors', undefined, adminTok)).funnel;
+    expect(f).toMatchObject({ visitors: 3, guidePlay: 1, solo: 1, online: 1, played: 1, invite: 1, invited: 1, returned: 0 });
+    expect(f.byLanding.find((r: { landing: string }) => r.landing === '/strategie-421')).toMatchObject({ visitors: 1, guidePlay: 1, played: 1 });
+  });
 });
 
 import { creditBeat, BEAT_MAX_S, DAY_MAX_S } from '../server/admin';

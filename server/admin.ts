@@ -43,6 +43,9 @@ const PATH_SOURCES: [RegExp, string][] = [
   [/^\/collection\//, 'fabrication'], [/^\/bags\//, 'sac'], [/^\/(me|league|referral)$/, 'saison'], [/^\/prestige/, 'autre'],
 ];
 
+/** Étapes du parcours d'un visiteur (voir POST /visit/event). */
+export const VISIT_EVENTS = ['guide_play', 'solo', 'online', 'invite', 'invited'] as const;
+
 /** Temps de présence : plafond par battement, tolérance, et plafond par visiteur et par jour. */
 export const BEAT_MAX_S = 60;
 export const DAY_MAX_S = 12 * 3600;
@@ -103,12 +106,19 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     -- Temps passé sur le site (onglet visible), par visiteur et par jour.
     CREATE TABLE IF NOT EXISTS visitor_time (visitor TEXT NOT NULL, day TEXT NOT NULL, seconds INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (visitor, day));
     CREATE INDEX IF NOT EXISTS idx_visitor_time_day ON visitor_time(day);
+    -- Parcours des visiteurs (conversion) : PREMIÈRE fois qu'un visiteur fait chaque étape.
+    CREATE TABLE IF NOT EXISTS visit_events (
+      visitor TEXT NOT NULL, kind TEXT NOT NULL, at INTEGER NOT NULL, day TEXT NOT NULL, page TEXT,
+      PRIMARY KEY (visitor, kind)
+    );
+    CREATE INDEX IF NOT EXISTS idx_visit_events_day ON visit_events(day);
   `);
   for (const col of ['tz TEXT', 'country_src TEXT']) { try { db.exec(`ALTER TABLE visits ADD COLUMN ${col}`); } catch { /* déjà présente */ } }
   // Ménage : activité et visites gardées un an.
   db.prepare('DELETE FROM activity WHERE at < ?').run(now() - 365 * DAY_MS);
   db.prepare('DELETE FROM visits WHERE at < ?').run(now() - 365 * DAY_MS);
   db.prepare('DELETE FROM visitor_time WHERE day < ?').run(addDays(brusselsDay(now()), -366));
+  db.prepare('DELETE FROM visit_events WHERE at < ?').run(now() - 365 * DAY_MS);
 
   let salt = store.getMeta('visit_salt');
   if (!salt) { salt = randomBytes(24).toString('base64url'); store.setMeta('visit_salt', salt); }
@@ -192,6 +202,7 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     db.prepare('DELETE FROM admin_bans WHERE user_id = ?').run(userId);
     // Données de visite rattachées au compte : effacées avec lui.
     db.prepare('DELETE FROM visitor_time WHERE visitor IN (SELECT DISTINCT visitor FROM visits WHERE user_id = ?)').run(userId);
+    db.prepare('DELETE FROM visit_events WHERE visitor IN (SELECT DISTINCT visitor FROM visits WHERE user_id = ?)').run(userId);
     db.prepare('DELETE FROM visits WHERE visitor IN (SELECT DISTINCT visitor FROM visits WHERE user_id = ?)').run(userId);
     peopleCache = null;
   };
@@ -335,6 +346,29 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     lastBeat.set(visitor, t);
     peopleCache = null;
     res.json({ ok: true });
+  });
+
+  // Étapes du parcours (conversion), enregistrées une seule fois par visiteur et par étape :
+  //  - guide_play : clic sur « Jouer » depuis une page d'aide (règles, stratégie…) ;
+  //  - solo : première partie contre l'ordinateur lancée ;
+  //  - online : première table en ligne rejointe ou créée (partie rapide, salon, tournoi) ;
+  //  - invite : invitation envoyée (lien ou code de table partagé) ;
+  //  - invited : arrivée par un lien d'invitation (table, tournoi, partie à regarder, parrainage).
+  const addEvent = db.prepare('INSERT OR IGNORE INTO visit_events (visitor, kind, at, day, page) VALUES (?, ?, ?, ?, ?)');
+  router.post('/visit/event', express.json({ limit: '1kb', type: () => true }), (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const b = (req.body ?? {}) as { device?: unknown; kind?: unknown; page?: unknown };
+    const ua = String(req.headers['user-agent'] ?? '');
+    if (/bot|crawl|spider|slurp|preview|headless|lighthouse/i.test(ua)) return res.json({ ok: true, skipped: true });
+    const device = typeof b.device === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(b.device) ? b.device : null;
+    if (!device) return fail(res, 400, 'Appareil inconnu.');
+    if (typeof b.kind !== 'string' || !(VISIT_EVENTS as readonly string[]).includes(b.kind)) return fail(res, 400, 'Étape inconnue.');
+    let page = clean(b.page, 80);
+    if (page && !page.startsWith('/')) page = null;
+    const t = now();
+    const r = addEvent.run(hash(`d:${device}`), b.kind, t, brusselsDay(t), page);
+    if (r.changes) peopleCache = null;
+    res.json({ ok: true, first: !!r.changes });
   });
 
   // Battement de présence (onglet visible) : temps passé, plafonné côté serveur.
@@ -577,9 +611,30 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     const anyCountry = (db.prepare('SELECT COUNT(*) AS n FROM visits WHERE country IS NOT NULL AND day >= ?').get(from) as { n: number }).n > 0;
     const utm = db.prepare(`SELECT utm_source AS source, COALESCE(utm_medium, '') AS medium, COALESCE(utm_campaign, '') AS campaign, COUNT(*) AS n FROM visits
       WHERE day >= ? AND utm_source IS NOT NULL GROUP BY source, medium, campaign ORDER BY n DESC LIMIT 12`).all(from);
+    // Parcours des nouveaux visiteurs de la période : combien ont franchi chaque étape (à n'importe quel moment depuis),
+    // et combien sont revenus un autre jour. Par page d'arrivée (première page vue).
+    const freshRows = db.prepare(`SELECT v.visitor AS visitor, MIN(v.day) AS first,
+        (SELECT landing FROM visits x WHERE x.visitor = v.visitor ORDER BY x.at LIMIT 1) AS landing,
+        COUNT(DISTINCT v.day) AS days
+      FROM visits v GROUP BY v.visitor HAVING first >= ?`).all(from) as { visitor: string; first: string; landing: string; days: number }[];
+    const evOf = new Map<string, Set<string>>();
+    for (const e of db.prepare('SELECT visitor, kind FROM visit_events').all() as { visitor: string; kind: string }[]) {
+      let x = evOf.get(e.visitor); if (!x) evOf.set(e.visitor, (x = new Set())); x.add(e.kind);
+    }
+    const step = (rows: typeof freshRows) => {
+      const has = (k: string) => rows.filter((r) => evOf.get(r.visitor)?.has(k)).length;
+      return {
+        visitors: rows.length, guidePlay: has('guide_play'), solo: has('solo'), online: has('online'),
+        played: rows.filter((r) => { const e = evOf.get(r.visitor); return !!e && (e.has('solo') || e.has('online')); }).length,
+        invite: has('invite'), invited: has('invited'), returned: rows.filter((r) => r.days > 1).length,
+      };
+    };
+    const byLanding = new Map<string, typeof freshRows>();
+    for (const r of freshRows) { const k = r.landing || '/'; const l = byLanding.get(k); if (l) l.push(r); else byLanding.set(k, [r]); }
+    const funnel = { ...step(freshRows), byLanding: [...byLanding.entries()].map(([landing, rows]) => ({ landing, ...step(rows) })).sort((a, b) => b.visitors - a.visitors).slice(0, 15) };
     res.json({
       ok: true, days: series(from, n).map((d) => ({ day: d, visits: per.get(d)?.visits ?? 0, visitors: per.get(d)?.visitors ?? 0 })),
-      totals, conversion: { newVisitors: conv.fresh, converted: conv.converted },
+      totals, conversion: { newVisitors: conv.fresh, converted: conv.converted }, funnel,
       referrers: top('referrer'), utm, countries: anyCountry ? top('country') : [], langs: top('lang'), devices: top('device', 5), landings: top('landing'),
     });
   });
