@@ -41,8 +41,9 @@ import { TypeIcon } from './cardTypes';
 import { decisionBanner, friseSteps, handHints, keepAfter, planEvents, type Announce } from './board';
 import {
   AnnounceView, ChoiceWindow, EndScreen, Fiche, Frise, Glasses, HabPin, Hand, HelpSheet, Journal, Mulligan, OppPanel, RespondPanel, Tokens,
-  TrapSheet, type FicheTarget, type LogLine,
+  TrapSheet, EffectChips, type FicheTarget, type LogLine,
 } from './BoardParts';
+import { activeEffects } from './effects';
 
 export { EndScreen, Mulligan, ChoiceWindow, RespondPanel } from './BoardParts';
 
@@ -411,6 +412,17 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const myTraps = v.traps.filter((t) => t.owner === me);
   const respWin = snap.responseWindow && snap.responseWindow.player !== me && snap.responseWindow.until > now ? snap.responseWindow : null;
   const overlayOpen = !!ann || animating;
+  // Dernière action de chaque adversaire dans la manche : reste écrite sous son nom jusqu'à la suivante.
+  const lastOf = (id: string): string | null => {
+    for (let i = log.length - 1; i >= 0; i--) {
+      const { ev, round } = log[i];
+      if (round !== v.round) break;
+      if (ev.player !== id || !['carte', 'pose', 'josiane', 'fouine-public', 'fin-tour', 'rejoue'].includes(ev.kind)) continue;
+      const n = nameIn(v, id);
+      return ev.text.startsWith(n) ? ev.text.slice(n.length).trim().replace(/\.$/, '') : ev.text.replace(/\.$/, '');
+    }
+    return null;
+  };
 
   // Une seule voix : ce que fait l'écran en ce moment (dés, petite annonce), sinon les fenêtres en
   // cours (réponse adverse, Josiane), un avis, et enfin l'état de la partie (à vous / l'adversaire).
@@ -449,7 +461,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         {opps.map((o) => (
           <OppPanel key={o.id} p={o} v={v} seat={seat(o.id)} emote={emotes[o.id]?.e} compact={opps.length > 1}
             active={turnId === o.id || v.waiting.includes(o.id)} refEl={() => {}} focus={focus === 'opp'} tokRef={(el) => { tokRefs.current[o.id] = el; }}
-            onTrap={() => setTrapOf(o.id)} onCard={(id, owner) => setFiche({ id, owner })} />
+            onTrap={() => setTrapOf(o.id)} onCard={(id, owner) => setFiche({ id, owner })} last={lastOf(o.id)} onLast={() => setJournal(true)} />
         ))}
       </div>
 
@@ -488,14 +500,15 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
           <Hand cards={hand} hints={hints} sel={fiche?.uid ?? null} focus={focus === 'hand'} quiet={!mine} onPick={pickCard} />
         ) : <div className="cfn-hand-empty">Aucune carte en main</div>}
         <div className={`cfn-bar${fx('me')}`}>
-          <Tokens n={meP.tokens} refEl={(el) => { tokRefs.current[me] = el; }} />
-          <Glasses n={meP.tournees} max={v.rules.tourneesMax} />
+          <Tokens n={meP.tokens} refEl={(el) => { tokRefs.current[me] = el; }} label />
+          <Glasses n={meP.tournees} max={v.rules.tourneesMax} label />
           <span className="cfn-pins">
             {meP.habitues.map((h) => <HabPin key={h.uid} id={h.id} rounds={h.rounds} onClick={() => setFiche({ id: h.id, owner: me, uid: h.uid })} />)}
             {myTraps.map((t) => <HabPin key={t.uid} id={t.id} trap onClick={() => t.id && setFiche({ id: t.id, trapUid: t.uid })} />)}
           </span>
           <span className="cfn-grow" />
         </div>
+        <EffectChips list={activeEffects(v, meP, !spectator)} onCard={(id) => setFiche({ id, owner: me })} />
         <div className="cfn-actions">
           {myTurn && meP.r.throwsUsed === 0 && <button className={`cfn-act roll${fx('roll')}`} disabled={pending || !legal.some((a) => a.type === 'roll')} onClick={roll}><Icon name="dice" size={20} />Lancer les dés</button>}
           {canRollAgain && <button className={`cfn-act roll${fx('tray')}`} disabled={pending || allKept} onClick={roll}>{rerollLabel(meP.r.dice, keep)}</button>}

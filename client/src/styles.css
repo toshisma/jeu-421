@@ -3403,9 +3403,12 @@ span.cfn-hab { cursor: default; }
 .cfn-count i { width: 9px; height: 9px; border-radius: 50%; background: #f1cc7d; box-shadow: 0 0 6px #f1cc7d; }
 .cfn-count.violet { background: rgba(214,166,255,.16); border-color: rgba(214,166,255,.6); color: #efe0ff; }
 .cfn-share { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 999px; border: 1.5px solid #f1cc7d; background: rgba(241,204,125,.12); color: #f6dfa6; font: 700 12px/1 Barlow, sans-serif; cursor: pointer; animation: cf-head-in .3s ease-out; }
-.cfn-hand { position: relative; height: 164px; }
-.cfn-hand.crowded { height: 172px; }
-.cfn-hand.small { height: 140px; }
+/* Main en rangée (0.39) : cartes côte à côte, nom entier, ce que fait la carte écrit dessous ; défilement horizontal. */
+.cfn-hand { display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden; padding: 9px 12px 4px; margin: 0 -10px; scroll-padding: 0 12px; scroll-snap-type: x proximity; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.cfn-hand::-webkit-scrollbar { display: none; }
+.cfn-hand-slot { flex: none; scroll-snap-align: start; }
+.cfn-hand .cfn-hc { position: relative; width: 88px; height: 146px; }
+.cfn-hand.small .cfn-hc { width: 82px; height: 128px; }
 .cfn-hand-empty, .cfn-spect { height: 110px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #cdbfe0; font-size: 13px; }
 .cfn-hc { position: absolute; width: 96px; height: 134px; border: 0; border-radius: 9px; padding: 5px; box-sizing: border-box; display: flex; flex-direction: column; gap: 3px; text-align: left; color: #fbf6e9; cursor: pointer;
   box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.35), 0 6px 14px rgba(0,0,0,.5); transform-origin: 50% 120%; transition: bottom .2s, filter .2s, box-shadow .2s; }
@@ -3415,10 +3418,13 @@ span.cfn-hab { cursor: default; }
 .cfn-hc .a { flex: none; height: 52px; border-radius: 5px; overflow: hidden; }
 .cfn-hc.small .a { height: 44px; }
 .cfn-hc .a svg { display: block; width: 100%; height: 100%; }
-.cfn-hc b { font: 400 11px/1.05 'Alfa Slab One', Rockwell, serif; color: #fbf6e9; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.cfn-hc b { font: 400 11px/1.05 'Alfa Slab One', Rockwell, serif; color: #fbf6e9; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.cfn-hc .fx { font: 600 10.5px/1.15 Barlow, sans-serif; color: #f6ead0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.cfn-hc.ok .fx { color: #ffe6a6; font-weight: 800; }
+.cfn-hc.small .fx { font-size: 9.5px; }
 .cfn-hc.small b { font-size: 10px; }
-.cfn-hc .ty { margin-top: auto; margin-bottom: 9px; display: flex; align-items: center; gap: 4px; font: 800 8.5px/1 Barlow, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
-.cfn-hc.off { filter: saturate(.35) brightness(.55); }
+.cfn-hc .ty { margin-top: auto; margin-bottom: 2px; display: flex; align-items: center; gap: 4px; font: 800 8.5px/1 Barlow, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.cfn-hc.off { filter: saturate(.45) brightness(.78); }
 .cfn-hc.ok { box-shadow: 0 0 0 3px #f1cc7d, 0 0 18px rgba(241,204,125,.75), 0 8px 16px rgba(0,0,0,.5); }
 .cfn-hc.sel { box-shadow: 0 0 0 3px #fff, 0 0 18px rgba(255,255,255,.6), 0 8px 16px rgba(0,0,0,.5); }
 .cfn-why { position: absolute; transform: translateX(-50%); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 3px 7px; border-radius: 999px; font: 800 9.5px/1 Barlow, sans-serif; color: #2a1a05; pointer-events: none; box-shadow: 0 2px 5px rgba(0,0,0,.45); }
@@ -3620,3 +3626,16 @@ span.cfn-hab { cursor: default; }
   .v2-promo { height: 44px; }
   .v2-medal { width: 36px; height: 36px; }
 }
+
+/* ---- Coups Fourrés 0.39 : informations écrites en clair (jetons, Tournées, effets en attente, dernier coup) ---- */
+.cfn-chip.lab small { font: 700 10.5px/1 Barlow, sans-serif; color: #e9dcc0; margin-left: 1px; }
+.cfn-glasses { align-items: center; }
+.cfn-res-l { margin-left: 5px; font: 700 10.5px/1 Barlow, sans-serif; color: #f2dfae; white-space: nowrap; }
+.cfn-backs em { white-space: nowrap; color: #d9cdf0; }
+.cfn-fx-row { display: flex; flex-wrap: wrap; gap: 5px; min-width: 0; }
+.cfn-fx { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 3px 8px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--tc) 70%, transparent); background: color-mix(in srgb, var(--tc) 18%, rgba(0,0,0,.35)); color: #fbf6e9; font: 700 11px/1.1 Barlow, sans-serif; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cfn-fx svg { flex: none; color: var(--tc); }
+.cfn-fx.bad { border-style: dashed; }
+.cfn-last { display: block; width: 100%; min-width: 0; padding: 0; border: 0; background: none; text-align: left; color: #efe6d4; font: 600 12px/1.25 Barlow, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.cfn-last em { font-style: normal; font-weight: 800; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: #bfb1d8; margin-right: 4px; }
+.cfn-opp.compact .cfn-last { font-size: 11px; }

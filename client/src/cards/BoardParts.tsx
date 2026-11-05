@@ -11,6 +11,10 @@ import { Icon } from '../ui/Icon';
 import { CardArt } from './art';
 import { CapsuleIcon, CardView } from './components';
 import { FAMILY_STYLE, splitEmphasis } from './meta';
+import { activeEffects, CARD_GIST, type ActiveEffect } from './effects';
+
+/** Étiquettes qui ne disent pas ce que fait la carte : on écrit plutôt son effet. */
+const GENERIC_LABEL = new Set(['Installer', 'Poser face cachée', 'Jouer', 'Jouable']);
 import { Pip } from './cfui';
 import { TYPE_META, TypeIcon, TypeLegend } from './cardTypes';
 import type { CfSeat, CfSnapshot } from './controller';
@@ -27,18 +31,34 @@ const vw = () => (typeof window !== 'undefined' ? window.innerWidth : 360);
 // ------------------------------------------------------------------ petites pièces
 
 /** Tournées : petits verres pleins / vides. */
-export function Glasses({ n, max }: { n: number; max: number }) {
+export function Glasses({ n, max, label }: { n: number; max: number; label?: boolean }) {
   return (
     <span className="cfn-glasses" role="img" aria-label={`${plural(n, 'Tournée')} sur ${max}`}>
       {Array.from({ length: max }, (_, i) => <i key={i} className={i < n ? '' : 'off'} />)}
+      {/* Écrit en toutes lettres (0.39) : on ne devine plus ce que sont les petits verres. */}
+      {label && <small className="cfn-res-l" aria-hidden>{n} Tournée{n > 1 ? 's' : ''}</small>}
     </span>
   );
 }
 
 /** Jetons (pastille dorée). */
-export const Tokens = ({ n, refEl }: { n: number; refEl?: (el: HTMLElement | null) => void }) => (
-  <span className="cfn-chip" ref={refEl} aria-label={plural(n, 'jeton')}><i className="cfn-tok" aria-hidden />{n}</span>
+export const Tokens = ({ n, refEl, label }: { n: number; refEl?: (el: HTMLElement | null) => void; label?: boolean }) => (
+  <span className={`cfn-chip${label ? ' lab' : ''}`} ref={refEl} aria-label={plural(n, 'jeton')}><i className="cfn-tok" aria-hidden />{n}{label && <small aria-hidden>jeton{n > 1 ? 's' : ''}</small>}</span>
 );
+
+/** Effets en attente d'un joueur cette manche (Double tournée, Note salée, Gueule de bois…), écrits en clair. */
+export function EffectChips({ list, onCard }: { list: ActiveEffect[]; onCard: (id: string) => void }) {
+  if (!list.length) return null;
+  return (
+    <span className="cfn-fx-row">
+      {list.map((e) => (
+        <button key={e.card + e.text} className={`cfn-fx ${e.tone}`} onClick={() => onCard(e.card)} style={{ ['--tc' as string]: TYPE_META[e.type].color }}>
+          <TypeIcon type={e.type} size={11} />{e.text}
+        </button>
+      ))}
+    </span>
+  );
+}
 
 /** Piège face cachée (rayures violettes, mâchoire). */
 export const TrapCard = ({ big, style }: { big?: boolean; style?: CSSProperties }) => (
@@ -63,8 +83,18 @@ export function BigCard({ id, width = 250, extra, className }: { id: string; wid
   );
 }
 
-/** Carte en main (prototype « hc ») : coût, illustration, nom, type. */
-export function HandCard({ id, ok, off, sel, focus, style, onClick, small }: { id: string; ok?: boolean; off?: boolean; sel?: boolean; focus?: boolean; small?: boolean; style?: CSSProperties; onClick?: () => void }) {
+/** Ce que fait une carte, en quelques mots (le passage en gras de son texte, sinon le début du texte). */
+export function cardGist(id: string): string {
+  if (CARD_GIST[id]) return CARD_GIST[id];
+  const d = cardDef(id);
+  if (!d) return '';
+  const [, bold] = splitEmphasis(id, d.text);
+  const g = (bold || d.text).replace(/[.!]\s*$/, '');
+  return g.charAt(0).toUpperCase() + g.slice(1);
+}
+
+/** Carte en main (prototype « hc ») : coût, illustration, nom, type ; `fx` = ce qu'elle fait (ligne sous le nom). */
+export function HandCard({ id, ok, off, sel, focus, style, onClick, small, fx }: { id: string; ok?: boolean; off?: boolean; sel?: boolean; focus?: boolean; small?: boolean; style?: CSSProperties; onClick?: () => void; fx?: string }) {
   const d = cardDef(id);
   if (!d) return null;
   const fs = FAMILY_STYLE[d.family];
@@ -76,62 +106,42 @@ export function HandCard({ id, ok, off, sel, focus, style, onClick, small }: { i
       <span className="c">{d.cost}</span>
       <span className="a"><CardArt id={id} /></span>
       <b>{d.name}</b>
+      {fx && <span className="fx">{fx}</span>}
       <span className="ty" style={{ color: m.color }}><TypeIcon type={d.type} size={11} />{m.label}</span>
     </Tag>
   );
 }
 
-const PILL_BG: Record<string, string> = { ok: '#f1cc7d', cost: 'rgba(255,255,255,.78)', wait: 'rgba(255,255,255,.5)' };
-
 /**
- * Main en éventail : cartes jouables soulevées et dorées, étiquette de raison sous chaque carte.
- * `quiet` (ce n'est pas à vous) : main grisée, sans étiquettes (la raison reste dans la fiche de la carte).
+ * Main en rangée (0.39, « plus accessible ») : cartes côte à côte sans chevauchement, nom entier et
+ * ce que fait la carte écrit dessous ; les jouables d'abord, dorées ; on fait défiler si elles ne
+ * tiennent pas. `quiet` (ce n'est pas à vous) : main grisée, l'effet de chaque carte reste écrit.
  * Mémorisée : le minuteur et les animations ne la redessinent pas.
  */
 export const Hand = memo(function Hand({ cards, hints, onPick, sel, focus, quiet }: {
   cards: { uid: string; id: string }[]; hints: Record<string, CardHint>; onPick: (uid: string) => void; sel?: string | null; focus?: boolean; quiet?: boolean;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [w, setW] = useState(340);
   const [small, setSmall] = useState(false);
   useIsoLayout(() => {
-    const m = () => { if (ref.current) setW(ref.current.clientWidth); setSmall(window.innerHeight < 700); };
+    const m = () => setSmall(window.innerHeight < 700);
     m(); window.addEventListener('resize', m); return () => window.removeEventListener('resize', m);
   }, []);
-  const n = cards.length;
-  const cw = small ? 82 : 96;
-  // Inclinaison par carte, et marge pour que les cartes inclinées du bord ne sortent pas de l'écran.
-  const per = n <= 4 ? 6 : Math.min(5, 20 / (n - 1));
-  const edge = (per * (n - 1)) / 2;
-  const pad = Math.ceil(Math.sin((edge * Math.PI) / 180) * 1.2 * (small ? 115 : 134) * 0.9) + 4;
-  const step = n > 1 ? Math.min(cw - 24, (w - cw - 2 * pad) / (n - 1)) : 0;
-  const start = (w - (cw + step * (n - 1))) / 2;
-  const crowded = step < 74;
-  const lift = small ? 12 : 16;
+  // Jouables d'abord (ordre stable sinon) : elles restent visibles même quand la main défile.
+  const sorted = quiet ? cards : [...cards].sort((a, b) => Number(!!hints[b.uid]?.playable) - Number(!!hints[a.uid]?.playable));
+  // Quand l'ordre change (nouvelles cartes jouables), on revient au début de la main.
+  const ref = useRef<HTMLDivElement>(null);
+  const order = sorted.map((k) => k.uid).join(',');
+  useIsoLayout(() => { if (ref.current) ref.current.scrollLeft = 0; }, [order]);
   return (
-    <div className={`cfn-hand${small ? ' small' : ''}${crowded ? ' crowded' : ''}${focus ? ' cfn-focus-zone' : ''}`} ref={ref}>
-      {cards.map((k, i) => {
+    <div ref={ref} className={`cfn-hand${small ? ' small' : ''}${focus ? ' cfn-focus-zone' : ''}`} role="list" aria-label={`Votre main : ${plural(cards.length, 'carte')}`}>
+      {sorted.map((k) => {
         const h = hints[k.uid];
-        const off = i - (n - 1) / 2;
-        const rot = off * per;
-        const ok = !!h?.playable;
+        const ok = !quiet && !!h?.playable;
+        // Jouable : ce qu'elle ferait ici quand c'est parlant (« 6 → 1 : 4-2-1 ! ») ; sinon ce qu'elle fait.
+        const fx = ok && h?.label && !GENERIC_LABEL.has(h.label) ? h.label : cardGist(k.id);
         return (
-          <HandCard key={k.uid} id={k.id} ok={ok} off={!ok} sel={sel === k.uid} focus={focus && ok} small={small}
-            style={{ left: start + i * step, bottom: (ok ? lift : 0) + 14, transform: `rotate(${rot.toFixed(1)}deg)`, zIndex: i + 1 }}
-            onClick={() => onPick(k.uid)} />
-        );
-      })}
-      {!quiet && cards.map((k, i) => {
-        const h = hints[k.uid];
-        // Moins d'infos à l'écran : seules les cartes jouables portent une étiquette ; la raison des autres est dans leur fiche.
-        if (!h || !h.playable) return null;
-        const ok = h.playable;
-        const bg = h.tone === 'moment' ? TYPE_META[h.type].color : PILL_BG[h.tone];
-        const low = crowded && i % 2 === 1;
-        return (
-          <span key={`p${k.uid}`} className={`cfn-why${ok ? ' ok' : ''}`} aria-hidden
-            style={{ left: start + i * step + cw / 2, bottom: (ok ? lift : 0) + 12 - (low ? 14 : 0), background: bg, zIndex: 40 + i, maxWidth: crowded ? Math.max(64, step * 2 - 6) : undefined }}>
-            {h.label}
+          <span key={k.uid} role="listitem" className="cfn-hand-slot">
+            <HandCard id={k.id} ok={ok} off={!ok} sel={sel === k.uid} focus={focus && ok} small={small} fx={fx} onClick={() => onPick(k.uid)} />
           </span>
         );
       })}
@@ -177,9 +187,11 @@ export function HabPin({ id, trap, rounds, onClick }: { id: string | null; trap?
 }
 
 /** Panneau d'un adversaire (prototype : avatar, nom, deck, jetons, Tournées, cartes en main, pièges, Habitués). */
-export function OppPanel({ p, v, seat, active, compact, refEl, tokRef, onTrap, onCard, emote, focus }: {
+export function OppPanel({ p, v, seat, active, compact, refEl, tokRef, onTrap, onCard, emote, focus, last, onLast }: {
   p: CfPlayerView; v: CfView; seat?: CfSeat & { away?: boolean; left?: boolean }; active: boolean; compact: boolean; focus?: boolean;
   refEl: (el: HTMLElement | null) => void; tokRef?: (el: HTMLElement | null) => void; onTrap: () => void; onCard: (id: string, owner?: string) => void; emote?: string;
+  /** Sa dernière action (reste affichée jusqu'à la suivante) ; toucher ouvre le journal. */
+  last?: string | null; onLast?: () => void;
 }) {
   const traps = v.traps.filter((t) => t.owner === p.id);
   const seen = traps.filter((t) => t.id).map((t) => cardName(t.id));
@@ -196,15 +208,17 @@ export function OppPanel({ p, v, seat, active, compact, refEl, tokRef, onTrap, o
           {seat?.left ? <small className="away">A quitté la partie</small> : seat?.away ? <small className="away">Déconnecté : 60 s pour revenir</small> : !compact && sub ? <small>{sub}</small> : null}
         </span>
         {emote && <span className="cfn-emote" aria-label={`Réaction : ${emote}`}>{emote}</span>}
-        <Tokens n={p.tokens} refEl={tokRef} />
+        <Tokens n={p.tokens} refEl={tokRef} label={!compact} />
       </div>
       <div className="cfn-row">
-        {compact ? <span className="cfn-mini-stat" aria-hidden>🍺 {p.tournees}</span> : <Glasses n={p.tournees} max={v.rules.tourneesMax} />}
-        <span className="cfn-backs" aria-hidden>{compact ? <><i className="cfn-bk" /><em>{p.handCount}</em></> : Array.from({ length: Math.min(p.handCount, 7) }, (_, i) => <i key={i} className="cfn-bk" />)}</span>
+        {compact ? <span className="cfn-mini-stat" aria-hidden>🍺 {p.tournees}</span> : <Glasses n={p.tournees} max={v.rules.tourneesMax} label />}
+        <span className="cfn-backs" aria-hidden><i className="cfn-bk" /><em>{p.handCount}{compact ? '' : ` carte${p.handCount > 1 ? 's' : ''}`}</em></span>
         {p.habitues.length > 0 && <span className="cfn-pins">{p.habitues.map((h) => <HabPin key={h.uid} id={h.id} rounds={h.rounds} onClick={() => onCard(h.id, p.id)} />)}</span>}
         <span className="cfn-grow" />
         <TrapBox n={traps.length} seen={seen} sub={fresh ? 'Posé à l’instant' : 'Touchez pour les possibilités'} onClick={onTrap} compact={compact || p.habitues.length > 0} />
       </div>
+      <EffectChips list={activeEffects(v, p, false)} onCard={(id) => onCard(id, p.id)} />
+      {last && !compact && <button className="cfn-last" onClick={onLast}><em>Dernier coup</em> {last}</button>}
     </section>
   );
 }
@@ -521,7 +535,8 @@ export function HelpSheet({ v, onClose, onRules }: { v: CfView; onClose: () => v
             <li><b>Dernier mot</b> : les combinaisons sont posées ; les cartes « Dernier mot » peuvent encore tout changer.</li>
             <li><b>Comptes</b> : le gagnant DONNE au perdant autant de jetons que vaut sa combinaison. Le premier à 0 jeton gagne la partie.</li>
           </ol>
-          <p>Quand c’est à vous, les cartes qui <b className="cfn-gold">brillent</b> sont jouables maintenant ; l’étiquette dit pourquoi. Les autres disent quand elles se jouent ou ce qui manque. Pendant le tour adverse, la main est grisée. Touchez une carte pour la lire en grand. Le bandeau sous l’adversaire dit toujours ce qui se passe ; les pastilles rondes sont les Habitués en jeu (touchez-les).</p>
+          <p>Sous le nom de chaque carte, ce qu’elle fait. Quand c’est à vous, les cartes <b className="cfn-gold">dorées</b> sont jouables maintenant (elles passent en premier ; faites glisser la main pour voir les autres). Touchez une carte pour la lire en grand.</p>
+          <p>Sous le nom de l’adversaire : ses jetons, ses Tournées, ses cartes en main, ses effets en cours (Double tournée, Gueule de bois…) et son dernier coup. Les pastilles rondes sont les Habitués en jeu ; le chiffre dit combien de manches il leur reste.</p>
         </section>
         <button className="cfn-act ghost full" onClick={onRules}>Règles complètes</button>
       </div>
