@@ -73,6 +73,24 @@ tbody tr:nth-child(odd) { background: rgba(255,255,255,0.03); }
 .shot img { display: block; width: 100%; height: auto; border-radius: 18px; box-shadow: 0 12px 30px rgba(0,0,0,0.45); background: #10211a; }
 .shot figcaption { margin-top: 8px; font-size: 0.88rem; color: var(--texte2); }
 
+/* Coups Fourrés : cartes illustrées (images WebP, texte de la carte repris en HTML). */
+.cf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 14px; margin: 14px 0; }
+.cf-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (min-width: 700px) { .cf-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.cfc { margin: 0; padding: 10px; border-radius: 14px; background: var(--ardoise2); border-top: 4px solid var(--fam, var(--or)); scroll-margin-top: 110px; }
+.cfc img { display: block; width: 100%; max-width: 230px; height: auto; margin: 0 auto; filter: drop-shadow(0 8px 14px rgba(0,0,0,0.4)); }
+.cfc figcaption { margin-top: 8px; font-size: 0.92rem; color: var(--texte2); }
+.cfc figcaption b { display: block; color: var(--blanc); }
+.cfc h3 { margin: 0; color: var(--blanc); font-size: 1.05rem; }
+.cfc p { margin: 4px 0 0; }
+.cfc .cfc-meta { font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--fam, var(--or)); }
+.cfc .cfc-flavor { font-style: italic; font-size: 0.86rem; opacity: 0.85; }
+.cfc-habitues { --fam: #5fc795; } .cfc-ivresse { --fam: #ef7f8f; } .cfc-pieges { --fam: #b9a8e6; } .cfc-chaines { --fam: #e3c060; }
+.lexique { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; }
+.lexique dt { font-weight: 700; color: var(--or); }
+.lexique dd { margin: 0; color: var(--texte2); }
+@media (max-width: 480px) { .lexique { grid-template-columns: 1fr; gap: 0; } .lexique dd { margin-bottom: 8px; } }
+
 .faq details { margin: 8px 0; padding: 10px 14px; border-radius: 10px; background: var(--ardoise2); }
 .faq summary { cursor: pointer; font-weight: 700; }
 .faq p { margin: 8px 0 0; color: var(--texte2); }

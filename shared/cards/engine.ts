@@ -737,7 +737,8 @@ function cardOptions(s: CfState, p: CfPlayer, k: CardInst, respond: boolean): Pl
   const myTurn = s.phase === 'turn' && s.order[s.turn] === p.id && !p.r.done;
   if (!myTurn) return [];
   if (d.type === 'dernier-mot') return [];
-  if (d.type === 'habitue') return p.habitues.length < s.rules.maxHabitues ? [{}] : [];
+  // Un même Habitué ne peut pas être deux fois devant le même joueur (décision de Sam : rien d'inutile en jeu).
+  if (d.type === 'habitue') return p.habitues.length < s.rules.maxHabitues && !p.habitues.some((h) => h.id === k.id) ? [{}] : [];
   if (d.type === 'piege') {
     if (s.traps.filter((t) => t.owner === p.id).length >= s.rules.maxTraps) return [];
     return opps.map((o) => ({ target: o.id }));
