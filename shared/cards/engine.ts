@@ -32,6 +32,14 @@ export interface CfConfig {
   /** Surcharge de réglages (essais d'équilibrage). */
   rules?: Partial<CfRules>;
   values?: ComboValues;
+  /**
+   * Parties en ligne : fenêtres de réponse « à l'aveugle ». Une Riposte ou un Dernier mot est proposé
+   * à tout joueur qui POURRAIT en avoir un d'après l'information publique (familles de son deck,
+   * Tournées, réduction en cours), et pas seulement à ceux qui en ont vraiment un : ainsi, qu'on
+   * ait ou non la carte, la partie marque la même pause (le serveur fixe sa durée). Les règles ne
+   * changent pas (sans la carte, on ne peut que passer).
+   */
+  windows?: boolean;
 }
 
 export interface CardInst { uid: string; id: string }
@@ -160,6 +168,8 @@ export interface CfState {
   winner: string | null;
   version: number;
   decisions: number;
+  /** Fenêtres de réponse à l'aveugle (voir CfConfig.windows). */
+  windows?: boolean;
 }
 
 export interface CfEvent {
@@ -244,6 +254,7 @@ export function newGame(config: CfConfig, players: { id: string; name?: string; 
     respond: null, choice: null, lastword: null, discardQueue: [], prevLoser: null, lastRound: null, ranking: [],
     winner: null, version: 0, decisions: 0,
   };
+  if (config.windows) s.windows = true;
   for (const p of players) {
     for (const id of p.deck) if (!CARD_BY_ID[id]) throw new Error(`Carte inconnue : ${id}`);
     const deck = p.deck.map((id) => ({ uid: `k${s.nextUid++}`, id }));
@@ -500,6 +511,7 @@ function lastwordNext(c: Ctx) {
 
 function hasLastword(s: CfState, pid: string): boolean {
   const p = pl(s, pid);
+  if (s.windows && mightHaveLastword(s, p)) return true;
   return p.hand.some((k) => def(k.id).type === 'dernier-mot' && cardOptions(s, p, k, false).length > 0);
 }
 
@@ -1020,7 +1032,26 @@ function doPlay(c: Ctx, p: CfPlayer, a: Extract<CfAction, { type: 'play' }>) {
 
 function eligibleResponders(s: CfState, top: StackItem): string[] {
   const seats = seatOrderFrom(s, top.owner).slice(1);
-  return seats.filter((id) => { const q = pl(s, id); return q.hand.some((k) => cardOptions(s, q, k, true).length > 0); });
+  return seats.filter((id) => { const q = pl(s, id); return (s.windows && mightRespond(s, q, top)) || q.hand.some((k) => cardOptions(s, q, k, true).length > 0); });
+}
+
+// Fenêtres à l'aveugle : ce qu'un adversaire peut déduire de l'information publique seulement
+// (familles du deck, Tournées, réduction, cartes déjà jouées dans la manche).
+const canPay = (p: CfPlayer, cost: number) => Math.max(0, cost - p.r.discount) <= p.tournees;
+/** Ce joueur pourrait-il avoir une Riposte jouable contre cet élément de la pile ? */
+export function mightRespond(_s: CfState, p: CfPlayer, top: StackItem): boolean {
+  if (top.owner === p.id || p.out) return false;
+  const f = p.families;
+  if (top.kind === 'keep') return f.includes('ivresse') && canPay(p, def('yeux-piquent').cost);
+  if (f.includes('chaines') && canPay(p, def('reaction-chaine').cost)) return true;
+  return f.includes('habitues') && top.type === 'coup' && def(top.card.id).cost <= 2 && canPay(p, def('ticket-caisse').cost);
+}
+/** Ce joueur pourrait-il avoir un Dernier mot jouable ? */
+export function mightHaveLastword(_s: CfState, p: CfPlayer): boolean {
+  if (p.out) return false;
+  const f = p.families;
+  if (f.includes('habitues') && canPay(p, def('note-salee').cost)) return true;
+  return f.includes('chaines') && p.r.played >= 3 && canPay(p, def('recompter').cost);
 }
 function refreshRespond(s: CfState) {
   const top = s.stack[s.stack.length - 1];

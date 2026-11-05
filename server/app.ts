@@ -33,6 +33,7 @@ import { COLLECTION } from '../shared/progress/dice-collection';
 import { SCHED_CONFIG, SCHED_LOBBY_MS, SCHED_MAX, bagPrizes, bagsLabel, hourLabel, nextSlots, schedTables, type SlotStatus } from '../shared/scheduled';
 import { createScheduled, slotLabel } from './scheduled';
 import { createDiscordHooks } from './discord-hooks';
+import { createCfOnline, type CfOnlineOptions } from './cards-online';
 
 interface Member {
   id: string;
@@ -148,6 +149,8 @@ export interface ServerOptions {
   admin?: { now?: () => number };
   /** Annonces Discord (tests : liens et envoi simulés ; délai avant l'annonce des nouveautés, 0 = jamais automatiquement). */
   discordHooks?: { env?: Record<string, string | undefined>; send?: (url: string, body: unknown) => Promise<void>; newsDelayMs?: number };
+  /** Coups Fourrés en ligne (délais réduits dans les tests). */
+  cf?: CfOnlineOptions;
 }
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -351,12 +354,24 @@ export async function startServer(opts: ServerOptions) {
   });
   app.use('/api', schedRouter);
   const dHooks = createDiscordHooks({ store, env: opts.discordHooks?.env, send: opts.discordHooks?.send });
+  // Coups Fourrés en ligne : branché avant les comptes (fin de partie contre l'ordinateur : corps jusqu'à 512 ko).
+  const cfMount = express.Router();
+  app.use('/api', cfMount);
   app.use('/api', accounts.router);
   const http = createServer(app);
   const io = new Server(http, { cors: { origin: true } });
   admin.attach(io);
   stats.attach(io);
   accounts.messages.attach(io);
+  // Coups Fourrés en ligne : espace Socket.IO « /cf » et routes /api/cf/bot/*, /api/cf/friends…
+  const cfOnline = createCfOnline({
+    io, store, cards: accounts.cards, userFromToken: accounts.userFromToken, banOf: admin.banOf, muteOf: moderation.muteOf,
+    push: (u, title, body, url) => void accounts.social.push(u, title, body, url),
+    recordChat: (e) => { tableChat.push(e); if (tableChat.length > TABLE_CHAT_KEEP) tableChat.splice(0, tableChat.length - TABLE_CHAT_KEEP); },
+    now: opts.accounts?.now, opts: { minBotMs: opts.accounts?.minSoloMs, ...opts.cf },
+  });
+  cfMount.use(cfOnline.router);
+  accounts.setCfPresence(cfOnline.presence);
 
   app.get('/health', (_req, res) => res.json({ ok: true, rooms: rooms.size, tournaments: tournaments.size }));
   const here = dirname(fileURLToPath(import.meta.url));
@@ -1483,8 +1498,10 @@ export async function startServer(opts: ServerOptions) {
     accounts,
     store,
     schedTick,
+    cfOnline,
     close: () => new Promise<void>((resolve) => {
       accounts.social.close();
+      cfOnline.close();
       clearInterval(sweeper);
       if (schedTimer) clearInterval(schedTimer);
       if (newsTimer) clearTimeout(newsTimer);
