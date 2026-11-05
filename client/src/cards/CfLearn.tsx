@@ -99,10 +99,9 @@ const TIPS: { t: string; d: string }[] = [
   { t: 'Face à un Retournement de veste, visez plus bas', d: 'Il ne se déclenche que si vous deviez donner 5 jetons ou plus. Arrêtez-vous volontairement sur une combinaison qui vaut 4 ou moins : vous gagnez la manche sans vous faire retourner.' },
   { t: 'Le meneur fixe la limite', d: `Si vous menez avec une bonne combinaison, arrêtez-vous tôt : un seul lancer et l’autre n’aura qu’un lancer pour faire mieux (${CF_RULES.maxThrows} au plus).` },
   { t: 'Jouer en second a ses avantages', d: 'Vous voyez la combinaison à battre. « Le dé sous la table » et « Tournée générale » frappent les dés de l’adversaire s’il a fini son tour : c’est là qu’elles sont les plus fortes.' },
-  { t: 'Le Dernier mot, c’est pour le perdant', d: 'Avant les comptes, celui qui perd parle en premier. « Recompter » (après 3 cartes jouées) peut transformer un 4-2-2 en 4-2-1. Comptez vos cartes jouées pendant la manche.' },
-  { t: 'L’ardoise : au bon moment seulement', d: `+${CF_RULES.ardoiseLoan} Tournées tout de suite, mais rien à la manche suivante, et une seule fois par partie. Gardez-la pour une manche décisive ou pour payer une Riposte vitale.` },
+  { t: 'Le Dernier mot, c’est pour le perdant', d: 'Avant les comptes, celui qui perd parle en premier. « Recompter » (si vous avez déjà joué une carte dans la manche) peut transformer un 4-2-2 en 4-2-1.' },
   { t: 'Perdre une manche, c’est se refaire', d: `Le perdant mène la suivante et reçoit ${CF_RULES.tourneesPerRound + CF_RULES.tourneesLoserBonus} Tournées au lieu de ${CF_RULES.tourneesPerRound}. Une petite défaite n’est pas grave si elle prépare une grosse manche.` },
-  { t: 'Les Habitués s’accumulent', d: `Jusqu’à ${CF_RULES.maxHabitues} en jeu. Le Vieux Marcel fait valoir vos suites 4, le Pilier adoucit vos défaites. Attention à « Fermeture ! » qui les renvoie en main.` },
+  { t: 'Les Habitués s’accumulent', d: `Jusqu’à ${CF_RULES.maxHabitues} en jeu, chacun pour ${CF_RULES.habitueRounds} manches. Le Vieux Marcel fait valoir vos suites 4, le Pilier adoucit vos défaites. Attention à « Fermeture ! » qui les chasse.` },
   { t: 'Bluffez avec le Leurre', d: 'Il ne fait rien, mais l’adversaire voit un piège posé. Il hésitera, ou gaspillera une Fouine. Et s’il est découvert, vous piochez.' },
 ];
 
@@ -118,7 +117,6 @@ export function TipsScreen({ onBack }: { onBack: () => void }) {
 // Lexique
 
 const LEXICON: { w: string; d: string }[] = [
-  { w: 'Ardoise', d: `Une fois par partie, pendant votre tour : +${CF_RULES.ardoiseLoan} Tournées tout de suite, mais aucune à la manche suivante.` },
   { w: 'Booster', d: `${BOOSTER.size} cartes tirées au pur hasard, pour ${BOOSTER.price} capsules. Une carte sur vingt sort brillante (sans effet en partie).` },
   { w: 'Capsules', d: 'La monnaie du mode : parties, missions du jour, ligue. Elles servent à acheter des boosters.' },
   { w: 'Comptes', d: 'Fin de manche : le gagnant donne au perdant autant de jetons que vaut sa combinaison, cartes comprises.' },

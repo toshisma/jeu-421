@@ -522,7 +522,6 @@ export function HelpSheet({ v, onClose, onRules }: { v: CfView; onClose: () => v
             <li><b>Comptes</b> : le gagnant DONNE au perdant autant de jetons que vaut sa combinaison. Le premier à 0 jeton gagne la partie.</li>
           </ol>
           <p>Quand c’est à vous, les cartes qui <b className="cfn-gold">brillent</b> sont jouables maintenant ; l’étiquette dit pourquoi. Les autres disent quand elles se jouent ou ce qui manque. Pendant le tour adverse, la main est grisée. Touchez une carte pour la lire en grand. Le bandeau sous l’adversaire dit toujours ce qui se passe ; les pastilles rondes sont les Habitués en jeu (touchez-les).</p>
-          <p><b>L’ardoise</b> (une fois par partie) : {v.rules.ardoiseLoan} Tournées tout de suite, rien à la manche suivante.</p>
         </section>
         <button className="cfn-act ghost full" onClick={onRules}>Règles complètes</button>
       </div>

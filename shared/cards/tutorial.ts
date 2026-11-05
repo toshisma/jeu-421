@@ -7,7 +7,7 @@
  *
  * Déroulé : manche 1 (vous menez) lancer, garder, Tête qui tourne → 4-2-1, poser Croche-patte,
  * s'arrêter (limite de lancers) ; Dédé pose Gueule de bois et se fait piéger ; comptes.
- * Manche 2 (Dédé mène) : Riposte avec Ticket de caisse, Fouine sur son Faux 4-2-1, ardoise, Leurre,
+ * Manche 2 (Dédé mène) : Riposte avec Ticket de caisse, Fouine sur son Faux 4-2-1, Tournée du patron, Leurre,
  * un seul lancer (Gueule de bois), puis Dernier mot « Recompter » : 4-2-1 et victoire.
  */
 import { CF_RULES } from './catalog';
@@ -30,9 +30,9 @@ export type TutoStep =
 
 // --- Préparation -------------------------------------------------------------------------------
 
-const MY_HAND = ['tete-tourne', 'croche-patte', 'ticket-caisse', 'fouine'];
+const MY_HAND = ['tete-tourne', 'croche-patte', 'ticket-caisse', 'fouine', 'tournee-patron'];
 /** Dessus du deck en premier : pioche de la manche 1, puis de la manche 2. */
-const MY_DECK = ['recompter', 'leurre', 'coup-coude', 'mise-bouche', 'cul-sec', 'pilier', 'vieux-marcel', 'tournee-patron', 'gueule-bois', 'coup-pouce', 'calcul-mental', 'pari-comptoir', 'main-sac', 'domino', 'josiane', 'note-salee'];
+const MY_DECK = ['recompter', 'leurre', 'coup-coude', 'mise-bouche', 'cul-sec', 'pilier', 'vieux-marcel', 'gueule-bois', 'coup-pouce', 'calcul-mental', 'pari-comptoir', 'main-sac', 'domino', 'josiane', 'note-salee'];
 const BOT_HAND = ['gueule-bois', 'coup-pouce', 'faux-421', 'cul-sec'];
 const BOT_DECK = ['tournee-patron', 'pari-comptoir', 'vieux-marcel', 'pilier', 'leurre', 'coup-coude', 'mise-bouche', 'croche-patte', 'calcul-mental', 'tete-tourne', 'main-sac', 'cul-sec', 'coup-pouce', 'faux-421', 'leurre', 'gueule-bois'];
 
@@ -108,10 +108,10 @@ export const TUTO_STEPS: TutoStep[] = [
   { kind: 'bot', action: () => ({ type: 'stop' }) },
   { kind: 'me', title: 'Parer un piège', text: `Deux as et un 3 pour ${TUTO_BOT_NAME}. Avant de lancer, méfiez-vous de son piège : jouez la « Fouine » (gratuite) pour le regarder.`, focus: 'hand', expect: isPlay('fouine') },
   { kind: 'me', title: 'Parer un piège', text: 'Un « Faux 4-2-1 » : votre prochain 4-2-1 ne vaudrait que 2 ! Payez 1 Tournée pour le défausser.', focus: 'choice', expect: (a) => a.type === 'choose' && a.index === 1 },
-  { kind: 'me', title: 'L’ardoise', text: `Plus de Tournées ? L’ardoise, une fois par partie, vous en prête ${R.ardoiseLoan} tout de suite… mais vous n’en recevrez pas à la manche suivante. Prenez-la.`, focus: 'ardoise', expect: (a) => a.type === 'ardoise' },
-  { kind: 'me', title: 'Bluffer', text: `Posez ce « Leurre » : il ne fait rien… mais ${TUTO_BOT_NAME} ne le sait pas. Et c’est votre 3e carte de la manche : retenez-le.`, focus: 'hand', expect: isPlay('leurre') },
+  { kind: 'me', title: 'Reprendre des Tournées', text: 'Plus de Tournées ? « Tournée du patron » est gratuite et vous en donne 2. Jouez-la : vous en aurez besoin tout à l’heure.', focus: 'hand', expect: isPlay('tournee-patron') },
+  { kind: 'me', title: 'Bluffer', text: `Posez ce « Leurre » : il ne fait rien… mais ${TUTO_BOT_NAME} ne le sait pas. Retenez qu’il est posé.`, focus: 'hand', expect: isPlay('leurre') },
   { kind: 'me', title: 'Un seul lancer', text: 'La Gueule de bois ne vous laisse qu’un lancer. Croisez les doigts et lancez !', focus: 'roll', expect: isRoll(NONE) },
-  { kind: 'me', title: 'Le Dernier mot', text: `4-2-2 : vous perdez… pas encore ! Avant les comptes, le perdant peut jouer un « Dernier mot ». « Recompter » (après 3 cartes jouées) retire 1 à un dé : changez un 2 en 1 !`, focus: 'hand', expect: isPlay('recompter', (p) => (p.die === 1 || p.die === 2) && p.delta === -1) },
+  { kind: 'me', title: 'Le Dernier mot', text: `4-2-2 : vous perdez… pas encore ! Avant les comptes, le perdant peut jouer un « Dernier mot ». « Recompter » (si vous avez déjà joué une carte dans la manche) retire 1 à un dé : changez un 2 en 1 !`, focus: 'hand', expect: isPlay('recompter', (p) => (p.die === 1 || p.die === 2) && p.delta === -1) },
 ];
 
 /** Nombre d'étapes affichées au joueur (explications et actions). */

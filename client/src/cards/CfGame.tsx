@@ -10,7 +10,7 @@
  * les dés posés. Rien d'autre n'est écrit sur le bac (la mise en scène du 4-2-1 passe seule).
  * Bas : « N cartes jouables maintenant », la main (cartes jouables dorées, avec leur raison ; grisée
  * et sans étiquettes pendant le tour adverse), ma barre (jetons, Tournées, pastilles d'Habitués et de
- * pièges, ardoise), les actions (seulement quand c'est à moi).
+ * pièges), les actions (seulement quand c'est à moi).
  * Les grandes actions adverses (carte jouée, piège posé ou déclenché) sont annoncées au centre, une par
  * une (touchez pour passer) ; les pièges et annulations qui vous frappent demandent « Compris ».
  *
@@ -399,7 +399,6 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const respondMine = mine && decision === 'respond' && !onlyPass;
   const choiceMine = mine && decision === 'choice';
   const mulliganMine = mine && decision === 'mulligan';
-  const ardoise = legal.find((a) => a.type === 'ardoise');
   const josianeAct = legal.some((a) => a.type === 'josiane');
   const stopAct = legal.find((a) => a.type === 'stop');
   const canRollAgain = myTurn && meP.r.throwsUsed > 0 && legal.some((a) => a.type === 'roll');
@@ -496,9 +495,6 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
             {myTraps.map((t) => <HabPin key={t.uid} id={t.id} trap onClick={() => t.id && setFiche({ id: t.id, trapUid: t.uid })} />)}
           </span>
           <span className="cfn-grow" />
-          {ardoise ? <button className={`cfn-ardoise${fx('ardoise')}`} disabled={pending}
-            onClick={async () => { if (isTuto || await askConfirm(`L’ardoise (une fois par partie) : +${v.rules.ardoiseLoan} Tournées tout de suite, mais rien à la prochaine manche.`, 'Prendre l’ardoise')) void act(ardoise); }}>Ardoise</button>
-            : meP.ardoiseUsed ? <span className="cfn-ardoise used">Ardoise prise</span> : null}
         </div>
         <div className="cfn-actions">
           {myTurn && meP.r.throwsUsed === 0 && <button className={`cfn-act roll${fx('roll')}`} disabled={pending || !legal.some((a) => a.type === 'roll')} onClick={roll}><Icon name="dice" size={20} />Lancer les dés</button>}

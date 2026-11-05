@@ -49,7 +49,7 @@ describe('partie guidée (scénario)', () => {
     expect(t.state.winner).toBe(TUTO_ME);
     expect(t.step).toBe(TUTO_STEPS.length);
     expect(pl(t.state, TUTO_ME).tokens).toBe(0);
-    for (const k of ['Lancer', 'Garder des dés', 'Jouer un Coup', 'Poser un piège', 'La limite de lancers', 'Riposter', 'Parer un piège', 'L’ardoise', 'Le Dernier mot'])
+    for (const k of ['Lancer', 'Garder des dés', 'Jouer un Coup', 'Poser un piège', 'La limite de lancers', 'Riposter', 'Parer un piège', 'Reprendre des Tournées', 'Le Dernier mot'])
       expect(seen).toContain(k);
     expect(TUTO_VISIBLE).toBeLessThanOrEqual(20); // ≈ 3 minutes
   });
@@ -221,7 +221,7 @@ describe('écrans « Apprendre »', () => {
     expect((tips.match(/<li>/g) ?? []).length).toBeGreaterThanOrEqual(10);
     expect(tips).toContain('Retournement de veste');
     const lex = renderToStaticMarkup(createElement(LexiconScreen, { onBack: () => {} }));
-    for (const w of ['Tournée', 'Meneur', 'Ardoise', 'Habitué', 'Piège', 'Riposte', 'Dernier mot', 'Deck', 'Booster', 'Capsules', 'Éclats de verre']) expect(lex).toContain(w);
+    for (const w of ['Tournée', 'Meneur', 'Habitué', 'Piège', 'Riposte', 'Dernier mot', 'Deck', 'Booster', 'Capsules', 'Éclats de verre']) expect(lex).toContain(w);
     expect(lex).not.toMatch(/paquet/i);
     const rules = renderToStaticMarkup(createElement(RulesContent, {}));
     expect(rules).toContain('Les combinaisons');

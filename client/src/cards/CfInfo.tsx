@@ -166,7 +166,7 @@ export function RulesContent({ short }: { short?: boolean }) {
           <li><b>L’autre joueur</b> joue à son tour, en voyant le résultat du meneur.</li>
           <li><b>Dernier mot</b> : les combinaisons sont sur la table ; celui qui perd peut jouer une carte « Dernier mot », l’autre peut répondre, jusqu’à ce que les deux passent.</li>
           <li><b>Comptes</b> : le gagnant donne au perdant autant de jetons que vaut sa combinaison, cartes comprises. Égalité parfaite : rien.</li>
-          <li><b>Fin de manche</b> : {R.handMax} cartes en main au plus (défausse au choix). Le perdant mène la manche suivante.</li>
+          <li><b>Fin de manche</b> : le perdant mène la manche suivante.</li>
         </ol>
       </section>
       <section>
@@ -196,7 +196,6 @@ export function RulesContent({ short }: { short?: boolean }) {
         <h3>Petits plus</h3>
         <ul>
           <li><b>Main de départ</b> : on pioche {R.startHand} cartes et on peut en renvoyer jusqu’à {R.mulligan} sous le deck pour en repiocher autant, une fois.</li>
-          <li><b>L’ardoise</b> : une fois par partie, empruntez {R.ardoiseLoan} Tournées tout de suite ; vous ne recevrez rien à la manche suivante.</li>
           <li><b>Deck vide</b> : on remélange sa défausse et on reçoit {R.reshufflePenalty} jeton.</li>
           <li><b>Temps</b> : {R.decisionSeconds} secondes par décision, plus une réserve de {R.reserveSeconds} secondes pour la partie.</li>
           <li><b>Le perdant se refait</b> : +1 Tournée au perdant de la manche précédente.</li>

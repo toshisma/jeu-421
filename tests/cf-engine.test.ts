@@ -144,26 +144,14 @@ describe('Coups Fourrés : déroulé', () => {
     expect(P(s, O).hand.some((k) => k.id === 'cul-sec')).toBe(true);
   });
 
-  it('main limitée à 7 en fin de manche (défausse au choix)', () => {
+  it('plus de limite de main ni d’ardoise (0.39, décision de Sam)', () => {
     let { s, L, O } = setup();
     for (let i = 0; i < 8; i++) give(s, O, 'domino');
+    const before = P(s, O).hand.length;
     s = quickRound(s, L, O, [6, 6, 6], [6, 3, 2]);
-    expect(s.phase).toBe('discard');
-    expect(waitingFor(s)).toEqual([O]);
-    s = act(s, O, legalActions(s, O)[0]);
     expect(s.phase).toBe('turn');
-    expect(P(s, O).hand.length).toBe(8); // 7 + la pioche de la nouvelle manche
-  });
-
-  it('l’ardoise : +3 Tournées tout de suite, rien à la manche suivante, une seule fois', () => {
-    let { s, L, O } = setup();
-    P(s, L).tournees = 1;
-    s = act(s, L, { type: 'ardoise' });
-    expect(P(s, L).tournees).toBe(4);
-    expect(legalActions(s, L).some((a) => a.type === 'ardoise')).toBe(false);
-    s = quickRound(s, L, O, [6, 3, 2], [2, 3, 6]);
-    expect(P(s, L).tournees).toBe(4); // rien reçu
-    expect(P(s, O).tournees).toBe(6);
+    expect(P(s, O).hand.length).toBe(before + 1); // rien à défausser, + la pioche de la nouvelle manche
+    expect(legalActions(s, s.order[0]).some((a) => a.type === 'ardoise')).toBe(false);
   });
 
   it('un piège non déclenché revient en main après 3 manches', () => {
@@ -341,6 +329,7 @@ describe('Coups Fourrés : les 34 cartes', () => {
     expect(legalActions(s, L).filter((a) => a.type === 'play' && a.card === u0).map((a) => (a as { target: string }).target)).toEqual([L, L, L]);
     s = act(s, L, stop);
     const u = give(s, O, 'de-sous-table');
+    give(s, O, 'tournee-patron'); // garde le tour ouvert après la carte (sinon la manche se termine aussitôt)
     s = act(s, O, roll(), [1, 2, 3]);
     s = act(s, O, play(u, { target: L, die: 0 }), [1]);
     expect(P(s, L).r.dice).toEqual([1, 6, 6]);
@@ -377,6 +366,7 @@ describe('Coups Fourrés : les 34 cartes', () => {
     s = act(s, L, roll(), [6, 6, 6]);
     s = act(s, L, stop);
     const u = give(s, O, 'tournee-generale');
+    give(s, O, 'tournee-patron'); // garde le tour ouvert après la carte
     s = act(s, O, roll(), [1, 2, 3]);
     s = act(s, O, play(u, { target: L }), [2, 2, 3, 4, 2, 5]);
     expect(P(s, L).r.dice).toEqual([2, 2, 3]);

@@ -87,7 +87,8 @@ export const CF_RULES = {
   maxLegendaryCopies: 1,
   startHand: 5,
   mulligan: 2,
-  handMax: 7,
+  /** Plus de limite de main (0.39, décision de Sam) : valeur haute, la défausse ne se déclenche jamais. */
+  handMax: 99,
   tourneesPerRound: 2,
   tourneesLoserBonus: 1,
   tourneesMax: 6,
@@ -96,7 +97,7 @@ export const CF_RULES = {
   maxHabitues: 3,
   /** Un piège non déclenché depuis ce nombre de manches revient en main. */
   trapReturnRounds: 3,
-  /** L'ardoise, une fois par partie : emprunter ces Tournées tout de suite, rien à la manche suivante. */
+  /** L'ardoise a été retirée (0.39, décision de Sam) ; réglage gardé pour les anciens états de partie. */
   ardoiseLoan: 3,
   /** Lancers par tour (le meneur fixe le maximum des autres). */
   maxThrows: 3,

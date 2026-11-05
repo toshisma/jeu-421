@@ -861,7 +861,6 @@ export function legalActions(s: CfState, pid: string): CfAction[] {
         if (jos.length > p.r.josianeUsed) for (const die of diceIdx) out.push({ type: 'josiane', card: jos[p.r.josianeUsed].uid, die });
       }
       for (const k of p.hand) for (const o of cardOptions(s, p, k, false)) out.push({ type: 'play', card: k.uid, ...o });
-      if (!p.ardoiseUsed && p.tournees < s.rules.tourneesMax) out.push({ type: 'ardoise' });
       return out;
     }
   }

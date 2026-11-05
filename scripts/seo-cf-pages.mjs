@@ -182,7 +182,7 @@ ${toc([['but', 'Le but'], ['mise-en-place', 'Mise en place'], ['manche', 'Une ma
 <li><b>Tour de l’autre joueur</b>, dans cette limite, en voyant le résultat du meneur.</li>
 <li><b>Dernier mot</b> : les deux combinaisons sont sur la table. Le joueur qui perd à ce moment peut jouer une carte « Dernier mot » ; l’autre peut répondre, et ainsi de suite jusqu’à ce que les deux passent.</li>
 <li><b>Comptes</b> : le gagnant donne au perdant autant de jetons que vaut sa combinaison, cartes comprises, sans plafond. En cas d’égalité parfaite, personne ne donne rien.</li>
-<li><b>Fin de manche</b> : ${R.handMax} cartes en main au plus (on défausse au choix). Le perdant devient le meneur de la manche suivante.</li>
+<li><b>Fin de manche</b> : le perdant devient le meneur de la manche suivante.</li>
 </ol>
 
 <h2 id="combinaisons">Les combinaisons</h2>
@@ -230,7 +230,6 @@ ${typesTable()}
 
 <h2 id="plus">Petits plus</h2>
 <ul>
-<li><b>L’ardoise</b> : une fois par partie, empruntez ${R.ardoiseLoan} Tournées tout de suite ; vous ne recevrez rien à la manche suivante.</li>
 <li><b>Le perdant se refait</b> : une Tournée de plus au perdant de la manche précédente, qui mène la suivante.</li>
 <li><b>Temps</b> : ${R.decisionSeconds} secondes par décision, plus une réserve de ${R.reserveSeconds} secondes pour toute la partie.</li>
 </ul>
@@ -257,7 +256,6 @@ ${typesTable()}
 
 <h2 id="lexique">Lexique</h2>
 <dl class="lexique">
-<dt>Ardoise</dt><dd>Une fois par partie : +${R.ardoiseLoan} Tournées tout de suite, mais aucune à la manche suivante.</dd>
 <dt>Booster</dt><dd>${BOOSTER.size} cartes tirées au pur hasard, pour ${BOOSTER.price} capsules. Une carte sur vingt sort brillante (sans effet en partie).</dd>
 <dt>Capsules</dt><dd>La monnaie du mode, gagnée en jouant (parties, missions du jour, ligue). Elle sert à ouvrir des boosters.</dd>
 <dt>Comptes</dt><dd>Fin de manche : le gagnant donne au perdant autant de jetons que vaut sa combinaison, cartes comprises.</dd>
