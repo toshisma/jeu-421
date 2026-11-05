@@ -99,6 +99,8 @@ export class CfOnline {
   hello: CfHelloMsg | null = null;
   queue: CfQueueMsg = { waiting: false, since: null, offer: false };
   table: CfTableMsg | null = null;
+  /** Tchat du salon d'attente de la table à code (avant le lancement). */
+  tableChat: CfChatMsg[] = [];
   /** Défis reçus en attente. */
   challenges: CfChallengeMsg[] = [];
   /** Dernier défi envoyé : sa réponse (« accepte », ou la raison du refus / de l'expiration). */
@@ -134,10 +136,14 @@ export class CfOnline {
       this.changed();
     });
     s.on('cf:notice', ({ text }: { text: string }) => { this.game?.notice(text); this.changed(); });
-    s.on('cf:chat', (m: CfChatMsg) => { this.game?.addChat(m); this.changed(); });
+    s.on('cf:chat', (m: CfChatMsg) => {
+      if (this.game) this.game.addChat(m);
+      else if (this.table) this.tableChat = [...this.tableChat.slice(-49), m];
+      this.changed();
+    });
     s.on('cf:emote', ({ playerId, emote }: { playerId: string; emote: string }) => this.game?.emote(playerId, emote));
     s.on('cf:queue', (q: CfQueueMsg) => { this.queue = q; this.changed(); });
-    s.on('cf:table', (t: CfTableMsg) => { this.table = t; this.changed(); });
+    s.on('cf:table', (t: CfTableMsg) => { if (this.table?.code !== t.code) this.tableChat = []; this.table = t; this.changed(); });
     s.on('cf:table:kicked', ({ text }: { text: string }) => { this.table = null; this.alert = text; this.changed(); });
     s.on('cf:challenge:incoming', (ch: CfChallengeMsg) => { this.challenges = [...this.challenges.filter((x) => x.id !== ch.id), ch]; this.changed(); });
     s.on('cf:challenge:closed', ({ id, reason }: { id: string; reason: string }) => {
@@ -215,7 +221,9 @@ export class CfOnline {
   /** L'hôte retire un joueur (par son pseudo) avant le départ. */
   async tableKick(account: string) { await this.send('cf:table:kick', { account }); }
   async tableStart() { await this.send('cf:table:start'); }
-  async tableLeave() { await this.call('cf:table:leave'); this.table = null; this.changed(); }
+  async tableLeave() { await this.call('cf:table:leave'); this.table = null; this.tableChat = []; this.changed(); }
+  /** Message dans le tchat du salon d'attente (même modération que le tchat de partie). */
+  tableSay(text: string) { return this.call('cf:chat', { text }); }
 
   // --- Partie ---
   /** Reprendre la partie en cours (après rechargement : voir `hello.game`). */
