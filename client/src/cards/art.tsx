@@ -706,7 +706,7 @@ const ART: Record<string, (g: G, u: U) => ReactNode> = {
     </>
   ),
 
-  // Le petit bol d'olives et ses cure-dents : la suite coûte moins cher.
+  // Le petit bol d'olives et ses cure-dents : la carte suivante est offerte (étiquette « 0 »).
   'mise-bouche': (g, u) => (
     <>
       <Radial g={g} u={u} c={['#7aa0ff', '#2c54c2', '#0b1840']} cx="45%" cy="50%" />
@@ -723,7 +723,7 @@ const ART: Record<string, (g: G, u: U) => ReactNode> = {
       <g transform="translate(176 40) rotate(14)">
         <path d="M-14 -12 L10 -12 L20 0 L10 12 L-14 12Z" fill="#e3c060" />
         <circle cx="10" cy="0" r="2.5" fill="#0b1840" />
-        <text x="-3" y="5" fontFamily={SLAB} fontSize="13" fill="#0b1840" textAnchor="middle">−2</text>
+        <text x="-3" y="5" fontFamily={SLAB} fontSize="15" fill="#0b1840" textAnchor="middle">0</text>
       </g>
       <Spark x={30} y={30} r={7} />
     </>

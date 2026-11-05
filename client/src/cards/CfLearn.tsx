@@ -84,7 +84,7 @@ export function CardsCatalogScreen({ onBack }: { onBack: () => void }) {
 const FAM_TEXT: Record<CardFamily, string> = {
   habitues: 'Des alliés qui s’installent pour 3 manches, des Tournées et de quoi annuler les petits coups.',
   ivresse: 'Des dés qui tournent : relancer, retourner, parier… et bousculer les dés adverses.',
-  pieges: 'Des pièges posés face cachée, qui se déclenchent tout seuls. Et la Fouine pour les débusquer.',
+  pieges: 'Des pièges posés face cachée, qui se déclenchent tout seuls. Et la Fouine pour les défausser.',
   chaines: 'Des cartes qui s’enchaînent : pioche, réductions, retouches de dés, ripostes de plus en plus fortes.',
 };
 
@@ -94,15 +94,15 @@ const FAM_TEXT: Record<CardFamily, string> = {
 const TIPS: { t: string; d: string }[] = [
   { t: 'Gardez une Riposte et de quoi la payer', d: 'Un « Ticket de caisse » (1 Tournée) ou une « Réaction en chaîne » (2) en main, avec les Tournées qui vont avec, fait réfléchir l’adversaire avant chaque gros coup.' },
   { t: 'Lisez les Tournées adverses', d: 'Elles sont visibles. Zéro Tournée : il ne peut presque rien jouer. Quatre ou plus : attention au Retournement de veste, au Bon numéro ou à la Tournée générale.' },
-  { t: 'Un piège posé juste avant un gros coup ? Méfiance', d: 'Si l’adversaire pose un piège pendant que vous tenez un 4-2-1, pensez au Faux 4-2-1. Une Fouine (gratuite) lève le doute ; 1 Tournée de plus et le piège part à la défausse.' },
-  { t: 'La Fouine n’est jamais perdue', d: 'Sans piège en face, elle pioche une carte. Avec un piège, elle vous le montre : vous jouez ensuite en connaissant le danger.' },
-  { t: 'Face à un Retournement de veste, visez plus bas', d: 'Il ne se déclenche que si vous deviez donner 5 jetons ou plus. Arrêtez-vous volontairement sur une combinaison qui vaut 4 ou moins : vous gagnez la manche sans vous faire retourner.' },
+  { t: 'Un piège posé juste avant un gros coup ? Méfiance', d: 'Si l’adversaire pose un piège pendant que vous tenez un 4-2-1, pensez au Faux 4-2-1. Une Fouine (gratuite) envoie le piège à la défausse et vous montre ce que c’était.' },
+  { t: 'La Fouine n’est jamais perdue', d: 'Sans piège en face, elle pioche une carte. Avec un piège, elle le défausse : vous voyez lequel, et le danger disparaît.' },
+  { t: 'Face à un Retournement de veste, visez plus bas', d: 'Il ne se déclenche que si vous deviez donner 6 jetons ou plus. Arrêtez-vous volontairement sur une combinaison qui vaut 5 ou moins : vous gagnez la manche sans vous faire retourner.' },
   { t: 'Le meneur fixe la limite', d: `Si vous menez avec une bonne combinaison, arrêtez-vous tôt : un seul lancer et l’autre n’aura qu’un lancer pour faire mieux (${CF_RULES.maxThrows} au plus).` },
   { t: 'Jouer en second a ses avantages', d: 'Vous voyez la combinaison à battre. « Le dé sous la table » et « Tournée générale » frappent les dés de l’adversaire s’il a fini son tour : c’est là qu’elles sont les plus fortes.' },
   { t: 'Le Dernier mot, c’est pour le perdant', d: 'Avant les comptes, celui qui perd parle en premier. « Recompter » (si vous avez déjà joué une carte dans la manche) peut transformer un 4-2-2 en 4-2-1.' },
   { t: 'Perdre une manche, c’est se refaire', d: `Le perdant mène la suivante et reçoit ${CF_RULES.tourneesPerRound + CF_RULES.tourneesLoserBonus} Tournées au lieu de ${CF_RULES.tourneesPerRound}. Une petite défaite n’est pas grave si elle prépare une grosse manche.` },
   { t: 'Les Habitués s’accumulent', d: `Jusqu’à ${CF_RULES.maxHabitues} en jeu, chacun pour ${CF_RULES.habitueRounds} manches. Le Vieux Marcel fait valoir vos suites 4, le Pilier adoucit vos défaites. Attention à « Fermeture ! » qui les chasse.` },
-  { t: 'Bluffez avec le Leurre', d: 'Il ne fait rien, mais l’adversaire voit un piège posé. Il hésitera, ou gaspillera une Fouine. Et s’il est découvert, vous piochez.' },
+  { t: 'Bluffez avec le Leurre', d: 'Il ne fait rien, mais l’adversaire voit un piège posé. Il hésitera, ou gaspillera une Fouine. Et s’il est défaussé, vous piochez.' },
 ];
 
 export function TipsScreen({ onBack }: { onBack: () => void }) {

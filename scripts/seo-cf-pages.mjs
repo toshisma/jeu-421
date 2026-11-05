@@ -15,7 +15,7 @@ const FAMS = ['habitues', 'ivresse', 'pieges', 'chaines'];
 const FAM_TEXT = {
   habitues: 'Des alliés qui s’installent pour 3 manches (les Habitués), des Tournées en plus et de quoi annuler les petits coups adverses.',
   ivresse: 'Des dés qui tournent : relancer, retourner un dé, parier… et bousculer les dés de l’adversaire.',
-  pieges: 'Des pièges posés face cachée, qui se déclenchent tout seuls chez l’adversaire. Et la Fouine pour les débusquer.',
+  pieges: 'Des pièges posés face cachée, qui se déclenchent tout seuls chez l’adversaire. Et la Fouine pour les défausser.',
   chaines: 'Des cartes qui s’enchaînent : pioche, réductions, retouches de dés, ripostes de plus en plus fortes.',
 };
 const WHEN = {
@@ -48,7 +48,7 @@ const typesTable = () => `<div class="table-wrap"><table>
 <tbody>
 <tr><td><b>Coup</b></td><td>${WHEN.coup}</td><td>« Cul sec » : un lancer de plus ce tour.</td></tr>
 <tr><td><b>Piège</b></td><td>${WHEN.piege}</td><td>« Faux 4-2-1 » : le 4-2-1 adverse ne vaut plus que 2.</td></tr>
-<tr><td><b>Riposte</b></td><td>${WHEN.riposte} En chaîne, la dernière posée s’applique la première.</td><td>« Ticket de caisse » : annule un Coup qui coûte 2 ou moins.</td></tr>
+<tr><td><b>Riposte</b></td><td>${WHEN.riposte} En chaîne, la dernière posée s’applique la première.</td><td>« Ticket de caisse » : annule un Coup qui coûte 3 ou moins.</td></tr>
 <tr><td><b>Dernier mot</b></td><td>${WHEN['dernier-mot']}</td><td>« La note est salée » : le perdant reçoit 2 jetons de plus.</td></tr>
 <tr><td><b>Habitué</b></td><td>${WHEN.habitue} ${R.maxHabitues} au plus.</td><td>« Le Vieux Marcel » : vos suites valent 4 au lieu de 2.</td></tr>
 </tbody></table></div>`;
@@ -63,7 +63,7 @@ export const cfPages = [
   {
     slug: 'coups-fourres', nav: 'Coups Fourrés', short: 'Coups Fourrés, le 421 aux cartes',
     blurb: 'Le mode cartes du 421 : dés, deck de 20 cartes, pièges et bluff. Gratuit.',
-    published: '2026-11-05', updated: '2026-11-05', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
+    published: '2026-11-05', updated: '2026-11-06', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
     title: 'Coups Fourrés : jeu de cartes et de dés gratuit en ligne',
     description: 'Coups Fourrés, le 421 aux cartes : un duel de dés, de stratégie et de bluff avec 34 cartes à collectionner. Gratuit, dans le navigateur, sans téléchargement.',
     h1: 'Coups Fourrés, le 421 aux cartes',
@@ -157,7 +157,7 @@ ${play('Jouer gratuitement à Coups Fourrés', 'Dans le navigateur, sans téléc
   {
     slug: 'regles-coups-fourres', nav: 'Règles CF', short: 'Règles de Coups Fourrés', parent: 'coups-fourres',
     blurb: 'Manche, Tournées, types de cartes, pièges, partie à 3 ou 4, lexique.',
-    published: '2026-11-05', updated: '2026-11-05', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
+    published: '2026-11-05', updated: '2026-11-06', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
     title: 'Règles de Coups Fourrés : manche, Tournées, cartes et lexique',
     description: 'Les règles de Coups Fourrés, le 421 aux cartes : déroulé d’une manche, combinaisons, Tournées, types de cartes, pièges, parties à 3 ou 4 et lexique.',
     h1: 'Les règles de Coups Fourrés',
@@ -200,7 +200,7 @@ ${toc([['but', 'Le but'], ['mise-en-place', 'Mise en place'], ['manche', 'Une ma
 <p>Le classement détaillé et les probabilités de chaque combinaison sont sur la page <a href="/combinaisons-du-421">combinaisons du 421</a>.</p>
 
 <h2 id="tournees">Les Tournées</h2>
-<p>Les Tournées paient les cartes : le chiffre dans la pastille dorée de chaque carte est son coût. On en reçoit à chaque service, certaines cartes en donnent (« Tournée du patron » : +2), d’autres en font perdre à l’adversaire (« Domino »). Les Tournées de chaque joueur sont <b>visibles de tous</b> : un adversaire à zéro Tournée ne peut presque rien jouer, un adversaire à quatre ou plus peut préparer un gros coup.</p>
+<p>Les Tournées paient les cartes : le chiffre dans la pastille dorée de chaque carte est son coût. On en reçoit à chaque service, certaines cartes en donnent (« Tournée du patron » : +2), d’autres font perdre toutes les siennes à l’adversaire (« Domino »). Les Tournées de chaque joueur sont <b>visibles de tous</b> : un adversaire à zéro Tournée ne peut presque rien jouer, un adversaire à quatre ou plus peut préparer un gros coup.</p>
 
 <h2 id="types">Les types de cartes</h2>
 ${typesTable()}
@@ -248,9 +248,9 @@ ${typesTable()}
 <ul>
 <li><b>Gardez une Riposte et de quoi la payer.</b> Un « Ticket de caisse » (1 Tournée) en main fait réfléchir l’adversaire avant chaque petit coup.</li>
 <li><b>Lisez les Tournées adverses.</b> Quatre ou plus : méfiez-vous du « Retournement de veste », du « Bon numéro » ou de la « Tournée générale ».</li>
-<li><b>Face à un Retournement de veste, visez plus bas.</b> Il ne se déclenche que si vous deviez donner 4 jetons ou plus : arrêtez-vous sur une combinaison qui vaut 3 ou moins.</li>
+<li><b>Face à un Retournement de veste, visez plus bas.</b> Il ne se déclenche que si vous deviez donner 6 jetons ou plus : arrêtez-vous sur une combinaison qui vaut 5 ou moins.</li>
 <li><b>Meneur avec une bonne combinaison ?</b> Arrêtez-vous tôt : l’autre joueur n’aura pas plus de lancers que vous.</li>
-<li><b>Bluffez avec le Leurre.</b> Il ne fait rien, mais l’adversaire voit un piège posé… et s’il le découvre, vous piochez.</li>
+<li><b>Bluffez avec le Leurre.</b> Il ne fait rien, mais l’adversaire voit un piège posé… et s’il le défausse, vous piochez.</li>
 </ul>
 <p>D’autres conseils sont dans le jeu, rubrique « Apprendre ». Pour le choix des dés eux-mêmes, la <a href="/strategie-421">stratégie du 421</a> s’applique telle quelle.</p>
 
@@ -274,7 +274,7 @@ ${play('Essayer Coups Fourrés', 'La partie guidée applique ces règles pas à 
       ['Combien de jetons au départ à Coups Fourrés ?', `${R.startTokens} jetons chacun en duel, ${R.startTokensMulti} à 3 ou 4 joueurs. Le premier à n’en avoir plus aucun gagne.`],
       ['Combien de cartes dans un deck ?', `Exactement ${R.deckSize}, avec ${R.maxCopies} exemplaires au plus de chaque carte et une seule carte légendaire de chaque.`],
       ['Qu’est-ce qu’une Tournée ?', `La monnaie de la partie, qui paie les cartes. On en reçoit ${R.tourneesPerRound} par manche (${R.tourneesPerRound + R.tourneesLoserBonus} après une manche perdue), et on peut en garder ${R.tourneesMax} au plus.`],
-      ['Peut-on voir les pièges de l’adversaire ?', 'On voit combien il en a posé, pas lesquels. La carte « Fouine » permet d’en regarder un, et de le défausser pour 1 Tournée.'],
+      ['Peut-on voir les pièges de l’adversaire ?', 'On voit combien il en a posé, pas lesquels. La carte « Fouine » en défausse un, et vous découvrez lequel c’était.'],
       ['Que se passe-t-il en cas d’égalité ?', 'Si les deux combinaisons sont exactement égales, personne ne donne de jetons.'],
     ],
     related: ['coups-fourres', 'cartes-coups-fourres', 'regles-du-421'],
@@ -283,7 +283,7 @@ ${play('Essayer Coups Fourrés', 'La partie guidée applique ces règles pas à 
   {
     slug: 'cartes-coups-fourres', nav: 'Cartes', short: 'Les cartes de Coups Fourrés', parent: 'coups-fourres',
     blurb: `Les ${CARDS.length} cartes illustrées, leur effet, leur coût et leur rareté.`,
-    published: '2026-11-05', updated: '2026-11-05', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
+    published: '2026-11-05', updated: '2026-11-06', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
     title: `Les ${CARDS.length} cartes de Coups Fourrés : familles, effets et raretés`,
     description: `Toutes les cartes de Coups Fourrés, jeu de cartes à collectionner gratuit autour du 421 : ${CARDS.length} cartes illustrées en 4 familles, avec effet, coût et rareté.`,
     h1: `Les ${CARDS.length} cartes de Coups Fourrés`,

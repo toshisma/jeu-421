@@ -1,12 +1,14 @@
 /** Coups Fourrés : catalogue du premier set et decks de départ. */
 import { describe, expect, it } from 'vitest';
-import { CARDS, STARTER_DECKS, deckProblems, BOOSTER } from '../shared/cards/catalog';
+import { CARDS, CF_RULES, STARTER_DECKS, deckProblems, BOOSTER } from '../shared/cards/catalog';
 
 describe('catalogue Coups Fourrés', () => {
-  it('34 cartes, identifiants uniques, coûts de 0 à 4', () => {
+  it('34 cartes, identifiants uniques, coûts de 0 à 5 (toujours payables avec la réserve de Tournées)', () => {
     expect(CARDS).toHaveLength(34);
     expect(new Set(CARDS.map((c) => c.id)).size).toBe(34);
-    for (const c of CARDS) { expect(c.cost).toBeGreaterThanOrEqual(0); expect(c.cost).toBeLessThanOrEqual(4); }
+    for (const c of CARDS) { expect(c.cost).toBeGreaterThanOrEqual(0); expect(c.cost).toBeLessThanOrEqual(5); expect(c.cost).toBeLessThanOrEqual(CF_RULES.tourneesMax); }
+    // 5 Tournées : seulement la légendaire Retournement de veste.
+    expect(CARDS.filter((c) => c.cost > 4).map((c) => c.id)).toEqual(['retournement-veste']);
   });
   it('decks de départ valides, sans légendaire', () => {
     for (const d of STARTER_DECKS) {
