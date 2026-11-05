@@ -3413,3 +3413,92 @@ button.cf-banner { cursor: pointer; }
 .cf-guide p { margin: 0; font: 500 14px/1.38 var(--font); color: #fff; }
 .cf-guide .cf-btn { align-self: flex-end; width: auto; min-height: 38px; padding: 0 16px; }
 .cf-focus { outline: 2.5px solid var(--cf-gold); outline-offset: 2px; animation: pulse 1.4s ease-in-out infinite; }
+
+/* Coups Fourrés : tournoi et statistiques */
+.cf-tour-card { flex: none; display: flex; align-items: center; gap: 11px; width: 100%; min-width: 0; padding: 10px 12px; border-radius: 14px; cursor: pointer; text-align: left; color: #fbf6e9;
+  background: linear-gradient(180deg, #4a2f6e, #2a1848); border: 1.5px solid rgba(241,204,125,0.6); box-shadow: 0 4px 0 #120a20, inset 0 1px 0 rgba(255,255,255,0.12); }
+.cf-tour-card:active { transform: translateY(2px); }
+.cf-tour-ic { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 12px; color: #2a1a05; background: linear-gradient(180deg, #e7c160, #b8892c); box-shadow: inset 0 0 0 1.5px #ffe6a3; }
+.cf-tour-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cf-tour-text b { font: 800 18px/1.05 var(--cond); }
+.cf-tour-text small { font: 600 12px/1.2 var(--font); color: var(--cf-lilac); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-tour-card em { flex: none; font: 700 12px/1 var(--font); font-style: normal; padding: 7px 10px; border-radius: 999px; background: rgba(255,255,255,0.12); color: #fbf6e9; white-space: nowrap; }
+.cf-tour-card em.gold { background: var(--cf-gold); color: #2a1a05; }
+.cf-tour-card em.ok { background: rgba(127,224,178,0.18); color: #9ff0c8; }
+.cf-tour-card em.live { background: #e04a3a; color: #fff; animation: cf-tour-pulse 1.6s ease-in-out infinite; }
+@keyframes cf-tour-pulse { 50% { box-shadow: 0 0 0 4px rgba(224,74,58,0.25); } }
+@media (prefers-reduced-motion: reduce) { .cf-tour-card em.live { animation: none; } }
+
+.cf-tour-hero { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 12px; border-radius: 16px; text-align: center;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(241,204,125,0.18), rgba(0,0,0,0.3)); border: 1px solid rgba(241,204,125,0.35); }
+.cf-tour-hero > small { font: 700 12px/1 var(--font); text-transform: uppercase; letter-spacing: 0.08em; color: var(--cf-lilac); }
+.cf-tour-clock { display: inline-flex; align-items: center; gap: 8px; font: 400 30px/1.1 'Alfa Slab One', Rockwell, serif; color: var(--cf-gold); text-shadow: 0 2px 0 #120a20; font-variant-numeric: tabular-nums; max-width: 100%; overflow-wrap: anywhere; }
+.cf-tour-clock.champ { font-size: 24px; }
+.cf-tour-reason { font: 600 14px/1.35 var(--font); color: #ffd0c8; }
+.cf-tour-stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; font: 500 13px/1.3 var(--font); color: var(--cf-lilac); }
+.cf-tour-stats b { color: #fbf6e9; font-weight: 800; }
+.cf-tour-next { margin: 0; font: 500 12.5px/1.3 var(--font); color: var(--cf-mauve); }
+.cf-tour-actions { display: flex; flex-direction: column; gap: 9px; }
+.cf-tour-me { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: 12px; background: rgba(0,0,0,0.28); font: 500 13.5px/1.35 var(--font); color: var(--cf-lilac); }
+.cf-tour-me.ok { color: #d9f6e7; background: rgba(63,191,138,0.14); border: 1px solid rgba(127,224,178,0.35); }
+.cf-tour-me .ico { flex: none; margin-top: 1px; }
+.cf-tour-rounds { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+.cf-tour-rounds button { flex: none; }
+.cf-tour-bracket { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cf-tm-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cf-tm { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 10px; border-radius: 12px; background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.08); }
+.cf-tm.mine { border-color: var(--cf-gold); background: rgba(241,204,125,0.1); }
+.cf-tm.live { box-shadow: inset 3px 0 0 #e04a3a; }
+.cf-tm-players { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cf-tm-row { display: flex; align-items: center; gap: 8px; min-width: 0; color: #fbf6e9; }
+.cf-tm-row b { flex: 1; min-width: 0; font: 700 14.5px/1.2 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-tm-row.win b { color: var(--cf-gold); }
+.cf-tm-row.win .ico { color: #7fe0b2; flex: none; }
+.cf-tm-row.lose { opacity: 0.55; }
+.cf-tm-face { width: 26px; height: 26px; flex: none; display: grid; place-items: center; border-radius: 50%; font: 800 11px/1 var(--cond); font-style: normal; background: linear-gradient(135deg, #5a3b85, #2a1848); color: #fbf6e9; }
+.cf-tm-face.empty { background: rgba(255,255,255,0.08); color: var(--cf-mauve); }
+.cf-tm-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; max-width: 46%; }
+.cf-tm-side small { font: 600 11.5px/1.2 var(--font); color: var(--cf-lilac); text-align: right; }
+.cf-tm.live .cf-tm-side small { color: #ffb4a8; }
+.cf-tour-info { display: flex; flex-direction: column; gap: 8px; }
+.cf-tour-info h3 { margin: 6px 0 0; font: 800 18px/1.1 var(--cond); color: #fbf6e9; }
+.cf-tour-h { display: flex; align-items: center; gap: 8px; }
+.cf-tour-prizes { display: flex; flex-direction: column; gap: 6px; }
+.cf-tour-prizes > div { display: flex; align-items: center; justify-content: space-between; gap: 4px 10px; flex-wrap: wrap; padding: 9px 10px; border-radius: 12px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); font: 500 12.5px/1.3 var(--font); color: var(--cf-lilac); }
+.cf-tour-prizes > div.on { border-color: var(--cf-gold); background: rgba(241,204,125,0.1); }
+.cf-tour-prizes > div > small { font-weight: 700; color: #fbf6e9; }
+.cf-tour-prizes > div > span { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.cf-tour-prize { white-space: nowrap; }
+.cf-tour-prizes b { color: var(--cf-gold); }
+.cf-tour-rules { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font: 500 13px/1.4 var(--font); color: var(--cf-lilac); }
+
+/* Administration : statistiques des cartes */
+.cf-adm { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.cf-adm .seg { align-self: flex-start; max-width: 100%; }
+.cf-adm-sort { margin-bottom: 10px; }
+.cf-adm-warn { margin: 0; padding: 10px 12px; border-radius: 10px; background: rgba(224,160,58,0.15); border: 1px solid rgba(241,204,125,0.4); color: #ffe2a8; font-size: 0.875rem; }
+.cf-adm-table th .cf-fam { font-size: 12px; }
+.cf-adm-table td.up, .cf-adm-nums .up b { color: #ff9f8f; }
+.cf-adm-table td.down, .cf-adm-nums .down b { color: #8fc4ff; }
+.cf-adm-table tr.small td { opacity: 0.55; }
+.cf-adm-cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cf-adm-cards > li { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 6px 10px; align-items: center; padding: 8px; border-radius: 12px; background: var(--ardoise-2, rgba(255,255,255,0.05)); border: 1px solid transparent; min-width: 0; }
+.cf-adm-cards > li.is-forte { border-color: rgba(255,120,100,0.6); }
+.cf-adm-cards > li.is-faible { border-color: rgba(110,170,255,0.6); }
+.cf-adm-cards > li.small { opacity: 0.6; }
+.cf-adm-art { width: 64px; height: 37px; border-radius: 6px; overflow: hidden; display: block; background: linear-gradient(160deg, var(--cf-c1), var(--cf-c2)); box-shadow: inset 0 0 0 1.5px var(--cf-edge); }
+.cf-adm-art svg { width: 100%; height: 100%; display: block; }
+.cf-adm-name { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cf-adm-name b { font-weight: 700; overflow-wrap: anywhere; }
+.cf-adm-name small { color: var(--texte-3); font-size: 0.75rem; }
+.cf-adm-name em { align-self: flex-start; font-style: normal; font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: rgba(255,120,100,0.18); color: #ffb4a8; }
+.cf-adm-cards > li.is-faible .cf-adm-name em { background: rgba(110,170,255,0.18); color: #b4d4ff; }
+.cf-adm-name em.warn { background: rgba(241,204,125,0.15); color: #ffe2a8; }
+.cf-adm-nums { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; font-variant-numeric: tabular-nums; }
+.cf-adm-nums > span { display: flex; flex-direction: column; padding: 4px 6px; border-radius: 6px; background: rgba(0,0,0,0.18); min-width: 0; }
+.cf-adm-nums small { font-size: 0.6875rem; color: var(--texte-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-adm-nums b { font-size: 0.9375rem; }
+@media (min-width: 760px) {
+  .cf-adm-cards > li { grid-template-columns: 72px minmax(160px, 1fr) minmax(0, 2.2fr); }
+  .cf-adm-nums { grid-column: auto; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}

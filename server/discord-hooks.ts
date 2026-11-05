@@ -3,7 +3,8 @@
  * créé dans Discord : Paramètres du salon → Intégrations → Webhooks).
  *
  *   DISCORD_WEBHOOK_ANNONCES  nouveautés du jeu (journal shared/changelog.ts), postées après chaque mise à jour
- *   DISCORD_WEBHOOK_TOURNOIS  tournois de 11 h et 21 h : 30 minutes avant, ouverture du salon, départ ou annulation, vainqueur
+ *   DISCORD_WEBHOOK_TOURNOIS  tournois de 11 h et 21 h : 30 minutes avant, ouverture du salon, départ ou annulation, vainqueur ;
+ *                             tournoi Coups Fourrés du samedi (20 h 30) : 1 heure avant, ouverture du salon, annulation, vainqueur
  *
  * Sans ces variables, rien n'est envoyé. Chaque annonce est notée en base (table meta) : jamais deux fois,
  * même après un redémarrage du serveur. Un échec d'envoi ne gêne jamais le jeu.
@@ -30,6 +31,13 @@ export type TournamentEvent =
   | { kind: 'depart'; slotId: string; hour: number; players: number; prizes: number[] }
   | { kind: 'annule'; slotId: string; hour: number; players: number }
   | { kind: 'fin'; slotId: string; hour: number; podium: string[]; bags: number };
+
+/** Tournoi Coups Fourrés du samedi (salon à 20 h 30, départ à 20 h 40). */
+export type CfTournamentEvent =
+  | { kind: 'bientot'; id: string; registered: number }
+  | { kind: 'salon'; id: string; registered: number }
+  | { kind: 'annule'; id: string; players: number }
+  | { kind: 'fin'; id: string; players: number; podium: string[]; boosters: number };
 
 /** Texte Discord sans mentions ni mise en forme involontaire (pseudos des joueurs). */
 const safe = (s: string) => s.replace(/[\\*_~`|>#@[\]()]/g, (c) => `\\${c}`).slice(0, 40);
@@ -72,6 +80,29 @@ export function tournamentEmbed(ev: TournamentEvent): Embed {
   }
 }
 
+const VIOLET = 0x5a3b85;
+export function cfTournamentEmbed(ev: CfTournamentEvent): Embed {
+  const link = `${SITE}/?cf-tournoi=1`;
+  switch (ev.kind) {
+    case 'bientot': return {
+      title: '🃏 Tournoi Coups Fourrés ce soir à 20 h 30', url: link, color: VIOLET,
+      description: `Élimination directe en duels, inscription gratuite. ${ev.registered ? `${plural(ev.registered, 'joueur')} déjà ${ev.registered > 1 ? 'inscrits' : 'inscrit'}.` : 'Personne n’est encore inscrit : prenez la première place !'} Il faut au moins 4 joueurs.\nDes boosters pour le vainqueur, le finaliste et les demi-finalistes.\n👉 ${link}`,
+    };
+    case 'salon': return {
+      title: '🔔 Le salon du tournoi Coups Fourrés est ouvert', url: link, color: VIOLET,
+      description: `Départ à 20 h 40, ${plural(ev.registered, 'inscrit')} pour l’instant. Il est encore temps de s’inscrire !\n👉 ${link}`,
+    };
+    case 'annule': return {
+      title: 'Tournoi Coups Fourrés annulé', color: RED,
+      description: `${plural(ev.players, 'joueur')} au départ, il en fallait 4. Rendez-vous samedi prochain !`,
+    };
+    case 'fin': return {
+      title: `🥇 ${safe(ev.podium[0] ?? '?')} remporte le tournoi Coups Fourrés !`, url: link, color: GOLD,
+      description: [`${ev.players} joueurs au départ.${ev.boosters ? ` ${plural(ev.boosters, 'booster')} pour le vainqueur.` : ''}`, ev.podium[1] ? `🥈 ${safe(ev.podium[1])}` : ''].filter(Boolean).join('\n'),
+    };
+  }
+}
+
 async function realSend(url: string, body: unknown) {
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) throw new Error(`Discord ${r.status}`);
@@ -106,6 +137,10 @@ export function createDiscordHooks(d: HookDeps) {
     },
     tournament(ev: TournamentEvent) {
       return post('tournois', `discord:sched:${ev.slotId}:${ev.kind}`, [tournamentEmbed(ev)]);
+    },
+    /** Tournoi Coups Fourrés du samedi (même salon Discord que les tournois du 421 classique). */
+    cfTournament(ev: CfTournamentEvent) {
+      return post('tournois', `discord:cf:${ev.id}:${ev.kind}`, [cfTournamentEmbed(ev)]);
     },
   };
 }
