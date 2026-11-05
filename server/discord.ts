@@ -4,8 +4,8 @@
  * (OAuth2, droits « identify » et « guilds ») : on lit la liste des serveurs du joueur et on y cherche
  * celui du jeu. Un même compte Discord ne peut servir qu'à un seul compte du jeu.
  *
- * Variables d'environnement (sans elles, le bouton n'apparaît pas) :
- *   DISCORD_INVITE         lien d'invitation (https://discord.gg/…)
+ * Variables d'environnement (sans les trois dernières, seul le lien d'invitation est proposé, sans sac) :
+ *   DISCORD_INVITE         lien d'invitation (par défaut : celui du serveur officiel, DEFAULT_INVITE)
  *   DISCORD_GUILD_ID       identifiant du serveur
  *   DISCORD_CLIENT_ID      application Discord (portail développeur)
  *   DISCORD_CLIENT_SECRET
@@ -28,8 +28,11 @@ interface Ctx {
   env?: Record<string, string | undefined>;
 }
 
+/** Lien d'invitation définitif du serveur officiel (n'expire pas). */
+export const DEFAULT_INVITE = 'https://discord.gg/8ERasAKx9W';
+
 export function discordConfig(env: Record<string, string | undefined> = process.env) {
-  const invite = env.DISCORD_INVITE?.trim() || '';
+  const invite = env.DISCORD_INVITE?.trim() || DEFAULT_INVITE;
   const guild = env.DISCORD_GUILD_ID?.trim() || '';
   const clientId = env.DISCORD_CLIENT_ID?.trim() || '';
   const secret = env.DISCORD_CLIENT_SECRET?.trim() || '';

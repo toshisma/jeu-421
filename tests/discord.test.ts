@@ -54,3 +54,10 @@ describe('Discord', () => {
     expect(await verify(c, 'd2:G421')).toBe('/?discord=ok');
   });
 });
+
+describe('Discord sans configuration', () => {
+  it('lien officiel proposé, vérification désactivée', async () => {
+    const { discordConfig, DEFAULT_INVITE } = await import('../server/discord');
+    expect(discordConfig({})).toMatchObject({ invite: DEFAULT_INVITE, verify: false });
+  });
+});
