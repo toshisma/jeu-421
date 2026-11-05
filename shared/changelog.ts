@@ -7,6 +7,16 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.32', date: '2026-11-05T08:50:00+01:00', title: 'Dés de collection et 4-2-1 en fête', items: [
+    'Tous les dés de collection refaits, communs compris : chaque dé a sa matière en relief (écailles, métal gravé, nébuleuse, lave, résine…). Plus le dé est rare, plus il brille et scintille.',
+    'Les versions brillantes ont un reflet irisé et des étincelles.',
+    'Traînées plus belles : un ruban derrière chaque dé, avec flammes, étoiles, bulles ou confettis selon l’effet.',
+    'Les 6 célébrations du 4-2-1 se jouent dans le bac : onde dorée, confettis, ballons, éclair, pluie de pièces et feu d’artifice.',
+    'Collection : un bouton « Essayer dans le bac » pour tester vos effets.',
+    'Accueil plus clair : le jeu en ligne mis en avant, une rangée « Événements » et vos récompenses sur une étagère.',
+    'En partie : des cartes de joueurs plus aérées et un panneau en bas qui montre qui joue, les lancers restants et ce qu’il faut faire.',
+    'Nouveaux guides : stratégie du 421, jeux de dés, jeux entre amis à distance, jeu multijoueur sur navigateur.',
+  ] },
   { version: '0.31', date: '2026-11-04T23:25:00+01:00', title: 'Plus rapide, plus clair', items: [
     'Le jeu s’ouvre beaucoup plus vite, surtout sur téléphone.',
     'Tous les écrans refaits dans le style du nouvel accueil : jouer en ligne, partie solo, profil, réglages, classement, amis, messages, club, défis, pass…',
