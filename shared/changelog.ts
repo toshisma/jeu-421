@@ -7,6 +7,12 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.34', date: '2026-11-05T11:00:00+01:00', title: 'Un comptoir bien tenu', items: [
+    'Signaler un joueur depuis son profil, ou un message avec le bouton « ⋯ » (messages privés, tchat de table, de salon et de club) : choisissez la raison, ajoutez un commentaire si vous le souhaitez.',
+    'Une équipe de modération traite les signalements. Si une sanction est prise, vous en êtes remercié par une notification.',
+    'Discord : une pastille vous rappelle le sac de dés à récupérer en rejoignant le serveur.',
+    'Les nouveautés et les tournois de 11 h et 21 h sont annoncés sur le Discord du jeu.',
+  ] },
   { version: '0.33', date: '2026-11-05T09:40:00+01:00', title: 'Le comptoir sur Discord', items: [
     'Le jeu a son serveur Discord : menu « Plus » → « Discord du jeu ». Discutez, trouvez des partenaires, suivez les tournois et proposez vos idées.',
     'Un sac de dés offert aux joueurs avec un compte qui rejoignent le Discord, une fois la vérification faite (une fois par compte).',
