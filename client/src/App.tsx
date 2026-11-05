@@ -1,5 +1,4 @@
 import { api } from './account/api';
-import { music } from './audio/music';
 import { ChangelogScreen } from './ui/Changelog';
 import { FriendOnlineToast, FriendsScreen, InviteBanner } from './ui/Friends';
 import { Suspense, useEffect, useRef, useMemo, useState } from 'react';
@@ -151,15 +150,6 @@ export function App() {
 
   const setSettings = (s: Settings) => { setSettingsState(s); saveSettings(s); };
   useEffect(() => { sound.configure({ volume: settings.volume, muted: settings.muted }); }, [settings.volume, settings.muted]);
-  // Musique d'ambiance : démarre au premier geste, se met en pause quand l'onglet est caché.
-  useEffect(() => { music.setVolume(settings.muted ? 0 : settings.music); }, [settings.music, settings.muted]);
-  useEffect(() => {
-    const go = () => music.unlock();
-    const vis = () => music.pause(document.visibilityState !== 'visible');
-    window.addEventListener('pointerdown', go); window.addEventListener('keydown', go);
-    document.addEventListener('visibilitychange', vis);
-    return () => { window.removeEventListener('pointerdown', go); window.removeEventListener('keydown', go); document.removeEventListener('visibilitychange', vis); };
-  }, []);
   useEffect(() => { setHaptics(settings.vibrate); }, [settings.vibrate]);
   // Présence (statistiques publiques) : seulement avec un serveur.
   useEffect(() => { if (!STANDALONE) startPresence(); }, []);

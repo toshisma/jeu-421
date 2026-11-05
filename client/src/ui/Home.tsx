@@ -23,7 +23,7 @@ import { ReferralCard, useReferral } from './Referral';
 import { FriendsButton, NewsTicker, OpenLobbies } from './Friends';
 import { NotifBell, NotifPanel, useNotifications } from './Social';
 import { InstallPrompt } from './InstallPrompt';
-import { MusicControl, VolumeControl } from './VolumeControl';
+import { VolumeControl } from './VolumeControl';
 import { DiceTray, type DiceTrayHandle } from './DiceTray';
 import { changelogUnseen } from './Changelog';
 import { STANDALONE } from './Screens';
@@ -179,7 +179,7 @@ function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void; o
   const pick = (go: () => void) => { p.onClose(); go(); };
   return (
     <Sheet title="Tout le comptoir" onClose={p.onClose}>
-      <div className="plus-audio"><span>Son</span><MusicControl settings={p.settings} onSettings={p.onChangeSettings} /><VolumeControl settings={p.settings} onSettings={p.onChangeSettings} /><InstallPrompt compact /></div>
+      <div className="plus-audio"><span>Son</span><VolumeControl settings={p.settings} onSettings={p.onChangeSettings} /><InstallPrompt compact /></div>
       <label className="plus-search"><Icon name="search" size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher : règles, réglages, club…" aria-label="Chercher dans le menu" /></label>
       {groups.map((g) => {
         const items = g.items.filter((i) => i.show !== false && (!nq || norm(`${i.label} ${i.keys ?? ''}`).includes(nq)));
