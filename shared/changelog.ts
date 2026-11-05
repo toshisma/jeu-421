@@ -7,6 +7,13 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.36', date: '2026-11-05T15:35:00+01:00', title: 'Partie rapide et tournoi du samedi', items: [
+    'Partie rapide : un bouton sur l’accueil vous place tout de suite à une table. Si personne n’arrive, l’ordinateur complète la table (sans mise ni classement), et un vrai joueur qui arrive prend sa place.',
+    'Défi du jour à partager : une petite grille de votre résultat à envoyer à vos amis, sans dévoiler la solution.',
+    'Coups Fourrés : tournoi gratuit chaque samedi (salon à 20 h 30), à élimination directe, avec des boosters à gagner.',
+    'Coups Fourrés : section « Bien débuter » (règles illustrées, les 34 cartes, conseils de stratégie, lexique), tchat dans le salon des tables, réglages accessibles depuis le mode. Le mode passe en « Bêta » : un écran de partie plus clair arrive bientôt.',
+    'La musique d’ambiance est retirée ; les bruitages restent.',
+  ] },
   { version: '0.35', date: '2026-11-05T15:05:00+01:00', title: 'Nouveau mode : Coups Fourrés', items: [
     'Coups Fourrés, le 421 aux cartes : un vrai jeu de stratégie et de fouine, avec 34 cartes illustrées en quatre familles (Habitués, Ivresse, Pièges, Chaînes). Touchez la tuile « Coups Fourrés » sur l’accueil.',
     'Construisez vos decks de 20 cartes, ouvrez des boosters et complétez votre collection. À la découverte du mode : 2 decks de départ et 3 boosters offerts.',

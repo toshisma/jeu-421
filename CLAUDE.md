@@ -39,9 +39,9 @@ Tout le texte du jeu est **en français** (vouvoiement côté joueurs). Réponds
 | Salon et partie en ligne | `client/src/ui/OnlineFlow.tsx`, `client/src/game/online.ts` |
 | Amis, salons ouverts, historiques, fil d'actualité | `client/src/ui/Friends.tsx` |
 | Collection et ouverture de sacs | `client/src/ui/DiceCollection.tsx` |
-| Sons (synthétisés) / musique lofi (synthétisée) | `client/src/audio/sound.ts`, `client/src/audio/music.ts` |
+| Sons (synthétisés) — plus de musique d'ambiance (retirée à la demande de Sam) | `client/src/audio/sound.ts` |
 | Styles (un seul fichier) | `client/src/styles.css` |
-| Coups Fourrés (mode cartes) | `shared/cards/` (catalog = cartes et réglages, engine = règles, ai, botmatch = parties contre l'ordinateur rejouables, autodeck, progress, protocol), `server/cards.ts` (collection, decks, capsules, boosters, ligue, missions), `server/cards-online.ts` (en ligne, classé, présence), `client/src/cards/` (écrans, cartes, art.tsx = illustrations, local.ts / online.ts = contrôleurs) ; simulations : `npx tsx scripts/cf-simulate.ts --games 20000` |
+| Coups Fourrés (mode cartes) | `shared/cards/` (catalog = cartes et réglages, engine = règles, ai, botmatch = parties contre l'ordinateur rejouables, autodeck, progress, protocol), `server/cards.ts` (collection, decks, capsules, boosters, ligue, missions), `server/cards-online.ts` (en ligne, classé, présence), `client/src/cards/` (écrans, cartes, art.tsx = illustrations, local.ts / online.ts = contrôleurs) ; simulations : `npx tsx scripts/cf-simulate.ts --games 20000` ; tournoi du samedi `server/cf-tournament.ts`, stats admin `server/cf-stats.ts` |
 | Pages SEO statiques | `scripts/build-seo.mjs` → `client/public/*.html` |
 
 ## Principes à respecter
@@ -78,4 +78,4 @@ Captures mobiles : scripts `puppeteer-core` dans `scripts/` (Chrome : `/usr/bin/
 
 ## Idées validées pour la suite
 - **Tournée des comptoirs** : carrière de bistrots (solo + réputation en multi), étoiles, règles maison.
-- Charge rapide, mode spectateur, musique plus longue (plus de morceaux / variations), alerte d'onglet « À toi de jouer ».
+- Charge rapide, mode spectateur, alerte d'onglet « À toi de jouer » (faits). Pas de musique : Sam l'a fait retirer.
