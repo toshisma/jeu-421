@@ -88,6 +88,8 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   /** La voix du bandeau pendant les animations (null : l'état de la partie parle). */
   const [voice, setVoice] = useState<Announce | null>(null);
   const [stage, setStage] = useState<'comptes' | null>(null);
+  // Jetons affichés : mis à jour dès que les jetons arrivent sur la pile (aux comptes), sans attendre le tour suivant.
+  const [tokNow, setTokNow] = useState<Record<string, number> | null>(null);
   const [log, setLog] = useState<LogLine[]>([]);
   const logKey = useRef(0);
   const logRound = useRef<number | null>(null);
@@ -246,6 +248,11 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
             const [from, to] = lr.reversed ? [lr.loser, lr.winner] : [lr.winner, lr.loser];
             setTimeout(() => flyTokens(tokRefs.current[from], tokRefs.current[to], lr.amount), 350);
           }
+          // Les piles gardent l'ancien compte pendant le vol, puis passent au nouveau à l'atterrissage.
+          if (prev) setTokNow(Object.fromEntries(prev.view.players.map((p) => [p.id, p.tokens])));
+          const after = Object.fromEntries(item.snap.view.players.map((p) => [p.id, p.tokens]));
+          const flyMs = lr && lr.amount > 0 ? 350 + 820 + Math.min(12, lr.amount) * 75 : 0;
+          setTimeout(() => { if (alive.current) setTokNow(after); }, reduced() ? 0 : flyMs);
           await showAnn(a, item.snap.view);
           continue;
         }
@@ -256,6 +263,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       }
       snapRef.current = item.snap;
       setSnap(item.snap);
+      setTokNow(null);
       setStage(null);
     }
     busy.current = false;
@@ -266,7 +274,11 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   useEffect(() => controller.subscribe((s, events) => { queue.current.push({ snap: s, events }); void pump(); }), [controller, pump]);
 
   // ----------------------------------------------------------------------------------------------
-  const v = snap?.view ?? null;
+  const v = useMemo(() => {
+    const raw = snap?.view ?? null;
+    if (!raw || !tokNow) return raw;
+    return { ...raw, players: raw.players.map((p) => (p.id in tokNow ? { ...p, tokens: tokNow[p.id] } : p)) };
+  }, [snap, tokNow]);
   const legal = useMemo(() => (snap && !animating ? snap.legal : []), [snap, animating]);
   const mine = legal.length > 0 && !pending && !spectator;
   const meP = v ? v.players.find((p) => p.id === me) ?? null : null;
