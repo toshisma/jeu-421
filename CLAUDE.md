@@ -41,13 +41,15 @@ Tout le texte du jeu est **en français** (vouvoiement côté joueurs). Réponds
 | Collection et ouverture de sacs | `client/src/ui/DiceCollection.tsx` |
 | Sons (synthétisés) / musique lofi (synthétisée) | `client/src/audio/sound.ts`, `client/src/audio/music.ts` |
 | Styles (un seul fichier) | `client/src/styles.css` |
+| Coups Fourrés (mode cartes) | `shared/cards/` (catalog = cartes et réglages, engine = règles, ai, botmatch = parties contre l'ordinateur rejouables, autodeck, progress, protocol), `server/cards.ts` (collection, decks, capsules, boosters, ligue, missions), `server/cards-online.ts` (en ligne, classé, présence), `client/src/cards/` (écrans, cartes, art.tsx = illustrations, local.ts / online.ts = contrôleurs) ; simulations : `npx tsx scripts/cf-simulate.ts --games 20000` |
 | Pages SEO statiques | `scripts/build-seo.mjs` → `client/public/*.html` |
 
 ## Principes à respecter
 - **Le serveur fait foi** pour les comptes : récompenses, sacs, mises et défis sont recalculés côté serveur. Les invités ont un profil local (`localStorage` `421.profil`).
 - **Gains volontairement bas** (Sam les a réduits trois fois : succès divisés par 4 en 0.30, pass à paliers croissants ≈ 10 700 points). Ne pas les gonfler sans qu'il le demande.
 - **Mises en scène** : seuls le 4-2-1 et les trois as ont le ralenti / gros plan. Sam a refusé l'extension aux brelans.
-- **Sacs de dés = pur hasard** (Sam ne veut pas de dé rare garanti).
+- **Sacs de dés et boosters = pur hasard** (Sam ne veut pas de rare garantie).
+- **Coups Fourrés** : mode à part (sa monnaie « capsules », sa ligue, ses decks) mais mêmes fonctions communes (messages, amis, notifications, réglages). On dit « deck », jamais « paquet ». Duel à 11 jetons (choix de Sam). Tout changement de carte doit rester logique et équilibré : relancer les simulations.
 - **Pas de licence protégée** (Game of Thrones, etc.) : noms et visuels originaux uniquement.
 - **Lisibilité des dés** : un test vérifie le contraste points/dé (≥ 4). Tout nouveau dé doit le passer.
 - **Mobile d'abord** : vérifier à 360 px de large, sans débordement horizontal. L'accueil doit tenir sans défiler (360×640 compris).
@@ -75,6 +77,5 @@ Captures mobiles : scripts `puppeteer-core` dans `scripts/` (Chrome : `/usr/bin/
 - Le site est classé à tort « Pornography » par certains filtres (écoles) : reclassification demandée via FortiGuard & co.
 
 ## Idées validées pour la suite
-- **Mode « 421 Magic »** (cartes à effets et combos, ressource « Tournées », familles Habitués / Ivresse / Pièges / Chaînes), d'abord contre les bots.
 - **Tournée des comptoirs** : carrière de bistrots (solo + réputation en multi), étoiles, règles maison.
 - Charge rapide, mode spectateur, musique plus longue (plus de morceaux / variations), alerte d'onglet « À toi de jouer ».

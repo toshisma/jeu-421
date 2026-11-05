@@ -167,6 +167,9 @@ describe('Coups Fourrés : serveur', () => {
     expect(used.error).toMatch(/La Bringue/);
     expect((await api('/cf/recycle', { cardId: 'inconnue' }, ana.token)).code).toBe(404);
     // Fabrication : pas assez d'éclats pour une légendaire, puis assez.
+    // (Les boosters ouverts plus haut ont pu donner un Patron : on repart de zéro.)
+    const patrons = (await me(ana.token)).collection.patron?.count ?? 0;
+    if (patrons) await api(`/admin/players/${ana.id}/cf`, { what: 'card', cardId: 'patron', delta: -patrons }, admin);
     const f = await api('/cf/craft', { cardId: 'patron' }, ana.token);
     expect(f.code).toBe(400);
     expect(f.error).toMatch(/1600 éclats/);
@@ -336,7 +339,9 @@ describe('Coups Fourrés : serveur', () => {
     expect((await api('/admin/players/Ana/cf', { what: 'card', cardId: 'zzz', delta: 1 }, admin)).error).toMatch(/inconnue/);
     const sh = await api('/admin/players/Ana/cf', { what: 'card', cardId: 'videur', delta: 1, shiny: true }, admin);
     expect(sh.cf.cards.find((x: { id: string }) => x.id === 'videur')).toMatchObject({ shiny: 1 });
-    const broken = await api('/admin/players/Ana/cf', { what: 'card', cardId: 'josiane', delta: -1 }, admin);
+    // Retirer toutes ses Josiane (les boosters ont pu en donner d'autres) casse « Le Zinc » : refusé.
+    const jo = (await api('/admin/players/Ana/cf', undefined, admin)).cf.cards.find((x: { id: string; count: number }) => x.id === 'josiane')?.count ?? 1;
+    const broken = await api('/admin/players/Ana/cf', { what: 'card', cardId: 'josiane', delta: -jo }, admin);
     expect(broken.error).toMatch(/utilisée dans/);
     const sheet = await api('/admin/players/Ana', undefined, admin);
     expect(sheet.player.cf).toMatchObject({ discovered: true });

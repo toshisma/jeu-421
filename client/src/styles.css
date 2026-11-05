@@ -3282,3 +3282,5 @@ button.cf-banner { cursor: pointer; }
 .cf-duel-banner { border-color: rgba(214,166,255,0.6); }
 
 .cf-table-list .cf-btn { width: auto; flex: none; }
+/* Petits écrans : l'étiquette « Nouveau » de la tuile Coups Fourrés devient une pastille, pour ne pas toucher le titre. */
+@media (max-height: 780px) { .v2-promo .promo-badge.cf-new-badge { width: 10px; height: 10px; padding: 0; border-radius: 50%; font-size: 0 !important; color: transparent; box-shadow: 0 0 0 2px rgba(0,0,0,.35); } }

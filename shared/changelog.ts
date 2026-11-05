@@ -7,6 +7,13 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.35', date: '2026-11-05T15:05:00+01:00', title: 'Nouveau mode : Coups Fourrés', items: [
+    'Coups Fourrés, le 421 aux cartes : un vrai jeu de stratégie et de fouine, avec 34 cartes illustrées en quatre familles (Habitués, Ivresse, Pièges, Chaînes). Touchez la tuile « Coups Fourrés » sur l’accueil.',
+    'Construisez vos decks de 20 cartes, ouvrez des boosters et complétez votre collection. À la découverte du mode : 2 decks de départ et 3 boosters offerts.',
+    'Une monnaie propre au mode, les capsules, gagnée en jouant : victoires, missions du jour, première victoire du jour.',
+    'Contre l’ordinateur (3 niveaux), entre amis (défis, tables de 2 à 4 joueurs) et en parties classées, avec sa propre ligue mensuelle du Comptoir au Grand Café.',
+    'Vos amis voient quand vous êtes dans Coups Fourrés, et vous pouvez regarder leurs parties.',
+  ] },
   { version: '0.34', date: '2026-11-05T11:00:00+01:00', title: 'Un comptoir bien tenu', items: [
     'Signaler un joueur depuis son profil, ou un message avec le bouton « ⋯ » (messages privés, tchat de table, de salon et de club) : choisissez la raison, ajoutez un commentaire si vous le souhaitez.',
     'Une équipe de modération traite les signalements. Si une sanction est prise, vous en êtes remercié par une notification.',
