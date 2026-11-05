@@ -12,6 +12,7 @@
 import type { Request, Response, Router, NextFunction } from 'express';
 import type { Namespace, Server } from 'socket.io';
 import type { PmRow, Store, UserRow } from './db';
+import { muteText } from '../shared/moderation';
 
 export const PM_MAX = 500;
 const BURST = { n: 8, ms: 10_000 };
@@ -99,6 +100,8 @@ export function createMessages(c: Ctx) {
     const me = userOf(req), f = other(req);
     if (!f || f.id === me.id) return fail(res, 404, 'Aucun joueur avec ce pseudo.');
     if (!canTalk(me.id, f.id)) return fail(res, 403, 'Vous ne pouvez écrire qu’à vos amis.');
+    const mute = store.modMuteOf(me.id, c.now());
+    if (mute) return fail(res, 403, muteText(mute));
     const text = cleanMessage(req.body?.text);
     if (!text) return fail(res, 400, 'Message vide.');
     if (typeof req.body?.text === 'string' && req.body.text.length > PM_MAX * 2) return fail(res, 400, `Message trop long (${PM_MAX} caractères au plus).`);

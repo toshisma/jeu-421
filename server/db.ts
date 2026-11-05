@@ -445,7 +445,7 @@ export class Store {
     this.db.prepare('DELETE FROM club_chat WHERE club_id = ? AND id NOT IN (SELECT id FROM club_chat WHERE club_id = ? ORDER BY id DESC LIMIT 50)').run(clubId, clubId);
   }
   clubChat(clubId: string) {
-    return this.db.prepare('SELECT u.username, c.phrase, c.created_at FROM club_chat c JOIN users u ON u.id = c.user_id WHERE c.club_id = ? ORDER BY c.id DESC LIMIT 30').all(clubId) as unknown as { username: string; phrase: string; created_at: number }[];
+    return this.db.prepare('SELECT c.id, u.username, c.phrase, c.created_at FROM club_chat c JOIN users u ON u.id = c.user_id WHERE c.club_id = ? ORDER BY c.id DESC LIMIT 30').all(clubId) as unknown as { id: number; username: string; phrase: string; created_at: number }[];
   }
 
   // --- Défi du jour ---
@@ -713,8 +713,137 @@ export class Store {
       WHERE r.user_id = ? AND r.status IN ('fini', 'rembourse') AND r.seen = 0 ORDER BY s.starts_at DESC LIMIT 1`).get(userId) as unknown as (SchedRegRow & { starts_at: number }) | undefined;
   }
 
+  // --- Modération (signalements, sanctions, modérateurs, avis aux joueurs) ---
+  private modReady = false;
+  private modInit() {
+    if (this.modReady) return;
+    this.modReady = true;
+    this.db.exec(`
+      -- Signalements : le message signalé est figé (texte, auteur, lieu, heure, contexte) par le serveur.
+      CREATE TABLE IF NOT EXISTS mod_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        reporter_id TEXT NOT NULL, reporter_name TEXT NOT NULL,
+        target_id TEXT NOT NULL, target_name TEXT NOT NULL,
+        kind TEXT NOT NULL,                -- 'joueur' ou 'message'
+        reason TEXT NOT NULL, comment TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL,
+        msg_ref TEXT, msg_place TEXT, msg_where TEXT, msg_text TEXT, msg_at INTEGER, msg_context TEXT,
+        status TEXT NOT NULL DEFAULT 'ouvert', -- 'ouvert' ou 'traite'
+        decision TEXT, duration TEXT, decided_by TEXT, decided_at INTEGER, note TEXT, sanction_id INTEGER
+      );
+      CREATE INDEX IF NOT EXISTS idx_mod_reports_status ON mod_reports(status, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_mod_reports_target ON mod_reports(target_id, status);
+      CREATE INDEX IF NOT EXISTS idx_mod_reports_reporter ON mod_reports(reporter_id, created_at);
+      CREATE TABLE IF NOT EXISTS mod_sanctions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, kind TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '',
+        until INTEGER, by_name TEXT NOT NULL, at INTEGER NOT NULL, note TEXT NOT NULL DEFAULT '', lifted_at INTEGER, lifted_by TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_mod_sanctions_user ON mod_sanctions(user_id, at DESC);
+      CREATE TABLE IF NOT EXISTS moderators (
+        user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, added_by TEXT NOT NULL, at INTEGER NOT NULL
+      );
+      -- Avis de la modération montrés dans les notifications du jeu (remerciement, avertissement, muet…).
+      CREATE TABLE IF NOT EXISTS mod_notices (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL, text TEXT NOT NULL, created_at INTEGER NOT NULL, seen INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS idx_mod_notices_user ON mod_notices(user_id, seen);
+    `);
+  }
+  modAddReport(r: Omit<ModReportRow, 'id' | 'status' | 'decision' | 'duration' | 'decided_by' | 'decided_at' | 'note' | 'sanction_id'>): number {
+    this.modInit();
+    const x = this.db.prepare(`INSERT INTO mod_reports (reporter_id, reporter_name, target_id, target_name, kind, reason, comment, created_at,
+      msg_ref, msg_place, msg_where, msg_text, msg_at, msg_context) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(r.reporter_id, r.reporter_name, r.target_id, r.target_name, r.kind, r.reason, r.comment, r.created_at,
+        r.msg_ref, r.msg_place, r.msg_where, r.msg_text, r.msg_at, r.msg_context);
+    return Number(x.lastInsertRowid);
+  }
+  modReport(id: number): ModReportRow | undefined { this.modInit(); return this.db.prepare('SELECT * FROM mod_reports WHERE id = ?').get(id) as unknown as ModReportRow | undefined; }
+  modReports(status: 'ouvert' | 'traite' | 'tous', limit = 300): ModReportRow[] {
+    this.modInit();
+    return this.db.prepare(`SELECT * FROM mod_reports WHERE (? = 'tous' OR status = ?) ORDER BY created_at DESC LIMIT ?`).all(status, status, limit) as unknown as ModReportRow[];
+  }
+  modReportsOf(targetId: string): ModReportRow[] {
+    this.modInit();
+    return this.db.prepare('SELECT * FROM mod_reports WHERE target_id = ? ORDER BY created_at DESC LIMIT 100').all(targetId) as unknown as ModReportRow[];
+  }
+  modPendingOf(targetId: string): ModReportRow[] {
+    this.modInit();
+    return this.db.prepare(`SELECT * FROM mod_reports WHERE target_id = ? AND status = 'ouvert' ORDER BY created_at`).all(targetId) as unknown as ModReportRow[];
+  }
+  modPendingCount(): number { this.modInit(); return (this.db.prepare(`SELECT COUNT(*) AS n FROM mod_reports WHERE status = 'ouvert'`).get() as { n: number }).n; }
+  /** Doublon : même joueur signalé (en attente) ou même message, par le même compte. */
+  modDuplicate(reporterId: string, targetId: string, msgRef: string | null): boolean {
+    this.modInit();
+    return msgRef
+      ? !!this.db.prepare('SELECT 1 FROM mod_reports WHERE reporter_id = ? AND msg_ref = ?').get(reporterId, msgRef)
+      : !!this.db.prepare(`SELECT 1 FROM mod_reports WHERE reporter_id = ? AND target_id = ? AND kind = 'joueur' AND status = 'ouvert'`).get(reporterId, targetId);
+  }
+  modReportsSince(reporterId: string, since: number): number {
+    this.modInit();
+    return (this.db.prepare('SELECT COUNT(*) AS n FROM mod_reports WHERE reporter_id = ? AND created_at >= ?').get(reporterId, since) as { n: number }).n;
+  }
+  modDecide(ids: number[], d: { decision: string; duration: string | null; by: string; at: number; note: string; sanctionId: number | null }) {
+    this.modInit();
+    const q = this.db.prepare(`UPDATE mod_reports SET status = 'traite', decision = ?, duration = ?, decided_by = ?, decided_at = ?, note = ?, sanction_id = ? WHERE id = ? AND status = 'ouvert'`);
+    for (const id of ids) q.run(d.decision, d.duration, d.by, d.at, d.note, d.sanctionId, id);
+  }
+  modAddSanction(s: { userId: string; kind: string; reason: string; until: number | null; by: string; at: number; note: string }): number {
+    this.modInit();
+    return Number(this.db.prepare('INSERT INTO mod_sanctions (user_id, kind, reason, until, by_name, at, note) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(s.userId, s.kind, s.reason, s.until, s.by, s.at, s.note).lastInsertRowid);
+  }
+  modSanction(id: number): ModSanctionRow | undefined { this.modInit(); return this.db.prepare('SELECT * FROM mod_sanctions WHERE id = ?').get(id) as unknown as ModSanctionRow | undefined; }
+  modSanctionsOf(userId: string): ModSanctionRow[] {
+    this.modInit();
+    return this.db.prepare('SELECT * FROM mod_sanctions WHERE user_id = ? ORDER BY at DESC LIMIT 50').all(userId) as unknown as ModSanctionRow[];
+  }
+  modLiftSanction(id: number, by: string, at: number) { this.modInit(); this.db.prepare('UPDATE mod_sanctions SET lifted_at = ?, lifted_by = ? WHERE id = ? AND lifted_at IS NULL').run(at, by, id); }
+  /** Muet en cours (le plus long), ou undefined. */
+  modMuteOf(userId: string, at: number): { id: number; until: number; reason: string } | undefined {
+    this.modInit();
+    return this.db.prepare(`SELECT id, until, reason FROM mod_sanctions WHERE user_id = ? AND kind = 'muet' AND lifted_at IS NULL AND until > ? ORDER BY until DESC LIMIT 1`)
+      .get(userId, at) as { id: number; until: number; reason: string } | undefined;
+  }
+  isModerator(userId: string): boolean { this.modInit(); return !!this.db.prepare('SELECT 1 FROM moderators WHERE user_id = ?').get(userId); }
+  moderators(): { id: string; username: string; added_by: string; at: number }[] {
+    this.modInit();
+    return this.db.prepare('SELECT u.id, u.username, m.added_by, m.at FROM moderators m JOIN users u ON u.id = m.user_id ORDER BY u.username').all() as unknown as { id: string; username: string; added_by: string; at: number }[];
+  }
+  addModerator(userId: string, by: string, at: number) { this.modInit(); this.db.prepare('INSERT OR IGNORE INTO moderators (user_id, added_by, at) VALUES (?, ?, ?)').run(userId, by, at); }
+  removeModerator(userId: string): boolean { this.modInit(); return Number(this.db.prepare('DELETE FROM moderators WHERE user_id = ?').run(userId).changes) > 0; }
+  modNotify(userId: string, kind: string, text: string, at: number) {
+    this.modInit();
+    this.db.prepare('INSERT INTO mod_notices (user_id, kind, text, created_at) VALUES (?, ?, ?, ?)').run(userId, kind, text, at);
+  }
+  modNotices(userId: string): { id: number; kind: string; text: string; at: number }[] {
+    this.modInit();
+    return this.db.prepare('SELECT id, kind, text, created_at AS at FROM mod_notices WHERE user_id = ? AND seen = 0 ORDER BY id DESC LIMIT 20').all(userId) as unknown as { id: number; kind: string; text: string; at: number }[];
+  }
+  modNoticesSeen(userId: string, ids: number[]) {
+    this.modInit();
+    const q = this.db.prepare('UPDATE mod_notices SET seen = 1 WHERE user_id = ? AND id = ?');
+    for (const id of ids) q.run(userId, id);
+  }
+  /** Messages privés autour d'un message (pour le figer avec son contexte). */
+  pmById(id: number): PmRow | undefined { return this.db.prepare('SELECT * FROM private_messages WHERE id = ?').get(id) as unknown as PmRow | undefined; }
+  clubChatById(id: number) {
+    return this.db.prepare('SELECT * FROM club_chat WHERE id = ?').get(id) as { id: number; club_id: string; user_id: string; phrase: string; created_at: number } | undefined;
+  }
+  clubChatBefore(clubId: string, id: number, limit: number) {
+    return (this.db.prepare('SELECT u.username, c.phrase, c.created_at FROM club_chat c JOIN users u ON u.id = c.user_id WHERE c.club_id = ? AND c.id < ? ORDER BY c.id DESC LIMIT ?')
+      .all(clubId, id, limit) as unknown as { username: string; phrase: string; created_at: number }[]).reverse();
+  }
+
   close() { this.db.close(); }
 }
+
+export interface ModReportRow {
+  id: number; reporter_id: string; reporter_name: string; target_id: string; target_name: string; kind: 'joueur' | 'message';
+  reason: string; comment: string; created_at: number;
+  msg_ref: string | null; msg_place: string | null; msg_where: string | null; msg_text: string | null; msg_at: number | null; msg_context: string | null;
+  status: 'ouvert' | 'traite'; decision: string | null; duration: string | null; decided_by: string | null; decided_at: number | null; note: string | null; sanction_id: number | null;
+}
+export interface ModSanctionRow { id: number; user_id: string; kind: string; reason: string; until: number | null; by_name: string; at: number; note: string; lifted_at: number | null; lifted_by: string | null }
 
 export interface SchedSlotRow { id: string; starts_at: number; status: string; reminded: number; players: number | null; reason: string | null }
 export interface SchedRegRow { slot_id: string; user_id: string; paid: number; status: string; place: number | null; bags: number; reason: string | null; created_at: number; seen: number }

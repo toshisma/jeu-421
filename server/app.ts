@@ -23,6 +23,8 @@ import { Store } from './db';
 import { clientDay, createAccounts, type AccountsOptions } from './accounts';
 import { createStats, type StatsOptions } from './stats';
 import { createAdmin } from './admin';
+import { createModeration, type TableChatEntry } from './moderation';
+import { muteText } from '../shared/moderation';
 import { canonicalHostRedirect, serveClient } from './static';
 import { albumKey, didWin, finalPlace } from '../shared/progress/profile';
 import type { ComboKind } from '../shared/combos';
@@ -233,6 +235,24 @@ export async function startServer(opts: ServerOptions) {
   const admin = createAdmin(store, { ...opts.admin, isAdmin: stats.isAdmin, userFromToken: accounts.userFromToken });
   app.use('/api', admin.router);
   app.use('/api', stats.router);
+  // Tchat de table : derniers messages gardés en mémoire (signalements : le serveur retrouve le texte).
+  const tableChat: TableChatEntry[] = [];
+  let tableChatSeq = 0;
+  const TABLE_CHAT_KEEP = 3000;
+  const moderation = createModeration({
+    store, isAdmin: stats.isAdmin, userFromToken: accounts.userFromToken, now: opts.admin?.now ?? Date.now,
+    push: (u, title, body, url) => void accounts.social.push(u, title, body, url),
+    ban: admin.ban, unban: admin.unban, banOf: admin.banOf, log: admin.log,
+    tableMessage: (id) => {
+      const i = tableChat.findIndex((m) => m.id === id);
+      if (i < 0) return undefined;
+      const msg = tableChat[i];
+      const before: TableChatEntry[] = [];
+      for (let j = i - 1; j >= 0 && before.length < 3; j--) if (tableChat[j].code === msg.code) before.unshift(tableChat[j]);
+      return { msg, before };
+    },
+  });
+  app.use('/api', moderation.router);
 
   accounts.setPresence((userId) => {
     for (const r of rooms.values()) {
@@ -1131,17 +1151,29 @@ export async function startServer(opts: ServerOptions) {
       const text = String(p?.text ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/https?:\/\/\S+/gi, '[lien]').trim().slice(0, 200);
       if (!text) return reply({ ok: false, error: 'Message vide' });
       const now = Date.now();
+      // Joueur réduit au silence par la modération : rien ne part, il voit l'échéance.
+      const mute = (c ? c.m.userId : spec?.userId) ? moderation.muteOf((c ? c.m.userId : spec!.userId)!) : undefined;
+      if (mute) return reply({ ok: false, error: muteText(mute) });
       if (now - lastChat < 1000) return reply({ ok: false, error: 'Doucement !' });
       lastChat = now;
       reply({ ok: true });
+      const room = c ? c.r : sp!;
+      const id = `${++tableChatSeq}-${randomInt(1e6)}`;
+      const t = room.tournament ? tournaments.get(room.tournament) : undefined;
+      tableChat.push({
+        id, code: room.code, where: t ? `Tournoi « ${t.settings.title} », table ${room.code}` : `Table ${room.code}${room.title ? ` « ${room.title} »` : ''}`,
+        userId: (c ? c.m.userId : spec!.userId) ?? null, name: c ? c.m.name : spec!.name, text, at: now,
+        audience: [...room.members.map((x) => x.userId), ...[...room.spectators.values()].map((x) => x.userId)].filter((x): x is string => !!x),
+      });
+      if (tableChat.length > TABLE_CHAT_KEEP) tableChat.splice(0, tableChat.length - TABLE_CHAT_KEEP);
       if (!c) {
         // Spectateur : son message est signalé comme tel.
         const account = spec!.userId ? accounts.publicInfo(spec!.userId)?.account ?? null : null;
-        io.to(sp!.code).emit('room:chat', { playerId: `spectateur:${socket.id}`, name: spec!.name, account, text, at: now, spectator: true });
+        io.to(sp!.code).emit('room:chat', { id, playerId: `spectateur:${socket.id}`, name: spec!.name, account, text, at: now, spectator: true });
         return;
       }
       const account = c.m.userId ? accounts.publicInfo(c.m.userId)?.account ?? null : null;
-      io.to(c.r.code).emit('room:chat', { playerId: c.m.id, name: c.m.name, account, text, at: now });
+      io.to(c.r.code).emit('room:chat', { id, playerId: c.m.id, name: c.m.name, account, text, at: now });
     });
     socket.on('game:roll', gameAction('roll'));
     socket.on('game:stop', gameAction('stop'));

@@ -6,13 +6,14 @@ import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
 import { Icon } from './Icon';
 import { ProfileView } from './ProfileView';
+import { ReportDialog, ReportMsgButton, type ReportTarget } from './Report';
 import { BigAction, Empty, Section, Shell, Tabs, useToast } from './kit';
 
 interface Club {
   id: string; name: string; emblem: string; max: number; wins: number; endsAt: string;
   chest: { wins: number; coins: number }[];
   members: { username: string; wins: number; level: number; owner: boolean; me: boolean }[];
-  chat: { username: string; phrase: string; at: number }[];
+  chat: { id: number; username: string; phrase: string; at: number }[];
 }
 interface ClubRow { id: string; name: string; emblem: string; members: number; wins: number }
 
@@ -31,6 +32,7 @@ export function ClubScreen({ pa, onBack, onAccount }: { pa: ProfileApi; onBack: 
   const [clubTab, setClubTab] = useState<'coffre' | 'membres' | 'comptoir'>('coffre');
   const [joinTab, setJoinTab] = useState<'rejoindre' | 'fonder'>('rejoindre');
   const [toast, showToast] = useToast();
+  const [report, setReport] = useState<ReportTarget | null>(null);
 
   const load = (query = q) => {
     if (!token) return;
@@ -91,7 +93,8 @@ export function ClubScreen({ pa, onBack, onAccount }: { pa: ProfileApi; onBack: 
         {clubTab === 'comptoir' && <>
           <ul className="club-chat" aria-live="polite">
             {mine.chat.length === 0 && <li className="muted">Personne n'a encore parlé cette semaine. Lancez la conversation !</li>}
-            {mine.chat.map((c, i) => <li key={i}><b>{c.username}</b> {c.phrase}</li>)}
+            {mine.chat.map((c, i) => <li key={c.id ?? i}><span><b>{c.username}</b> {c.phrase}</span>
+              {c.id && c.username !== pa.session?.username && <ReportMsgButton name={c.username} onClick={() => setReport({ username: c.username, message: { place: 'club', id: c.id, text: c.phrase } })} />}</li>)}
           </ul>
           <p className="k-hint">Touchez une phrase pour l'envoyer au club.</p>
           <div className="phrase-chips">
@@ -100,6 +103,7 @@ export function ClubScreen({ pa, onBack, onAccount }: { pa: ProfileApi; onBack: 
         </>}
         {err && <p className="error">{err}</p>}
         {open && <ProfileView pa={pa} username={open} onClose={() => setOpen(null)} />}
+        {report && <ReportDialog pa={pa} target={report} onClose={() => setReport(null)} />}
         {toast}
       </Shell>
     );

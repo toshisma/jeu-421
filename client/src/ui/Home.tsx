@@ -41,6 +41,8 @@ export interface HomeProps {
   onChallenge: () => void; onBoss: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void;
   onCollection: () => void; onDuels: () => void; onFriends: () => void; onChangelog: () => void; onJoinRoom: (code: string) => void;
   onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
+  /** Panel de modération (le menu ne le montre qu'aux modérateurs). */
+  onModeration?: () => void;
   /** Tableau de bord d'administration (le menu ne le montre qu'aux admins). */
   onAdmin?: () => void;
   resume: { code: string; tournament?: boolean } | null; onResume: () => void;
@@ -130,8 +132,9 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
 function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void; onDiscord?: () => void; discordDot?: boolean }) {
   const [q, setQ] = useState('');
   const acc = p.pa.isAccount && !STANDALONE;
-  const [admin, setAdmin] = useState(false);
-  useEffect(() => { if (acc && p.pa.token) api<{ admin: boolean }>('/admin/whoami', { token: p.pa.token }).then((r) => setAdmin(r.admin)).catch(() => {}); }, [acc, p.pa.token]);
+  const [role, setRole] = useState<{ admin: boolean; moderator: boolean; pending: number }>({ admin: false, moderator: false, pending: 0 });
+  useEffect(() => { if (acc && p.pa.token) api<{ admin: boolean; moderator: boolean; pending: number }>('/moderation/whoami', { token: p.pa.token }).then(setRole).catch(() => {}); }, [acc, p.pa.token]);
+  const admin = role.admin;
   const groups: { title: string; items: { label: string; icon: Parameters<typeof Icon>[0]['name']; go: () => void; show?: boolean; dot?: boolean; keys?: string }[] }[] = [
     { title: 'Progresser', items: [
       { label: 'Profil et succès', icon: 'user', go: p.onProfile, keys: 'titre avatar photo succes' },
@@ -161,7 +164,8 @@ function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void; o
       { label: 'Partie guidée', icon: 'resume', go: p.onTutorial, keys: 'tuto apprendre' },
       { label: "Bac d'essai", icon: 'dice', go: p.onSandbox, keys: 'lancer entrainement' },
       { label: 'Réglages', icon: 'settings', go: p.onSettings, keys: 'son vibration qualite graphismes secouer' },
-      { label: 'Administration', icon: 'settings', go: () => p.onAdmin?.(), show: admin && !!p.onAdmin, keys: 'admin bannir pieces tableau de bord' },
+      { label: 'Administration', icon: 'settings', go: () => p.onAdmin?.(), show: admin && !!p.onAdmin, dot: role.pending > 0, keys: 'admin bannir pieces tableau de bord signalements moderation' },
+      { label: 'Modération', icon: 'flag', go: () => p.onModeration?.(), show: role.moderator && !admin && !!p.onModeration, dot: role.pending > 0, keys: 'signalements sanctions moderateur' },
       { label: acc ? 'Mon compte' : 'Compte', icon: 'key', go: acc ? p.onAccount : p.onLogin, show: !STANDALONE, keys: 'connexion mot de passe' },
     ] },
   ];
@@ -179,7 +183,7 @@ function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void; o
           <section key={g.title} className="plus-group">
             <h3>{g.title}</h3>
             <div className="plus-grid">
-              {items.map((i) => <button key={i.label} onClick={() => pick(i.go)}><Icon name={i.icon} size={22} /><span>{i.label}</span>{i.dot && <i className="plus-dot" aria-label="à récupérer" />}</button>)}
+              {items.map((i) => <button key={i.label} onClick={() => pick(i.go)}><Icon name={i.icon} size={22} /><span>{i.label}</span>{i.dot && <i className="plus-dot" aria-label="à voir" />}</button>)}
             </div>
           </section>
         );
