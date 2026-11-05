@@ -19,6 +19,7 @@ import { FriendsButton } from '../ui/Friends';
 import { NotifBell, NotifPanel, useNotifications } from '../ui/Social';
 import { ProfileView } from '../ui/ProfileView';
 import { Sheet } from '../ui/kit';
+import { ModeSwitch } from '../ui/ModeSwitch';
 import { accessoryEmoji } from '../../../shared/progress/catalog';
 import { sound } from '../audio/sound';
 import { BOOSTER, CARDS, CF_RULES, STARTER_DECKS, CAPSULES } from '../../../shared/cards/catalog';
@@ -391,6 +392,7 @@ function CfMenu(p: CfModeProps & {
           <Icon name="settings" size={22} />{(role.admin || role.moderator) && role.pending > 0 && <i className="cf-more-dot" aria-hidden />}
         </button>
       </header>
+      <ModeSwitch active="cartes" onClassic={p.onHome} onCards={() => {}} />
 
       <main className="cf-menu-main">
         {p.top}

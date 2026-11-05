@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BagIcon } from './BagIcon';
+import { ModeSwitch } from './ModeSwitch';
 import { accessoryEmoji } from '../../../shared/progress/catalog';
 import { DAILY_REWARDS, chestWait, dailyStatus, levelInfo, passProgress, seasonOf, titleLabel, type Profile } from '../../../shared/progress/profile';
 import { dailyQuests, questsFor, today } from '../../../shared/progress/quests';
@@ -400,6 +401,7 @@ export function Home(props: HomeProps) {
         {acc && <FriendsButton pa={pa} onOpen={props.onFriends} />}
         {acc && <NotifBell count={notifs?.count ?? 0} onOpen={() => { setShowNotifs(true); reload(); }} />}
       </header>
+      {props.onCards && <ModeSwitch active="classique" onClassic={() => {}} onCards={props.onCards} />}
 
       <main className="h2-main">
         {/* 1. Vitrine 3D et partie contre l'ordinateur */}
@@ -456,7 +458,7 @@ export function Home(props: HomeProps) {
 
         {/* 4. Collection et parrainage, plus compacts */}
         {!STANDALONE && (
-          <section className={`v2-promos${props.onCards ? ' three' : ''}`}>
+          <section className="v2-promos">
             <button className="v2-promo coll" onClick={props.onCollection}>
               <span className="v2-promo-art cubes" aria-hidden><DieCube id="dc-galaxie" size={24} spin /><DieCube id="dc-dragon" size={34} spin /></span>
               <span className="promo-shine" aria-hidden />
@@ -469,12 +471,6 @@ export function Home(props: HomeProps) {
               {referral && <em className="promo-badge">{referral.bagsEarned}/{referral.bagsMax}</em>}
               <span className="v2-promo-text"><b>Parrainage</b><small>{acc ? '1 sac par ami' : 'Sac offert, compte gratuit'}</small></span>
             </button>
-            {props.onCards && <button className="v2-promo cf" onClick={props.onCards}>
-              <span className="v2-promo-art cf-fanart" aria-hidden><i className="h" /><i className="v" /><i className="p" /></span>
-              <span className="promo-shine" aria-hidden />
-              <em className="promo-badge cf-new-badge">Bêta</em>
-              <span className="v2-promo-text"><b>Coups Fourrés</b><small>Le 421 aux cartes</small></span>
-            </button>}
           </section>
         )}
 
