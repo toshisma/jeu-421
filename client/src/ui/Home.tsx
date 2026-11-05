@@ -41,6 +41,8 @@ export interface HomeProps {
   onChallenge: () => void; onBoss: () => void; onClub: () => void; onAlbum: () => void; onRecap: () => void; onStats: () => void;
   onCollection: () => void; onDuels: () => void; onFriends: () => void; onChangelog: () => void; onJoinRoom: (code: string) => void;
   onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
+  /** Coups Fourrés, le mode cartes. */
+  onCards?: () => void;
   /** Panel de modération (le menu ne le montre qu'aux modérateurs). */
   onModeration?: () => void;
   /** Tableau de bord d'administration (le menu ne le montre qu'aux admins). */
@@ -143,6 +145,7 @@ function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void; o
       { label: 'Défi du jour', icon: 'target', go: p.onChallenge },
     ] },
     { title: 'Mes dés et mes parties', items: [
+      { label: 'Coups Fourrés', icon: 'cards', go: () => p.onCards?.(), show: !!p.onCards, keys: 'cartes mode cartes deck booster capsules' },
       { label: 'Collection', icon: 'dice', go: p.onCollection, show: !STANDALONE, keys: 'sacs des rares' },
       { label: 'Boutique', icon: 'shop', go: p.onShop, keys: 'tapis decor rebord' },
       { label: 'Album', icon: 'album', go: p.onAlbum, keys: 'combinaisons' },
@@ -449,7 +452,7 @@ export function Home(props: HomeProps) {
 
         {/* 4. Collection et parrainage, plus compacts */}
         {!STANDALONE && (
-          <section className="v2-promos">
+          <section className={`v2-promos${props.onCards ? ' three' : ''}`}>
             <button className="v2-promo coll" onClick={props.onCollection}>
               <span className="v2-promo-art cubes" aria-hidden><DieCube id="dc-galaxie" size={24} spin /><DieCube id="dc-dragon" size={34} spin /></span>
               <span className="promo-shine" aria-hidden />
@@ -462,6 +465,12 @@ export function Home(props: HomeProps) {
               {referral && <em className="promo-badge">{referral.bagsEarned}/{referral.bagsMax}</em>}
               <span className="v2-promo-text"><b>Parrainage</b><small>{acc ? '1 sac par ami' : 'Sac offert, compte gratuit'}</small></span>
             </button>
+            {props.onCards && <button className="v2-promo cf" onClick={props.onCards}>
+              <span className="v2-promo-art cf-fanart" aria-hidden><i className="h" /><i className="v" /><i className="p" /></span>
+              <span className="promo-shine" aria-hidden />
+              <em className="promo-badge cf-new-badge">Nouveau</em>
+              <span className="v2-promo-text"><b>Coups Fourrés</b><small>Le 421 aux cartes</small></span>
+            </button>}
           </section>
         )}
 

@@ -12,8 +12,8 @@ import '@fontsource/barlow-condensed/latin-800.css';
 import './styles.css';
 
 const root = createRoot(document.getElementById('root')!);
-if (new URLSearchParams(location.search).has('cf-gallery')) {
-  // TEMPORAIRE : planche des cartes « Coups Fourrés » (relecture, captures). Fichier chargé à part.
+if (import.meta.env.DEV && new URLSearchParams(location.search).has('cf-gallery')) {
+  // Développement seulement : planche des cartes « Coups Fourrés » (relecture, captures).
   import('./cards/CardGallery').then((m) => root.render(<m.CardGallery />)).catch(() => root.render(<App />));
 } else {
   root.render(<App />);

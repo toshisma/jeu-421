@@ -55,6 +55,8 @@ const RecapScreen = lazyScreen(() => import('./ui/Collection'), 'RecapScreen');
 const ShopScreen = lazyScreen(() => import('./ui/ShopScreen'), 'ShopScreen');
 const AdminDashboard = lazyScreen(() => import('./ui/AdminDashboard'), 'AdminDashboard');
 const ModerationScreen = lazyScreen(() => import('./ui/Moderation'), 'ModerationScreen');
+/** Coups Fourrés, le mode cartes : tout le mode est chargé à part, seulement quand on l'ouvre. */
+const CfMode = lazyScreen(() => import('./cards/CfMode'), 'CfMode');
 /** Préchargés en arrière-plan une fois l'accueil affiché (les plus utilisés d'abord). */
 const LIKELY = [GameScreen, OnlineHub, OnlineFlow, TournamentFlow, ShopScreen, SpectateFlow, TutorialScreen, PartySetup, ClubScreen, AlbumScreen];
 
@@ -63,8 +65,9 @@ type Screen =
   | { name: 'solo-setup' }
   | { name: 'solo'; controller: LocalController; personas: Record<string, Persona> }
   | { name: 'hub'; tab: HubTab }
-  | { name: 'friends' }
-  | { name: 'messages'; with?: string }
+  | { name: 'friends'; from?: 'cf' }
+  | { name: 'messages'; with?: string; from?: 'cf' }
+  | { name: 'cf' }
   | { name: 'changelog' }
   | { name: 'online'; mode: OnlineMode }
   | { name: 'watch'; code: string; back: Screen }
@@ -234,6 +237,7 @@ export function App() {
         onFriends={() => setScreen({ name: 'friends' })}
         onMessages={() => setScreen({ name: 'messages' })}
         onChangelog={() => setScreen({ name: 'changelog' })}
+        onCards={() => setScreen({ name: 'cf' })}
         onAdmin={() => setScreen({ name: 'admin' })}
         onModeration={() => setScreen({ name: 'moderation' })}
         settings={settings} onChangeSettings={setSettings}
@@ -306,13 +310,18 @@ export function App() {
       return <PassScreen pa={pa} onBack={home} />;
     case 'changelog':
       return <ChangelogScreen onBack={home} />;
+    case 'cf':
+      return <CfMode pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
+        onHome={home} onMessages={() => setScreen({ name: 'messages', from: 'cf' })} onFriends={() => setScreen({ name: 'friends', from: 'cf' })}
+        onAccount={() => setScreen({ name: 'account' })} onLogin={() => setScreen({ name: 'account', tab: 'login' })}
+        onDuelPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }} onDuels={() => setScreen({ name: 'duels' })} />;
     case 'friends':
-      return <FriendsScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} onJoin={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
+      return <FriendsScreen pa={pa} onBack={screen.from === 'cf' ? () => setScreen({ name: 'cf' }) : home} onAccount={() => setScreen({ name: 'account' })} onJoin={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
         onInvite={(username) => setScreen({ name: 'online', mode: { kind: 'create', invite: username } })}
         onMessage={(username) => setScreen({ name: 'messages', with: username })}
         onWatch={(code) => setScreen({ name: 'watch', code, back: { name: 'friends' } })} />;
     case 'messages':
-      return <MessagesScreen key={screen.with ?? ''} pa={pa} initial={screen.with} onBack={home} onAccount={() => setScreen({ name: 'account' })} />;
+      return <MessagesScreen key={screen.with ?? ''} pa={pa} initial={screen.with} onBack={screen.from === 'cf' ? () => setScreen({ name: 'cf' }) : home} onAccount={() => setScreen({ name: 'account' })} />;
     case 'duels':
       return <DuelsScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} onPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }} />;
     case 'duel':
