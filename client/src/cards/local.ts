@@ -159,6 +159,16 @@ export class LocalCfController implements CfController {
     return null;
   }
 
+  /** L'écran a fini ses annonces : le minuteur de la décision part de maintenant (une fois par décision). */
+  private readyFor = -1;
+  ready(): void {
+    const st = this.match.state;
+    if (!this.timed || this.closed || this.running || this.readyFor === st.decisions || !waitingFor(st).includes(this.me)) return;
+    this.readyFor = st.decisions;
+    this.armTimer();
+    this.publish([]);
+  }
+
   leave(): void {
     if (this.closed) return;
     this.closed = true;
@@ -189,12 +199,15 @@ export class LocalCfController implements CfController {
     this.publish([]);
   }
 
-  /** Petite pause « humaine » selon ce que l'ordinateur s'apprête à faire. */
+  /**
+   * Pause « humaine » selon ce que l'ordinateur s'apprête à faire : il ne doit jamais enchaîner trop
+   * vite (l'écran annonce aussi chaque action au centre, une par une).
+   */
   private pause(): Promise<void> {
     if (this.pace <= 0) return Promise.resolve();
     const k = decisionKind(this.match.state);
-    const base = k === 'respond' ? 650 : k === 'lastword' ? 700 : k === 'mulligan' ? 300 : k === 'discard' ? 400 : 520;
-    const ms = (base + Math.random() * 380) * this.pace;
+    const base = k === 'respond' ? 1100 : k === 'lastword' ? 1200 : k === 'mulligan' ? 400 : k === 'discard' ? 700 : 950;
+    const ms = (base + Math.random() * 600) * this.pace;
     return new Promise((r) => setTimeout(r, ms));
   }
 
