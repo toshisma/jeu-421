@@ -13,8 +13,10 @@ export interface DiceTrayHandle {
   setInteractive(on: boolean): void;
   /** Dés d'un autre joueur (identifiant du catalogue), ou les miens (null). */
   setDiceSkin(id: string | null): void;
-  /** Traînée de lancer (couleurs) ou aucune. */
-  setTrail(colors: string[] | null, glow?: boolean): void;
+  /** Traînée de lancer (identifiant de l'effet) ou aucune. */
+  setTrail(id: string | null): void;
+  /** Célébration du 4-2-1 / trois as dans le bac (effet équipé, ou célébration par défaut). */
+  celebrate(id: string | null): void;
 }
 
 interface Props {
@@ -45,6 +47,7 @@ export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ ap
       onDieClick: (i) => clickRef.current?.(i),
       cup,
       onShake: () => sound.rattle(),
+      onFx: (k, st) => sound.party(k, st),
     });
     scene.current = s;
     return () => { s.dispose(); scene.current = null; };
@@ -68,7 +71,8 @@ export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ ap
     setKept: (m) => scene.current?.setKept(m),
     setInteractive: (on) => scene.current?.setInteractive(on),
     setDiceSkin: (id) => scene.current?.setDiceSkin(id),
-    setTrail: (c, g) => scene.current?.setTrail(c, g),
+    setTrail: (id) => scene.current?.setTrail(id),
+    celebrate: (id) => scene.current?.celebrate(id),
   }), []);
 
   return <div ref={host} className="tray-host" />;

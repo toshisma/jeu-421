@@ -12,7 +12,8 @@
  * (collection, boutique), le même éclairage est « cuit » dans l'image (lumière en haut à gauche).
  */
 import { mulberry32 } from '../../../shared/rng';
-import { contrast, type DicePattern } from '../../../shared/progress/dice-collection';
+import { contrast, type DicePattern, type Rarity } from '../../../shared/progress/dice-collection';
+import { faceTransform, lookSheet, sheetIndex } from './dieLooks';
 
 export interface DieArt {
   body: string;
@@ -23,6 +24,53 @@ export interface DieArt {
   glow?: boolean;
   /** Graine du motif (identifiant du dé) : le motif est le même partout. */
   seed?: string;
+  /** Dé de collection : matière détaillée (voir dieLooks.ts). */
+  rarity?: Rarity;
+  shiny?: boolean;
+}
+
+/** Couches d'une face de dé de collection (planche placée sur la face, motif effacé sous les points). */
+export interface FaceLook {
+  color: ImageData;
+  height: Float32Array;
+  rough: Uint8Array;
+  emissive: ImageData | null;
+  fx: ImageData;
+  relief: number;
+}
+const looks = new Map<string, FaceLook>();
+/** Rayon (relatif au rayon du point) du « lit » uni autour de chaque point. */
+export const BED = 1.42;
+export function faceLook(value: number, a: DieArt, S: number): FaceLook {
+  const key = `${a.seed}|${a.shiny ? 1 : 0}|${S}|${value}`;
+  const hit = looks.get(key);
+  if (hit) return hit;
+  const sh = lookSheet({ id: a.seed ?? a.body, body: a.body, body2: a.body2, pip: a.pip, accent: a.accent, pattern: a.pattern, glow: a.glow, rarity: a.rarity, shiny: a.shiny }, S);
+  const t = faceTransform(sh, value, (a.seed ?? '').replace(/-brillant$/, ''));
+  const color = new ImageData(S, S), fx = new ImageData(S, S);
+  const emissive = sh.emissive ? new ImageData(S, S) : null;
+  const height = new Float32Array(S * S), rough = new Uint8Array(S * S);
+  const r = pipRadius(value, S);
+  const pips = PIPS[value];
+  for (let y = 0; y < S; y++)
+    for (let x = 0; x < S; x++) {
+      const i = y * S + x, o = i * 4, j = sheetIndex(S, x, y, t), q = j * 4;
+      // Distance au point le plus proche (en rayons de point) : le motif s'efface sur le lit uni.
+      let d = 9;
+      for (const [px, py] of pips) d = Math.min(d, Math.hypot(x + 0.5 - px * S, y + 0.5 - py * S) / r);
+      const keep = Math.min(1, Math.max(0, (d - BED) / 0.35));
+      for (let c = 0; c < 3; c++) color.data[o + c] = sh.color[q + c];
+      color.data[o + 3] = 255;
+      height[i] = sh.height[j] * keep;
+      rough[i] = Math.min(250, sh.rough[j]);
+      if (emissive) { for (let c = 0; c < 3; c++) emissive.data[o + c] = sh.emissive![q + c] * keep; emissive.data[o + 3] = 255; }
+      if (sh.fx) for (let c = 0; c < 3; c++) fx.data[o + c] = sh.fx[q + c] * (c === 1 ? 1 : keep);
+      fx.data[o + 3] = 255;
+    }
+  const out = { color, height, rough, emissive, fx, relief: sh.relief };
+  if (looks.size > 200) looks.delete(looks.keys().next().value!);
+  looks.set(key, out);
+  return out;
 }
 export type Layer = 'color' | 'emissive';
 
@@ -192,8 +240,10 @@ const depthPx = (value: number, S: number) => pitOuter(value, S) * 0.8;
  * - « orm » : rouge = occlusion ambiante (creux et bords de face plus sombres),
  *   vert = rugosité relative (fond des points nettement plus mat : 255 contre 150 sur le corps), bleu = métal (jamais sur les points).
  */
-export function faceSurface(value: number, S: number): { normal: ImageData; orm: ImageData } {
+export function faceSurface(value: number, S: number, look?: FaceLook): { normal: ImageData; orm: ImageData } {
   const hf = heightField(value, S);
+  // Relief du motif : pente propre (plus douce que les creux des points), ajoutée aux normales.
+  const mh = look?.height, Km = S * 0.022 * (look?.relief ?? 0);
   const normal = new ImageData(S, S), orm = new ImageData(S, S);
   const D = depthPx(value, S), R = pitOuter(value, S);
   const pips = PIPS[value];
@@ -203,6 +253,7 @@ export function faceSurface(value: number, S: number): { normal: ImageData; orm:
       const [gx, gy] = grad(hf, S, x, y);
       // Normale (convention OpenGL : la texture est retournée, l'axe v monte quand y descend).
       let nx = -gx * D, ny = gy * D, nz = 1;
+      if (mh) { const [mx, my] = grad(mh, S, x, y); nx -= mx * Km; ny += my * Km; }
       const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
       normal.data[o] = (nx * 0.5 + 0.5) * 255; normal.data[o + 1] = (ny * 0.5 + 0.5) * 255; normal.data[o + 2] = (nz * 0.5 + 0.5) * 255; normal.data[o + 3] = 255;
       // Occlusion : bords de face (le dé s'assombrit vers ses arêtes), creux (plus sombre au pied de la paroi).
@@ -216,8 +267,9 @@ export function faceSurface(value: number, S: number): { normal: ImageData; orm:
         const foot = Math.exp(-Math.pow((tMin - 0.82) / 0.14, 2)); // pied de paroi
         ao *= 1 - 0.38 * h - 0.25 * foot;
       }
+      if (mh) ao *= 1 - 0.3 * Math.max(0, -mh[i]) * Math.min(1, look!.relief);
       orm.data[o] = Math.max(0, Math.min(255, ao * 255));
-      orm.data[o + 1] = tMin < PAINT ? 255 : 150;
+      orm.data[o + 1] = tMin < PAINT ? 255 : look ? look.rough[i] : 150;
       orm.data[o + 2] = tMin < 1.25 ? 0 : 255;
       orm.data[o + 3] = 255;
     }
@@ -229,17 +281,25 @@ export function paintFace(g: CanvasRenderingContext2D, S: number, value: number,
   const r = pipRadius(value, S);
   const R = pitOuter(value, S);
   const pips = PIPS[value];
+  const look = a.rarity ? faceLook(value, a, S) : null;
   if (layer === 'emissive') {
     g.fillStyle = '#000'; g.fillRect(0, 0, S, S);
-    if (a.pattern === 'craquele' || a.pattern === 'galaxie') paintPattern(g, S, { ...a, body: '#000', body2: '#000' }, value);
+    if (look) { if (look.emissive) g.putImageData(look.emissive, 0, 0); }
+    else if (a.pattern === 'craquele' || a.pattern === 'galaxie') paintPattern(g, S, { ...a, body: '#000', body2: '#000' }, value);
     for (const [x, y] of pips) { g.fillStyle = a.pip; g.beginPath(); g.arc(x * S, y * S, R * PAINT, 0, Math.PI * 2); g.fill(); }
     return;
   }
   // Couleur : corps dégradé, motif, puis lit uni sous chaque point, liseré si besoin, point.
-  const grd = g.createRadialGradient(S / 2, S / 2, S * 0.1, S / 2, S / 2, S * 0.72);
-  grd.addColorStop(0, a.body); grd.addColorStop(1, a.body2);
-  g.fillStyle = grd; g.fillRect(0, 0, S, S);
-  if (a.pattern && a.pattern !== 'uni') paintPattern(g, S, a, value);
+  if (look) {
+    g.putImageData(look.color, 0, 0);
+    if (bake) bakeRelief(g, S, look);
+  } else {
+    const grd = g.createRadialGradient(S / 2, S / 2, S * 0.1, S / 2, S / 2, S * 0.72);
+    grd.addColorStop(0, a.body); grd.addColorStop(1, a.body2);
+    g.fillStyle = grd; g.fillRect(0, 0, S, S);
+  }
+  if (look) { /* motif déjà posé */ }
+  else if (a.pattern && a.pattern !== 'uni') paintPattern(g, S, a, value);
   else if (MATTER[a.seed ?? '']) {
     // Matière suggérée par le nom du dé (bois clair, marbre) : fil ou veines très discrets.
     g.save(); g.globalAlpha = 0.45;
@@ -261,7 +321,12 @@ export function paintFace(g: CanvasRenderingContext2D, S: number, value: number,
   const needRing = Math.min(contrast(a.pip, a.body), contrast(a.pip, a.body2)) < 4.5 || (a.pattern && a.pattern !== 'uni' && a.pattern !== 'degrade');
   for (const [x, y] of pips) {
     const cx = x * S, cy = y * S;
-    if (a.pattern && a.pattern !== 'uni') {
+    if (look) {
+      // Lit uni sous le point, fondu dans la matière (le motif ne passe jamais sous un point).
+      const bed = g.createRadialGradient(cx, cy, r * 1.15, cx, cy, r * (BED + 0.3));
+      bed.addColorStop(0, a.body2); bed.addColorStop(0.62, a.body2); bed.addColorStop(1, hexA(a.body2, 0));
+      g.fillStyle = bed; g.beginPath(); g.arc(cx, cy, r * (BED + 0.3), 0, Math.PI * 2); g.fill();
+    } else if (a.pattern && a.pattern !== 'uni') {
       // Lit uni : le motif s'arrête autour du point.
       g.fillStyle = a.body2; g.beginPath(); g.arc(cx, cy, r * 1.4, 0, Math.PI * 2); g.fill();
     }
@@ -279,6 +344,63 @@ export function paintFace(g: CanvasRenderingContext2D, S: number, value: number,
     g.beginPath(); g.arc(cx, cy, R * PAINT, 0, Math.PI * 2); g.fillStyle = pg; g.fill();
   }
   if (bake) bakeLight(g, S, value, lightPip);
+  if (bake && a.shiny) bakeShiny(g, S, value);
+}
+
+const hexA = (hex: string, alpha: number) => { const n = parseInt(hex.slice(1), 16); return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`; };
+
+/** Relief du motif « cuit » pour les images 2D : lumière en haut à gauche, comme les points. */
+function bakeRelief(g: CanvasRenderingContext2D, S: number, look: FaceLook) {
+  const img = g.getImageData(0, 0, S, S);
+  const h = look.height, k = S * 0.022 * look.relief;
+  const at = (x: number, y: number) => h[Math.min(S - 1, Math.max(0, y)) * S + Math.min(S - 1, Math.max(0, x))];
+  for (let y = 0; y < S; y++)
+    for (let x = 0; x < S; x++) {
+      const gx = (at(x + 1, y) - at(x - 1, y)) / 2, gy = (at(x, y + 1) - at(x, y - 1)) / 2;
+      // Pente vers la lumière (haut gauche) : éclaire ; à l'opposé : ombre.
+      const s = Math.max(-0.5, Math.min(0.5, (gx * 0.6 + gy * 0.75) * k));
+      const o = (y * S + x) * 4;
+      for (let c = 0; c < 3; c++) img.data[o + c] = img.data[o + c] * (1 + s * 0.9) + (s > 0 ? s * 60 : 0);
+    }
+  // Lueur des dés lumineux : visible aussi sur les aperçus.
+  if (look.emissive) for (let i = 0; i < S * S * 4; i += 4) for (let c = 0; c < 3; c++) img.data[i + c] = Math.max(img.data[i + c], look.emissive.data[i + c] * 0.9);
+  g.putImageData(img, 0, 0);
+}
+
+/** Signature des brillants sur les aperçus : bandes irisées en diagonale, liseré arc-en-ciel et éclats en étoile. */
+function bakeShiny(g: CanvasRenderingContext2D, S: number, value: number) {
+  g.save();
+  const rainbow = (x0: number, y0: number, x1: number, y1: number) => {
+    const gr = g.createLinearGradient(x0, y0, x1, y1);
+    ['#ff6fb5', '#ffd36b', '#7dffb3', '#6bc8ff', '#c08bff', '#ff6fb5'].forEach((c, i) => gr.addColorStop(i / 5, c));
+    return gr;
+  };
+  // Deux bandes irisées (le reste du dé garde ses couleurs).
+  g.globalCompositeOperation = 'screen';
+  for (const [c, w, al] of [[0.42, 0.16, 0.42], [0.7, 0.07, 0.3]] as const) {
+    g.save();
+    g.beginPath();
+    g.moveTo((c - w) * S * 2, 0); g.lineTo((c + w) * S * 2, 0); g.lineTo((c + w) * S * 2 - S, S); g.lineTo((c - w) * S * 2 - S, S); g.closePath();
+    g.clip();
+    g.globalAlpha = al; g.fillStyle = rainbow(0, S, S, 0); g.fillRect(0, 0, S, S);
+    g.restore();
+  }
+  // Liseré irisé sur le pourtour de la face.
+  g.globalAlpha = 0.75; g.strokeStyle = rainbow(0, 0, S, S); g.lineWidth = S * 0.035;
+  g.strokeRect(S * 0.018, S * 0.018, S * 0.964, S * 0.964);
+  const r = mulberry32(hashSeed(`shiny:${value}`));
+  for (let k = 0; k < 6; k++) {
+    const x = (0.1 + r() * 0.8) * S, y = (0.1 + r() * 0.8) * S;
+    if (PIPS[value].some(([px, py]) => Math.hypot(px * S - x, py * S - y) < pipRadius(value, S) * 1.6)) continue;
+    const l = S * (0.04 + r() * 0.05);
+    g.globalAlpha = 0.95;
+    const sg = g.createRadialGradient(x, y, 0, x, y, l * 0.55);
+    sg.addColorStop(0, '#ffffff'); sg.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = sg; g.fillRect(x - l, y - l, l * 2, l * 2);
+    g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = Math.max(0.8, S / 170);
+    g.beginPath(); g.moveTo(x - l, y); g.lineTo(x + l, y); g.moveTo(x, y - l); g.lineTo(x, y + l); g.stroke();
+  }
+  g.restore();
 }
 
 /** Mélange deux couleurs #rrggbb (k = part de la seconde). */
@@ -327,7 +449,7 @@ function bakeLight(g: CanvasRenderingContext2D, S: number, value: number, lightP
 /** Image (data URL) d'une face, pour l'interface (éclairage cuit). */
 const cache = new Map<string, string>();
 export function faceImage(value: number, a: DieArt, size = 128): string {
-  const key = `${a.seed}|${a.body}|${a.pip}|${a.pattern}|${value}|${size}`;
+  const key = `${a.seed}|${a.body}|${a.pip}|${a.pattern}|${a.rarity}|${a.shiny ? 1 : 0}|${value}|${size}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const c = document.createElement('canvas');

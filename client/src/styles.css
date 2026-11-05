@@ -888,9 +888,30 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .die-cube .fc.l { transform: rotateY(-90deg) translateZ(calc(var(--s) / 2)); filter: brightness(0.82); }
 .die-cube .fc.t { transform: rotateX(90deg) translateZ(calc(var(--s) / 2)); filter: brightness(1.1); }
 .die-cube .fc.d { transform: rotateX(-90deg) translateZ(calc(var(--s) / 2)); filter: brightness(0.6); }
-.die-cube.shiny .fc::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.55) 45%, rgba(170,220,255,0.35) 52%, transparent 65%); background-size: 250% 100%; animation: sheen 2.6s ease-in-out infinite; mix-blend-mode: screen; }
+.die-cube.shiny .fc::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(115deg, transparent 32%, rgba(255,160,220,0.35) 40%, rgba(255,255,255,0.6) 45%, rgba(150,230,255,0.4) 50%, transparent 58%); background-size: 260% 100%; animation: sheen 2.6s ease-in-out infinite; mix-blend-mode: screen; }
 @keyframes sheen { from { background-position: 120% 0; } to { background-position: -120% 0; } }
 .die-cube.glow { filter: drop-shadow(0 0 calc(var(--s) * 0.12) rgba(255, 190, 90, 0.55)); }
+/* Dés de collection : vernis qui accroche la lumière (rares et plus), halo qui respire (légendaires). */
+.die-cube { position: relative; }
+.die-cube.r-rare .fc::before, .die-cube.r-epique .fc::before, .die-cube.r-legendaire .fc::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(120% 80% at 22% 12%, rgba(255,255,255,0.32), rgba(255,255,255,0) 45%); mix-blend-mode: screen; }
+.die-cube.r-epique { filter: drop-shadow(0 0 calc(var(--s) * 0.08) color-mix(in srgb, var(--glow) 45%, transparent)); }
+.die-cube.r-legendaire { animation: leg-breathe 2.8s ease-in-out infinite; }
+@keyframes leg-breathe { 0%, 100% { filter: drop-shadow(0 0 calc(var(--s) * 0.06) color-mix(in srgb, var(--glow) 55%, transparent)); } 50% { filter: drop-shadow(0 0 calc(var(--s) * 0.2) color-mix(in srgb, var(--glow) 85%, transparent)); } }
+/* Brillants : voile irisé qui tourne avec le dé, éclat qui balaie, étincelles en étoile autour. */
+.die-cube.shiny { animation: shiny-aura 3.2s linear infinite; }
+@keyframes shiny-aura { 0% { filter: drop-shadow(0 0 calc(var(--s) * 0.12) rgba(255,120,200,0.7)); } 33% { filter: drop-shadow(0 0 calc(var(--s) * 0.12) rgba(120,220,255,0.7)); } 66% { filter: drop-shadow(0 0 calc(var(--s) * 0.12) rgba(170,255,150,0.7)); } 100% { filter: drop-shadow(0 0 calc(var(--s) * 0.12) rgba(255,120,200,0.7)); } }
+.die-cube .glints { position: absolute; inset: -12%; pointer-events: none; transform: translateZ(0); }
+.die-cube .glints i { position: absolute; width: calc(var(--s) * 0.22); aspect-ratio: 1; opacity: 0; animation: glint 2.4s ease-in-out infinite;
+  background: radial-gradient(circle, #fff 0 8%, transparent 9%), linear-gradient(90deg, transparent 46%, #fff 50%, transparent 54%), linear-gradient(0deg, transparent 46%, #fff 50%, transparent 54%);
+  filter: drop-shadow(0 0 3px #bfe6ff); }
+.die-cube .glints i:nth-child(1) { left: 6%; top: 10%; }
+.die-cube .glints i:nth-child(2) { right: 4%; top: 30%; animation-delay: 0.6s; }
+.die-cube .glints i:nth-child(3) { left: 30%; bottom: 2%; animation-delay: 1.2s; width: calc(var(--s) * 0.16); }
+.die-cube .glints i:nth-child(4) { right: 22%; top: -2%; animation-delay: 1.8s; width: calc(var(--s) * 0.14); }
+@keyframes glint { 0%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); } 18% { opacity: 1; transform: scale(1) rotate(45deg); } 36% { opacity: 0; transform: scale(0.4) rotate(90deg); } }
+@media (prefers-reduced-motion: reduce) { .die-cube.r-legendaire, .die-cube.shiny, .die-cube .glints i { animation: none; } }
 .die-cube.locked { display: inline-grid; place-items: center; border-radius: 18%; background: rgba(0,0,0,0.35); box-shadow: inset 0 2px 6px rgba(0,0,0,0.6), inset 0 0 0 2px rgba(255,255,255,0.06); }
 .die-cube.locked .q { font: 800 calc(var(--s) * 0.5) var(--cond); color: rgba(255,255,255,0.25); }
 
@@ -1025,19 +1046,21 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 
 /* --- Célébrations du 4-2-1 (effets de collection) --- */
 .celebration { position: fixed; inset: 0; z-index: 24; pointer-events: none; overflow: hidden; }
-.c-bravo .pc { position: absolute; left: 50%; top: 32%; width: 10px; height: 16px; border-radius: 2px; background: var(--c); animation: c-burst 1.6s cubic-bezier(.1,.7,.3,1) both; }
-@keyframes c-burst { from { transform: translate(0, 0) rotate(0); opacity: 1; } to { transform: translate(var(--x), calc(var(--y) + 220px)) rotate(var(--r)); opacity: 0; } }
-.c-ballons .pc { position: absolute; bottom: -90px; width: 44px; height: 54px; border-radius: 50% 50% 46% 46%; background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.7) 0 12%, var(--c) 30%); animation: c-rise var(--d) ease-in both; }
+.c-bravo .pc { position: absolute; left: 50%; top: 22%; width: 10px; height: 16px; border-radius: 2px; background: var(--c); animation: c-burst 1.6s cubic-bezier(.1,.7,.3,1) both; }
+@keyframes c-burst { from { transform: translate(0, 0) rotate(0); opacity: 1; } to { transform: translate(var(--x), calc(var(--y) + 260px)) rotate(var(--r)); opacity: 0; } }
+.c-ballons .pc { position: absolute; bottom: -90px; width: 52px; height: 64px; border-radius: 50% 50% 46% 46%; background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.8) 0 10%, var(--c) 32%, color-mix(in srgb, var(--c) 70%, #000) 100%); animation: c-rise var(--d) ease-in both; filter: blur(0.6px); }
 .c-ballons .pc::after { content: ''; position: absolute; left: 50%; top: 100%; width: 1px; height: 46px; background: rgba(255,255,255,0.5); }
 @keyframes c-rise { from { transform: translate(0, 0); } to { transform: translate(var(--sw), -120vh); } }
-.c-pluie-or .pc { position: absolute; top: -40px; width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6c8, var(--c) 55%, #8a6a12); box-shadow: 0 1px 2px rgba(0,0,0,0.4); animation: c-fall var(--d) ease-in both; }
-@keyframes c-fall { from { transform: translateY(0) rotate(0); } to { transform: translateY(115vh) rotate(var(--r)); } }
+.c-pluie-or .pc { position: absolute; top: -60px; width: calc(30px * var(--z)); height: calc(30px * var(--z)); border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6c8, var(--c) 55%, #8a6a12); box-shadow: 0 2px 4px rgba(0,0,0,0.4); filter: blur(calc((var(--z) - 1) * 2.5px)); animation: c-fall var(--d) ease-in both; }
+.c-pluie-or .gold-glow { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 0%, rgba(255,214,110,0.35), transparent 60%); animation: c-glow 2.4s ease-out both; }
+@keyframes c-glow { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes c-fall { from { transform: translateY(0) rotateY(0) rotate(0); } to { transform: translateY(115vh) rotateY(900deg) rotate(var(--r)); } }
 .c-feu-artifice .burst { position: absolute; width: 0; height: 0; }
-.c-feu-artifice .burst i { position: absolute; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); animation: c-spark 1.3s ease-out both; animation-delay: inherit; }
-@keyframes c-spark { 0% { transform: rotate(var(--a)) translateX(0); opacity: 1; } 80% { opacity: 1; } 100% { transform: rotate(var(--a)) translateX(130px) translateY(30px); opacity: 0; } }
-.c-eclair .flash { position: absolute; inset: 0; background: #fffbe0; animation: c-flash 0.9s ease-out both; }
-@keyframes c-flash { 0% { opacity: 0; } 8% { opacity: 0.85; } 16% { opacity: 0.1; } 24% { opacity: 0.6; } 100% { opacity: 0; } }
-.c-eclair .bolt { position: absolute; left: 50%; top: 0; width: 120px; height: 60vh; transform: translateX(-50%); animation: c-flash 0.9s ease-out both; }
+.c-feu-artifice .burst i { position: absolute; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c), 0 0 2px #fff; animation: c-spark 1.3s ease-out both; animation-delay: inherit; }
+@keyframes c-spark { 0% { transform: rotate(var(--a)) translateX(0); opacity: 1; } 80% { opacity: 1; } 100% { transform: rotate(var(--a)) translateX(110px) translateY(30px); opacity: 0; } }
+.c-eclair .flash { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 20%, #ffffff, #dfe9ff 45%, #9bb6ff); mix-blend-mode: screen; animation: c-flash 0.9s ease-out both; }
+@keyframes c-flash { 0% { opacity: 0; } 6% { opacity: 0.45; } 14% { opacity: 0.03; } 44% { opacity: 0.03; } 50% { opacity: 0.3; } 100% { opacity: 0; } }
+.c-eclair .bolt { position: absolute; left: 50%; top: 0; width: 120px; height: 45vh; transform: translateX(-50%); animation: c-flash 0.9s ease-out both; }
 .c-eclair .bolt polyline { fill: #fff6b0; stroke: #8fb4ff; stroke-width: 4; filter: drop-shadow(0 0 12px #8fb4ff); }
 @media (prefers-reduced-motion: reduce) { .celebration { display: none; } }
 

@@ -5,7 +5,7 @@ import { flyTokens } from './flyTokens';
 import { isSuddenDeath } from '../../../shared/config';
 import { albumKey, finalPlace } from '../../../shared/progress/profile';
 import { setPresence } from '../presence';
-import { fxDef, fxGlows } from '../../../shared/progress/dice-collection';
+import { fxDef } from '../../../shared/progress/dice-collection';
 import { Celebration } from './Celebration';
 import { currentPlayerId, standings, type GameState } from '../../../shared/engine';
 import { evaluate } from '../../../shared/combos';
@@ -179,11 +179,14 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
         const big = ev.roll.combo.kind === '421' || ev.roll.combo.kind === '111';
         anyRoll.current = true;
         tray.current?.setDiceSkin(skinOf(ev.roll.playerId));
-        { const t = fxOf(ev.roll.playerId, 'trail'); tray.current?.setTrail(fxDef(t)?.colors ?? null, fxGlows(t)); }
+        tray.current?.setTrail(fxOf(ev.roll.playerId, 'trail') ?? null);
         await tray.current?.roll(ev.roll.dice, ev.roll.kept, ev.seed, ev.gesture, big);
         if (big) {
           sound.jackpot();
-          setBigShot({ text: ev.roll.combo.kind === '421' ? '4-2-1 !' : 'Trois as !', who: ev.roll.playerId, id: ev.roll.seq, fete: fxOf(ev.roll.playerId, 'fete') });
+          const fete = fxOf(ev.roll.playerId, 'fete');
+          // Le texte, le son et la célébration dans le bac partent ensemble.
+          tray.current?.celebrate(fxDef(fete)?.kind === 'fete' ? fete! : null);
+          setBigShot({ text: ev.roll.combo.kind === '421' ? '4-2-1 !' : 'Trois as !', who: ev.roll.playerId, id: ev.roll.seq, fete });
           await wait(900);
         }
         const p = personas?.[ev.roll.playerId];

@@ -23,3 +23,23 @@ describe('points gravés des dés', () => {
     }
   });
 });
+
+import { ITEMS } from '../shared/progress/catalog';
+import { contrast } from '../shared/progress/dice-collection';
+import { BED } from '../client/src/three/dieArt';
+import { lookFinish } from '../client/src/three/dieLooks';
+
+describe('dés de collection : matières et lisibilité', () => {
+  it('le motif ne passe jamais sous un point : lit uni assez large, contrasté avec le point', () => {
+    expect(BED).toBeGreaterThanOrEqual(1.3);
+    for (const it of ITEMS) if (it.category === 'dice' && it.rarity) expect(contrast(it.pip, it.body2), it.id).toBeGreaterThanOrEqual(4);
+  });
+  it('hiérarchie des raretés : effets animés réservés aux épiques et légendaires, éclat pour tous les brillants', () => {
+    for (const it of ITEMS) if (it.category === 'dice' && it.rarity) {
+      const f = lookFinish({ ...it });
+      if (it.shiny) expect(f.holo, it.id).toBeGreaterThan(0);
+      else expect(f.holo, it.id).toBe(0);
+      if (!it.shiny && (it.rarity === 'commun' || it.rarity === 'rare')) { expect(f.pulse[1], it.id).toBe(0); expect(f.glint[1], it.id).toBe(0); }
+    }
+  });
+});

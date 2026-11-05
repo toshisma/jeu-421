@@ -20,13 +20,17 @@ export function DieCube({ id, size = 64, spin = false, locked = false }: { id: s
   if (!it || locked) {
     return <span className="die-cube locked" style={{ '--s': `${size}px` } as CSSProperties} aria-hidden><span className="q">?</span></span>;
   }
-  const art = { body: it.body, body2: it.body2, pip: it.pip, accent: it.accent, pattern: it.pattern, glow: it.glow, seed: it.id };
+  const art = { body: it.body, body2: it.body2, pip: it.pip, accent: it.accent, pattern: it.pattern, glow: it.glow, seed: it.id, rarity: it.rarity, shiny: it.shiny };
   const faces: [string, number][] = [['f', 1], ['r', 3], ['t', 2], ['b', 6], ['l', 4], ['d', 5]];
+  // Résolution adaptée à la taille affichée (écrans haute densité compris).
+  const res = size > 90 ? 256 : size > 50 ? 160 : 112;
   return (
-    <span className={`die-cube${spin ? ' spin' : ''}${it.shiny ? ' shiny' : ''}${it.glow ? ' glow' : ''}`} style={{ '--s': `${size}px` } as CSSProperties} role="img" aria-label={it.name}>
+    <span className={`die-cube${spin ? ' spin' : ''}${it.shiny ? ' shiny' : ''}${it.glow ? ' glow' : ''}${it.rarity ? ` r-${it.rarity}` : ''}`}
+      style={{ '--s': `${size}px`, ...(it.rarity ? { '--rc': RARITY_COLOR[it.rarity], '--glow': it.accent ?? it.pip } : {}) } as CSSProperties} role="img" aria-label={it.name}>
       <span className="cube">
-        {faces.map(([k, v]) => <i key={k} className={`fc ${k}`} style={{ backgroundImage: `url(${faceImage(v, art, size > 90 ? 192 : 112)})` }} />)}
+        {faces.map(([k, v]) => <i key={k} className={`fc ${k}`} style={{ backgroundImage: `url(${faceImage(v, art, res)})` }} />)}
       </span>
+      {it.shiny && <span className="glints" aria-hidden><i /><i /><i /><i /></span>}
     </span>
   );
 }
@@ -163,7 +167,7 @@ function DieSheet({ pa, id, onClose }: { pa: ProfileApi; id: string; onClose: ()
 }
 
 /** Fiche d'un effet de lancer. */
-function FxSheet({ pa, fx, onClose }: { pa: ProfileApi; fx: FxDef; onClose: () => void }) {
+function FxSheet({ pa, fx, onClose, onTry }: { pa: ProfileApi; fx: FxDef; onClose: () => void; onTry?: (id: string) => void }) {
   const p = pa.profile;
   const owned = p.owned.includes(fx.id);
   const on = p.fx?.[fx.kind] === fx.id;
@@ -180,7 +184,10 @@ function FxSheet({ pa, fx, onClose }: { pa: ProfileApi; fx: FxDef; onClose: () =
         {owned && <p className="muted">{fx.flavor}</p>}
         <p className="muted small">{fx.kind === 'trainee' ? 'Laisse une traînée derrière vos dés quand ils roulent.' : 'Éclate à l’écran quand vous faites un 4-2-1 ou trois as.'} Les autres joueurs la voient en ligne.</p>
         {owned ? (
-          <button className="btn primary" onClick={() => void run(() => pa.equipFx(fx.kind, on ? null : fx.id))}>{on ? 'Retirer' : 'Utiliser'}</button>
+          <div className="row">
+            <button className="btn primary" onClick={() => void run(() => pa.equipFx(fx.kind, on ? null : fx.id))}>{on ? 'Retirer' : 'Utiliser'}</button>
+            {onTry && <button className="btn secondary" onClick={() => onTry(fx.id)}>🎲 Essayer dans le bac</button>}
+          </div>
         ) : (
           <div className="row">
             <button className="btn primary" disabled={(p.shards ?? 0) < cost || !pa.isAccount} onClick={() => void run(() => pa.craft(fx.id))}>Fabriquer pour {cost} éclats</button>
@@ -194,7 +201,7 @@ function FxSheet({ pa, fx, onClose }: { pa: ProfileApi; fx: FxDef; onClose: () =
   );
 }
 
-export function CollectionScreen({ pa, onBack, onAccount }: { pa: ProfileApi; onBack: () => void; onAccount: () => void }) {
+export function CollectionScreen({ pa, onBack, onAccount, onTry }: { pa: ProfileApi; onBack: () => void; onAccount: () => void; onTry?: (fxId: string) => void }) {
   const p = pa.profile;
   const [filter, setFilter] = useState<Rarity | 'tous'>('tous');
   const [tab, setTab] = useState<'des' | 'effets' | 'series'>('des');
@@ -332,7 +339,7 @@ export function CollectionScreen({ pa, onBack, onAccount }: { pa: ProfileApi; on
       </details>
 
       {open && <DieSheet pa={pa} id={open} onClose={() => setOpen(null)} />}
-      {openFx && <FxSheet pa={pa} fx={openFx} onClose={() => setOpenFx(null)} />}
+      {openFx && <FxSheet pa={pa} fx={openFx} onClose={() => setOpenFx(null)} onTry={onTry} />}
       {opening && <BagOpening pa={pa} onClose={() => setOpening(false)} />}
     </Shell>
   );

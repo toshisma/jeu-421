@@ -58,7 +58,7 @@ type Screen =
   | { name: 'tournament'; mode: TournamentMode }
   | { name: 'rules' }
   | { name: 'settings' }
-  | { name: 'sandbox' }
+  | { name: 'sandbox'; tryFx?: string }
   | { name: 'shop' }
   | { name: 'account'; tab?: 'login' | 'register' }
   | { name: 'leaderboard' }
@@ -248,7 +248,8 @@ export function App() {
     case 'settings':
       return <SettingsScreen settings={settings} onChange={setSettings} onBack={home} />;
     case 'sandbox':
-      return <Sandbox settings={settings} appearance={profile.equipped} trail={profile.fx?.trainee} onSettings={setSettings} onBack={home} />;
+      return <Sandbox settings={settings} appearance={profile.equipped} trail={profile.fx?.trainee} fete={profile.fx?.fete} tryFx={screen.tryFx}
+        onSettings={setSettings} onBack={screen.tryFx ? () => setScreen({ name: 'collection' }) : home} />;
     case 'shop':
       return <ShopScreen profile={profile} settings={settings} onBuy={pa.buyItem} onEquip={pa.equipItem} onBack={home} />;
     case 'account':
@@ -293,7 +294,7 @@ export function App() {
     case 'duel':
       return <ChallengeScreen key={screen.duel.id} pa={pa} settings={settings} appearance={profile.equipped} duel={screen.duel} onBack={() => setScreen({ name: 'duels' })} />;
     case 'collection':
-      return <CollectionScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} />;
+      return <CollectionScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} onTry={(fx) => setScreen({ name: 'sandbox', tryFx: fx })} />;
     case 'stats':
       return <StatsScreen pa={pa} onBack={home} onAdmin={() => setScreen({ name: 'admin' })} />;
     case 'admin':

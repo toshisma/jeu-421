@@ -9,7 +9,11 @@ import {
   FACE_VALUES, FPS, PRELUDE_FRAMES, TRAY, offsetForTop, parkPoses, restingLayout, samplePose, simulateThrow, topFace,
   type DiePose, type ImpactKind, type ThrowGesture, type ThrowResult,
 } from '../physics/diceSim';
-import { brushed, dieFace, felt, leather, stone, wood } from './textures';
+import { brushed, dieFace, disposeFace, felt, leather, stone, wood } from './textures';
+import { finishAnimated, lookFinish, type LookFinish } from './dieLooks';
+import { installDiceFx, setDiceFx, type DiceFxUniforms } from './diceFx';
+import { Trails } from './trails';
+import { Celebrations } from './celebrations';
 import { getShape, clampInside, insideShape, offsetVerts, type TrayShape } from '../physics/trayShapes';
 import { getItem, resolveAppearance, type Appearance, type DiceItem, type ResolvedAppearance } from '../../../shared/progress/catalog';
 
@@ -28,6 +32,8 @@ export interface TraySceneOptions {
   /** Lancer au gobelet : on le secoue, puis il se verse dans le bac. */
   cup?: boolean;
   onShake?: () => void;
+  /** Sons ponctuels des célébrations (pièces, explosions, tonnerre). */
+  onFx?: (kind: 'coin' | 'boom' | 'pop' | 'thunder', strength: number) => void;
   /**
    * Scène de vignettes (boutique) : pas de boucle d'animation, pas d'écouteurs, pas de changement
    * de couleur d'accent ; on rend à la demande avec `capture()`.
@@ -41,6 +47,8 @@ interface DieObj {
   ring: THREE.Mesh;
   /** Ombre de contact (tache douce posée sur le tapis, sous le dé). */
   contact: THREE.Mesh;
+  /** Effets animés (scintillement, lueur qui pulse, reflet, éclat des brillants). */
+  fx: DiceFxUniforms[];
   pose: DiePose; // pose du corps physique
   offset: THREE.Quaternion; // rotation de maillage (étiquetage des faces)
 }
@@ -60,10 +68,19 @@ export class TrayScene {
   private skin: string | null = null;
   private glowBase = 0;
   private quality: Quality = 'normale';
-  // Traînée de lancer : particules émises derrière les dés pendant qu'ils roulent.
-  private fxTrail: string[] | null = null;
-  private parts: { mat: THREE.PointsMaterial; geo: THREE.BufferGeometry; pos: Float32Array; col: Float32Array; vel: Float32Array; life: Float32Array; max: Float32Array; next: number } | null = null;
-  private lastDie: THREE.Vector3[] = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+  // Traînée de lancer : ruban et particules derrière les dés pendant qu'ils roulent.
+  private trails: Trails | null = null;
+  private trailId: string | null = null;
+  /** Célébration du 4-2-1 / trois as dans le bac. */
+  private party: Celebrations | null = null;
+  /** Lumière d'appoint des célébrations (éclair, feu d'artifice). */
+  private flashLight: THREE.PointLight | null = null;
+  /** Horloge des effets animés des dés. */
+  private fxTime = { value: 0 };
+  /** Les dés affichés ont des effets animés (scintillement, lueur, reflets). */
+  private diceAnimated = false;
+  private lastIdleFx = 0;
+  private diePos: THREE.Vector3[] = [];
   private trayGroup = new THREE.Group();
   private disposables: { dispose(): void }[] = [];
   private raf = 0;
@@ -202,6 +219,7 @@ export class TrayScene {
         clearcoat: 0.55, clearcoatRoughness: 0.2, envMapIntensity: 0.55, sheen: 0,
       }));
       this.disposables.push(...mats);
+      const fx = mats.map((m) => installDiceFx(m, this.fxTime));
       const mesh = new THREE.Mesh(geo, mats);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
@@ -216,7 +234,7 @@ export class TrayScene {
       contact.position.y = 0.006;
       contact.renderOrder = 1;
       this.scene.add(mesh, ring, contact);
-      this.dice.push({ mesh, mats, ring, contact, pose: { p: [0, 0.5, 0], q: [0, 0, 0, 1] }, offset: new THREE.Quaternion() });
+      this.dice.push({ mesh, mats, ring, contact, fx, pose: { p: [0, 0.5, 0], q: [0, 0, 0, 1] }, offset: new THREE.Quaternion() });
     }
   }
 
@@ -261,71 +279,55 @@ export class TrayScene {
     this.invalidate();
   }
 
-  /** Traînée de lancer (couleurs des particules), ou aucune (null). */
-  setTrail(colors: string[] | null, glow = true) {
-    this.fxTrail = colors && colors.length ? colors : null;
-    if (this.fxTrail && !this.parts) this.buildParticles();
-    if (this.parts) { this.parts.mat.blending = glow ? THREE.AdditiveBlending : THREE.NormalBlending; this.parts.mat.needsUpdate = true; }
+  /** Traînée de lancer (identifiant de l'effet de collection), ou aucune (null). */
+  setTrail(id: string | null) {
+    if (id === this.trailId) return;
+    this.trailId = id;
+    if (id && !this.trails) {
+      this.trails = new Trails(this.quality === 'normale');
+      this.trails.setScale(this.renderer.domElement.height);
+      this.scene.add(this.trails.group);
+    }
+    this.trails?.set(id);
+    // Shaders de la traînée compilés tout de suite : pas d'à-coup au premier lancer.
+    if (this.trails && id) { const g = this.trails.group, v = g.visible; g.visible = true; this.renderer.compile(this.scene, this.camera); g.visible = v; }
   }
 
-  private buildParticles() {
-    const N = 600;
-    const geo = new THREE.BufferGeometry();
-    const pos = new Float32Array(N * 3), col = new Float32Array(N * 4), vel = new Float32Array(N * 3), life = new Float32Array(N), max = new Float32Array(N);
-    pos.fill(-999);
-    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(col, 4));
-    const c = document.createElement('canvas'); c.width = c.height = 64;
-    const g = c.getContext('2d')!;
-    const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.85)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
-    const tex = new THREE.CanvasTexture(c);
-    const mat = new THREE.PointsMaterial({ size: 0.75, map: tex, vertexColors: true, transparent: true, depthWrite: false, sizeAttenuation: true });
-    const pts = new THREE.Points(geo, mat);
-    pts.frustumCulled = false;
-    this.scene.add(pts);
-    this.disposables.push(geo, mat, tex);
-    this.parts = { mat, geo, pos, col, vel, life, max, next: 0 };
-  }
-
-  /** Émet et fait vivre les particules ; renvoie vrai s'il en reste à animer. */
-  private stepParticles(dt: number, emit: boolean): boolean {
-    const P = this.parts;
-    if (!P) return false;
-    const N = P.life.length;
-    if (emit && this.fxTrail) {
-      this.dice.forEach((d, i) => {
-        const p = d.mesh.position;
-        const speed = p.distanceTo(this.lastDie[i]) / Math.max(dt, 1e-3);
-        this.lastDie[i].copy(p);
-        if (speed < 0.8) return;
-        const n = Math.min(6, 2 + Math.floor(speed / 3));
-        for (let k = 0; k < n; k++) {
-          const j = P.next; P.next = (P.next + 1) % N;
-          P.pos[j * 3] = p.x + (Math.random() - 0.5) * 0.4; P.pos[j * 3 + 1] = p.y + (Math.random() - 0.3) * 0.3; P.pos[j * 3 + 2] = p.z + (Math.random() - 0.5) * 0.4;
-          P.vel[j * 3] = (Math.random() - 0.5) * 0.6; P.vel[j * 3 + 1] = 0.4 + Math.random() * 0.8; P.vel[j * 3 + 2] = (Math.random() - 0.5) * 0.6;
-          const c = new THREE.Color(this.fxTrail![Math.floor(Math.random() * this.fxTrail!.length)]);
-          P.col[j * 4] = c.r; P.col[j * 4 + 1] = c.g; P.col[j * 4 + 2] = c.b; P.col[j * 4 + 3] = 1;
-          P.max[j] = P.life[j] = 0.6 + Math.random() * 0.6;
-        }
+  /**
+   * Célébration du 4-2-1 / des trois as (effet de collection, ou célébration par défaut si null),
+   * autour des dés. Dure 3 s, se nettoie seule ; un nouveau lancer l'arrête.
+   */
+  celebrate(id: string | null) {
+    if (!this.party) {
+      this.party = new Celebrations({
+        scene: this.scene,
+        half: [this.shape.halfX - 0.3, this.shape.halfZ - 0.3],
+        lite: () => this.quality === 'normale',
+        flash: (k, color) => this.flash(k, color),
+        onSound: (kind, s) => this.opts.onFx?.(kind, s),
       });
-    } else {
-      this.dice.forEach((d, i) => this.lastDie[i].copy(d.mesh.position));
     }
-    let alive = false;
-    for (let j = 0; j < N; j++) {
-      if (P.life[j] <= 0) continue;
-      P.life[j] -= dt;
-      if (P.life[j] <= 0) { P.col[j * 4 + 3] = 0; P.pos[j * 3 + 1] = -999; continue; }
-      alive = true;
-      P.vel[j * 3 + 1] -= 0.9 * dt;
-      P.pos[j * 3] += P.vel[j * 3] * dt; P.pos[j * 3 + 1] = Math.max(0.05, P.pos[j * 3 + 1] + P.vel[j * 3 + 1] * dt); P.pos[j * 3 + 2] += P.vel[j * 3 + 2] * dt;
-      P.col[j * 4 + 3] = P.life[j] / P.max[j];
+    const c = new THREE.Vector3();
+    for (const d of this.dice) c.add(d.mesh.position);
+    c.divideScalar(3).setY(0);
+    // Le tapis peut changer de forme : on recale les limites.
+    this.party.ctx.half = [this.shape.halfX - 0.3, this.shape.halfZ - 0.3];
+    this.party.start(id, c);
+    this.invalidate();
+  }
+
+  /** Flash de lumière (éclair, explosion) : lumière ponctuelle ajoutée, et ciel un peu plus clair. */
+  private flash(k: number, color: THREE.Color) {
+    if (!this.flashLight) {
+      if (k <= 0) return;
+      this.flashLight = new THREE.PointLight(0xffffff, 0, 40, 1.2);
+      this.flashLight.position.set(0, 9, 0);
+      this.scene.add(this.flashLight);
     }
-    (P.geo.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
-    (P.geo.getAttribute('color') as THREE.BufferAttribute).needsUpdate = true;
-    return alive;
+    this.flashLight.color.copy(color);
+    this.flashLight.intensity = this.quality === 'haute' ? k * 260 : 0;
+    this.hemi.intensity = 0.14 + k * 0.18;
+    this.flashLight.visible = k > 0.001;
   }
 
   /** Affiche les dés d'un joueur (identifiant de dés du catalogue), ou les miens (null). */
@@ -341,12 +343,25 @@ export class TrayScene {
     if (st.id === this.diceKey) return;
     this.diceKey = st.id;
     this.glowBase = st.glow ? 0.9 : 0;
-    let faces = this.faceCache.get(st.id);
+    // Dés de collection : textures plus fines en qualité haute.
+    const size = this.quality === 'haute' && !this.opts.thumbnail ? 512 : 256;
+    const ck = `${st.id}|${st.rarity ? size : 256}`;
+    let faces = this.faceCache.get(ck);
     if (!faces) {
-      faces = FACE_VALUES.map((v) => dieFace(v, { ...st, id: st.id }));
-      this.faceCache.set(st.id, faces);
+      faces = FACE_VALUES.map((v) => dieFace(v, { ...st, id: st.id }, size));
+      this.faceCache.set(ck, faces);
+      // Pas plus de 6 modèles de dés gardés (une table a au plus 6 joueurs).
+      if (this.faceCache.size > 6) {
+        const [oldKey, old] = this.faceCache.entries().next().value!;
+        this.faceCache.delete(oldKey);
+        for (const fc of old) disposeFace(fc);
+      }
     }
-    const fin = diceFinish(st);
+    const look: LookFinish | null = st.rarity ? lookFinish({ ...st, id: st.id }) : null;
+    // Lueur peinte des dés de collection (nébuleuses, aurore…) : allumée même sans points lumineux.
+    if (!st.glow && faces[0].emissive) this.glowBase = 0.75;
+    const fin = look ?? diceFinish(st);
+    this.diceAnimated = !!look && finishAnimated(look);
     for (const d of this.dice)
       d.mats.forEach((m, j) => {
         const f = faces![j];
@@ -364,19 +379,21 @@ export class TrayScene {
         m.clearcoatNormalMap = this.quality === 'haute' ? f.normal : null;
         m.clearcoatNormalScale.setScalar(fin.relief * 0.8);
         m.roughness = fin.roughness;
-        m.metalness = st.metalness;
+        m.metalness = look ? look.metalness : st.metalness;
+        m.anisotropy = look && this.quality === 'haute' ? look.anisotropy : 0;
         m.clearcoat = fin.clearcoat;
         m.clearcoatRoughness = fin.clearcoatRoughness;
         m.specularIntensity = fin.specular;
         m.sheen = this.quality === 'haute' ? fin.sheen : 0;
         m.sheenRoughness = 0.6;
         m.sheenColor.set(fin.sheenColor);
-        m.iridescence = st.iridescence ?? 0;
+        m.iridescence = look ? look.iridescence : st.iridescence ?? 0;
         m.iridescenceIOR = 1.6;
         m.iridescenceThicknessRange = [180, 620];
         m.emissiveMap = f.emissive;
         m.emissiveIntensity = 1;
         m.envMapIntensity = fin.env;
+        setDiceFx(d.fx[j], f.fx, look, this.quality === 'haute');
         m.needsUpdate = true;
       });
   }
@@ -506,7 +523,7 @@ export class TrayScene {
   }
 
   setQuality(q: Quality) {
-    if (q !== this.quality) { this.quality = q; this.diceKey = ''; this.styleDice(); }
+    if (q !== this.quality) { this.quality = q; this.diceKey = ''; this.styleDice(); this.trails?.setLite(q === 'normale'); if (this.trailId) { const t = this.trailId; this.trailId = null; this.setTrail(t); } }
     this.basePixelRatio = Math.min(window.devicePixelRatio, q === 'haute' ? 2 : 1.25);
     this.prScale = 1;
     this.renderer.setPixelRatio(this.basePixelRatio);
@@ -527,6 +544,7 @@ export class TrayScene {
     const w = this.thumbSize?.[0] ?? (this.container.clientWidth || 1);
     const h = this.thumbSize?.[1] ?? (this.container.clientHeight || 1);
     this.renderer.setSize(w, h, false);
+    this.trails?.setScale(this.renderer.domElement.height);
     this.camera.aspect = w / h;
     const { top, right, bottom, left } = this.insets;
     const freeW = Math.max(100, w - left - right);
@@ -606,6 +624,8 @@ export class TrayScene {
 
   async roll(values: number[], keep: boolean[], seed: number, gesture?: ThrowGesture, dramatic = false): Promise<void> {
     if (this.playback) this.finishPlayback();
+    this.party?.stop();
+    this.flash(0, new THREE.Color());
     // Les dés gardés partent du bord du bac : position calculée pareil chez tous les joueurs.
     const start = parkPoses(this.home, keep, this.shape.id);
     this.kept = [...keep];
@@ -818,7 +838,13 @@ export class TrayScene {
       if (frame >= pb.sim.frameCount - 1) this.finishPlayback();
     }
 
-    if (this.parts && this.stepParticles(dt, !!this.playback && !this.playback.hold)) animating = true;
+    this.fxTime.value += dt;
+    if (this.trails) {
+      if (this.diePos.length !== 3) this.diePos = this.dice.map((d) => d.mesh.position);
+      if (this.trails.step(dt, this.diePos, !!this.playback && !this.playback.hold)) animating = true;
+    }
+    if (this.party?.step(dt)) animating = true;
+    else if (this.flashLight?.visible) this.flash(0, new THREE.Color());
 
     // Anneaux dorés sous les dés conservés, halo au survol.
     this.dice.forEach((d, i) => {
@@ -851,6 +877,8 @@ export class TrayScene {
       this.applyZoom();
       animating = true;
     }
+    // Dés aux effets animés : au repos, rendu à 30 images/s en qualité haute (rien en qualité normale).
+    if (!animating && !this.dirty && this.diceAnimated && this.quality === 'haute' && now - this.lastIdleFx > 33) { this.lastIdleFx = now; this.dirty = true; }
     if (!animating && !this.dirty) { this.perf.frames = 0; this.perf.time = 0; return; }
     this.dirty = false;
     this.renderer.render(this.scene, this.camera);
@@ -981,7 +1009,10 @@ export class TrayScene {
     this.clearTray();
     for (const d of this.disposables) d.dispose();
     // Les cartes de relief sont partagées entre toutes les scènes : on ne libère que les couleurs.
-    for (const faces of this.faceCache.values()) for (const f of faces) { f.map.dispose(); f.emissive?.dispose(); }
+    for (const faces of this.faceCache.values()) for (const f of faces) disposeFace(f);
+    this.trails?.dispose();
+    this.party?.stop();
+    if (this.flashLight) { this.flashLight.dispose(); this.flashLight.removeFromParent(); }
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
