@@ -1,7 +1,8 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
 import { FloatingPop } from './FloatingPop';
 import { Icon } from './Icon';
 import { sound } from '../audio/sound';
+import { music } from '../audio/music';
 import type { Settings } from '../settings';
 
 /** Bouton volume : ouvre un curseur 0–100 %, avec « couper » d'un geste. */
@@ -55,10 +56,30 @@ export function MusicControl({ settings, onSettings }: { settings: Settings; onS
           <button className="icon-btn small" title={pct === 0 ? 'Remettre la musique' : 'Couper la musique'} onClick={() => set(pct === 0 ? 40 : 0)}>
             <span aria-hidden>{pct === 0 ? '♫' : '⏸'}</span>
           </button>
-          <input type="range" min={0} max={100} step={1} value={pct} aria-label="Musique" onChange={(e) => set(Number(e.target.value))} />
-          <span className="vol-pct">{pct} %</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <input type="range" min={0} max={100} step={1} value={pct} aria-label="Musique" style={{ flex: 1, minWidth: 0 }} onChange={(e) => set(Number(e.target.value))} />
+              <span className="vol-pct">{pct} %</span>
+            </div>
+            <NowPlaying />
+          </div>
         </FloatingPop>
       )}
+    </div>
+  );
+}
+
+/** Titre du morceau en cours et bouton « Morceau suivant ». */
+function NowPlaying() {
+  useSyncExternalStore((fn) => music.subscribe(fn), () => music.info().id, () => music.info().id);
+  const t = music.info();
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }} aria-live="polite">
+      <b style={{ lineHeight: 1.2 }}>{t.title}</b>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        <small style={{ flex: 1, minWidth: 0, opacity: 0.7, lineHeight: 1.25 }}>{t.mood}</small>
+        <button className="btn small" style={{ flex: 'none', whiteSpace: 'nowrap' }} onClick={() => { music.unlock(); music.next(); }}>Morceau suivant ⏭</button>
+      </div>
     </div>
   );
 }
