@@ -165,7 +165,7 @@ export function TrapBox({ n, seen, sub, onClick, compact }: { n: number; seen: s
   return (
     <button className={`cfn-trap${compact ? ' compact' : ''}`} onClick={onClick} aria-label={`${n} piège${n > 1 ? 's' : ''} caché${n > 1 ? 's' : ''} : touchez pour les possibilités`}>
       <TrapCard />
-      {compact ? <b>{n}</b> : <span>{plural(n, 'piège')} caché{n > 1 ? 's' : ''}<br /><small>{seen.length ? `Vu : ${seen.join(', ')}` : sub}</small></span>}
+      {compact ? <b>{n}</b> : <span>{plural(n, 'piège')}<br /><small>{seen.length ? `Vu : ${seen.join(', ')}` : 'caché' + (n > 1 ? 's' : '')}</small></span>}
     </button>
   );
 }
@@ -456,7 +456,7 @@ export function TrapSheet({ owner, v, onClose, onCard }: { owner: CfPlayerView; 
             {ids.map((id) => <button key={id} className="cfn-trap-item" onClick={() => onCard(id)}><TypeIcon type="piege" size={16} /><span><b>{def(id)!.name}</b><small>{def(id)!.text}</small></span></button>)}
           </div>
         ) : <p className="cfn-muted">Aucun piège dans ses familles de cartes.</p>}
-        <p className="cfn-tip">Astuce : la <b>Fouine</b> regarde un piège adverse (et peut le défausser pour 1 Tournée) ; le <b>Videur</b> annule le premier piège de chaque manche.</p>
+        <p className="cfn-tip">Astuce : la <b>Fouine</b> défausse un piège adverse de votre choix ; le <b>Videur</b> annule le premier piège de chaque manche.</p>
       </div>
     </div>
   );

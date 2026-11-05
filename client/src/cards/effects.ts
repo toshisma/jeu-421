@@ -24,7 +24,7 @@ export function activeEffects(v: CfView, p: CfPlayerView, me: boolean): ActiveEf
   if (r.noteSalee > 0) out.push({ text: s(`+${2 * r.noteSalee} jetons donnés si vous gagnez`, `+${2 * r.noteSalee} jetons donnés s’il gagne`), card: 'note-salee', type: 'dernier-mot', tone: 'good' });
   if (r.pari > 0) out.push({ text: `Pari : ±${2 * r.pari} jetons`, card: 'pari-comptoir', type: 'coup', tone: 'good' });
   if (r.bonusThrows > 0) out.push({ text: `+${r.bonusThrows} lancer${r.bonusThrows > 1 ? 's' : ''}`, card: 'cul-sec', type: 'coup', tone: 'good' });
-  if (r.discount > 0) out.push({ text: s(`Prochaine carte −${r.discount}`, `Sa prochaine carte −${r.discount}`), card: 'mise-bouche', type: 'coup', tone: 'good' });
+  if (r.discount > 0) out.push({ text: r.discount >= 5 ? s('Prochaine carte gratuite', 'Sa prochaine carte gratuite') : s(`Prochaine carte −${r.discount}`, `Sa prochaine carte −${r.discount}`), card: 'mise-bouche', type: 'coup', tone: 'good' });
   if (r.throwPenalty > 0) out.push({ text: `Un seul lancer`, card: 'gueule-bois', type: 'piege', tone: 'bad' });
   if (r.faux421) out.push({ text: '4-2-1 ne vaut que 2', card: 'faux-421', type: 'piege', tone: 'bad' });
   if (r.forcedNenette) out.push({ text: 'Combinaison changée en nénette', card: 'coup-nenette', type: 'piege', tone: 'bad' });
@@ -42,8 +42,8 @@ export const CARD_GIST: Record<string, string> = {
   'vieux-marcel': 'Suites à 4 · piochez 1 carte',
   pilier: '1 jeton de moins si vous perdez',
   videur: 'Annule le 1er piège adverse',
-  'tournee-patron': '+2 Tournées',
-  'ticket-caisse': 'Annule un petit Coup (2 ou moins)',
+  'tournee-patron': '+2 Tournées et 1 carte',
+  'ticket-caisse': 'Annule un Coup (3 ou moins)',
   fermeture: 'Chasse un Habitué adverse',
   'note-salee': '+2 jetons donnés si vous gagnez',
   'cul-sec': '+1 lancer ce tour',
@@ -52,22 +52,22 @@ export const CARD_GIST: Record<string, string> = {
   'double-tournee': 'Combinaison ×2 si vous gagnez',
   'de-sous-table': 'Relance un dé de l’adversaire',
   'yeux-piquent': 'Annule un Coup sur les dés',
-  'gueule-bois': 'Le gagnant n’aura qu’un lancer',
+  'gueule-bois': 'S’il perd : un seul lancer ensuite',
   'tournee-generale': 'Tout le monde relance tout',
   leurre: 'Faux piège : piochez 1 carte',
-  'croche-patte': 'Relance un de ses dés gardés',
-  'main-sac': 'Copie ses pioches et Tournées',
-  fouine: 'Regardez un piège adverse',
+  'croche-patte': 'Relance un de ses dés à la fin',
+  'main-sac': 'Annule son Coup à 2 ou plus',
+  fouine: 'Défaussez un piège adverse',
   'ardoise-piegee': 'Ses Coups coûtent 2 de plus',
   'faux-421': 'Son 4-2-1 ne vaut que 2',
-  'coup-nenette': 'Sa victoire à 1 devient nénette',
-  'retournement-veste': 'Renvoie un gros don (5 et plus)',
+  'coup-nenette': 'Sa victoire à 1 ou 2 → nénette',
+  'retournement-veste': 'Renvoie un gros don (6 et plus)',
   'coup-coude': 'Piochez 1 carte',
-  'mise-bouche': 'Prochaine carte 2 de moins',
+  'mise-bouche': 'Prochaine carte gratuite',
   'coup-pouce': '+1 ou −1 sur un de vos dés',
   'calcul-mental': 'Choisissez 1 carte parmi 3',
   recompter: '+1 ou −1 sur un dé, à la fin',
-  domino: 'L’adversaire perd 2 Tournées',
+  domino: 'L’adversaire perd ses Tournées',
   'reaction-chaine': 'Annule une carte adverse',
   'bon-numero': 'Un dé sur la face voulue',
   'grand-enchainement': 'Rejouez votre dernier Coup',
