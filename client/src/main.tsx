@@ -11,7 +11,13 @@ import '@fontsource/barlow-condensed/latin-700.css';
 import '@fontsource/barlow-condensed/latin-800.css';
 import './styles.css';
 
-createRoot(document.getElementById('root')!).render(<App />);
+const root = createRoot(document.getElementById('root')!);
+if (new URLSearchParams(location.search).has('cf-gallery')) {
+  // TEMPORAIRE : planche des cartes « Coups Fourrés » (relecture, captures). Fichier chargé à part.
+  import('./cards/CardGallery').then((m) => root.render(<m.CardGallery />)).catch(() => root.render(<App />));
+} else {
+  root.render(<App />);
+}
 
 // Application installable : service worker (cache hors ligne) uniquement pour la version web
 // servie en HTTPS (ou localhost). Ni la version fichier unique, ni l'application native n'en ont besoin.
