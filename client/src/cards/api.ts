@@ -21,6 +21,9 @@ export const cfMe = (token: Tok) => api<WithState>('/cf/me', { token }).then((r)
 /** Première visite : 2 decks de départ + 3 boosters (une seule fois ; 409 ensuite). */
 export const cfDiscover = (token: Tok) => api<WithState<{ boosters: number }>>('/cf/discover', { token, body: {} });
 
+/** Partie guidée terminée : petite récompense en capsules, une seule fois (409 ensuite). */
+export const cfTutorialDone = (token: Tok) => api<WithState<{ capsules: number }>>('/cf/tutorial/done', { token, body: {} });
+
 /** Achète un booster (100 capsules). */
 export const cfBuyBooster = (token: Tok) => api<WithState<{ capsules: number }>>('/cf/booster/buy', { token, body: {} });
 

@@ -34,6 +34,20 @@ export interface CfSnapshot {
    * temps, qu'on ait une carte ou non : afficher « Réponse possible… » jusqu'à `until`.
    */
   responseWindow?: { player: string; until: number; kind: 'respond' | 'lastword' } | null;
+  /** Partie guidée : bulle d'explication de l'étape en cours (affichée une fois les animations jouées). */
+  guide?: CfGuide | null;
+}
+
+/** Bulle de la partie guidée. */
+export interface CfGuide {
+  title?: string;
+  text: string;
+  /** Étape d'explication : libellé du bouton « Continuer » (sinon on attend une action). */
+  next?: string;
+  /** Zone mise en avant (voir TutoFocus). */
+  focus?: string;
+  index: number;
+  total: number;
 }
 
 export interface CfController {
