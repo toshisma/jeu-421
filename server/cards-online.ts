@@ -31,6 +31,9 @@ import {
 import { replayBotMatch, type BotMatchSetup } from '../shared/cards/botmatch';
 import { CF_LEVEL_LABEL, type CfLevel } from '../shared/cards/ai';
 import { cfDivisionOf, type CfMissionKind } from '../shared/cards/progress';
+import { CfPlayTracker, deckCounts } from '../shared/cards/stats';
+import type { CfStatsApi } from './cf-stats';
+import type { CfConfig } from '../shared/cards/engine';
 import {
   CF_SPECTATOR_ID, type CfChallengeMsg, type CfFriendPresence, type CfGameMode, type CfHelloMsg, type CfQueueMsg,
   type CfStateMsg, type CfTableMsg, type CfWireSeat, type CfWireSnapshot,
@@ -74,7 +77,12 @@ interface Ctx {
   recordChat: (e: TableChatEntry) => void;
   now?: () => number;
   opts?: CfOnlineOptions;
+  /** Statistiques réelles des cartes (administration). */
+  stats?: CfStatsApi;
 }
+
+/** Fin d'une partie en ligne (tournoi du samedi : avancement du tableau). */
+export interface CfGameEnd { id: string; mode: CfGameMode; winner: string; losers: string[]; abandon: string | null }
 
 // --- Parties contre l'ordinateur ------------------------------------------------------------------
 const LEVELS: CfLevel[] = ['debutant', 'habitue', 'fine-fouine'];
@@ -160,6 +168,9 @@ interface Game {
   abandon: string | null;
   rewards: Map<string, CfGameReward>;
   dm: Set<string>;
+  /** Statistiques des cartes : decks de départ (par siège), premier meneur, cartes jouées. */
+  decks: Map<string, string[]>;
+  track: CfPlayTracker;
 }
 
 interface TableMember { userId: string; name: string; account: string; photo?: string; deckId: string | null; socketId: string | null }
@@ -191,6 +202,7 @@ export function createCfOnline(c: Ctx) {
   const ns: Namespace = io.of('/cf');
 
   const games = new Map<string, Game>();
+  const socketSubs = new Set<(socket: Socket, userId: string) => void>();
   const tables = new Map<string, Table>();
   const challenges = new Map<string, Challenge>();
   const queue = new Map<string, QueueEntry>();
@@ -356,6 +368,8 @@ export function createCfOnline(c: Ctx) {
   function doApply(g: Game, pid: string, action: CfAction, auto = false): string | null {
     const r = apply(g.state, pid, action, { rollDie: officialDie });
     if (!r.ok) return r.error ?? 'Action impossible.';
+    g.track.action(g.state, pid, action);
+    g.track.events(r.events);
     const seat = seatOf(g, pid);
     // Réserve : le temps pris au-delà des 30 s de la décision (pas pour les fenêtres, à durée fixe).
     const since = g.since.get(pid);
@@ -399,9 +413,24 @@ export function createCfOnline(c: Ctx) {
         rewards.push(...cards.recordCfGame({ winnerId: user(standings[0]), loserId: user(id), ranked: false, vsBot: false, abandoned: quit(id), onlyLoser: true }));
     }
     for (const r of rewards) g.rewards.set(r.userId, r);
+    recordStats(g, standings, abandonSeat);
+    const end: CfGameEnd = { id: g.id, mode: g.mode, winner: user(standings[0]), losers: standings.slice(1).map(user), abandon: abandonSeat ? user(abandonSeat) : null };
+    for (const cb of endSubs) { try { cb(end); } catch (e) { console.warn('[cf] fin de partie', e); } }
     // Les parties finies restent un moment (dernier écran, reprise), puis sont effacées.
     setTimeout(() => { if (games.get(g.id) === g) games.delete(g.id); }, 10 * 60_000).unref?.();
   }
+
+  /** Statistiques des cartes (une partie abandonnée pendant la première manche n'est pas notée). */
+  function recordStats(g: Game, standings: string[], abandonSeat: string | null) {
+    if (!c.stats || !standings.length || (abandonSeat && g.state.round <= 1)) return;
+    const first = g.track.firstLeader;
+    c.stats.recordGame({
+      mode: g.mode, players: g.seats.length, rounds: g.state.round, durationMs: now() - g.startedAt,
+      firstLeaderWon: g.seats.length === 2 && first ? standings[0] === first : null,
+      humans: g.seats.map((s) => ({ userId: s.userId, won: standings[0] === s.id, deck: deckCounts(g.decks.get(s.id) ?? []), plays: g.track.playsOf(s.id), firstLeader: s.id === first })),
+    });
+  }
+  const endSubs = new Set<(e: CfGameEnd) => void>();
 
   function abandon(g: Game, seat: Seat, why: string) {
     if (g.ended) return;
@@ -431,7 +460,7 @@ export function createCfOnline(c: Ctx) {
     if (back && !g.ended) notice(g, `${seat.name} est de retour.`);
   }
 
-  function createGame(mode: CfGameMode, players: { userId: string; deck: string[]; socketId: string | null }[]): Game {
+  function createGame(mode: CfGameMode, players: { userId: string; deck: string[]; socketId: string | null }[], config: Partial<CfConfig> = {}): Game {
     const id = newCode();
     const seats: Seat[] = players.map((p, i) => {
       const u = store.userById(p.userId)!;
@@ -441,10 +470,11 @@ export function createCfOnline(c: Ctx) {
     // Ordre des sièges au hasard (le moteur tire ensuite le meneur).
     for (let i = seats.length - 1; i > 0; i--) { const j = randomInt(i + 1); [seats[i], seats[j]] = [seats[j], seats[i]]; }
     const deckOf = new Map(players.map((p) => [p.userId, p.deck]));
-    const state = newGame({ windows: true }, seats.map((s) => ({ id: s.id, name: s.name, deck: deckOf.get(s.userId)! })), randomInt(1, 2 ** 31));
+    const state = newGame({ ...config, windows: true }, seats.map((s) => ({ id: s.id, name: s.name, deck: deckOf.get(s.userId)! })), randomInt(1, 2 ** 31));
     const g: Game = {
       id, mode, ranked: mode === 'classee', seats, state, startedAt: now(), spectators: new Map(), since: new Map(), timers: new Map(),
       window: null, autoTimer: null, ended: false, endedAt: 0, standings: [], abandon: null, rewards: new Map(), dm: new Set(),
+      decks: new Map(seats.map((s) => [s.id, deckOf.get(s.userId)!])), track: new CfPlayTracker(),
     };
     games.set(id, g);
     for (const p of players) {
@@ -554,6 +584,7 @@ export function createCfOnline(c: Ctx) {
 
   ns.on('connection', (socket: Socket) => {
     const userId = socket.data.userId as string;
+    for (const cb of socketSubs) cb(socket, userId);
     const me = () => store.userById(userId);
     const set = userSockets.get(userId) ?? new Set<string>();
     set.add(socket.id);
@@ -569,7 +600,7 @@ export function createCfOnline(c: Ctx) {
     const fail = (a: unknown, error: string) => ack(a)({ ok: false, error });
     const busy = (): string | null => {
       if (liveGameOf(userId)) return 'Vous avez déjà une partie en cours : reprenez-la ou abandonnez-la.';
-      return null;
+      return busyCheck(userId);
     };
 
     // Ce que le serveur sait déjà (reprise après rechargement de la page).
@@ -777,7 +808,7 @@ export function createCfOnline(c: Ctx) {
       if (!g || g.ended) return fail(a, 'Partie introuvable. Elle est peut-être déjà terminée.');
       if (g.seats.some((s) => s.userId === userId && !s.left)) return fail(a, 'Vous êtes joueur dans cette partie.');
       if (g.seats.some((s) => store.isBlocked(s.userId, userId))) return fail(a, 'Impossible de regarder cette partie.');
-      if (!g.ranked && !g.seats.some((s) => friends(s.userId, userId))) return fail(a, 'Seuls les amis des joueurs peuvent regarder cette partie.');
+      if (!g.ranked && g.mode !== 'tournoi' && !g.seats.some((s) => friends(s.userId, userId))) return fail(a, 'Seuls les amis des joueurs peuvent regarder cette partie.');
       if (g.spectators.size >= MAX_SPECTATORS && !g.spectators.has(socket.id)) return fail(a, `Trop de spectateurs (${MAX_SPECTATORS} au plus).`);
       unwatch();
       g.spectators.set(socket.id, { userId, name: me()?.username ?? 'Spectateur' });
@@ -908,7 +939,8 @@ export function createCfOnline(c: Ctx) {
     if (t - b.startedAt < need) { bots.delete(id); return failRes(res, 400, 'Partie trop rapide pour être récompensée.'); }
     bots.delete(id); // un seul « end » par partie, même en cas de refus
     const events: CfEvent[] = [];
-    const r = replayBotMatch(b.setup, actions as CfAction[], (ev) => events.push(...ev));
+    const track = new CfPlayTracker();
+    const r = replayBotMatch(b.setup, actions as CfAction[], (ev) => { events.push(...ev); track.events(ev); }, (before, a) => track.action(before, b.setup.me.id, a));
     if (!r.ok) return failRes(res, 400, 'Partie invalide : le serveur ne retrouve pas ce résultat.');
     if (r.state.phase !== 'over') return failRes(res, 400, 'La partie n’est pas terminée.');
     const won = r.state.winner === b.setup.me.id;
@@ -916,6 +948,11 @@ export function createCfOnline(c: Ctx) {
     const missionsDone: string[] = [];
     for (const [k, n] of Object.entries(counts)) missionsDone.push(...cards.progressCfMission(u.id, k as CfMissionKind, n).map((m) => m.id));
     const reward = cards.recordCfGame({ winnerId: won ? u.id : null, loserId: won ? null : u.id, ranked: false, vsBot: true })[0] ?? null;
+    c.stats?.recordGame({
+      mode: 'bot', level: b.setup.bots[0]?.level ?? null, players: 1 + b.setup.bots.length, rounds: r.state.round, durationMs: t - b.startedAt,
+      firstLeaderWon: b.setup.bots.length === 1 && track.firstLeader ? r.state.winner === track.firstLeader : null,
+      humans: [{ userId: u.id, won, deck: deckCounts(b.setup.me.deck), plays: track.playsOf(b.setup.me.id), firstLeader: track.firstLeader === b.setup.me.id }],
+    });
     if (reward) reward.missions = [...missionsDone, ...reward.missions];
     res.json({ ok: true, won, reward, state: cards.state(u.id) });
   });
@@ -955,6 +992,35 @@ export function createCfOnline(c: Ctx) {
     games.clear(); tables.clear(); challenges.clear(); queue.clear();
   }
 
-  return { router, presence, friendsInMode, games, tables, queue, bots, matchTick, close };
+  // --- Pour le tournoi du samedi (server/cf-tournament.ts) ---------------------------------------
+  let busyCheck: (userId: string) => string | null = () => null;
+  /** Compte connecté à l'espace « /cf » (dans le mode, sur au moins un appareil). */
+  const isConnected = (userId: string) => (userSockets.get(userId)?.size ?? 0) > 0;
+  /**
+   * Partie imposée par le serveur (tournoi) : decks actifs des comptes, sièges rattachés à leurs
+   * sockets s'ils sont connectés (sinon ils ont le délai habituel pour revenir, puis c'est perdu).
+   */
+  function createMatch(mode: CfGameMode, userIds: string[], config: Partial<CfConfig> = {}): { id: string } | { error: string; userId: string } {
+    const players: { userId: string; deck: string[]; socketId: string | null }[] = [];
+    for (const u of userIds) {
+      const d = deckFor(u);
+      if ('error' in d) return { error: d.error, userId: u };
+      if (liveGameOf(u)) return { error: 'Déjà dans une autre partie.', userId: u };
+      players.push({ userId: u, deck: d.cards, socketId: [...(userSockets.get(u) ?? [])][0] ?? null });
+    }
+    const g = createGame(mode, players, config);
+    for (const u of userIds) menu.set(u, now());
+    return { id: g.id };
+  }
+  /** Envoie un message à tous les appareils d'un compte connectés au mode. */
+  const emitTo = (userId: string, ev: string, payload: unknown) => toUser(userId, ev, payload);
+
+  return {
+    router, presence, friendsInMode, games, tables, queue, bots, matchTick, close,
+    createMatch, isConnected, emitTo, onEnd: (cb: (e: CfGameEnd) => void) => { endSubs.add(cb); return () => endSubs.delete(cb); },
+    setBusyCheck: (f: (userId: string) => string | null) => { busyCheck = f; },
+    /** Ce compte a-t-il des sockets dans « /cf » qui ont signalé une action ? (événements du socket : voir `onSocket`). */
+    onSocket: (cb: (socket: Socket, userId: string) => void) => { socketSubs.add(cb); return () => socketSubs.delete(cb); },
+  };
 }
 export type CfOnline = ReturnType<typeof createCfOnline>;

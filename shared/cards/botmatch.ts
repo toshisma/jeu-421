@@ -80,14 +80,17 @@ export function playMine(match: BotMatch, action: CfAction): { ok: boolean; erro
  * Après chaque action humaine, les ordinateurs jouent tout ce qu'ils ont à jouer avant l'action suivante
  * (ordre identique à celui du client, qui doit vider les tours des ordinateurs avant de rendre la main).
  * `onEvents` (facultatif) reçoit tous les événements bruts, dans l'ordre (missions côté serveur).
+ * `onMine` (facultatif) reçoit chaque action acceptée du joueur avec l'état juste avant (statistiques des cartes).
  */
-export function replayBotMatch(setup: BotMatchSetup, mine: CfAction[], onEvents?: (events: CfEvent[]) => void): { ok: true; state: CfState } | { ok: false; error: string } {
+export function replayBotMatch(setup: BotMatchSetup, mine: CfAction[], onEvents?: (events: CfEvent[]) => void, onMine?: (before: CfState, action: CfAction) => void): { ok: true; state: CfState } | { ok: false; error: string } {
   try {
     const { match, events } = startBotMatch(setup);
     onEvents?.(events);
     for (const a of mine) {
+      const before = match.state;
       const r = playMine(match, a);
       if (!r.ok) return { ok: false, error: r.error ?? 'Action refusée.' };
+      onMine?.(before, a);
       onEvents?.(r.events);
       const bots = advanceBots(match);
       onEvents?.(bots);

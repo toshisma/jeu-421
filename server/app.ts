@@ -34,6 +34,8 @@ import { SCHED_CONFIG, SCHED_LOBBY_MS, SCHED_MAX, bagPrizes, bagsLabel, hourLabe
 import { createScheduled, slotLabel } from './scheduled';
 import { createDiscordHooks } from './discord-hooks';
 import { createCfOnline, type CfOnlineOptions } from './cards-online';
+import { createCfStats } from './cf-stats';
+import { createCfTournament, type CfTourOptions } from './cf-tournament';
 
 interface Member {
   id: string;
@@ -151,6 +153,8 @@ export interface ServerOptions {
   discordHooks?: { env?: Record<string, string | undefined>; send?: (url: string, body: unknown) => Promise<void>; newsDelayMs?: number };
   /** Coups Fourrés en ligne (délais réduits dans les tests). */
   cf?: CfOnlineOptions;
+  /** Tournoi Coups Fourrés du samedi (tests : horloge manuelle, pauses courtes, duels courts). */
+  cfTour?: CfTourOptions;
 }
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -238,6 +242,9 @@ export async function startServer(opts: ServerOptions) {
   const admin = createAdmin(store, { ...opts.admin, isAdmin: stats.isAdmin, userFromToken: accounts.userFromToken });
   app.use('/api', admin.router);
   app.use('/api', stats.router);
+  // Coups Fourrés : statistiques réelles des cartes (onglet d'administration).
+  const cfStats = createCfStats({ store, now: opts.accounts?.now ?? Date.now, isAdmin: stats.isAdmin, userFromToken: accounts.userFromToken });
+  app.use('/api', cfStats.router);
   // Tchat de table : derniers messages gardés en mémoire (signalements : le serveur retrouve le texte).
   const tableChat: TableChatEntry[] = [];
   let tableChatSeq = 0;
@@ -368,9 +375,16 @@ export async function startServer(opts: ServerOptions) {
     io, store, cards: accounts.cards, userFromToken: accounts.userFromToken, banOf: admin.banOf, muteOf: moderation.muteOf,
     push: (u, title, body, url) => void accounts.social.push(u, title, body, url),
     recordChat: (e) => { tableChat.push(e); if (tableChat.length > TABLE_CHAT_KEEP) tableChat.splice(0, tableChat.length - TABLE_CHAT_KEEP); },
-    now: opts.accounts?.now, opts: { minBotMs: opts.accounts?.minSoloMs, ...opts.cf },
+    now: opts.accounts?.now, opts: { minBotMs: opts.accounts?.minSoloMs, ...opts.cf }, stats: cfStats,
   });
   cfMount.use(cfOnline.router);
+  // Tournoi Coups Fourrés du samedi (20 h 30). Essais : SCHED_TEST_NOW (horloge), SCHED_TEST_QUICK=1 (duels à 3 jetons, pauses de 10 s).
+  const cfTour = createCfTournament({
+    store, cards: accounts.cards, online: cfOnline, now: clock, userFromToken: accounts.userFromToken,
+    push: (u, title, body, url) => void accounts.social.push(u, title, body, url), discord: (ev) => dHooks.cfTournament(ev),
+    opts: opts.cfTour ?? (testing && process.env.SCHED_TEST_QUICK ? { pauseMs: 10_000, config: { startTokens: 3 } } : undefined),
+  });
+  cfMount.use(cfTour.router);
   accounts.setCfPresence(cfOnline.presence);
 
   app.get('/health', (_req, res) => res.json({ ok: true, rooms: rooms.size, tournaments: tournaments.size }));
@@ -1499,8 +1513,11 @@ export async function startServer(opts: ServerOptions) {
     store,
     schedTick,
     cfOnline,
+    cfTour,
+    cfStats,
     close: () => new Promise<void>((resolve) => {
       accounts.social.close();
+      cfTour.close();
       cfOnline.close();
       clearInterval(sweeper);
       if (schedTimer) clearInterval(schedTimer);

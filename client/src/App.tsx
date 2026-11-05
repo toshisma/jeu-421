@@ -68,7 +68,7 @@ type Screen =
   | { name: 'hub'; tab: HubTab }
   | { name: 'friends'; from?: 'cf' }
   | { name: 'messages'; with?: string; from?: 'cf' }
-  | { name: 'cf'; pending?: { challenge?: string; watch?: string } }
+  | { name: 'cf'; pending?: { challenge?: string; watch?: string; tournoi?: boolean } }
   | { name: 'changelog' }
   | { name: 'online'; mode: OnlineMode }
   | { name: 'watch'; code: string; back: Screen }
@@ -118,7 +118,7 @@ export function App() {
   // Clic sur une notification de message : la conversation s'ouvre.
   const openPm = useMemo(() => { const v = new URLSearchParams(location.search).get('messages'); if (v) cleanUrl(); return v ? v.slice(0, 20) : null; }, []);
   // Notification « X vous défie à Coups Fourrés » : le mode s'ouvre, le défi s'y affiche.
-  const openCf = useMemo(() => { const v = new URLSearchParams(location.search).has('cf-defi'); if (v) cleanUrl(); return v; }, []);
+  const openCf = useMemo(() => { const q = new URLSearchParams(location.search); const v = q.has('cf-defi') ? 'defi' : q.has('cf-tournoi') ? 'tournoi' : null; if (v) cleanUrl(); return v; }, []);
   const openNotifs = useMemo(() => { const v = new URLSearchParams(location.search).has('notifs'); if (v) cleanUrl(); return v; }, []);
   // Lien de parrainage : le pseudo du parrain est retenu pour la création du compte.
   useMemo(() => {
@@ -131,7 +131,7 @@ export function App() {
       : watchLink ? { name: 'watch', code: watchLink.toUpperCase(), back: { name: 'home' } }
       : invite ? { name: 'online', mode: { kind: 'join', code: invite.toUpperCase() } }
         : tInvite && settings.name ? { name: 'tournament', mode: { kind: 'join', code: tInvite.toUpperCase() } }
-          : tInvite || tSched ? { name: 'hub', tab: 'tournois' } : openCf ? { name: 'cf' } : openPm ? { name: 'messages', with: openPm } : { name: 'home' });
+          : tInvite || tSched ? { name: 'hub', tab: 'tournois' } : openCf ? { name: 'cf', ...(openCf === 'tournoi' ? { pending: { tournoi: true } } : {}) } : openPm ? { name: 'messages', with: openPm } : { name: 'home' });
   const [resume, setResume] = useState(loadSession);
   // Profil : invité (sur l'appareil) ou compte (sur le serveur). Pas de comptes sans serveur.
   const pa = useProfile(!STANDALONE);
