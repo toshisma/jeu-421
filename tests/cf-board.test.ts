@@ -157,6 +157,12 @@ describe('rendu serveur du plateau (aucune erreur)', () => {
     expect(hand).toContain('6 → 1 : 4-2-1 !');
     expect(hand).toContain('Tour adverse');
     const opp = render(h(OppPanel, { p: v.players[1], v, active: true, compact: false, refEl: noop, onTrap: noop, onCard: noop, seat: { id: 'b', name: 'Bob', bot: true, label: 'Habitué' } }));
+    // Habitués adverses : pastilles discrètes dans sa barre, touchables (fiche), pas de ligne à part.
+    const withHab = { ...v.players[1], habitues: [{ uid: 'hx', id: 'josiane' }] };
+    const opp2 = render(h(OppPanel, { p: withHab, v, active: false, compact: false, refEl: noop, onTrap: noop, onCard: noop }));
+    expect(opp2).toContain('class="cfn-pin"');
+    expect(opp2).toMatch(/aria-label="Habitué : [^"]*Josiane/);
+    expect(opp2).not.toContain('cfn-habs');
     expect(opp).toContain('1 piège caché');
     expect(opp).toContain('Ordinateur Habitué');
     const fiche = render(h(Fiche, { t: { uid: 'h2', id: 'tete-tourne' }, v, legal, snapLegal: legal, pending: false, discard: false, onAct: noop, onClose: noop }));
