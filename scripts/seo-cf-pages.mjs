@@ -247,7 +247,7 @@ ${typesTable()}
 
 <h2 id="conseils">Conseils pour débuter</h2>
 <ul>
-<li><b>Gardez une Riposte et de quoi la payer.</b> Un « Ticket de caisse » (1 Tournée) en main fait réfléchir l’adversaire avant chaque petit coup.</li>
+<li><b>Gardez une Riposte et de quoi la payer.</b> Un « Ticket de caisse » (${plural(byId['ticket-caisse'].cost, 'Tournée')}) en main fait réfléchir l’adversaire avant chaque petit coup.</li>
 <li><b>Lisez les Tournées adverses.</b> Quatre ou plus : méfiez-vous du « Retournement de veste », du « Bon numéro » ou de la « Tournée générale ».</li>
 <li><b>Face à un Retournement de veste, visez plus bas.</b> Il ne se déclenche que si vous deviez donner 8 jetons ou plus : arrêtez-vous sur une combinaison qui vaut moins (et sans Double tournée).</li>
 <li><b>Meneur avec une bonne combinaison ?</b> Arrêtez-vous tôt : l’autre joueur n’aura pas plus de lancers que vous.</li>

@@ -54,7 +54,7 @@ export const CARDS: CardDef[] = [
   c('gueule-bois', 'Gueule de bois', 'ivresse', 'piege', 1, 'commune', 'Quand l’adversaire perd une manche, il n’aura qu’un seul lancer à la suivante.', '« Ça se paie le lendemain. »'),
   c('tournee-generale', 'Tournée générale', 'ivresse', 'coup', 3, 'legendaire', 'Si un adversaire a fini son tour : vous relancez tous les deux tous vos dés, puis vous pouvez relancer un des vôtres. Sinon, relancez tous vos dés sans utiliser de lancer.', '« Tout le monde reboit, c’est ma tournée ! »'),
   c('verre-offert', 'Le verre offert', 'ivresse', 'coup', 1, 'commune', 'L’adversaire n’aura qu’un seul lancer à son prochain tour.', '« Celui-là, il est pour moi. »'),
-  c('trinquer', 'Trinquer', 'ivresse', 'dernier-mot', 4, 'rare', 'Échangez un de vos dés avec un dé de l’adversaire, tous deux pris au hasard.', '« À la vôtre ! Oups, mauvais verre. »'),
+  c('trinquer', 'Trinquer', 'ivresse', 'dernier-mot', 3, 'rare', 'Échangez un de vos dés avec un dé de l’adversaire, tous deux pris au hasard.', '« À la vôtre ! Oups, mauvais verre. »'),
   c('coup-etrier', 'Le Coup de l’étrier', 'ivresse', 'dernier-mot', 2, 'commune', 'Relancez un de vos dés.', '« Allez, un dernier pour la route ! »'),
   c('fanfaron', 'Le Fanfaron', 'ivresse', 'habitue', 1, 'rare', 'Quand vous gagnez une manche, le perdant reçoit 1 jeton de plus.', '« Je vous l’avais bien dit ! »'),
   c('verre-de-trop', 'Le Verre de trop', 'ivresse', 'piege', 0, 'commune', 'Quand l’adversaire fait un 2e lancer dans son tour, il reçoit 1 jeton.', '« Celui-là, il ne fallait pas. »'),
@@ -64,13 +64,13 @@ export const CARDS: CardDef[] = [
   c('main-sac', 'Main dans le sac', 'pieges', 'piege', 1, 'rare', 'Quand l’adversaire joue un Coup qui coûte 1 ou plus, ce Coup est annulé.', '« Pas si vite, mon gaillard. »'),
   c('fouine', 'Fouine', 'pieges', 'coup', 0, 'commune', 'Défaussez un piège adverse de votre choix, s’il y en a un, et piochez 1 carte.', '« Ça sent le coup fourré. »'),
   c('ardoise-piegee', 'Ardoise piégée', 'pieges', 'piege', 1, 'commune', 'Quand l’adversaire joue un Coup, il paie 3 Tournées de plus, sinon le Coup est annulé.', '« Tout se paie, un jour ou l’autre. »'),
-  c('faux-421', 'Faux 4-2-1', 'pieges', 'piege', 1, 'rare', 'Quand l’adversaire termine avec un 4-2-1, il ne vaut que 2 cette manche.', '« Regarde mieux : c’est un 4 ou un 3 ? »'),
+  c('faux-421', 'Faux 4-2-1', 'pieges', 'piege', 2, 'rare', 'Quand l’adversaire termine avec un 4-2-1, il ne vaut que 2 cette manche.', '« Regarde mieux : c’est un 4 ou un 3 ? »'),
   c('coup-nenette', 'Le coup de la nénette', 'pieges', 'piege', 1, 'epique', 'Quand l’adversaire devrait gagner la manche avec une combinaison qui vaut 1 ou 2, elle devient une nénette.', '« Deux, deux, un. Et bonne nuit. »'),
   c('retournement-veste', 'Retournement de veste', 'pieges', 'piege', 4, 'legendaire', 'Quand l’adversaire devrait vous donner 8 jetons ou plus, c’est lui qui les reçoit à votre place.', '« Je n’ai jamais dit que j’étais de ton côté. »'),
   c('vide-poches', 'Le Vide-poches', 'pieges', 'coup', 0, 'commune', 'L’adversaire défausse une carte de sa main au hasard.', '« Tiens, c’est à qui, ça ? »'),
   c('mouchard', 'Le Mouchard', 'pieges', 'piege', 0, 'commune', 'Quand l’adversaire joue un Coup, vous piochez 2 cartes.', '« Il n’a rien dit… à part à vous. »'),
   c('courant-air', 'Le Courant d’air', 'pieges', 'piege', 1, 'rare', 'Quand l’adversaire installe un Habitué ou joue une Riposte, la carte s’envole : elle est défaussée sans effet.', '« Fermez la porte, on gèle ! »'),
-  c('pot-aux-roses', 'Le Pot aux roses', 'pieges', 'riposte', 2, 'rare', 'Annulez un Coup ou un Dernier mot adverse qui coûte 2 ou plus.', '« Ah, on a découvert le pot aux roses ! »'),
+  c('pot-aux-roses', 'Le Pot aux roses', 'pieges', 'riposte', 1, 'rare', 'Annulez un Coup ou un Dernier mot adverse qui coûte 2 ou plus.', '« Ah, on a découvert le pot aux roses ! »'),
   c('complice', 'Le Complice', 'pieges', 'habitue', 1, 'epique', 'Quand un de vos pièges se déclenche, gagnez 1 Tournée et piochez 1 carte.', '« Moi ? J’étais au comptoir, comme d’habitude. »'),
   // --- Les Chaînes ---
   c('coup-coude', 'Coup de coude', 'chaines', 'coup', 0, 'commune', 'Piochez 1 carte.', '« Psst, regarde un peu ça. »'),
@@ -134,11 +134,11 @@ export const CF_RULES = {
 export const STARTER_DECKS: { id: string; name: string; cards: Record<string, number> }[] = [
   { id: 'le-zinc', name: 'Le Zinc', cards: {
     josiane: 1, 'vieux-marcel': 1, pilier: 1, 'beau-frere': 1, 'tournee-patron': 2, 'ticket-caisse': 1, fermeture: 1, pourboire: 1, 'note-salee': 2,
-    'coup-coude': 2, 'coup-pouce': 1, 'calcul-mental': 2, recompter: 1, 'reaction-chaine': 1, domino: 1, engrenage: 1,
+    'coup-coude': 2, 'coup-pouce': 1, 'calcul-mental': 2, recompter: 1, 'reaction-chaine': 1, 'petite-soeur': 1, engrenage: 1,
   } },
   { id: 'la-bringue', name: 'La Bringue', cards: {
-    'tete-tourne': 2, 'pari-comptoir': 1, complice: 1, 'de-sous-table': 1, 'cul-sec': 2, 'yeux-piquent': 1, 'gueule-bois': 1, 'double-tournee': 1, 'coup-etrier': 1,
-    leurre: 1, 'croche-patte': 1, 'vide-poches': 1, fouine: 1, 'pot-aux-roses': 1, 'faux-421': 2, 'coup-nenette': 2,
+    'tete-tourne': 2, 'pari-comptoir': 1, complice: 1, 'de-sous-table': 1, 'cul-sec': 2, 'gueule-bois': 1, 'double-tournee': 1, 'coup-etrier': 1,
+    leurre: 1, 'croche-patte': 1, 'vide-poches': 1, mouchard: 1, fouine: 1, 'pot-aux-roses': 2, 'faux-421': 1, 'coup-nenette': 2,
   } },
 ];
 

@@ -4,12 +4,16 @@
  * conseils de stratégie et lexique. Les chiffres viennent du catalogue (CF_RULES, BOOSTER…).
  */
 import { useState } from 'react';
-import { BOOSTER, CARDS, CF_RULES, DECK_RULES, FAMILY_LABEL, TYPE_LABEL, type CardFamily, type CardType } from '../../../shared/cards/catalog';
+import { BOOSTER, CARDS, CF_RULES, DECK_RULES, FAMILY_LABEL, TYPE_LABEL, cardDef, type CardFamily, type CardType } from '../../../shared/cards/catalog';
 import { VESTE_MIN } from '../../../shared/cards/engine';
 import { Icon } from '../ui/Icon';
+import { plural } from './describe';
 import { CardView, FamilyBadge } from './components';
 import { CfShell } from './cfui';
 import { TYPE_META, TypeIcon } from './cardTypes';
+
+/** Coût imprimé d'une carte (conseils). */
+const cost = (id: string) => cardDef(id)?.cost ?? 0;
 
 const vw = () => (typeof window !== 'undefined' ? window.innerWidth : 360);
 
@@ -94,9 +98,9 @@ const FAM_TEXT: Record<CardFamily, string> = {
 // Conseils
 
 const TIPS: { t: string; d: string }[] = [
-  { t: 'Gardez une Riposte et de quoi la payer', d: 'Un « Ticket de caisse » (1 Tournée) ou une « Réaction en chaîne » (2) en main, avec les Tournées qui vont avec, fait réfléchir l’adversaire avant chaque gros coup.' },
+  { t: 'Gardez une Riposte et de quoi la payer', d: `Un « Ticket de caisse » (${plural(cost('ticket-caisse'), 'Tournée')}) ou une « Réaction en chaîne » (${cost('reaction-chaine')}) en main, avec les Tournées qui vont avec, fait réfléchir l’adversaire avant chaque gros coup.` },
   { t: 'Lisez les Tournées adverses', d: 'Elles sont visibles. Zéro Tournée : il ne peut presque rien jouer. Quatre ou plus : attention au Retournement de veste, au Bon numéro ou à la Tournée générale.' },
-  { t: 'Un piège posé juste avant un gros coup ? Méfiance', d: 'Si l’adversaire pose un piège pendant que vous tenez un 4-2-1, pensez au Faux 4-2-1. Une Fouine (gratuite) envoie le piège à la défausse et vous montre ce que c’était.' },
+  { t: 'Un piège posé juste avant un gros coup ? Méfiance', d: `Si l’adversaire pose un piège pendant que vous tenez un 4-2-1, pensez au Faux 4-2-1. Une Fouine (${cost('fouine') ? plural(cost('fouine'), 'Tournée') : 'gratuite'}) envoie le piège à la défausse et vous montre ce que c’était.` },
   { t: 'La Fouine n’est jamais perdue', d: 'Elle pioche toujours une carte. Avec un piège en face, elle le défausse aussi : vous voyez lequel, et le danger disparaît.' },
   { t: 'Face à un Retournement de veste, visez plus bas', d: `Il ne se déclenche que si vous deviez donner ${VESTE_MIN} jetons ou plus. Arrêtez-vous volontairement sur une combinaison qui vaut moins : vous gagnez la manche sans vous faire retourner.` },
   { t: 'Le meneur fixe la limite', d: `Si vous menez avec une bonne combinaison, arrêtez-vous tôt : un seul lancer et l’autre n’aura qu’un lancer pour faire mieux (${CF_RULES.maxThrows} au plus).` },
