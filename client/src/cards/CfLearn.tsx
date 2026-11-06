@@ -5,7 +5,7 @@
  */
 import { useState } from 'react';
 import { BOOSTER, CARDS, CF_RULES, DECK_RULES, FAMILY_LABEL, TYPE_LABEL, cardDef, type CardFamily, type CardType } from '../../../shared/cards/catalog';
-import { VESTE_MIN } from '../../../shared/cards/engine';
+import { FERMETURE_TOURNEES, LEURRE_DRAW, LEURRE_TOURNEES, TOURNEE_PATRON_GAIN, VESTE_MIN } from '../../../shared/cards/engine';
 import { Icon } from '../ui/Icon';
 import { plural } from './describe';
 import { CardView, FamilyBadge } from './components';
@@ -97,8 +97,11 @@ const FAM_TEXT: Record<CardFamily, string> = {
 // ------------------------------------------------------------------------------------------------
 // Conseils
 
+const R = CF_RULES;
 const TIPS: { t: string; d: string }[] = [
-  { t: 'Gardez une Riposte et de quoi la payer', d: `Un « Ticket de caisse » (${plural(cost('ticket-caisse'), 'Tournée')}) ou une « Réaction en chaîne » (${cost('reaction-chaine')}) en main, avec les Tournées qui vont avec, fait réfléchir l’adversaire avant chaque gros coup.` },
+  { t: 'Économisez, puis enchaînez', d: `Vous ne recevez que ${plural(R.tourneesPerRound, 'Tournée')} par manche (${R.tourneesPerRound + R.tourneesLoserBonus} après une manche perdue) et pouvez en garder ${R.tourneesMax}. Passer une manche sans rien jouer n’est pas une faute : c’est ce qui permet, plus tard, de jouer deux ou trois cartes d’affilée au moment qui compte.` },
+  { t: 'Les combos', d: `« Mise en bouche » rend la carte suivante gratuite : enchaînez-la avec « Tant qu’on y est », qui ne coûte alors rien et rapporte 3 Tournées, puis une grosse carte comme « Coup de pouce ». « Tournée du patron » (${plural(cost('tournee-patron'), 'Tournée')}, en rend ${TOURNEE_PATRON_GAIN}) et « Fermeture ! » sans Habitué en face (+${FERMETURE_TOURNEES}) remplissent aussi la réserve ; avec le Beau-frère installé, toutes vos cartes coûtent 1 de moins.` },
+  { t: 'Gardez une Riposte et de quoi la payer', d: `Un « Ticket de caisse » (${plural(cost('ticket-caisse'), 'Tournée')}) ou une « Réaction en chaîne » (${plural(cost('reaction-chaine'), 'Tournée')}) en main, avec les Tournées qui vont avec, fait réfléchir l’adversaire avant chaque gros coup.` },
   { t: 'Lisez les Tournées adverses', d: 'Elles sont visibles. Zéro Tournée : il ne peut presque rien jouer. Quatre ou plus : attention au Retournement de veste, au Bon numéro ou à la Tournée générale.' },
   { t: 'Un piège posé juste avant un gros coup ? Méfiance', d: `Si l’adversaire pose un piège pendant que vous tenez un 4-2-1, pensez au Faux 4-2-1. Une Fouine (${cost('fouine') ? plural(cost('fouine'), 'Tournée') : 'gratuite'}) envoie le piège à la défausse et vous montre ce que c’était.` },
   { t: 'La Fouine n’est jamais perdue', d: 'Elle pioche toujours une carte. Avec un piège en face, elle le défausse aussi : vous voyez lequel, et le danger disparaît.' },
@@ -108,7 +111,7 @@ const TIPS: { t: string; d: string }[] = [
   { t: 'Le Dernier mot, c’est pour le perdant', d: 'Avant les comptes, celui qui perd parle en premier. « Recompter » (si vous avez déjà joué une carte dans la manche) peut transformer un 4-2-2 en 4-2-1.' },
   { t: 'Perdre une manche, c’est se refaire', d: `Le perdant mène la suivante et reçoit ${CF_RULES.tourneesPerRound + CF_RULES.tourneesLoserBonus} Tournées au lieu de ${CF_RULES.tourneesPerRound}. Une petite défaite n’est pas grave si elle prépare une grosse manche.` },
   { t: 'Les Habitués s’accumulent', d: `Jusqu’à ${CF_RULES.maxHabitues} en jeu, chacun pour ${CF_RULES.habitueRounds} manches. Le Vieux Marcel fait valoir vos suites 4, le Pilier adoucit vos défaites. Attention à « Fermeture ! » qui les chasse.` },
-  { t: 'Bluffez avec le Leurre', d: 'Il ne fait rien, mais l’adversaire voit un piège posé. Il hésitera, ou gaspillera une Fouine. Et s’il est défaussé, vous piochez.' },
+  { t: 'Bluffez avec le Leurre', d: `Il ne fait rien, mais l’adversaire voit un piège posé. Il hésitera, ou gaspillera une Fouine. Et s’il est défaussé, ou quand il revient dans votre main, vous gagnez ${plural(LEURRE_TOURNEES, 'Tournée')} et piochez ${plural(LEURRE_DRAW, 'carte')}.` },
 ];
 
 export function TipsScreen({ onBack }: { onBack: () => void }) {

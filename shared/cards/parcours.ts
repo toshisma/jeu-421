@@ -4,8 +4,9 @@
  * Pièges, les Habitués, et enfin les Ripostes et les Derniers mots. Les decks n'ont pas besoin d'être
  * possédés (entraînement) ; l'ordinateur joue avec le même deck. Partagé client / serveur.
  * 0.40 : chaque deck respecte la règle de construction (2 familles au plus).
+ * 0.41 : économie serrée (1 Tournée par manche) : la première partie montre comment économiser et enchaîner.
  */
-import { CARD_BY_ID, deckProblems, type CardType } from './catalog';
+import { CARD_BY_ID, CF_RULES, deckProblems, type CardType } from './catalog';
 
 export interface ParcoursStep {
   step: number;
@@ -20,12 +21,12 @@ export interface ParcoursStep {
 export const PARCOURS: ParcoursStep[] = [
   {
     step: 1, title: 'Les Coups', types: ['coup'],
-    intro: 'Pour commencer, seulement des Coups : ils se jouent pendant votre tour, avant ou après un lancer, et se paient en Tournées (le chiffre dans le petit verre). Changez vos dés, gagnez des Tournées, piochez… Le premier à 0 jeton gagne.',
-    cards: { 'cul-sec': 2, 'tete-tourne': 2, 'pari-comptoir': 2, 'double-tournee': 2, 'de-sous-table': 2, 'coup-coude': 2, 'coup-pouce': 2, 'calcul-mental': 2, 'mise-bouche': 2, 'tant-qu-on-y-est': 2 },
+    intro: `Pour commencer, seulement des Coups : ils se jouent pendant votre tour, avant ou après un lancer, et se paient en Tournées (le chiffre dans le petit verre). Vous n’en recevez que ${CF_RULES.tourneesPerRound} par manche (${CF_RULES.tourneesPerRound + CF_RULES.tourneesLoserBonus} après une manche perdue) : économisez pour les grosses cartes. « Mise en bouche » rend la carte suivante gratuite, « Tant qu’on y est » rapporte des Tournées : de quoi enchaîner. Le premier à 0 jeton gagne.`,
+    cards: { 'cul-sec': 2, 'tete-tourne': 2, 'pari-comptoir': 2, 'double-tournee': 2, 'de-sous-table': 1, 'coup-coude': 2, 'coup-pouce': 1, 'calcul-mental': 2, 'mise-bouche': 2, 'tant-qu-on-y-est': 2, 'petite-soeur': 2 },
   },
   {
     step: 2, title: 'Les Pièges', types: ['coup', 'piege'],
-    intro: 'Nouveau : les Pièges. Vous les posez face cachée devant un adversaire ; ils se déclenchent tout seuls au bon moment. L’adversaire voit qu’il y a un piège, pas lequel. La Fouine en défausse un.',
+    intro: 'Nouveau : les Pièges. Vous les posez face cachée devant un adversaire ; ils se déclenchent tout seuls au bon moment. L’adversaire voit qu’il y a un piège, pas lequel. La Fouine en défausse un. Le Leurre et le Mouchard vous rapportent une Tournée.',
     cards: { 'cul-sec': 2, 'tete-tourne': 2, 'de-sous-table': 2, 'pari-comptoir': 2, fouine: 2, leurre: 2, 'croche-patte': 2, 'faux-421': 2, 'gueule-bois': 2, mouchard: 2 },
   },
   {
