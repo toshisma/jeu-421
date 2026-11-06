@@ -7,6 +7,17 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.39', date: '2026-11-06T03:05:00+01:00', title: 'Coups Fourrés repensé', items: [
+    'Coups Fourrés repart à zéro : les cartes ont été revues et rééquilibrées, 8 nouvelles cartes arrivent (42 en tout). Les collections sont remises à zéro : à votre prochaine visite du mode, 2 nouveaux decks de départ et 3 boosters vous attendent. Vos capsules, votre ligue et vos titres sont conservés.',
+    'Un écran de partie sobre, jusqu’à 4 joueurs : une case par adversaire (jetons, Tournées, cartes, pièges, Habitués), et toutes ses informations en clair en touchant sa case. Sous chaque carte de votre main, ce qu’elle fait.',
+    'Les Habitués restent 3 manches puis rentrent chez eux. Plus d’ardoise ni de limite de cartes en main. Riposte et Dernier mot : 15 secondes pour réfléchir quand vous avez une carte à jouer, aucune attente sinon.',
+    'Nouveau : la commande du comptoir, une règle bonus à chaque manche (brelans +2, un lancer de plus…), la même pour tous.',
+    'Nouveau : l’énigme du jour, une situation à résoudre sans hasard, avec son classement et un partage sans dévoiler la solution.',
+    'Pour apprendre : un parcours débutant (un type de carte en plus à chaque partie), une partie guidée à 4 joueurs et une visite guidée de l’écran. Parties à 3 ou 4 contre l’ordinateur, vitesse ×2, et la manche résumée en 3 lignes aux comptes.',
+    'À 3 ou 4 joueurs : 9 jetons chacun, et la partie s’arrête dès que quelqu’un s’est déchargé.',
+    '421 classique : une fois sorti ou gagnant, empochez votre récompense et quittez la table, ou restez regarder la fin.',
+    'Corrections : l’écran vide du spectateur en Coups Fourrés, le tchat aux tables de tournoi, et un bouton bien visible pour créer ou rejoindre un tournoi perso.',
+  ] },
   { version: '0.38', date: '2026-11-05T19:20:00+01:00', title: 'Coups Fourrés plus fluide', items: [
     'Un sélecteur « 421 / Coups Fourrés » en haut de l’accueil, au même endroit dans les deux modes, pour passer de l’un à l’autre d’un geste.',
     'Coups Fourrés : plateau épuré (moins de textes en même temps) et enchaînements sans temps mort après chaque décision.',
