@@ -130,7 +130,7 @@ describe('ce que fait une carte ici et maintenant', () => {
     let s = withHand(s0, leader, ['bon-numero', 'ticket-caisse', 'note-salee', 'de-sous-table'], (p) => { p.tournees = 1; });
     let v = viewFor(s, leader);
     let legal = legalActions(s, leader);
-    expect(whyNot(v, 'bon-numero', legal, 't0')).toMatch(/manque 3 Tournées/);
+    expect(whyNot(v, 'bon-numero', legal, 't0')).toMatch(new RegExp(`manque ${cardDef('bon-numero')!.cost - 1} Tournées`));
     expect(whyNot(v, 'ticket-caisse', legal, 't1')).toMatch(/Riposte/);
     expect(whyNot(v, 'note-salee', legal, 't2')).toMatch(/Dernier mot/);
     s = withHand(s0, leader, ['de-sous-table', 'coup-pouce'], (p) => { p.tournees = 6; });

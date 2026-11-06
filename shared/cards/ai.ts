@@ -95,7 +95,7 @@ const pct = (rank: number) => cdfBelow(rank + 0.5);
 // ---------------------------------------------------------------------------------------------
 // Contexte de décision
 
-interface Mods { doubles: number; note: number; pari: number; marcel: boolean; faux: boolean; piliers: number; /** Le Fanfaron : +1 s'il gagne. */ fanfaron: boolean; /** On efface tout : s'il perd, personne ne donne. */ efface: boolean }
+interface Mods { doubles: number; note: number; pari: number; marcel: boolean; faux: boolean; piliers: number; /** Le Fanfaron : +1 s'il gagne. */ fanfaron: boolean; /** On efface tout : s'il perd, il ne reçoit qu'un jeton. */ efface: boolean }
 
 interface DiceCtx {
   view: CfView;
@@ -133,9 +133,9 @@ function valueOfC(i: number, m: Mods): number {
 }
 /** Jetons donnés par le gagnant au perdant. */
 function amount(winValue: number, w: Mods, l: Mods, loserNenette: boolean): number {
-  if (l.efface) return 0;
+  if (l.efface) return 1;
   let a = winValue * 2 ** w.doubles + w.note + 2 * (w.pari + l.pari) + (w.fanfaron ? 1 : 0);
-  if (l.piliers && a > 1) a -= 1;
+  if (l.piliers && a > 1) a = Math.max(1, a - 2);
   if (loserNenette && a < 2) a = 2;
   return a;
 }
@@ -304,6 +304,9 @@ function keepValue(id: string, me: CfPlayerView): number {
 
 type Play = Extract<CfAction, { type: 'play' }>;
 
+/** Cartes jouées au plus par l'ordinateur pendant son tour, dans une manche. */
+const MAX_PLAYS = 8;
+
 export function cfDecide(view: CfView, legal: CfAction[], level: CfLevel, rng: Rng): CfAction {
   // Une Tournée vaut d'autant plus qu'elles sont rares.
   TV = CF_AI_TUNING.tv * (2 / Math.max(1, view.rules.tourneesPerRound)); CV = CF_AI_TUNING.cv;
@@ -311,6 +314,13 @@ export function cfDecide(view: CfView, legal: CfAction[], level: CfLevel, rng: R
   if (legal.length === 1) return legal[0];
   const me = view.players.find((p) => p.id === view.you)!;
   const handId = (uid: string) => me.hand!.find((k) => k.uid === uid)?.id ?? '';
+  // Garde-fou (0.40) : pendant son tour, pas plus de MAX_PLAYS cartes par manche. Certaines suites (Mise en
+  // bouche, Tant qu'on y est, pioches) peuvent tourner en rond quand le deck est presque vide.
+  if (view.decision === 'turn' && me.r.played >= MAX_PLAYS) {
+    const rest = legal.filter((a) => a.type !== 'play');
+    if (rest.length) legal = rest;
+    if (legal.length === 1) return legal[0];
+  }
   switch (view.decision) {
     case 'mulligan': return mulligan(view, legal, level, rng);
     case 'discard': {
@@ -489,7 +499,9 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
   const target = a.target ? view.players.find((p) => p.id === a.target) : undefined;
   const lateGame = Math.min(me.tokens, ...opps.map((o) => o.tokens)) <= 4;
   // Piocher plus que le deck n'en contient fait mélanger la défausse… et recevoir un jeton.
-  const drawCost = (n: number) => (me.deckCount < n ? 1.2 : 0);
+  // Piocher dans un deck vide : on remélange sa défausse et on reçoit 1 jeton ; la carte piochée ne
+  // compte plus (sinon l'ordinateur peut rejouer en boucle Mise en bouche ou Coup de coude).
+  const drawCost = (n: number) => (me.deckCount < n ? 1.2 + CV * (n - me.deckCount) : 0);
   switch (id) {
     case 'grand-enchainement':
       if (!me.r.lastCoup) return 2 * CV - drawCost(2);
@@ -547,11 +559,12 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
     case 'tournee-patron': return Math.min(2, view.rules.tourneesMax - me.tournees) * TV + (me.tournees <= 1 ? 0.2 : 0) + CV - drawCost(1);
     case 'coup-coude': return CV + 0.1 - drawCost(1);
     // Le Pourboire : un jeton de moins tout de suite ; le dernier fait gagner la partie.
-    case 'pourboire': return 1 + (me.tokens <= 1 ? CF_AI_TUNING.endBonus : 0);
+    case 'pourboire': return 1 + CV - drawCost(1) + (me.tokens <= 1 ? CF_AI_TUNING.endBonus : 0);
     case 'calcul-mental': return me.deckCount > 0 ? CV + 0.25 : null;
     case 'mise-bouche': {
       // La prochaine carte est gratuite : utile si une carte chère (hors Dernier mot et Riposte) attend en main.
       const saved = Math.max(0, ...me.hand!.filter((k) => k.id !== 'mise-bouche' && !['dernier-mot', 'riposte'].includes(def(k.id).type)).map((k) => def(k.id).cost));
+      if (me.r.discount > 0) return null; // la réduction en cours serait perdue
       return CV - drawCost(1) + (saved >= 2 ? saved * TV * 0.8 : 0);
     }
     case 'domino': return target && target.tournees > 0 ? target.tournees * TV * 0.9 : null;
@@ -597,7 +610,7 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
   const d = def(id);
   if (d.type === 'habitue') {
     let v = STATIC[id] ?? 0.5;
-    if (id === 'beau-frere') v = 0.5 + 0.25 * Math.min(4, me.hand!.filter((k) => k.id !== 'beau-frere' && def(k.id).cost >= 1).length);
+    if (id === 'beau-frere') v = 0.5 + 0.25 * Math.min(4, me.hand!.filter((k) => k.id !== 'beau-frere' && def(k.id).cost >= 1).length) + (me.tournees < view.rules.tourneesMax ? TV : 0);
     if (id === 'videur') v += opps.some((o) => o.families.includes('pieges')) ? 0.8 : -0.4;
     if (id === 'complice') {
       // Vaut d'autant plus que des pièges sont posés ou en main.
@@ -612,7 +625,11 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
   if (d.type === 'piege') {
     let v = STATIC[id] ?? 0.4;
     if (id === 'main-sac') v = (target ?? opps[0]).families.some((f) => f === 'ivresse' || f === 'chaines') ? 1.0 : 0.6;
-    if (id === 'courant-air') v = (target ?? opps[0]).habitues.length >= 3 ? 0.3 : 0.8;
+    if (id === 'courant-air') {
+      // Utile seulement contre un deck qui a des Habitués (surtout la famille des Habitués).
+      const o = target ?? opps[0];
+      v = o.families.includes('habitues') ? (o.habitues.length >= 3 ? 0.6 : 0.9) : 0.55;
+    }
     if (me.habitues.some((h) => h.id === 'complice')) v += 0.3;
     if (id === 'retournement-veste' && lateGame) v *= 1.3;
     if (level === 'fine-fouine' && id === 'leurre') v = 0.45; // bluff : occupe la place et attire les Fouines
@@ -682,7 +699,7 @@ function threatOf(view: CfView, me: CfPlayerView): number {
       // Ce que je perds si la carte passe (comptes en duel, vue de ma combinaison contre la sienne).
       const outcome = (myD: number[], oD: number[], oEfface: boolean) => {
         const mr = T_RANK[tidx(myD)], orr = T_RANK[tidx(oD)];
-        if (mr > orr) return oEfface ? 0 : evaluate(myD, DV).value;
+        if (mr > orr) return oEfface ? 1 : evaluate(myD, DV).value;
         if (mr < orr) return -evaluate(oD, DV).value;
         return 0;
       };

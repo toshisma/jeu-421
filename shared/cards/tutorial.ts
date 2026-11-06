@@ -8,7 +8,8 @@
  * Déroulé : manche 1 (vous menez) lancer, garder, Tête qui tourne → 4-2-1, poser Croche-patte,
  * s'arrêter (limite de lancers) ; Dédé fait un brelan de 6 et se fait piéger en finissant son tour ; comptes.
  * Manche 2 (Dédé mène) : Riposte avec Ticket de caisse, Fouine sur son Faux 4-2-1, Tournée du patron, Leurre,
- * un lancer, s'arrêter, puis Dernier mot « Recompter » : 4-2-1 et victoire.
+ * un lancer, s'arrêter, puis Dernier mot « Le Coup de l’étrier » (0.40 : Recompter coûte 3, trop cher
+ * ici) : le 2 relancé devient un as, 4-2-1 et victoire.
  */
 import { CF_RULES } from './catalog';
 import { apply, legalActions, newGame, pl, waitingFor, type CfAction, type CfEvent, type CfState, type PlayParams } from './engine';
@@ -32,8 +33,8 @@ export type TutoStep =
 
 const MY_HAND = ['tete-tourne', 'croche-patte', 'ticket-caisse', 'fouine', 'tournee-patron'];
 /** Dessus du deck en premier : pioche de la manche 1, puis de la manche 2. */
-const MY_DECK = ['recompter', 'leurre', 'coup-coude', 'mise-bouche', 'cul-sec', 'pilier', 'vieux-marcel', 'gueule-bois', 'coup-pouce', 'calcul-mental', 'pari-comptoir', 'main-sac', 'domino', 'josiane', 'note-salee'];
-const BOT_HAND = ['pari-comptoir', 'coup-pouce', 'faux-421', 'cul-sec'];
+const MY_DECK = ['coup-etrier', 'leurre', 'coup-coude', 'mise-bouche', 'cul-sec', 'pilier', 'vieux-marcel', 'gueule-bois', 'coup-pouce', 'calcul-mental', 'pari-comptoir', 'main-sac', 'domino', 'josiane', 'note-salee'];
+const BOT_HAND = ['pari-comptoir', 'coup-pouce', 'mouchard', 'cul-sec'];
 const BOT_DECK = ['tournee-patron', 'pari-comptoir', 'vieux-marcel', 'pilier', 'leurre', 'coup-coude', 'mise-bouche', 'croche-patte', 'calcul-mental', 'tete-tourne', 'main-sac', 'cul-sec', 'coup-pouce', 'faux-421', 'leurre', 'gueule-bois'];
 
 /** Dés, dans l'ordre où le moteur les demande. */
@@ -46,6 +47,7 @@ const DICE = [
   4, 2, 2, // manche 2, Dédé : 1er lancer
   1, 3, 1, // Dédé : 2e lancer
   4, 2, 2, // vous : votre seul lancer
+  1, // vous : le Coup de l’étrier relance un 2… qui devient un as
 ];
 
 function build(seed: number, myName: string): CfState {
@@ -89,7 +91,7 @@ const R = CF_RULES;
 /** Les étapes de la partie guidée. */
 export const TUTO_STEPS: TutoStep[] = [
   { kind: 'info', title: 'Partie guidée', text: `Bienvenue au comptoir ! Vous affrontez ${TUTO_BOT_NAME}. Chacun a ${R.startTokens} jetons : le premier qui n’en a plus aucun gagne. Le 421, mais avec des cartes pour piéger, retourner les dés… et se refaire.`, button: 'C’est parti' },
-  { kind: 'info', title: 'Vos cartes et vos Tournées', text: `En bas, votre main. Chaque carte coûte des Tournées (la pastille dorée) : ce sont vos verres, vous en recevez ${R.tourneesPerRound} à chaque manche.`, focus: 'me' },
+  { kind: 'info', title: 'Vos cartes et vos Tournées', text: `En bas, votre main. Chaque carte coûte des Tournées (le chiffre dans le petit verre) : vous en recevez ${R.tourneesPerRound} à chaque manche.`, focus: 'me' },
   { kind: 'me', title: 'Lancer', text: `Vous menez cette manche : lancez les 3 dés (${R.maxThrows} lancers au plus).`, focus: 'roll', expect: isRoll(NONE) },
   { kind: 'me', title: 'Garder des dés', text: 'Un 4 et un 2 : il ne manque qu’un 1 pour le 4-2-1, la meilleure combinaison. Touchez le 4 et le 2 dans le bac pour les garder, puis relancez le dernier dé.', focus: 'tray', expect: isRoll([true, true, false]) },
   { kind: 'me', title: 'Jouer un Coup', text: 'Un 6… Mais « Tête qui tourne » retourne un dé sur sa face opposée : le 6 devient 1 ! Touchez la carte, choisissez le 6, puis « Jouer ». Elle coûte 2 Tournées.', focus: 'hand', expect: isPlay('tete-tourne', (p) => p.die === 2) },
@@ -102,16 +104,16 @@ export const TUTO_STEPS: TutoStep[] = [
   { kind: 'info', title: 'Les comptes', text: `Votre 4-2-1 gagne : il vaut 8, vous donnez donc 8 jetons à ${TUTO_BOT_NAME}. Plus que 3 ! Le perdant mène la manche suivante et reçoit une Tournée de plus pour se refaire.`, focus: 'me' },
   { kind: 'bot', text: `${TUTO_BOT_NAME} mène la manche 2.`, action: () => ({ type: 'roll', keep: NONE }) },
   { kind: 'bot', text: `${TUTO_BOT_NAME} sort une carte…`, action: botPlay('coup-pouce', () => ({ die: 2, delta: -1 })) },
-  { kind: 'me', title: 'Riposter', text: `${TUTO_BOT_NAME} joue « Coup de pouce » pour changer un 2 en 1 et faire un 4-2-1 ! Une Riposte se joue à tout moment : « Ticket de caisse » annule un Coup qui coûte 3 ou moins.`, focus: 'respond', expect: isPlay('ticket-caisse') },
-  { kind: 'bot', text: `${TUTO_BOT_NAME}, vexé, pose un autre piège sur vous…`, action: botPlay('faux-421', () => ({ target: TUTO_ME })) },
+  { kind: 'me', title: 'Riposter', text: `${TUTO_BOT_NAME} joue « Coup de pouce » pour changer un 2 en 1 et faire un 4-2-1 ! Une Riposte se joue à tout moment : « Ticket de caisse » annule un Coup qui coûte 4 ou moins.`, focus: 'respond', expect: isPlay('ticket-caisse') },
+  { kind: 'bot', text: `${TUTO_BOT_NAME}, vexé, pose un autre piège sur vous…`, action: botPlay('mouchard', () => ({ target: TUTO_ME })) },
   { kind: 'bot', action: () => ({ type: 'roll', keep: NONE }) },
   { kind: 'bot', action: () => ({ type: 'stop' }) },
-  { kind: 'me', title: 'Parer un piège', text: `Deux as et un 3 pour ${TUTO_BOT_NAME}. Avant de lancer, méfiez-vous de son piège : jouez la « Fouine » (gratuite), elle le défausse et vous montre ce que c’était.`, focus: 'hand', expect: isPlay('fouine') },
+  { kind: 'me', title: 'Parer un piège', text: `Deux as et un 3 pour ${TUTO_BOT_NAME}. Avant de lancer, méfiez-vous de son piège : jouez la « Fouine » (gratuite) : elle le défausse, vous montre ce que c’était et vous fait piocher une carte.`, focus: 'hand', expect: isPlay('fouine') },
   { kind: 'me', title: 'Reprendre des Tournées', text: 'Plus qu’une Tournée ? « Tournée du patron » en coûte 1, vous en rend 2 et vous fait piocher une carte. Jouez-la : vous en aurez besoin tout à l’heure.', focus: 'hand', expect: isPlay('tournee-patron') },
   { kind: 'me', title: 'Bluffer', text: `Posez ce « Leurre » : il ne fait rien… mais ${TUTO_BOT_NAME} ne le sait pas. Retenez qu’il est posé.`, focus: 'hand', expect: isPlay('leurre') },
   { kind: 'me', title: 'Lancer', text: `${TUTO_BOT_NAME} s’est arrêté après 2 lancers : vous en avez 2 au plus. Croisez les doigts et lancez !`, focus: 'roll', expect: isRoll(NONE) },
   { kind: 'me', title: 'S’arrêter', text: `4-2-2 : ça ne bat pas les deux as de ${TUTO_BOT_NAME}… Arrêtez-vous quand même : vous gardez une carte pour la fin.`, focus: 'stop', expect: (a) => a.type === 'stop' },
-  { kind: 'me', title: 'Le Dernier mot', text: `Vous perdez… pas encore ! Avant les comptes, le perdant peut jouer un « Dernier mot ». « Recompter » (si vous avez déjà joué une carte dans la manche) retire 1 à un dé : changez un 2 en 1 !`, focus: 'hand', expect: isPlay('recompter', (p) => (p.die === 1 || p.die === 2) && p.delta === -1) },
+  { kind: 'me', title: 'Le Dernier mot', text: `Vous perdez… pas encore ! Avant les comptes, le perdant peut jouer un « Dernier mot ». « Le Coup de l’étrier » (2 Tournées) relance un de vos dés : relancez un 2 et visez l’as du 4-2-1 !`, focus: 'hand', expect: isPlay('coup-etrier', (p) => p.die === 1 || p.die === 2) },
 ];
 
 /** Nombre d'étapes affichées au joueur (explications et actions). */

@@ -5,7 +5,7 @@
  * client/src/cards/local.ts). La durée moyenne d'un duel vient de `npx tsx scripts/cf-simulate.ts
  * --games 2000` (7,6 manches en moyenne, 20 au plus) : à refaire si l'équilibrage change.
  */
-import { BOOSTER, CAPSULES, CARDS, CF_RULES, FAMILY_LABEL, RARITY_LABEL, SHARDS, STARTER_DECKS, TYPE_LABEL } from '../shared/cards/catalog.ts';
+import { BOOSTER, CAPSULES, CARDS, CF_RULES, DECK_RULES, FAMILY_LABEL, RARITY_LABEL, SHARDS, STARTER_DECKS, TYPE_LABEL } from '../shared/cards/catalog.ts';
 
 /** Lien qui ouvre directement le mode dans le jeu (client/src/cfLink.ts). */
 export const CF_PLAY = '/?mode=cartes';
@@ -48,7 +48,7 @@ const typesTable = () => `<div class="table-wrap"><table>
 <tbody>
 <tr><td><b>Coup</b></td><td>${WHEN.coup}</td><td>« Cul sec » : un lancer de plus ce tour.</td></tr>
 <tr><td><b>Piège</b></td><td>${WHEN.piege}</td><td>« Faux 4-2-1 » : le 4-2-1 adverse ne vaut plus que 2.</td></tr>
-<tr><td><b>Riposte</b></td><td>${WHEN.riposte} En chaîne, la dernière posée s’applique la première.</td><td>« Ticket de caisse » : annule un Coup qui coûte 3 ou moins.</td></tr>
+<tr><td><b>Riposte</b></td><td>${WHEN.riposte} En chaîne, la dernière posée s’applique la première.</td><td>« Ticket de caisse » : annule un Coup qui coûte 4 ou moins.</td></tr>
 <tr><td><b>Dernier mot</b></td><td>${WHEN['dernier-mot']}</td><td>« La note est salée » : le perdant reçoit 2 jetons de plus.</td></tr>
 <tr><td><b>Habitué</b></td><td>${WHEN.habitue} ${R.maxHabitues} au plus.</td><td>« Le Vieux Marcel » : vos suites valent 4 au lieu de 2.</td></tr>
 </tbody></table></div>`;
@@ -134,7 +134,7 @@ ${typesTable()}
 <ul>
 <li>Un <b>booster</b> contient ${BOOSTER.size} cartes tirées au pur hasard et coûte ${BOOSTER.price} capsules.</li>
 <li>Les <b>capsules</b> se gagnent en jouant : parties classées, parties contre l’ordinateur, missions du jour, ligue. <b>Elles ne s’achètent pas</b> : il n’y a rien à payer dans le jeu.</li>
-<li>Vous construisez jusqu’à 5 decks de ${R.deckSize} cartes, ou laissez le jeu en construire un automatiquement à partir de votre collection.</li>
+<li>Vous construisez jusqu’à 5 decks de ${R.deckSize} cartes (${DECK_RULES.maxFamilies} familles au plus, une seule légendaire), ou laissez le jeu en construire un automatiquement à partir de votre collection.</li>
 </ul>
 
 <h2 id="difference">Ce qui change par rapport au 421</h2>
@@ -207,15 +207,15 @@ ${toc([['but', 'Le but'], ['mise-en-place', 'Mise en place'], ['manche', 'Une ma
 ${typesTable()}
 <ul>
 <li><b>Pièges</b> : ${R.maxTraps} posés au plus. On voit combien l’adversaire en a posé, jamais lesquels. Un piège qui ne s’est pas déclenché en ${R.trapReturnRounds} manches revient dans la main de son propriétaire.</li>
-<li><b>Habitués</b> : ${R.maxHabitues} en jeu au plus. Ils restent jusqu’à être chassés (par exemple par « Fermeture ! »).</li>
+<li><b>Habitués</b> : ${R.maxHabitues} en jeu au plus. Chacun reste ${R.habitueRounds} manches, sauf s’il est chassé avant (par exemple par « Fermeture ! »).</li>
 <li><b>Ripostes en chaîne</b> : si plusieurs cartes se répondent, la dernière posée s’applique la première.</li>
 </ul>
 
 <h2 id="exemple">Exemple commenté</h2>
-<p>Alice et Bruno ont chacun ${R.startTokens} jetons. Alice a perdu la manche précédente : elle mène, avec 3 Tournées. Bruno, lui, a posé un piège face cachée à la manche d’avant.</p>
+<p>Alice et Bruno ont chacun ${R.startTokens} jetons. Alice a perdu la manche précédente : elle mène, avec ${byId['coup-pouce'].cost} Tournées. Bruno, lui, a posé un piège face cachée à la manche d’avant.</p>
 <ol>
 <li>Alice lance ${dice('642')}. Elle garde le 4 et le 2, relance le 6 et obtient ${dice('422')}.</li>
-<li>Elle joue « Coup de pouce » (2 Tournées) : elle retire 1 à un de ses 2, et la voilà avec ${dice('421')}. Elle s’arrête après <b>deux lancers</b> : Bruno n’en aura que deux.</li>
+<li>Elle joue « Coup de pouce » (${byId['coup-pouce'].cost} Tournées) : elle retire 1 à un de ses 2, et la voilà avec ${dice('421')}. Elle s’arrête après <b>deux lancers</b> : Bruno n’en aura que deux.</li>
 <li>Le piège de Bruno se révèle : c’était un « Faux 4-2-1 ». Le 4-2-1 d’Alice reste la meilleure combinaison, mais il <b>ne vaut plus que 2</b> cette manche.</li>
 <li>Bruno lance ${dice('653')}, relance le 3 et finit sur ${dice('655')} : il perd la manche. Au Dernier mot, il n’a rien à jouer et passe.</li>
 <li>Comptes : Alice donne 2 jetons à Bruno au lieu de 8. Alice en a 9, Bruno 13. Bruno mènera la manche suivante, avec 3 Tournées.</li>
@@ -240,7 +240,7 @@ ${typesTable()}
 
 <h2 id="deck">Deck et collection</h2>
 <ul>
-<li>Un deck compte exactement <b>${R.deckSize} cartes</b> : ${R.maxCopies} exemplaires au plus de chaque carte, un seul par légendaire. Jusqu’à 5 decks enregistrés.</li>
+<li>Un deck compte exactement <b>${R.deckSize} cartes</b> : ${R.maxCopies} exemplaires au plus de chaque carte, <b>${DECK_RULES.maxFamilies} familles au plus</b> et <b>une seule carte légendaire</b>, pour qu’aucun deck ne réunisse toutes les meilleures cartes. Jusqu’à 5 decks enregistrés.</li>
 <li>Booster : ${BOOSTER.size} cartes au pur hasard pour ${BOOSTER.price} capsules. Les cartes en double au-delà du maximum utile deviennent des éclats de verre, qui servent à fabriquer la carte de votre choix.</li>
 <li>Toutes les cartes et les decks de départ sont détaillés sur la page <a href="/cartes-coups-fourres">les cartes de Coups Fourrés</a>.</li>
 </ul>
@@ -249,7 +249,7 @@ ${typesTable()}
 <ul>
 <li><b>Gardez une Riposte et de quoi la payer.</b> Un « Ticket de caisse » (1 Tournée) en main fait réfléchir l’adversaire avant chaque petit coup.</li>
 <li><b>Lisez les Tournées adverses.</b> Quatre ou plus : méfiez-vous du « Retournement de veste », du « Bon numéro » ou de la « Tournée générale ».</li>
-<li><b>Face à un Retournement de veste, visez plus bas.</b> Il ne se déclenche que si vous deviez donner 6 jetons ou plus : arrêtez-vous sur une combinaison qui vaut 5 ou moins.</li>
+<li><b>Face à un Retournement de veste, visez plus bas.</b> Il ne se déclenche que si vous deviez donner 8 jetons ou plus : arrêtez-vous sur une combinaison qui vaut moins (et sans Double tournée).</li>
 <li><b>Meneur avec une bonne combinaison ?</b> Arrêtez-vous tôt : l’autre joueur n’aura pas plus de lancers que vous.</li>
 <li><b>Bluffez avec le Leurre.</b> Il ne fait rien, mais l’adversaire voit un piège posé… et s’il le défausse, vous piochez.</li>
 </ul>
@@ -273,7 +273,7 @@ ${play('Essayer Coups Fourrés', 'La partie guidée applique ces règles pas à 
 `,
     faq: [
       ['Combien de jetons au départ à Coups Fourrés ?', `${R.startTokens} jetons chacun en duel, ${R.startTokensMulti} à 3 ou 4 joueurs. Le premier à n’en avoir plus aucun gagne.`],
-      ['Combien de cartes dans un deck ?', `Exactement ${R.deckSize}, avec ${R.maxCopies} exemplaires au plus de chaque carte et une seule carte légendaire de chaque.`],
+      ['Combien de cartes dans un deck ?', `Exactement ${R.deckSize}, avec ${R.maxCopies} exemplaires au plus de chaque carte, ${DECK_RULES.maxFamilies} familles au plus et une seule carte légendaire.`],
       ['Qu’est-ce qu’une Tournée ?', `La monnaie de la partie, qui paie les cartes. On en reçoit ${R.tourneesPerRound} par manche (${R.tourneesPerRound + R.tourneesLoserBonus} après une manche perdue), et on peut en garder ${R.tourneesMax} au plus.`],
       ['Peut-on voir les pièges de l’adversaire ?', 'On voit combien il en a posé, pas lesquels. La carte « Fouine » en défausse un, et vous découvrez lequel c’était.'],
       ['Que se passe-t-il en cas d’égalité ?', 'Si les deux combinaisons sont exactement égales, personne ne donne de jetons.'],
@@ -332,7 +332,7 @@ ${play('Jouer avec ces cartes', 'Gratuit, dans le navigateur : les decks de dép
       ['Combien y a-t-il de cartes dans Coups Fourrés ?', `${CARDS.length} cartes dans le premier set : ${count((c) => c.rarity === 'commune')} communes, ${count((c) => c.rarity === 'rare')} rares, ${count((c) => c.rarity === 'epique')} épiques et ${count((c) => c.rarity === 'legendaire')} légendaires, réparties en 4 familles.`],
       ['Peut-on acheter des boosters avec de l’argent ?', 'Non. Les boosters s’ouvrent avec des capsules, qui se gagnent uniquement en jouant.'],
       ['Les cartes brillantes sont-elles plus fortes ?', 'Non, la version brillante est purement décorative : elle a exactement le même effet.'],
-      ['Combien d’exemplaires d’une carte dans un deck ?', `${R.maxCopies} au plus, et un seul pour une carte légendaire.`],
+      ['Combien d’exemplaires d’une carte dans un deck ?', `${R.maxCopies} au plus, et un seul pour une carte légendaire (une seule légendaire par deck).`],
     ],
     related: ['coups-fourres', 'regles-coups-fourres', 'jeux-entre-amis-a-distance'],
   },

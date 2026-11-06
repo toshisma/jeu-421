@@ -26,7 +26,7 @@ export const TERMS: Term[] = [
   { re: /\bsuites?\b/i, title: 'Suite', text: 'Trois dés qui se suivent (3-2-1, 6-5-4…) : vaut 2 jetons.' },
   { re: /\bmanches?\b/i, title: 'Manche', text: 'Chacun lance ses dés à son tour ; la meilleure combinaison gagne et donne des jetons au perdant. Puis on recommence.' },
   { re: /jetons?/i, title: 'Jetons', text: `On en a ${R.startTokens} au départ (${R.startTokensMulti} à 3 ou 4) : le premier à n’en avoir plus aucun gagne la partie.` },
-  { re: /défauss(?:ez|e|é|ée)s?/i, title: 'Défausser', text: 'Mettre une carte de côté, face visible : elle ne sert plus pour cette partie (sauf carte qui la reprend).' },
+  { re: /défauss(?:ez|ée|é|e)s?/i, title: 'Défausser', text: 'Mettre une carte de côté, face visible : elle ne sert plus pour cette partie (sauf carte qui la reprend).' },
   { re: /pioch(?:ez|e|er)/i, title: 'Piocher', text: 'Prendre la carte du dessus de votre deck et l’ajouter à votre main.' },
 ];
 

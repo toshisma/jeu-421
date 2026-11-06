@@ -150,19 +150,19 @@ describe('Coups Fourrés : serveur', () => {
   });
 
   it('éclats : recyclage des doublons en trop, confirmation, deck protégé, fabrication', async () => {
-    // Ana a 2 « Leurre » (La Bringue) : on lui en donne 3 de plus.
-    const have = (await me(ana.token)).collection.leurre.count;
-    await api(`/admin/players/${ana.id}/cf`, { what: 'card', cardId: 'leurre', delta: 3 }, admin);
+    // Ana a 2 « Tête qui tourne » (La Bringue) : on lui en donne 3 de plus.
+    const have = (await me(ana.token)).collection['tete-tourne'].count;
+    await api(`/admin/players/${ana.id}/cf`, { what: 'card', cardId: 'tete-tourne', delta: 3 }, admin);
     const extra = have + 3 - 2;
     const shards0 = (await me(ana.token)).shards;
-    const r = await api('/cf/recycle', { cardId: 'leurre', count: extra }, ana.token);
+    const r = await api('/cf/recycle', { cardId: 'tete-tourne', count: extra }, ana.token);
     expect(r.gained).toBe(extra * SHARDS.commune.recycle);
     expect(r.state.shards).toBe(shards0 + extra * SHARDS.commune.recycle);
-    expect(r.state.collection.leurre.count).toBe(2);
-    const ask = await api('/cf/recycle', { cardId: 'leurre', count: 1 }, ana.token);
+    expect(r.state.collection['tete-tourne'].count).toBe(2);
+    const ask = await api('/cf/recycle', { cardId: 'tete-tourne', count: 1 }, ana.token);
     expect(ask.code).toBe(409);
     expect(ask.error).toMatch(/Confirmez/);
-    const used = await api('/cf/recycle', { cardId: 'leurre', count: 1, confirm: true }, ana.token);
+    const used = await api('/cf/recycle', { cardId: 'tete-tourne', count: 1, confirm: true }, ana.token);
     expect(used.code).toBe(409);
     expect(used.error).toMatch(/La Bringue/);
     expect((await api('/cf/recycle', { cardId: 'inconnue' }, ana.token)).code).toBe(404);

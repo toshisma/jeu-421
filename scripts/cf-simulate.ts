@@ -22,9 +22,11 @@ const FAMILIES: CardFamily[] = ['habitues', 'ivresse', 'pieges', 'chaines'];
 const expand = (cards: Record<string, number>) => Object.entries(cards).flatMap(([id, n]) => Array(n).fill(id) as string[]);
 const maxOf = (id: string) => (CARD_BY_ID[id].rarity === 'legendaire' ? CF_RULES.maxLegendaryCopies : CF_RULES.maxCopies);
 /** Peut-on ajouter cette carte au deck sans enfreindre la règle de construction (familles, légendaires, épiques) ? */
-function fits(deck: string[], id: string): boolean {
+function fits(deck: string[], id: string, curve = false): boolean {
   const c = CARD_BY_ID[id];
   if (deck.filter((x) => x === id).length >= maxOf(id)) return false;
+  // Decks optimisés : une courbe de coûts jouable, comme le deck automatique (6 cartes à 3 Tournées ou plus).
+  if (curve && c.cost >= 3 && deck.filter((x) => CARD_BY_ID[x].cost >= 3).length >= 6) return false;
   const fams = new Set(deck.map((x) => CARD_BY_ID[x].family));
   if (!fams.has(c.family) && fams.size >= DECK_RULES.maxFamilies) return false;
   if (c.rarity === 'legendaire' && new Set(deck.filter((x) => CARD_BY_ID[x].rarity === 'legendaire')).size >= DECK_RULES.maxLegendaries) return false;
@@ -33,18 +35,18 @@ function fits(deck: string[], id: string): boolean {
 }
 
 /**
- * Ordre de préférence pour construire des decks « optimisés » : les cartes les mieux notées par la
- * dernière grosse simulation d'abord (valeur marginale), pour chercher les decks les plus forts possibles.
+ * Ordre de préférence pour construire des decks « optimisés » : les cartes les mieux notées par les
+ * dernières simulations d'abord (valeur marginale moyenne, 0.40), pour chercher les decks les plus forts possibles.
  * PREF_FILE (variable d'environnement) : fichier JSON { carte: valeur } pour le recalculer.
  */
 let PREF = [
-  'retournement-veste', 'recompter', 'videur', 'reaction-chaine', 'trinquer', 'efface-tout', 'tournee-patron', 'bon-numero',
-  'grand-enchainement', 'patron', 'leurre', 'mouchard', 'double-tournee', 'tournee-generale', 'faux-421', 'calcul-mental',
-  'yeux-piquent', 'de-sous-table', 'coup-nenette', 'domino', 'vieux-marcel', 'coup-coude', 'tete-tourne', 'gueule-bois',
-  'pourboire', 'coup-etrier', 'fanfaron', 'verre-de-trop', 'courant-air', 'pot-aux-roses', 'complice', 'engrenage',
-  'note-salee', 'main-sac', 'ticket-caisse', 'croche-patte', 'vide-poches', 'fermeture', 'beau-frere', 'pari-comptoir',
-  'pilier', 'coup-pouce', 'josiane', 'tant-qu-on-y-est', 'ardoise-piegee', 'fouine', 'verre-offert', 'mise-bouche',
-  'petite-soeur', 'cul-sec',
+  'bon-numero', 'fouine', 'verre-offert', 'tete-tourne', 'efface-tout', 'fermeture', 'note-salee', 'tournee-generale',
+  'cul-sec', 'patron', 'coup-nenette', 'recompter', 'mouchard', 'domino', 'complice', 'de-sous-table',
+  'retournement-veste', 'coup-etrier', 'calcul-mental', 'trinquer', 'tournee-patron', 'pilier', 'ardoise-piegee',
+  'videur', 'reaction-chaine', 'leurre', 'coup-pouce', 'grand-enchainement', 'croche-patte', 'faux-421',
+  'yeux-piquent', 'beau-frere', 'fanfaron', 'gueule-bois', 'vide-poches', 'pot-aux-roses', 'ticket-caisse',
+  'courant-air', 'vieux-marcel', 'mise-bouche', 'coup-coude', 'tant-qu-on-y-est', 'petite-soeur', 'main-sac',
+  'engrenage', 'pari-comptoir', 'double-tournee', 'verre-de-trop', 'josiane', 'pourboire',
 ];
 if (process.env.PREF_FILE) {
   const mg = JSON.parse(readFileSync(process.env.PREF_FILE, 'utf8')) as Record<string, number>;
@@ -58,12 +60,12 @@ function buildDeck(families: CardFamily[], mainQuota = 20): string[] {
   for (const id of PREF) {
     if (deck.length >= mainQuota) break;
     if (CARD_BY_ID[id].family !== main) continue;
-    for (let k = 0; k < maxOf(id) && deck.length < mainQuota; k++) if (fits(deck, id)) deck.push(id);
+    for (let k = 0; k < maxOf(id) && deck.length < mainQuota; k++) if (fits(deck, id, true)) deck.push(id);
   }
   for (const id of PREF) {
     if (deck.length >= 20) break;
     if (!rest.includes(CARD_BY_ID[id].family)) continue;
-    for (let k = 0; k < maxOf(id) && deck.length < 20; k++) if (fits(deck, id)) deck.push(id);
+    for (let k = 0; k < maxOf(id) && deck.length < 20; k++) if (fits(deck, id, true)) deck.push(id);
   }
   return deck;
 }
@@ -84,7 +86,7 @@ export function buildDecks() {
     const a = FAMILIES[i], b = FAMILIES[j];
     const half = buildDeck([a], 10);
     const deck = [...half];
-    for (const id of buildDeck([b], 20)) if (deck.length < 20 && fits(deck, id)) deck.push(id);
+    for (const id of buildDeck([b], 20)) if (deck.length < 20 && fits(deck, id, true)) deck.push(id);
     OPTIMIZED.push({ name: `${FL[a]} + ${FL[b]}`, kind: 'optimise', cards: deck });
   }
   for (const d of [...STARTERS, ...OPTIMIZED]) {
@@ -137,6 +139,7 @@ export function playGame(seats: Seat[], seed: number, config: CfConfig, set: str
   const played: Set<string>[] = seats.map(() => new Set());
   let steps = 0, real = 0, firstLeader = -1;
   let stalled = false;
+  const ring: string[] = [];
   while (s.phase !== 'over') {
     if (++steps > STEP_CAP) { stalled = true; break; }
     const w = waitingFor(s);
@@ -153,10 +156,11 @@ export function playGame(seats: Seat[], seed: number, config: CfConfig, set: str
     }
     const res = apply(s, pid, a, { inPlace: true });
     if (!res.ok) throw new Error(`Action illégale de l'IA : ${res.error} ${JSON.stringify(a)}`);
+    if (steps > STEP_CAP - 40) ring.push(`${pid} ${JSON.stringify(a)} ${res.events.map((e) => e.text).join(' | ')}`);
     s = res.state;
     if (firstLeader < 0 && s.round >= 1) firstLeader = s.players.findIndex((p) => p.id === s.order[0]);
   }
-  if (stalled) console.error(`Partie bloquée (${set}, graine ${seed}, ${steps} étapes) : phase ${s.phase}, attend ${waitingFor(s).join(',')}, pile ${s.stack.length}, choix ${s.choice?.kind ?? '-'}, decks ${seats.map((x) => x.deck.cards.join('/')).join(' | ')}`);
+  if (stalled) console.error(`Partie bloquée (${set}, graine ${seed}, ${steps} étapes) : phase ${s.phase}, attend ${waitingFor(s).join(',')}, pile ${s.stack.length}, choix ${s.choice?.kind ?? '-'}, decks ${seats.map((x) => x.deck.cards.join('/')).join(' | ')}\n${ring.join('\n')}`);
   return {
     set,
     seats: seats.map((x, i) => ({

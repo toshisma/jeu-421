@@ -58,7 +58,9 @@ const MORE_BOTS = [{ name: 'Bébert la Tournée', avatar: '🎩' }, { name: 'Jos
 /** Deck de l'ordinateur hors serveur : un deck de départ, ou un deck complet pour la Fine fouine. */
 function localBotDeck(level: CfLevel, mine: string[], rnd: () => number): string[] {
   if (level === 'fine-fouine') {
-    const all = Object.fromEntries(CARDS.map((c) => [c.id, 2]));
+    // 0.40 : deux familles au plus par deck ; la Fine fouine en tire deux au hasard.
+    const fams = ['habitues', 'ivresse', 'pieges', 'chaines'].sort(() => rnd() - 0.5).slice(0, 2);
+    const all = Object.fromEntries(CARDS.filter((c) => fams.includes(c.family)).map((c) => [c.id, 2]));
     const d = buildAutoDeck(all);
     if (d) return deckList(d);
   }

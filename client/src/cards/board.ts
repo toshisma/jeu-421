@@ -9,7 +9,7 @@
  * - threatLine : ce que la carte adverse va vous faire (fenêtre de riposte).
  */
 import { CARDS, CARD_BY_ID, FAMILY_LABEL, type CardFamily, type CardType } from '../../../shared/cards/catalog';
-import { commandeOf, evalPlayer, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView } from '../../../shared/cards/engine';
+import { ARDOISE_EXTRA, LEURRE_DRAW, VESTE_MIN, commandeOf, evalPlayer, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView } from '../../../shared/cards/engine';
 import { comboOf, comboWith, costNow, isTurnOf, meOf, nameIn, playOptions, playerOf, playsAfter, plural } from './describe';
 import { FAMILY_SHORT } from './meta';
 import { TYPE_META } from './cardTypes';
@@ -57,9 +57,9 @@ function playableLabel(v: CfView, legal: CfAction[], uid: string, id: string): s
     case 'bon-numero': { const b = bestDice(v, p, opts, (o) => o.face!); return b ? `→ ${b.split(' : ')[1]}` : 'Choisir une face'; }
     case 'fouine': return opts.some((o) => o.trap) ? 'Défausser son piège' : 'Piocher 1 carte';
     case 'tournee-patron': return '+2 Tournées, 1 carte';
-    case 'cul-sec': return '+1 lancer';
+    case 'cul-sec': return '+1 lancer, 1 carte';
     case 'coup-coude': return 'Piocher 1 carte';
-    case 'mise-bouche': return 'Suivante gratuite';
+    case 'mise-bouche': return '1 carte, suivante gratuite';
     case 'calcul-mental': return 'Garder 1 sur 3';
     case 'pari-comptoir': return 'Pari ±2 jetons';
     case 'double-tournee': return 'Gain doublé';
@@ -69,16 +69,18 @@ function playableLabel(v: CfView, legal: CfAction[], uid: string, id: string): s
     case 'fermeture': return 'Chasser un Habitué';
     case 'grand-enchainement': return p.r.lastCoup ? `Rejouer ${cardName(p.r.lastCoup).split(' ')[0]}` : 'Rejouer';
     case 'note-salee': return '+2 jetons donnés';
-    case 'ticket-caisse': case 'reaction-chaine': return 'Annuler sa carte';
+    case 'ticket-caisse': case 'reaction-chaine': case 'pot-aux-roses': return 'Annuler sa carte';
+    case 'pourboire': return p.tokens <= 1 ? 'Dernier jeton : gagné !' : '1 jeton donné, 1 carte';
+    case 'coup-etrier': return 'Relancer un de vos dés';
     case 'yeux-piquent': return 'Annuler son coup de dés';
-    case 'efface-tout': return 'Ne rien recevoir';
+    case 'efface-tout': return 'Ne recevoir qu’un jeton';
     case 'trinquer': return 'Échanger un dé';
     case 'verre-offert': {
       const o = v.players.find((x) => x.id === opts[0]?.target);
       return o && !o.r.done && v.order.indexOf(o.id) > v.order.indexOf(p.id) ? 'Un lancer pour lui' : 'Un lancer, manche suivante';
     }
     case 'vide-poches': return 'Lui ôter 1 carte';
-    case 'tant-qu-on-y-est': return `+${plural(Math.min(v.rules.tourneesMax - p.tournees + costNow(v, id), p.r.played + 1), 'Tournée')}`;
+    case 'tant-qu-on-y-est': return `+${plural(Math.min(v.rules.tourneesMax - p.tournees + costNow(v, id), p.r.played + 2), 'Tournée')}`;
     case 'petite-soeur': return 'Reprendre un Coup';
   }
   if (d.type === 'piege') return 'Poser face cachée';
@@ -259,23 +261,29 @@ export function familiesLabel(families: CardFamily[]): string {
 export const TRAP_WHEN: Record<string, string> = {
   'gueule-bois': 'quand vous perdez une manche : un seul lancer à la suivante',
   leurre: 'jamais : il ne fait rien (son poseur pioche s’il est découvert)',
+  'verre-de-trop': 'quand vous faites un 2e lancer dans votre tour : vous recevez 1 jeton',
+  'courant-air': 'quand vous installez un Habitué ou jouez une Riposte : la carte est défaussée sans effet',
+  engrenage: 'quand vous jouez votre 2e carte de la manche : elle est annulée',
   'croche-patte': 'quand vous finissez votre tour : un de vos dés est relancé au hasard',
-  'main-sac': 'quand vous jouez un Coup qui coûte 2 ou plus : ce Coup est annulé',
-  'ardoise-piegee': 'quand vous jouez un Coup : 2 Tournées de plus, sinon le Coup est annulé',
+  'main-sac': 'quand vous jouez un Coup qui coûte 1 ou plus : ce Coup est annulé',
+  'ardoise-piegee': `quand vous jouez un Coup : ${ARDOISE_EXTRA} Tournées de plus, sinon le Coup est annulé`,
   'faux-421': 'quand vous finissez sur 4-2-1 : il ne vaut plus que 2',
   'coup-nenette': 'quand vous devriez gagner avec une combinaison qui vaut 1 ou 2 : elle devient une nénette',
-  'retournement-veste': 'quand vous devriez lui donner 6 jetons ou plus : c’est lui qui les reçoit',
+  'retournement-veste': `quand vous devriez lui donner ${VESTE_MIN} jetons ou plus : c’est lui qui les reçoit`,
   mouchard: 'quand vous jouez un Coup : son poseur pioche 2 cartes',
 };
 export const TRAP_TIP: Record<string, string> = {
   'faux-421': 'Astuce : la « Fouine » défausse un piège avant que vous vous arrêtiez.',
   'croche-patte': 'Astuce : la Fouine défausse le piège avant ; après coup, « Recompter » peut encore rattraper le dé relancé.',
   'gueule-bois': 'Astuce : avec un seul lancer, les cartes qui changent un dé deviennent précieuses.',
-  'main-sac': 'Astuce : quand un piège traîne, commencez par un Coup bon marché (moins de 2 Tournées).',
+  'main-sac': 'Astuce : quand un piège traîne, commencez par un Coup gratuit (0 Tournée).',
   'ardoise-piegee': 'Astuce : la Fouine défausse un piège avant que vous jouiez.',
   'coup-nenette': 'Astuce : une petite combinaison qui vaut 1 est fragile quand un piège est posé.',
   'retournement-veste': 'Astuce : méfiez-vous des gros gains quand un piège est posé devant vous.',
   mouchard: 'Astuce : la Fouine défausse un piège avant que vous jouiez vos Coups.',
+  'verre-de-trop': 'Astuce : quand un piège est posé, un bon premier lancer vaut parfois mieux qu’une relance.',
+  'courant-air': 'Astuce : la Fouine défausse un piège avant que vous installiez un Habitué ou ripostiez.',
+  engrenage: 'Astuce : quand un piège est posé, jouez d’abord une carte bon marché pour le déclencher.',
 };
 const TIP_DEFAULT = 'Astuce : la Fouine défausse un piège adverse ; le Videur annule le premier piège de chaque manche.';
 
@@ -334,7 +342,7 @@ export type PlanStep = { kind: 'dice'; ev: CfEvent; strip?: Announce; after?: An
 // Durées de lecture (touchez pour passer). Raccourcies le 5 novembre : le jeu doit rester vif.
 // 0.39 : tout un peu plus court (Sam : « le jeu est lent »). Toucher l'annonce la passe.
 export const ANN_MS = { big: 1800, strip: 1100, trap: 2300, comptes: 2600, reveal: 3200 };
-const TRAP_CONSEQ = new Set(['faux-421', 'croche-patte', 'gueule-bois', 'coup-nenette', 'ardoise-piegee', 'mouchard', 'piege', 'annule']);
+const TRAP_CONSEQ = new Set(['faux-421', 'croche-patte', 'gueule-bois', 'coup-nenette', 'ardoise-piegee', 'mouchard', 'piege', 'annule', 'verre-de-trop', 'courant-air', 'engrenage']);
 const noDot = (t: string) => t.replace(/[.!]\s*$/, '');
 
 /**
@@ -353,7 +361,6 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
     const e = events[i];
     const mine = !!me && e.player === me;
     const n = name(e.player);
-    const nx = events[i + 1];
     switch (e.kind) {
       case 'pioche': case 'pioche-privee': case 'tour': case 'mulligan': case 'fin': case 'calcul':
         continue;
@@ -422,8 +429,14 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
         let victim: string | undefined;
         // Conséquence qui bouge des dés (Croche-patte) : on la montre aussi dans le bac, après l'annonce.
         let diceAfter: PlanStep | null = null;
-        if (nx && TRAP_CONSEQ.has(nx.kind) && (nx.kind !== 'annule' || /Ardoise|Main dans le sac/.test(nx.text))) {
-          conseq = nx.text; victim = nx.kind === 'piege' ? undefined : nx.player; skip.add(i + 1);
+        // Le Complice (0.40) s'annonce entre le piège et sa conséquence : on regarde juste après.
+        const ci = events[i + 1]?.kind === 'complice' ? i + 2 : i + 1;
+        const nc = events[ci];
+        if (nc && TRAP_CONSEQ.has(nc.kind) && (nc.kind !== 'annule' || /Ardoise|Main dans le sac/.test(nc.text))) {
+          const nx = nc;
+          conseq = nx.text; victim = nx.kind === 'piege' ? undefined : nx.player; skip.add(ci);
+          // L'Engrenage : l'annulation qui suit est déjà dite dans la conséquence.
+          if (nx.kind === 'engrenage' || nx.kind === 'courant-air') { const j = events.findIndex((x, idx) => idx > ci && x.kind === 'annule' && x.card === nx.card); if (j > 0) skip.add(j); }
           if (nx.dice && nx.rolled?.length) diceAfter = { kind: 'dice', ev: nx, strip: strip(noDot(nx.player === me ? nx.text.replace(/^Croche-patte : /, 'Croche-patte : ') : nx.text), 'piege', 1300) };
         }
         if (!victim) {
@@ -478,7 +491,7 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
         } : { style: 'big', tone: 'piege', kicker: 'Piège défaussé', card: e.card, ms: ANN_MS.big, title: noDot(e.text) } });
         continue;
       case 'leurre':
-        out.push({ kind: 'ann', ev: e, ann: mine ? strip(e.text, 'piege') : { style: 'big', tone: 'piege', kicker: 'Leurre', card: 'leurre', ms: ANN_MS.big, title: 'C’était un Leurre !', text: `Il ne fait rien… et ${n} pioche 1 carte.` } });
+        out.push({ kind: 'ann', ev: e, ann: mine ? strip(e.text, 'piege') : { style: 'big', tone: 'piege', kicker: 'Leurre', card: 'leurre', ms: ANN_MS.big, title: 'C’était un Leurre !', text: `Il ne fait rien… et ${n} pioche ${plural(LEURRE_DRAW, 'carte')}.` } });
         continue;
       case 'videur':
         out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'habitue', kicker: 'Le Videur', card: 'videur', ms: ANN_MS.big, title: noDot(e.text) } });
@@ -506,7 +519,7 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
         let text = e.text;
         const effaced = !!lr?.detail?.some((d) => d.label === 'On efface tout');
         if (w && l && lr && effaced) {
-          text = l === me ? 'Vous effacez tout : personne ne donne de jetons.' : w === me ? `${name(l)} efface tout : vous ne donnez rien cette fois.` : `${name(l)} efface tout : personne ne donne de jetons.`;
+          text = l === me ? 'Vous effacez tout : vous ne recevez qu’un jeton.' : w === me ? `${name(l)} efface tout : vous ne lui donnez qu’un jeton.` : `${name(l)} efface tout : il ne reçoit qu’un jeton.`;
         } else if (w && l && lr) {
           if (lr.reversed) text = noDot(e.text);
           else if (w === me) text = `Vous donnez ${plural(lr.amount, 'jeton')} à ${name(l)} : c’est le but, vous vous déchargez !`;
@@ -587,9 +600,16 @@ export function threatLine(v: CfView): string {
     case 'fouine': return 'Ici : il défausse un de vos pièges.';
     case 'verre-offert': return pr.target === me.id ? `Ici : vous n’aurez qu’un seul lancer à votre prochain tour${!me.r.done && v.order.indexOf(me.id) > v.order.indexOf(top.owner) ? ' (celui-ci)' : ''}.` : 'Ici : son adversaire n’aura qu’un seul lancer.';
     case 'vide-poches': return pr.target === me.id ? 'Ici : vous défaussez une carte de votre main au hasard.' : 'Ici : une carte de main défaussée au hasard.';
-    case 'tant-qu-on-y-est': return `Ici : il gagne ${plural((o?.r.played ?? 0), 'Tournée')}.`;
+    case 'tant-qu-on-y-est': return `Ici : il gagne ${plural((o?.r.played ?? 0) + 1, 'Tournée')}.`;
+    case 'pot-aux-roses': case 'ticket-caisse': case 'reaction-chaine': {
+      const under = v.stack[v.stack.length - 2];
+      const what = under && under.kind === 'card' && under.cardId ? `« ${cardName(under.cardId)} »` : 'la carte';
+      return `Ici : il annule ${what}${under && under.owner === me.id ? ', votre carte' : ''}.`;
+    }
+    case 'pourboire': return pr.target === me.id ? `Ici : il vous donne 1 de ses jetons${o && o.tokens <= 1 ? ' : son dernier, il gagnerait la partie' : ''}.` : 'Ici : il donne 1 de ses jetons.';
+    case 'coup-etrier': return `Ici : il relance son ${dieOf(o, pr.die) === 1 ? 'as' : dieOf(o, pr.die)} au hasard.`;
     case 'petite-soeur': { const t = o ? [...o.discard].reverse().find(petiteSoeurOk) : undefined; return `Ici : il reprend en main ${t ? `« ${cardName(t.id)} »` : 'une carte de sa défausse'}.`; }
-    case 'efface-tout': return 'Ici : s’il perd la manche, personne ne donne de jetons.';
+    case 'efface-tout': return 'Ici : s’il perd la manche, il ne recevra qu’un jeton.';
     case 'trinquer': return pr.target === me.id ? 'Ici : un de vos dés et un des siens, pris au hasard, changent de camp.' : 'Ici : un de ses dés et un dé de son adversaire changent de camp.';
   }
   const d = def(top.cardId);

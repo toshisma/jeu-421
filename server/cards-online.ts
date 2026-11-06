@@ -107,7 +107,7 @@ export function cfBotDeck(rand: (n: number) => number = randomInt): { name: stri
   const total = CARDS.reduce((a, c) => a + RARITY_WEIGHT[c.rarity], 0);
   for (let attempt = 0; attempt < 5; attempt++) {
     const owned: Record<string, number> = {};
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 60; i++) { // 0.40 : assez de cartes pour remplir un deck de 2 familles
       let x = (rand(1_000_000) / 1_000_000) * total;
       const c = CARDS.find((k) => (x -= RARITY_WEIGHT[k.rarity]) < 0) ?? CARDS[0];
       owned[c.id] = (owned[c.id] ?? 0) + 1;

@@ -4,7 +4,8 @@
  * conseils de stratégie et lexique. Les chiffres viennent du catalogue (CF_RULES, BOOSTER…).
  */
 import { useState } from 'react';
-import { BOOSTER, CARDS, CF_RULES, FAMILY_LABEL, TYPE_LABEL, type CardFamily, type CardType } from '../../../shared/cards/catalog';
+import { BOOSTER, CARDS, CF_RULES, DECK_RULES, FAMILY_LABEL, TYPE_LABEL, type CardFamily, type CardType } from '../../../shared/cards/catalog';
+import { VESTE_MIN } from '../../../shared/cards/engine';
 import { Icon } from '../ui/Icon';
 import { CardView, FamilyBadge } from './components';
 import { CfShell } from './cfui';
@@ -96,8 +97,8 @@ const TIPS: { t: string; d: string }[] = [
   { t: 'Gardez une Riposte et de quoi la payer', d: 'Un « Ticket de caisse » (1 Tournée) ou une « Réaction en chaîne » (2) en main, avec les Tournées qui vont avec, fait réfléchir l’adversaire avant chaque gros coup.' },
   { t: 'Lisez les Tournées adverses', d: 'Elles sont visibles. Zéro Tournée : il ne peut presque rien jouer. Quatre ou plus : attention au Retournement de veste, au Bon numéro ou à la Tournée générale.' },
   { t: 'Un piège posé juste avant un gros coup ? Méfiance', d: 'Si l’adversaire pose un piège pendant que vous tenez un 4-2-1, pensez au Faux 4-2-1. Une Fouine (gratuite) envoie le piège à la défausse et vous montre ce que c’était.' },
-  { t: 'La Fouine n’est jamais perdue', d: 'Sans piège en face, elle pioche une carte. Avec un piège, elle le défausse : vous voyez lequel, et le danger disparaît.' },
-  { t: 'Face à un Retournement de veste, visez plus bas', d: 'Il ne se déclenche que si vous deviez donner 6 jetons ou plus. Arrêtez-vous volontairement sur une combinaison qui vaut 5 ou moins : vous gagnez la manche sans vous faire retourner.' },
+  { t: 'La Fouine n’est jamais perdue', d: 'Elle pioche toujours une carte. Avec un piège en face, elle le défausse aussi : vous voyez lequel, et le danger disparaît.' },
+  { t: 'Face à un Retournement de veste, visez plus bas', d: `Il ne se déclenche que si vous deviez donner ${VESTE_MIN} jetons ou plus. Arrêtez-vous volontairement sur une combinaison qui vaut moins : vous gagnez la manche sans vous faire retourner.` },
   { t: 'Le meneur fixe la limite', d: `Si vous menez avec une bonne combinaison, arrêtez-vous tôt : un seul lancer et l’autre n’aura qu’un lancer pour faire mieux (${CF_RULES.maxThrows} au plus).` },
   { t: 'Jouer en second a ses avantages', d: 'Vous voyez la combinaison à battre. « Le dé sous la table » et « Tournée générale » frappent les dés de l’adversaire s’il a fini son tour : c’est là qu’elles sont les plus fortes.' },
   { t: 'Le Dernier mot, c’est pour le perdant', d: 'Avant les comptes, celui qui perd parle en premier. « Recompter » (si vous avez déjà joué une carte dans la manche) peut transformer un 4-2-2 en 4-2-1.' },
@@ -124,10 +125,10 @@ const LEXICON: { w: string; d: string }[] = [
   { w: 'Comptes', d: 'Fin de manche : le gagnant donne au perdant autant de jetons que vaut sa combinaison, cartes comprises.' },
   { w: 'Coup', d: 'Carte jouée pendant votre tour, avant ou après un lancer, puis défaussée.' },
   { w: 'Décharge', d: `On commence avec ${CF_RULES.startTokens} jetons (${CF_RULES.startTokensMulti} à 3 ou 4) : le premier à n’en avoir plus aucun gagne.` },
-  { w: 'Deck', d: `Vos ${CF_RULES.deckSize} cartes pour une partie : ${CF_RULES.maxCopies} exemplaires au plus, une seule par légendaire. Jusqu’à 5 decks enregistrés.` },
+  { w: 'Deck', d: `Vos ${CF_RULES.deckSize} cartes pour une partie : ${CF_RULES.maxCopies} exemplaires au plus de chaque carte, ${DECK_RULES.maxFamilies} familles au plus et une seule légendaire. Jusqu’à 5 decks enregistrés.` },
   { w: 'Dernier mot', d: 'Étape avant les comptes : le joueur qui perd peut jouer une carte « Dernier mot », l’autre peut répondre, jusqu’à ce que tous passent.' },
   { w: 'Éclats de verre', d: 'Rendus par les doublons en trop ; ils servent à fabriquer la carte de votre choix.' },
-  { w: 'Famille', d: 'Habitués (vert), Ivresse (rouge), Pièges (violet), Chaînes (bleu et or). Les familles du deck adverse sont visibles.' },
+  { w: 'Famille', d: `Habitués (vert), Ivresse (rouge), Pièges (violet), Chaînes (bleu et or). Un deck mélange ${DECK_RULES.maxFamilies} familles au plus. Les familles du deck adverse sont visibles.` },
   { w: 'Habitué', d: `Carte qui s’installe devant vous pour ${CF_RULES.habitueRounds} manches, puis rentre chez lui (${CF_RULES.maxHabitues} au plus, jamais deux fois le même).` },
   { w: 'Meneur', d: 'Celui qui joue en premier dans la manche (le perdant de la précédente). Son nombre de lancers fixe le maximum des autres.' },
   { w: 'Piège', d: `Posé face cachée (on paie à la pose), il se déclenche tout seul quand sa condition arrive. ${CF_RULES.maxTraps} posés au plus ; il revient en main après ${CF_RULES.trapReturnRounds} manches sans se déclencher.` },

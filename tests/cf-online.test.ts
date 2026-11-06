@@ -49,10 +49,11 @@ describe('fenêtres de réponse (moteur, option windows)', () => {
     return { waiting: waitingFor(r.state), legalB: legalActions(r.state, 'B') };
   }
   it('sans la carte, l’adversaire est interrogé quand même (il ne peut que passer)', () => {
-    const noRiposte = askedAfterCard(deck('coup-coude'), true); // famille Chaînes, aucune Riposte en main
+    // 0.40 : Réaction en chaîne coûte 3 (trop cher au premier tour) ; on prend la famille des Habitués (Ticket de caisse, 1).
+    const noRiposte = askedAfterCard(deck('pilier'), true); // famille Habitués, aucune Riposte en main
     expect(noRiposte.waiting).toEqual(['B']);
     expect(noRiposte.legalB).toEqual([{ type: 'pass' }]);
-    const withRiposte = askedAfterCard(deck('reaction-chaine'), true);
+    const withRiposte = askedAfterCard(deck('ticket-caisse'), true);
     expect(withRiposte.waiting).toEqual(['B']);
     expect(withRiposte.legalB.some((a) => a.type === 'play')).toBe(true);
   });

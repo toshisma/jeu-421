@@ -3004,6 +3004,7 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .cf-fambar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: rgba(255,255,255,0.08); }
 .cf-fambar i { display: block; height: 100%; }
 .cf-deck-warn { margin: 0; padding: 0 12px 8px; font: 600 12.5px/1.3 var(--font); color: #ffb4a8; }
+.cf-deck-rule { margin: 0; padding: 0 12px 6px; font: 500 12px/1.3 var(--font); color: rgba(255, 244, 220, .72); }
 .cf-deck-actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 11px; }
 .cf-deck-list { list-style: none; margin: 0; padding: 0 8px 8px; display: flex; flex-direction: column; gap: 3px; }
 .cf-deck-list li { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 3px 8px 3px 5px; border-radius: 9px; background: linear-gradient(90deg, var(--cf-c1), var(--cf-c2)); box-shadow: inset 0 0 0 1px var(--cf-edge); }

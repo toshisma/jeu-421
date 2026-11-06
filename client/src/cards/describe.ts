@@ -7,7 +7,7 @@
 import { evaluate } from '../../../shared/combos';
 import { DEFAULT_CONFIG } from '../../../shared/config';
 import { CARD_BY_ID, TYPE_LABEL, type CardDef } from '../../../shared/cards/catalog';
-import { beauFrere, evalPlayer, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView, type PlayParams } from '../../../shared/cards/engine';
+import { ARDOISE_EXTRA, TICKET_MAX, LEURRE_DRAW, POT_MIN, VESTE_MIN, beauFrere, evalPlayer, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView, type PlayParams } from '../../../shared/cards/engine';
 
 const def = (id: string): CardDef | undefined => CARD_BY_ID[id];
 export const plural = (n: number, w: string) => `${n} ${w}${n > 1 ? 's' : ''}`;
@@ -80,10 +80,10 @@ export function resolveOption(opts: PlayParams[], chosen: PlayParams): PlayParam
 /** Libellé de la question posée pour un paramètre. */
 export function paramQuestion(k: ParamKey, cardId: string): string {
   switch (k) {
-    case 'target': return cardId === 'de-sous-table' || cardId === 'tournee-generale' ? 'Quel adversaire ?' : cardId === 'trinquer' ? 'Avec qui trinquer ?' : 'Sur qui ?';
+    case 'target': return cardId === 'de-sous-table' || cardId === 'tournee-generale' ? 'Quel adversaire ?' : cardId === 'trinquer' ? 'Avec qui trinquer ?' : cardId === 'pourboire' ? 'À qui donner le jeton ?' : 'Sur qui ?';
     case 'trap': return 'Quel piège défausser ?';
     case 'habitue': return 'Quel Habitué chasser ?';
-    case 'die': return cardId === 'de-sous-table' ? 'Quel dé relancer ?' : 'Quel dé ?';
+    case 'die': return cardId === 'de-sous-table' || cardId === 'coup-etrier' ? 'Quel dé relancer ?' : 'Quel dé ?';
     case 'delta': return 'Ajouter ou retirer 1 ?';
     case 'face': return 'Sur quelle face ?';
   }
@@ -93,14 +93,17 @@ export function paramQuestion(k: ParamKey, cardId: string): string {
 
 const conditionOf: Record<string, string> = {
   'gueule-bois': 'il perd une manche (il n’aura qu’un lancer à la suivante)',
-  leurre: 'il est révélé ou revient dans votre main (vous piochez 1 carte) ; sinon il ne fait rien',
+  leurre: `il est révélé ou revient dans votre main (vous piochez ${plural(LEURRE_DRAW, 'carte')}) ; sinon il ne fait rien`,
   'croche-patte': 'il finit son tour (un de ses dés est relancé au hasard)',
-  'main-sac': 'il joue un Coup qui coûte 2 ou plus (ce Coup est annulé)',
-  'ardoise-piegee': 'il joue un Coup (il paie 2 Tournées de plus, sinon le Coup est annulé)',
+  'main-sac': 'il joue un Coup qui coûte 1 ou plus (ce Coup est annulé)',
+  'ardoise-piegee': `il joue un Coup (il paie ${ARDOISE_EXTRA} Tournées de plus, sinon le Coup est annulé)`,
   'faux-421': 'il termine avec un 4-2-1 (qui ne vaudra que 2)',
   'coup-nenette': 'il devrait gagner avec une combinaison qui vaut 1 ou 2 (elle devient une nénette)',
-  'retournement-veste': 'il devrait vous donner 6 jetons ou plus (c’est lui qui les reçoit)',
+  'retournement-veste': `il devrait vous donner ${VESTE_MIN} jetons ou plus (c’est lui qui les reçoit)`,
   mouchard: 'il joue un Coup (vous piochez 2 cartes)',
+  'verre-de-trop': 'il fait un 2e lancer dans son tour (il reçoit 1 jeton)',
+  'courant-air': 'il installe un Habitué ou joue une Riposte (la carte est défaussée sans effet)',
+  engrenage: 'il joue sa 2e carte de la manche (elle est annulée)',
 };
 
 /** Effet d'un dé modifié : « Le 6 devient un 1 : vous passez à 4-2-1 (vaut 8). » */
@@ -142,7 +145,7 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
     }
     case 'cul-sec': {
       const lim = p.throwLimit ?? v.rules.maxThrows;
-      return `Un lancer de plus ce tour : ${plural(lim + 1, 'lancer')} au lieu de ${lim}, même au-delà de la limite.`;
+      return `Un lancer de plus ce tour : ${plural(lim + 1, 'lancer')} au lieu de ${lim}, même au-delà de la limite. Et vous piochez 1 carte.`;
     }
     case 'tete-tourne': {
       if (params.die !== undefined) return diceChange(v, p, params.die, 7 - p.r.dice[params.die]);
@@ -194,16 +197,16 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
     }
     case 'fouine':
       if (!opts.some((o) => o.trap) && !params.trap) return 'Aucun piège adverse posé : vous piochez 1 carte.';
-      return 'Vous défaussez le piège adverse choisi (vous découvrez lequel c’était).';
+      return 'Vous défaussez le piège adverse choisi (vous découvrez lequel c’était) et piochez 1 carte.';
     case 'coup-coude': return `Vous piochez 1 carte (il en reste ${p.deckCount} dans votre deck).`;
-    case 'mise-bouche': return 'Votre prochaine carte de la manche sera gratuite (Riposte et Dernier mot compris).';
+    case 'mise-bouche': return 'Vous piochez 1 carte, et votre prochaine carte de la manche sera gratuite (Riposte et Dernier mot compris).';
     case 'calcul-mental': return p.deckCount > 0 ? `Vous regardez les ${Math.min(3, p.deckCount)} cartes du dessus de votre deck et en gardez une ; les autres repartent dessous.` : 'Votre deck est vide : rien à regarder.';
     case 'grand-enchainement': {
       const last = p.r.lastCoup;
       return last ? `Rejoue gratuitement « ${def(last)?.name} » : ${describeNow(v, last, params, opts)}` : 'Aucun Coup joué cette manche à rejouer : vous piochez 2 cartes.';
     }
     case 'note-salee': return `Si vous gagnez la manche, ${tName} reçoit 2 jetons de plus (sans dépasser les jetons qu’il vous reste).`;
-    case 'ticket-caisse': case 'reaction-chaine': {
+    case 'ticket-caisse': case 'reaction-chaine': case 'pot-aux-roses': {
       const what = top && top.kind === 'card' ? (top.cardId ? `« ${def(top.cardId)?.name} »` : 'ce piège') : 'la carte adverse';
       const back = cardId === 'reaction-chaine' && p.r.played >= 2 ? ' Et comme c’est au moins votre 3e carte de la manche, elle revient dans votre main.' : '';
       return `Annule ${what} de ${top ? nameIn(v, top.owner) : tName}.${back}`;
@@ -211,8 +214,8 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
     case 'efface-tout': {
       const meE = evalPlayer({ values: v.values }, p);
       const best = Math.max(...v.players.filter((o) => o.id !== p.id && v.order.includes(o.id)).map((o) => evalPlayer({ values: v.values }, o).rank));
-      const state = meE.rank < best ? ' Pour l’instant, vous perdez : vous ne recevriez rien.' : meE.rank > best ? ' Pour l’instant, vous gagnez : elle ne servirait à rien.' : '';
-      return `Si vous perdez la manche, personne ne donne de jetons.${state}`;
+      const state = meE.rank < best ? ' Pour l’instant, vous perdez : vous ne recevriez qu’un jeton.' : meE.rank > best ? ' Pour l’instant, vous gagnez : elle ne servirait à rien.' : '';
+      return `Si vous perdez la manche, vous ne recevez qu’un seul jeton.${state}`;
     }
     case 'verre-offert': {
       if (!target) return 'L’adversaire choisi n’aura qu’un seul lancer à son prochain tour.';
@@ -226,9 +229,17 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
     case 'vide-poches':
       return target ? `${tName} défausse au hasard une de ses ${plural(target.handCount, 'carte')}.` : 'L’adversaire défausse une carte de sa main au hasard.';
     case 'tant-qu-on-y-est': {
-      const n = p.r.played + 1;
+      const n = p.r.played + 2;
       const after = Math.min(v.rules.tourneesMax, p.tournees - costNow(v, cardId) + n);
-      return `Vous gagnez ${plural(n, 'Tournée')} (${p.r.played} déjà jouée${p.r.played > 1 ? 's' : ''} + celle-ci) : vous en aurez ${after} sur ${v.rules.tourneesMax}.`;
+      return `Vous gagnez ${plural(n, 'Tournée')} (2${p.r.played ? ` + ${p.r.played} pour ${p.r.played > 1 ? 'les cartes déjà jouées' : 'la carte déjà jouée'}` : ''}) : vous en aurez ${after} sur ${v.rules.tourneesMax}.`;
+    }
+    case 'pourboire': {
+      const left = p.tokens - 1;
+      return left <= 0 ? `Vous donnez votre dernier jeton à ${tName} : vous êtes déchargé, la partie est gagnée !` : `Vous donnez 1 de vos jetons à ${tName} (il vous en restera ${left}) et piochez 1 carte.`;
+    }
+    case 'coup-etrier': {
+      if (params.die !== undefined) return `Vous relancez ${p.r.dice[params.die] === 1 ? 'votre as' : `votre ${p.r.dice[params.die]}`} au hasard (vous avez ${lowerFirst(lbl(comboOf(v, p)?.label ?? ''))} pour l’instant).`;
+      return 'Relancez au hasard un de vos dés, quand les combinaisons sont sur la table.';
     }
     case 'petite-soeur': {
       const top = [...p.discard].reverse().find(petiteSoeurOk);
@@ -254,7 +265,7 @@ const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 export function costNow(v: CfView, cardId: string): number {
   const d = def(cardId);
   const p = meOf(v);
-  return d ? Math.max(0, d.cost - beauFrere(p, cardId) - p.r.discount) : 0;
+  return d ? Math.max(0, d.cost - beauFrere(p, cardId) - (cardId === 'mise-bouche' ? 0 : p.r.discount)) : 0;
 }
 
 /** Pourquoi cette carte n'est pas jouable maintenant (phrase courte), ou null si elle l'est. */
@@ -272,7 +283,8 @@ export function whyNot(v: CfView, cardId: string, legal: CfAction[], uid: string
       const top = v.stack[v.stack.length - 1];
       if (cost > p.tournees) return `Il vous manque ${plural(cost - p.tournees, 'Tournée')}.`;
       if (cardId === 'yeux-piquent') return 'N’annule qu’un Coup qui change des dés.';
-      if (cardId === 'ticket-caisse' && top?.kind === 'card') return 'N’annule qu’un Coup qui coûte 3 ou moins.';
+      if (cardId === 'ticket-caisse' && top?.kind === 'card') return `N’annule qu’un Coup qui coûte ${TICKET_MAX} ou moins.`;
+      if (cardId === 'pot-aux-roses') return `N’annule qu’un Coup ou un Dernier mot qui coûte ${POT_MIN} ou plus.`;
       return 'Ne peut pas répondre à cette action.';
     }
     return 'Riposte : se joue en réponse à une carte adverse (on vous le proposera).';

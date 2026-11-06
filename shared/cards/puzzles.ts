@@ -3,8 +3,8 @@
  * (heure de Bruxelles), à résoudre par le raisonnement, sans hasard.
  *
  * L'adversaire a fini son tour ; vous n'avez plus de lancer. Avec vos cartes (seulement des cartes à
- * effet fixe : Tête qui tourne, Coup de pouce, Le bon numéro, Recompter, Mise en bouche, Double
- * tournée, La note est salée…) et vos Tournées, gagnez la manche en donnant le plus de jetons
+ * effet fixe : Tête qui tourne, Coup de pouce, Le bon numéro, Recompter, Double tournée, La note est
+ * salée… ; plus Mise en bouche depuis la 0.40, qui fait piocher) et vos Tournées, gagnez la manche en donnant le plus de jetons
  * possible. Score = jetons donnés à l'adversaire si vous gagnez la manche, 0 sinon.
  *
  * Tout passe par le vrai moteur (shared/cards/engine.ts) : l'énigme est un état de partie construit
@@ -216,7 +216,7 @@ export function naivePlay(start: CfState): { score: number; actions: CfAction[] 
 const OPP_NAMES = ['Mado', 'Dédé', 'Ginette', 'Riton', 'Lulu', 'Bébert', 'Momo', 'Suzette', 'Jojo', 'Paulette'];
 /** Cartes à effet fixe (aucun tirage, aucune pioche) et leur poids dans le tirage de la main. */
 const POOL: [string, number][] = [
-  ['tete-tourne', 3], ['coup-pouce', 3], ['recompter', 3], ['mise-bouche', 2.2], ['double-tournee', 2], ['note-salee', 2],
+  ['tete-tourne', 3], ['coup-pouce', 3], ['recompter', 3], ['double-tournee', 2], ['note-salee', 2],
   ['tant-qu-on-y-est', 2], ['pari-comptoir', 1.2], ['bon-numero', 1], ['petite-soeur', 1.3],
 ];
 const TRAPS = ['main-sac', 'ardoise-piegee', 'faux-421', 'coup-nenette', 'retournement-veste'];

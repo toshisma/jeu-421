@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from 'react';
 import { TYPE_META, TypeIcon } from './cardTypes';
-import { BOOSTER, CAPSULES, CARDS, CF_RULES, FAMILY_LABEL, TYPE_LABEL, type CardFamily } from '../../../shared/cards/catalog';
+import { BOOSTER, CAPSULES, CARDS, CF_RULES, DECK_RULES, FAMILY_LABEL, TYPE_LABEL, type CardFamily } from '../../../shared/cards/catalog';
 import { CF_DIVISIONS, CF_LEGEND_COUNT, CF_LEGEND_NAME, type CfLeagueBoard } from '../../../shared/cards/progress';
 import { DEFAULT_CONFIG } from '../../../shared/config';
 import { sound } from '../audio/sound';
@@ -211,7 +211,7 @@ export function RulesContent({ short }: { short?: boolean }) {
           <section>
             <h3>Deck et collection</h3>
             <ul>
-              <li>Un deck compte <b>{R.deckSize} cartes</b> : {R.maxCopies} exemplaires au plus, une seule par légendaire. Jusqu’à 5 decks.</li>
+              <li>Un deck compte <b>{R.deckSize} cartes</b> : {R.maxCopies} exemplaires au plus de chaque carte, <b>{DECK_RULES.maxFamilies} familles au plus</b> et <b>une seule légendaire</b> (pour qu’aucun deck ne réunisse toutes les meilleures cartes). Jusqu’à 5 decks.</li>
               <li>Booster : {BOOSTER.size} cartes au pur hasard pour {BOOSTER.price} capsules (communes 70 %, rares 22 %, épiques 6,5 %, légendaires 1,5 %), une chance sur vingt par carte d’être brillante.</li>
               <li>Doublons en trop → éclats de verre, pour fabriquer la carte de votre choix.</li>
               <li>Capsules : victoire classée {CAPSULES.rankedWin}, défaite classée jouée jusqu’au bout {CAPSULES.rankedLoss}, contre l’ordinateur {CAPSULES.vsBot} ({CAPSULES.vsBotDailyMax} par jour au plus), missions du jour, première victoire du jour = 1 booster.</li>

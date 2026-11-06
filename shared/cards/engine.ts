@@ -78,7 +78,7 @@ export interface RoundState {
   faux421: boolean;
   /** Le coup de la nénette : combinaison forcée en nénette (tant que les dés ne changent pas). */
   forcedNenette: boolean;
-  /** On efface tout : si ce joueur perd la manche, personne ne donne de jetons (> 0). */
+  /** On efface tout : si ce joueur perd la manche, il ne reçoit qu'un jeton (> 0 ; 0.40, avant : aucun). */
   efface?: number;
   /** Carte qui limite ce joueur à un seul lancer (Gueule de bois, Le verre offert). */
   penaltyCard?: string;
@@ -502,13 +502,13 @@ function rollDice(c: Ctx, p: CfPlayer, keep: boolean[]) {
   for (let i = 0; i < 3; i++) if (!keep[i]) { setDice(p, i, c.die()); rolled.push(i); }
   p.r.throwsUsed++;
   const e = evalPlayer(c.s, p);
-  const vt = p.r.throwsUsed === 3 ? trapsOn(c.s, p.id, 'verre-de-trop')[0] : undefined;
+  const vt = p.r.throwsUsed === 2 ? trapsOn(c.s, p.id, 'verre-de-trop')[0] : undefined;
   emit(c, { kind: 'lancer', player: p.id, dice: [...p.r.dice], kept: [...keep], rolled, throwIndex: p.r.throwsUsed, who: p.id,
     text: `${p.name} lance : ${p.r.dice.join('-')} (${e.combo.label}).`, textYou: `Vous lancez : ${p.r.dice.join('-')} (${e.combo.label}).` });
-  // Le Verre de trop (0.40) : au 3e lancer du tour, le joueur piégé reçoit 1 jeton.
+  // Le Verre de trop (0.40) : au 2e lancer du tour, le joueur piégé reçoit 1 jeton.
   if (vt && triggerTrap(c, vt)) {
     p.tokens += 1;
-    emit(c, { kind: 'verre-de-trop', player: p.id, card: 'verre-de-trop', who: p.id, text: `Le Verre de trop : ${p.name} reçoit 1 jeton (3e lancer).`, textYou: 'Le Verre de trop : vous recevez 1 jeton (3e lancer).' });
+    emit(c, { kind: 'verre-de-trop', player: p.id, card: 'verre-de-trop', who: p.id, text: `Le Verre de trop : ${p.name} reçoit 1 jeton (2e lancer).`, textYou: 'Le Verre de trop : vous recevez 1 jeton (2e lancer).' });
   }
 }
 
@@ -612,11 +612,11 @@ function settle(c: Ctx) {
     const pari = W.r.pari + L.r.pari;
     if (pari > 0) step('Pari de comptoir', amount + 2 * pari);
     if (W.habitues.some((h) => h.id === 'fanfaron')) step('Le Fanfaron', amount + 1);
-    if (L.habitues.some((h) => h.id === 'pilier') && amount > 1) step('Pilier de comptoir', amount - 1);
+    if (L.habitues.some((h) => h.id === 'pilier') && amount > 1) step('Pilier de comptoir', Math.max(1, amount - 2)); // 0.40 : 2 de moins
     const nenMin = s.commande === 'nenette' ? Math.max(4, s.values.nenetteMin) : s.values.nenetteMin;
     if (ev[worst].combo.kind === 'nenette' && amount < nenMin) step('nénette', nenMin);
     const efface = (L.r.efface ?? 0) > 0;
-    if (efface) step('On efface tout', 0);
+    if (efface && amount > 1) step('On efface tout', 1);
     let reversed = false;
     if (amount >= VESTE_MIN) {
       const t = s.traps.find((x) => x.id === 'retournement-veste' && x.owner === L.id && x.target === W.id);
@@ -635,7 +635,7 @@ function settle(c: Ctx) {
     const extra = parts.length ? ` (${parts.join(', ')})` : '';
     const text = reversed
       ? `Retournement de veste ! C'est ${W.name} qui reçoit ${plural(given, 'jeton')} à la place de ${L.name}.`
-      : efface ? `${W.name} gagne la manche avec ${ev[best].combo.label}, mais ${L.name} efface tout : personne ne donne de jetons.`
+      : efface ? `${W.name} gagne la manche avec ${ev[best].combo.label}, mais ${L.name} efface tout : il ne reçoit qu’un jeton.`
       : `${W.name} gagne la manche avec ${ev[best].combo.label} et donne ${plural(given, 'jeton')} à ${L.name}${extra}.`;
     summary = { round: s.round, winner: W.id, loser: L.id, amount: given, reversed, combos, text, detail, ...(given < amount ? { cappedFrom: amount } : {}) };
     emit(c, { kind: 'comptes', player: W.id, text });
@@ -718,7 +718,7 @@ function endRound(c: Ctx) {
       const o = pl(s, t.owner);
       o.hand.push({ uid: t.uid, id: t.id });
       emit(c, { kind: 'piege-retour', player: o.id, who: o.id, text: `Un piège de ${o.name} revient dans sa main.`, textYou: `Votre piège ${cardName(t.id)} revient dans votre main.` });
-      if (t.id === 'leurre') draw(c, o, 1, false, true);
+      if (t.id === 'leurre') draw(c, o, LEURRE_DRAW, false, true);
     }
   }
   s.discardQueue = s.order.filter((id) => pl(s, id).hand.length > s.rules.handMax);
@@ -731,7 +731,7 @@ function endRound(c: Ctx) {
 
 /** Coût réel d'une carte pour ce joueur maintenant (Mise en bouche, Le Beau-frère). */
 export function costOf(_s: CfState, p: Pick<CfPlayer, 'habitues' | 'r'>, id: string): number {
-  return Math.max(0, def(id).cost - beauFrere(p, id) - p.r.discount);
+  return Math.max(0, def(id).cost - beauFrere(p, id) - (id === 'mise-bouche' ? 0 : p.r.discount));
 }
 /** La petite sœur reprend le dernier Coup de la défausse, sauf une autre petite sœur. */
 export const petiteSoeurOk = (k: { id: string }) => def(k.id)?.type === 'coup' && k.id !== 'petite-soeur';
@@ -742,13 +742,19 @@ export function beauFrere(p: Pick<CfPlayer, 'habitues'>, id: string): number {
 
 const diceIdx = [0, 1, 2];
 /** Ticket de caisse : annule un Coup adverse qui coûte au plus ce nombre de Tournées (coût imprimé). */
-export const TICKET_MAX = 3;
+export const TICKET_MAX = 4;
 /** Le Pot aux roses : annule un Coup ou un Dernier mot qui coûte au moins ce nombre de Tournées (coût imprimé). */
 export const POT_MIN = 2;
 /** Mise en bouche : réduction qui rend la prochaine carte gratuite. */
 const MISE_FREE = 99;
 /** Retournement de veste : se déclenche quand le perdant devrait recevoir au moins ce nombre de jetons. */
-export const VESTE_MIN = 6;
+export const VESTE_MIN = 8;
+/** Leurre : cartes piochées quand il est révélé ou revient en main. */
+export const LEURRE_DRAW = 2;
+/** Ardoise piégée : Tournées à payer en plus pour un Coup. */
+export const ARDOISE_EXTRA = 3;
+/** Main dans le sac : annule un Coup qui coûte au moins ce nombre de Tournées (coût imprimé). */
+export const MAIN_SAC_MIN = 1;
 /** Coups qui changent des dés (Les yeux qui piquent peut les annuler). */
 export const DICE_COUPS = new Set(['tete-tourne', 'coup-pouce', 'bon-numero', 'de-sous-table', 'tournee-generale']);
 
@@ -1136,8 +1142,18 @@ function doPlay(c: Ctx, p: CfPlayer, a: Extract<CfAction, { type: 'play' }>) {
       return;
     }
   }
-  if (d.type === 'coup' && d.cost >= 2) {
-    // Main dans le sac : un Coup qui coûte 2 ou plus (coût imprimé) est annulé.
+  if (d.type === 'riposte') {
+    // Le Courant d'air (0.40) : une Riposte s'envole aussi, sans effet.
+    const t = trapsOn(s, p.id, 'courant-air')[0];
+    if (t && triggerTrap(c, t)) {
+      emit(c, { kind: 'courant-air', player: p.id, card: k.id, who: p.id, text: `Le Courant d’air : la Riposte ${d.name} de ${p.name} s’envole, sans effet.`, textYou: `Le Courant d’air : votre ${d.name} s’envole, sans effet.` });
+      s.stack.push({ kind: 'card', owner: p.id, card: k, type: d.type, params, cost, cancelled: true, playedBefore, returnsToHand: false, targetIdx });
+      resolveStack(c);
+      return;
+    }
+  }
+  if (d.type === 'coup' && d.cost >= MAIN_SAC_MIN) {
+    // Main dans le sac : un Coup qui coûte MAIN_SAC_MIN ou plus (coût imprimé) est annulé (0.40 : 1, avant 2).
     const t = trapsOn(s, p.id, 'main-sac')[0];
     if (t && triggerTrap(c, t)) {
       p.discard.push(k);
@@ -1148,9 +1164,9 @@ function doPlay(c: Ctx, p: CfPlayer, a: Extract<CfAction, { type: 'play' }>) {
   if (d.type === 'coup') {
     for (const t of trapsOn(s, p.id, 'ardoise-piegee')) {
       if (!triggerTrap(c, t)) continue;
-      if (p.tournees >= 2) {
-        p.tournees -= 2;
-        emit(c, { kind: 'ardoise-piegee', player: p.id, who: p.id, text: `Ardoise piégée : ${p.name} paie 2 Tournées de plus.`, textYou: 'Ardoise piégée : vous payez 2 Tournées de plus.' });
+      if (p.tournees >= ARDOISE_EXTRA) {
+        p.tournees -= ARDOISE_EXTRA;
+        emit(c, { kind: 'ardoise-piegee', player: p.id, who: p.id, text: `Ardoise piégée : ${p.name} paie ${ARDOISE_EXTRA} Tournées de plus.`, textYou: `Ardoise piégée : vous payez ${ARDOISE_EXTRA} Tournées de plus.` });
       } else {
         p.discard.push(k);
         emit(c, { kind: 'annule', player: p.id, card: k.id, who: p.id, text: `Ardoise piégée : ${p.name} ne peut pas payer, ${d.name} est annulé.`, textYou: `Ardoise piégée : vous ne pouvez pas payer, ${d.name} est annulé.` });
@@ -1253,6 +1269,11 @@ function resolveCard(c: Ctx, it: Extract<StackItem, { kind: 'card' }>) {
     if (id === 'vieux-marcel') {
       emit(c, { kind: 'effet', player: p.id, card: id, who: p.id, text: `Le Vieux Marcel s’installe : ${p.name} pioche 1 carte.`, textYou: 'Le Vieux Marcel s’installe : vous piochez 1 carte.' });
       draw(c, p, 1, false, true);
+    }
+    if (id === 'beau-frere') {
+      // 0.40 : le Beau-frère arrive avec une Tournée.
+      const g = gainTournees(c, p, 1, true);
+      emit(c, { kind: 'effet', player: p.id, card: id, who: p.id, text: `Le Beau-frère s’installe : ${p.name} gagne ${plural(g, 'Tournée')}.`, textYou: `Le Beau-frère s’installe : vous gagnez ${plural(g, 'Tournée')}.` });
     }
     return;
   }
@@ -1385,8 +1406,8 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       o.discard.push({ uid: t.uid, id: t.id });
       emit(c, { kind: 'fouine-defausse', player: p.id, card: t.id, who: p.id, text: `La Fouine de ${p.name} défausse le piège ${cardName(t.id)} de ${o.name} et pioche 1 carte.`, textYou: `La Fouine défausse le piège ${cardName(t.id)} de ${o.name} : vous piochez 1 carte.` });
       if (t.id === 'leurre') {
-        emit(c, { kind: 'leurre', player: o.id, who: o.id, text: `C'était un Leurre : ${o.name} pioche 1 carte.`, textYou: 'Votre Leurre est découvert : vous piochez 1 carte.' });
-        draw(c, o, 1, false, true);
+        emit(c, { kind: 'leurre', player: o.id, who: o.id, text: `C'était un Leurre : ${o.name} pioche ${plural(LEURRE_DRAW, 'carte')}.`, textYou: `Votre Leurre est découvert : vous piochez ${plural(LEURRE_DRAW, 'carte')}.` });
+        draw(c, o, LEURRE_DRAW, false, true);
       }
       // 0.40 : la Fouine pioche aussi une carte quand elle défausse un piège.
       draw(c, p, 1, false, true);
@@ -1397,8 +1418,8 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       const o = pl(s, prm.target!);
       p.tokens -= 1;
       o.tokens += 1;
-      emit(c, { kind: 'effet', player: p.id, card: id, who: p.id, text: `Le Pourboire : ${p.name} donne 1 jeton à ${o.name} (il lui en reste ${p.tokens}).`, textYou: `Le Pourboire : vous donnez 1 jeton à ${o.name} (il vous en reste ${p.tokens}).` });
-      exits(c);
+      emit(c, { kind: 'effet', player: p.id, card: id, who: p.id, text: `Le Pourboire : ${p.name} donne 1 jeton à ${o.name} (il lui en reste ${p.tokens}) et pioche 1 carte.`, textYou: `Le Pourboire : vous donnez 1 jeton à ${o.name} (il vous en reste ${p.tokens}) et piochez 1 carte.` });
+      if (!exits(c)) draw(c, p, 1, false, true);
       break;
     }
     case 'coup-etrier': {
@@ -1409,7 +1430,7 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
     }
     case 'efface-tout':
       p.r.efface = (p.r.efface ?? 0) + 1;
-      you(`On efface tout : si ${p.name} perd la manche, personne ne donne de jetons.`, 'On efface tout : si vous perdez la manche, personne ne donne de jetons.');
+      you(`On efface tout : si ${p.name} perd la manche, il ne recevra qu’un jeton.`, 'On efface tout : si vous perdez la manche, vous ne recevrez qu’un jeton.');
       break;
     case 'verre-offert': {
       const o = pl(s, prm.target!);

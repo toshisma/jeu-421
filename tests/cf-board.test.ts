@@ -29,7 +29,7 @@ function aliceSecond(): CfState {
   const a = s.players.find((p) => p.id === 'a')!, b = s.players.find((p) => p.id === 'b')!;
   b.r.dice = [6, 5, 3]; b.r.throwsUsed = 2; b.r.done = true;
   a.r.dice = [6, 4, 2]; a.r.throwsUsed = 2; a.r.done = false;
-  a.tournees = 2;
+  a.tournees = 3; // 0.40 : Réaction en chaîne coûte 3
   a.hand = [{ uid: 'h1', id: 'reaction-chaine' }, { uid: 'h2', id: 'tete-tourne' }, { uid: 'h3', id: 'fouine' }, { uid: 'h4', id: 'bon-numero' }, { uid: 'h5', id: 'note-salee' }];
   s.traps = [{ uid: 't1', id: 'faux-421', owner: 'b', target: 'a', posedRound: s.round, seenBy: ['b'] }];
   return s;
@@ -44,7 +44,7 @@ describe('cartes en main : jouable (raison) ou pas (moment / ce qui manque)', ()
     expect(hints.h2).toMatchObject({ playable: true, label: '6 → 1 : 4-2-1 !', tone: 'ok' });
     expect(hints.h3).toMatchObject({ playable: true, label: 'Défausser son piège' });
     expect(hints.h1).toMatchObject({ playable: false, label: 'Tour adverse', tone: 'moment', type: 'riposte' });
-    expect(hints.h4).toMatchObject({ playable: false, label: '4 Tournées', tone: 'cost' });
+    expect(hints.h4).toMatchObject({ playable: false, label: '5 Tournées', tone: 'cost' });
     expect(hints.h5).toMatchObject({ playable: false, label: 'Dernier mot', tone: 'moment' });
     expect(playable).toBe(2);
   });
@@ -197,7 +197,7 @@ describe('rendu serveur du plateau (aucune erreur)', () => {
     const resp = render(h(RespondPanel, { v: viewFor(r, 'a'), legal: legalActions(r, 'a'), pending: false, onAct: noop }));
     expect(resp).toContain('Bob joue une carte contre vous');
     expect(resp).toContain('Ici : il relance votre 4');
-    expect(resp).toContain('Coût : 2 Tournées (il vous en reste 2)');
+    expect(resp).toContain('Coût : 3 Tournées (il vous en reste 3)');
     for (const st of planEvents([{ kind: 'pose', player: 'b', text: 'Bob pose un piège.' }, { kind: 'carte', player: 'b', card: 'josiane', text: 'Bob installe Josiane, la serveuse.' }, { kind: 'piege-revele', player: 'b', card: 'faux-421', text: 'x' }], 'a', v, v)) {
       if (st.kind === 'ann') expect(render(h(AnnounceView, { a: st.ann, onDone: noop, spectator: false, me: 'a', v }))).toContain(st.ann.title.slice(0, 10));
     }

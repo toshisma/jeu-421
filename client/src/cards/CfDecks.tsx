@@ -4,7 +4,7 @@
  * répartition par famille et par type, conseils).
  */
 import { useMemo, useState } from 'react';
-import { CARDS, CF_RULES, FAMILY_LABEL, STARTER_DECKS, TYPE_LABEL, cardDef, deckProblems, type CardFamily, type CardType } from '../../../shared/cards/catalog';
+import { CARDS, CF_RULES, DECK_RULES, FAMILY_LABEL, STARTER_DECKS, TYPE_LABEL, cardDef, deckProblems, deckRuleText, type CardFamily, type CardType } from '../../../shared/cards/catalog';
 import { buildAutoDeck, usableCount } from '../../../shared/cards/autodeck';
 import { CF_DECK_NAME_MAX, CF_MAX_DECKS, cfMaxUseful, type CfDeck } from '../../../shared/cards/progress';
 import { api, ApiError } from '../account/api';
@@ -200,6 +200,19 @@ export function DeckEditor({ token, state, onState, deckId, initial, initialName
     const n = cards[id] ?? 0;
     if (stats.total >= CF_RULES.deckSize) { show(`Le deck est complet (${CF_RULES.deckSize} cartes) : retirez-en une d’abord.`, 'err'); return; }
     if (n >= limit(id)) { show(n >= cfMaxUseful(id) ? `${cardDef(id)?.name} : ${cfMaxUseful(id)} exemplaire${cfMaxUseful(id) > 1 ? 's' : ''} au plus.` : `Vous n’avez que ${owned[id]} exemplaire${(owned[id] ?? 0) > 1 ? 's' : ''}.`, 'err'); return; }
+    // Règle de construction (0.40) : 2 familles au plus, une seule légendaire.
+    const d = cardDef(id)!;
+    const inDeck = Object.keys(cards).filter((x) => (cards[x] ?? 0) > 0).map((x) => cardDef(x)!);
+    const fams = [...new Set(inDeck.map((c) => c.family))];
+    if (!fams.includes(d.family) && fams.length >= DECK_RULES.maxFamilies) {
+      show(`${DECK_RULES.maxFamilies} familles au plus par deck : vous avez déjà ${fams.map((f) => FAMILY_LABEL[f]).join(' et ')}. Retirez d’abord les cartes d’une famille pour ajouter ${FAMILY_LABEL[d.family]}.`, 'err');
+      return;
+    }
+    const legends = inDeck.filter((c) => c.rarity === 'legendaire');
+    if (d.rarity === 'legendaire' && !n && legends.length >= DECK_RULES.maxLegendaries) {
+      show(`Une seule légendaire par deck : retirez d’abord ${legends.map((c) => c.name).join(', ')}.`, 'err');
+      return;
+    }
     sound.click();
     setCards((c) => ({ ...c, [id]: n + 1 }));
   };
@@ -233,6 +246,7 @@ export function DeckEditor({ token, state, onState, deckId, initial, initialName
           <span className="cf-ed-types">{TYPES.filter((t) => stats.types[t]).map((t) => <small key={t}>{TYPE_LABEL[t]} {stats.types[t]}</small>)}{!stats.total && <small>Touchez une carte pour l’ajouter.</small>}</span>
         </div>
       </div>
+      <p className="cf-deck-rule">Règle : {deckRuleText()}.</p>
       {alerts.length > 0 && <ul className="cf-alerts">{alerts.map((a, i) => <li key={i} className={a.level}>{a.text}</li>)}</ul>}
       {problems.filter((p) => !/exactement/.test(p)).map((p, i) => <p key={i} className="cf-deck-warn">{p}</p>)}
 
