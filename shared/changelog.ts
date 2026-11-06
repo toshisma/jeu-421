@@ -7,6 +7,14 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.40', date: '2026-11-06T12:50:00+01:00', title: 'Coups Fourrés : 50 cartes équilibrées', items: [
+    'Coups Fourrés passe à 50 cartes : 8 nouvelles (Le Pourboire, Le Coup de l’étrier, Le Fanfaron, Le Verre de trop, Le Courant d’air, Le Pot aux roses, Le Complice, L’Engrenage), et un grand rééquilibrage testé sur des dizaines de milliers de parties : les quatre familles et les deux decks de départ gagnent maintenant autant les uns que les autres.',
+    'Nouvelle règle de deck : 2 familles au plus et une seule légendaire. Si l’un de vos decks ne la respecte plus, il vous dit quelles cartes retirer.',
+    'Cadeau : un booster offert à ceux qui avaient déjà ouvert leurs 3 boosters de bienvenue. Les boosters pas encore ouverts peuvent contenir les nouvelles cartes.',
+    'Les mots techniques des cartes (Tournée, Habitué, Riposte, nénette…) sont en couleur : touchez-les pour une explication.',
+    'Le coût des cartes s’affiche dans un petit verre, pour ne plus le confondre avec les jetons.',
+    'Croche-patte : on voit maintenant le dé relancé dans le bac. L’énigme du jour change.',
+  ] },
   { version: '0.39', date: '2026-11-06T03:05:00+01:00', title: 'Coups Fourrés repensé', items: [
     'Coups Fourrés repart à zéro : les cartes ont été revues et rééquilibrées, 8 nouvelles cartes arrivent (42 en tout). Les collections sont remises à zéro : à votre prochaine visite du mode, 2 nouveaux decks de départ et 3 boosters vous attendent. Vos capsules, votre ligue et vos titres sont conservés.',
     'Un écran de partie sobre, jusqu’à 4 joueurs : une case par adversaire (jetons, Tournées, cartes, pièges, Habitués), et toutes ses informations en clair en touchant sa case. Sous chaque carte de votre main, ce qu’elle fait.',
