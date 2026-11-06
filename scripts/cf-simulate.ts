@@ -11,7 +11,10 @@ import { Worker, isMainThread, parentPort, workerData } from 'node:worker_thread
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { apply, legalActions, newGame, viewFor, waitingFor, type CfConfig } from '../shared/cards/engine';
-import { cfDecide, type CfLevel } from '../shared/cards/ai';
+import { CF_AI_TUNING, cfDecide, type CfLevel } from '../shared/cards/ai';
+
+// Essais de réglages de l'IA : CF_AI='{"tvExp":0.5}'
+if (process.env.CF_AI) Object.assign(CF_AI_TUNING, JSON.parse(process.env.CF_AI));
 import { CARDS, CARD_BY_ID, CF_RULES, DECK_RULES, STARTER_DECKS, deckProblems, type CardFamily } from '../shared/cards/catalog';
 import { mulberry32 } from '../shared/rng';
 
@@ -135,7 +138,7 @@ export interface GameRecord {
 }
 
 /** Compteurs d'économie : manches-joueur, cartes payantes (coût imprimé ≥ 1) jouées, manches à 2+ cartes payantes, Tournées restantes, Tournées perdues au plafond. */
-export interface Eco { pr: number; paid: number; paid2: number; paid0: number; plays: number; left: number; atCap: number; waste: number; spent: number }
+export interface Eco { pr: number; paid: number; paid2: number; paid0: number; plays: number; left: number; atCap: number; waste: number; spent: number; n3: number; n4: number; p3: number; p4: number; combos: string[] }
 
 const STEP_CAP = 30000;
 
@@ -146,8 +149,9 @@ export function playGame(seats: Seat[], seed: number, config: CfConfig, set: str
   let steps = 0, real = 0, firstLeader = -1;
   let stalled = false;
   const ring: string[] = [];
-  const eco: Eco = { pr: 0, paid: 0, paid2: 0, paid0: 0, plays: 0, left: 0, atCap: 0, waste: 0, spent: 0 };
+  const eco: Eco = { pr: 0, paid: 0, paid2: 0, paid0: 0, plays: 0, left: 0, atCap: 0, waste: 0, spent: 0, n3: 0, n4: 0, p3: 0, p4: 0, combos: [] };
   let paidRound = seats.map(() => 0);
+  let seqRound: string[][] = seats.map(() => []);
   let roundNow = s.round;
   const closeRound = (tBefore: number[]) => {
     s.players.forEach((p, i) => {
@@ -158,8 +162,14 @@ export function playGame(seats: Seat[], seed: number, config: CfConfig, set: str
       if (paidRound[i] === 0) eco.paid0++;
       eco.left += tBefore[i];
       if (tBefore[i] >= s.rules.tourneesMax) eco.atCap++;
+      const q = seqRound[i];
+      if (q.length >= 3) eco.n3++;
+      if (q.length >= 4) eco.n4++;
+      if (paidRound[i] >= 3) { eco.p3++; if (eco.combos.length < 3) eco.combos.push(q.join(' > ')); }
+      if (paidRound[i] >= 4) eco.p4++;
     });
     paidRound = seats.map(() => 0);
+    seqRound = seats.map(() => []);
   };
   while (s.phase !== 'over') {
     if (++steps > STEP_CAP) { stalled = true; break; }
@@ -175,7 +185,7 @@ export function playGame(seats: Seat[], seed: number, config: CfConfig, set: str
       const k = s.players[i].hand.find((x) => x.uid === a.card);
       if (k) {
         played[i].add(k.id);
-        if (s.round >= 1) { eco.plays++; if (CARD_BY_ID[k.id].cost >= 1) paidRound[i]++; }
+        if (s.round >= 1) { eco.plays++; seqRound[i].push(k.id); if (CARD_BY_ID[k.id].cost >= 1) paidRound[i]++; }
       }
     }
     const tBefore = s.players.map((p) => p.tournees);
@@ -289,9 +299,18 @@ export function summarize(recs: GameRecord[]) {
   }
   // Économie des Tournées (duels Fine fouine hors decks de départ, et decks de départ à part)
   const ecoOf = (rs: GameRecord[]) => {
-    const t = rs.reduce((a, r) => { for (const k of Object.keys(a) as (keyof Eco)[]) a[k] += r.eco[k]; return a; }, { pr: 0, paid: 0, paid2: 0, paid0: 0, plays: 0, left: 0, atCap: 0, waste: 0, spent: 0 } as Eco);
+    const keys = ['pr', 'paid', 'paid2', 'paid0', 'plays', 'left', 'atCap', 'waste', 'spent', 'n3', 'n4', 'p3', 'p4'] as const;
+    const t = Object.fromEntries(keys.map((k) => [k, 0])) as Record<(typeof keys)[number], number>;
+    const combos: Record<string, number> = {};
+    for (const r of rs) {
+      for (const k of keys) t[k] += r.eco[k];
+      for (const q of r.eco.combos) combos[q] = (combos[q] ?? 0) + 1;
+    }
     const n = Math.max(1, t.pr);
-    return { paidPerRound: t.paid / n, paid2: t.paid2 / n, paid0: t.paid0 / n, playsPerRound: t.plays / n, left: t.left / n, atCap: t.atCap / n, waste: t.waste / n, spent: t.spent / n };
+    return {
+      paidPerRound: t.paid / n, paid2: t.paid2 / n, paid0: t.paid0 / n, playsPerRound: t.plays / n, left: t.left / n, atCap: t.atCap / n, waste: t.waste / n, spent: t.spent / n,
+      n3: t.n3 / n, n4: t.n4 / n, p3: t.p3 / n, p4: t.p4 / n, combos: Object.entries(combos).sort((a, b) => b[1] - a[1]).slice(0, 40),
+    };
   };
   out.economy = ecoOf(ff.filter((r) => r.set !== 'depart'));
   out.economyStarters = ecoOf(ff.filter((r) => r.set === 'depart'));
@@ -395,8 +414,9 @@ export function printSummary(sm: ReturnType<typeof summarize>) {
   for (const n of [3, 4]) { const m = sm[`multi${n}`] as Record<string, number> | undefined; if (m) lines.push(`À ${n} : ${m.rounds.toFixed(1)} manches, ${m.realDecisions.toFixed(0)} vrais choix ≈ ${m.minutes.toFixed(1)} min, premier meneur gagne ${pctf(m.firstLeaderWins)}`); }
   for (const [lab, key] of [['tous decks', 'economy'], ['decks de départ', 'economyStarters']] as const) {
     const e = sm[key] as Record<string, number>;
-    lines.push(`Tournées (${lab}) : ${e.paidPerRound.toFixed(2)} carte payante par joueur et par manche ; 2+ payantes ${pctf(e.paid2)} ; aucune ${pctf(e.paid0)} ; cartes jouées ${e.playsPerRound.toFixed(2)} ; Tournées dépensées ${e.spent.toFixed(2)} ; restantes en fin de manche ${e.left.toFixed(2)} (au plafond ${pctf(e.atCap)}) ; perdues au plafond ${e.waste.toFixed(2)}`);
+    lines.push(`Tournées (${lab}) : ${e.paidPerRound.toFixed(2)} carte payante par joueur et par manche ; 2+ payantes ${pctf(e.paid2)} ; aucune ${pctf(e.paid0)} ; cartes jouées ${e.playsPerRound.toFixed(2)} ; Tournées dépensées ${e.spent.toFixed(2)} ; restantes en fin de manche ${e.left.toFixed(2)} (au plafond ${pctf(e.atCap)}) ; perdues au plafond ${e.waste.toFixed(2)} ; 3+ cartes ${pctf(e.n3)} ; 4+ cartes ${pctf(e.n4)} ; 3+ payantes ${pctf(e.p3)} ; 4+ payantes ${pctf(e.p4)}`);
   }
+  for (const [q] of ((sm.economy as { combos: [string, number][] }).combos ?? []).slice(0, 5)) lines.push(`  Manche à 3+ cartes payantes : ${q}`);
   const st = sm.starters as Record<string, number>;
   lines.push(`Le Zinc contre La Bringue : ${pctf(st.zinc)} / ${pctf(1 - st.zinc)} (${st.games} parties)`);
   lines.push(`Niveaux : ${Object.entries(sm.levels as Record<string, number>).map(([k, v]) => `${k.split(':')[1]} ${pctf(v)}`).join(' ; ')}`);

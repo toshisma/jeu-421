@@ -362,6 +362,12 @@ function triggerTrap(c: Ctx, t: PosedTrap): boolean {
 }
 
 /** Le Complice (0.40) : quand un piège de son patron se déclenche, +1 Tournée et 1 carte. */
+/** Le Leurre révélé ou revenu en main : Tournée(s) et carte(s) pour son poseur. */
+function leurreBonus(c: Ctx, o: CfPlayer) {
+  gainTournees(c, o, LEURRE_TOURNEES, true);
+  draw(c, o, LEURRE_DRAW, false, true);
+}
+
 function complice(c: Ctx, owner: CfPlayer) {
   if (owner.out || !owner.habitues.some((h) => h.id === 'complice')) return;
   const g = gainTournees(c, owner, 1, true);
@@ -718,7 +724,7 @@ function endRound(c: Ctx) {
       const o = pl(s, t.owner);
       o.hand.push({ uid: t.uid, id: t.id });
       emit(c, { kind: 'piege-retour', player: o.id, who: o.id, text: `Un piège de ${o.name} revient dans sa main.`, textYou: `Votre piège ${cardName(t.id)} revient dans votre main.` });
-      if (t.id === 'leurre') draw(c, o, LEURRE_DRAW, false, true);
+      if (t.id === 'leurre') leurreBonus(c, o);
     }
   }
   s.discardQueue = s.order.filter((id) => pl(s, id).hand.length > s.rules.handMax);
@@ -751,8 +757,12 @@ const MISE_FREE = 99;
 export const VESTE_MIN = 8;
 /** Tournée du patron : Tournées gagnées (0.41 : 3, pour 2 Tournées, au lieu de 2 pour 1). */
 export const TOURNEE_PATRON_GAIN = 3;
-/** Leurre : cartes piochées quand il est révélé ou revient en main. */
-export const LEURRE_DRAW = 2;
+/** Leurre : cartes piochées et Tournées gagnées quand il est révélé ou revient en main (0.41 : 1 + 1 Tournée, avant 2 cartes). */
+export const LEURRE_DRAW = 1;
+export const LEURRE_TOURNEES = 1;
+/** Le Mouchard : ce que gagne son poseur quand il se déclenche (0.41 : 1 Tournée + 1 carte, avant 2 cartes). */
+export const MOUCHARD_DRAW = 1;
+export const MOUCHARD_TOURNEES = 1;
 /** Ardoise piégée : Tournées à payer en plus pour un Coup. */
 export const ARDOISE_EXTRA = 3;
 /** Main dans le sac : annule un Coup qui coûte au moins ce nombre de Tournées (coût imprimé). */
@@ -1181,8 +1191,9 @@ function doPlay(c: Ctx, p: CfPlayer, a: Extract<CfAction, { type: 'play' }>) {
     const t = trapsOn(s, p.id, 'mouchard')[0];
     if (t && triggerTrap(c, t)) {
       const o = pl(s, t.owner);
-      emit(c, { kind: 'mouchard', player: p.id, card: 'mouchard', who: o.id, text: `Le Mouchard a tout vu : ${o.name} pioche 2 cartes.`, textYou: 'Votre Mouchard a tout vu : vous piochez 2 cartes.' });
-      draw(c, o, 2, false, true);
+      const g = gainTournees(c, o, MOUCHARD_TOURNEES, true);
+      emit(c, { kind: 'mouchard', player: p.id, card: 'mouchard', who: o.id, text: `Le Mouchard a tout vu : ${o.name} gagne ${plural(g, 'Tournée')} et pioche ${plural(MOUCHARD_DRAW, 'carte')}.`, textYou: `Votre Mouchard a tout vu : vous gagnez ${plural(g, 'Tournée')} et piochez ${plural(MOUCHARD_DRAW, 'carte')}.` });
+      draw(c, o, MOUCHARD_DRAW, false, true);
     }
   }
   const returnsToHand = k.id === 'reaction-chaine' && p.r.played >= 3;
@@ -1408,8 +1419,8 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       o.discard.push({ uid: t.uid, id: t.id });
       emit(c, { kind: 'fouine-defausse', player: p.id, card: t.id, who: p.id, text: `La Fouine de ${p.name} défausse le piège ${cardName(t.id)} de ${o.name} et pioche 1 carte.`, textYou: `La Fouine défausse le piège ${cardName(t.id)} de ${o.name} : vous piochez 1 carte.` });
       if (t.id === 'leurre') {
-        emit(c, { kind: 'leurre', player: o.id, who: o.id, text: `C'était un Leurre : ${o.name} pioche ${plural(LEURRE_DRAW, 'carte')}.`, textYou: `Votre Leurre est découvert : vous piochez ${plural(LEURRE_DRAW, 'carte')}.` });
-        draw(c, o, LEURRE_DRAW, false, true);
+        emit(c, { kind: 'leurre', player: o.id, who: o.id, text: `C'était un Leurre : ${o.name} gagne ${plural(LEURRE_TOURNEES, 'Tournée')} et pioche ${plural(LEURRE_DRAW, 'carte')}.`, textYou: `Votre Leurre est découvert : vous gagnez ${plural(LEURRE_TOURNEES, 'Tournée')} et piochez ${plural(LEURRE_DRAW, 'carte')}.` });
+        leurreBonus(c, o);
       }
       // 0.40 : la Fouine pioche aussi une carte quand elle défausse un piège.
       draw(c, p, 1, false, true);

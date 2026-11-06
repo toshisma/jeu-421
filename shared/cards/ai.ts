@@ -272,7 +272,7 @@ function valueNow(ctx: DiceCtx, dice: number[], used: number, limit: number, dep
 // Valeur des ressources
 
 /** Réglages de l'IA (modifiables par les scripts d'équilibrage). */
-export const CF_AI_TUNING = { verreLater: 0.45, hbSkip: 0.6, hbDiceNoise: 0.4, hbOverflow: false, hbStingy: 1.5, hbNoise: 0.6, ffNoise: 0, ffBias: 0, exactBeat: true, ffDepth: 9, hold: 1, tv: 0.4, cv: 0.55, ffMargin: 0.45, hbMargin: 0.15, reservePenalty: 0.5, risk: true, riposteRisk: true, endBonus: 6 };
+export const CF_AI_TUNING = { verreLater: 0.45, hbSkip: 0.75, hbDiceNoise: 0.4, hbOverflow: false, hbStingy: 1.5, hbNoise: 0.6, ffNoise: 0, ffBias: 0, exactBeat: true, ffDepth: 9, hold: 1, tv: 0.4, cv: 0.55, ffMargin: 0.45, hbMargin: 0.15, reservePenalty: 0.5, risk: true, riposteRisk: true, endBonus: 6, tvExp: 0.5 };
 let TV = CF_AI_TUNING.tv;
 let CV = CF_AI_TUNING.cv;
 
@@ -309,7 +309,7 @@ const MAX_PLAYS = 8;
 
 export function cfDecide(view: CfView, legal: CfAction[], level: CfLevel, rng: Rng): CfAction {
   // Une Tournée vaut d'autant plus qu'elles sont rares.
-  TV = CF_AI_TUNING.tv * (2 / Math.max(1, view.rules.tourneesPerRound)); CV = CF_AI_TUNING.cv;
+  TV = CF_AI_TUNING.tv * (2 / Math.max(1, view.rules.tourneesPerRound)) ** CF_AI_TUNING.tvExp; CV = CF_AI_TUNING.cv;
   if (!legal.length) throw new Error("L'ordinateur n'a aucune action possible");
   if (legal.length === 1) return legal[0];
   const me = view.players.find((p) => p.id === view.you)!;
