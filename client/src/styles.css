@@ -3679,3 +3679,8 @@ span.cfn-hab { cursor: default; }
 .cfn-recap li::before { content: '•'; margin-right: 6px; color: #f1cc7d; }
 .cfn-tb.fast { padding: 0 9px; font-family: 'Barlow Condensed', sans-serif; font-size: 15px; }
 .cfn-tb.fast.on { background: linear-gradient(180deg, #f1cc7d, #d9a441); color: #2a1a05; border-color: #f1cc7d; }
+/* Parcours débutant (0.39) */
+.cf-parcours { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; padding: 12px; border-radius: 14px; background: linear-gradient(160deg, rgba(241,204,125,.16), rgba(241,204,125,.05)); border: 1px solid rgba(241,204,125,.5); }
+.cf-parcours > b { font: 800 15px/1.1 Barlow, sans-serif; color: #f6dfa6; }
+.cf-parcours > span { font: 600 12.5px/1.3 Barlow, sans-serif; color: #efe6d4; }
+.cf-parcours .cf-link { align-self: center; }

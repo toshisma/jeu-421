@@ -13,6 +13,7 @@
  */
 import { ApiError } from '../account/api';
 import { cfBotAbandon, cfBotEnd, cfBotStart } from './api';
+import type { TourStep } from './tour';
 import { CARDS, STARTER_DECKS } from '../../../shared/cards/catalog';
 import { buildAutoDeck } from '../../../shared/cards/autodeck';
 import { CF_LEVEL_LABEL, type CfLevel } from '../../../shared/cards/ai';
@@ -47,6 +48,8 @@ export interface LocalCfOptions {
   opponents?: number;
   /** Partie guidée à plusieurs : visite de l'écran au début, sans minuteur. */
   tour?: boolean;
+  /** Bulles d'accueil propres à cette partie (parcours débutant), à la place de la visite standard. */
+  tourSteps?: TourStep[];
 }
 
 /** Autres habitués du comptoir pour les parties à plusieurs (noms originaux). */
@@ -76,6 +79,7 @@ export class LocalCfController implements CfController {
   readonly level: CfLevel;
   /** Visite guidée de l'écran au début (partie guidée à plusieurs). */
   readonly tour: boolean;
+  readonly tourSteps: TourStep[] | null;
   private match: BotMatch;
   private gameId: string | null;
   private token: string | null;
@@ -103,7 +107,8 @@ export class LocalCfController implements CfController {
     this.notice = notice;
     this.token = o.token ?? null;
     this.pace = o.pace ?? 1;
-    this.tour = !!o.tour;
+    this.tour = !!o.tour || !!o.tourSteps?.length;
+    this.tourSteps = o.tourSteps ?? null;
     this.timed = o.timed ?? true;
     this.reserve = 60;
     this.me = setup.me.id;
@@ -140,7 +145,7 @@ export class LocalCfController implements CfController {
     const setup: BotMatchSetup = {
       seed,
       me: { id: 'moi', name: o.me.name || 'Vous', deck: o.deck },
-      bots: [{ id: 'ordi', name: bot.name, deck: localBotDeck(o.level, o.deck, rnd), level: o.level },
+      bots: [{ id: 'ordi', name: bot.name, deck: o.deckId?.startsWith('parcours:') ? [...o.deck] : localBotDeck(o.level, o.deck, rnd), level: o.level },
         ...MORE_BOTS.slice(0, Math.min(3, Math.max(1, o.opponents ?? 1)) - 1).map((b, i) => ({ id: `ordi${i + 2}`, name: b.name, deck: localBotDeck(o.level, o.deck, rnd), level: o.level }))],
     };
     const notice = o.tour ? null : o.token ? 'Partie d’entraînement : elle ne rapporte pas de capsules cette fois.' : 'Partie d’essai : créez un compte gratuit pour gagner des capsules et ouvrir des boosters.';

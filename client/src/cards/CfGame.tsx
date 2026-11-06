@@ -44,7 +44,7 @@ import {
   TrapSheet, EffectChips, type FicheTarget, type LogLine,
 } from './BoardParts';
 import { activeEffects } from './effects';
-import { screenTour } from './tour';
+import { screenTour, type TourStep } from './tour';
 
 export { EndScreen, Mulligan, ChoiceWindow, RespondPanel } from './BoardParts';
 
@@ -314,7 +314,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   // sont déjà réduites à celle attendue par le contrôleur.
   const guide = !animating ? snap?.guide ?? null : null;
   const isTuto = !!(controller as { tutorial?: boolean }).tutorial;
-  const tour = tourAt !== null && snap ? screenTour(snap.view.players.length - 1) : null;
+  const tour = tourAt !== null && snap ? ((controller as { tourSteps?: TourStep[] | null }).tourSteps ?? screenTour(snap.view.players.length - 1)) : null;
   const tourStep = tour && tourAt !== null ? tour[tourAt] ?? null : null;
   const focus = tourStep ? tourStep.focus : guide?.focus ?? null;
   const fx = (k: string) => (focus === k ? ' cfn-focus' : '');

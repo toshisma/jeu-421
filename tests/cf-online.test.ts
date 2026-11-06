@@ -13,7 +13,8 @@ import { mulberry32 } from '../shared/rng';
 import { cfDecide } from '../shared/cards/ai';
 import { advanceBots, playMine, startBotMatch, type BotMatchSetup } from '../shared/cards/botmatch';
 import { apply, legalActions, newGame, viewFor, waitingFor, type CfAction } from '../shared/cards/engine';
-import { CAPSULES, deckProblems } from '../shared/cards/catalog';
+import { CAPSULES, CARDS, deckProblems } from '../shared/cards/catalog';
+const CARD_TYPE: Record<string, string> = Object.fromEntries(CARDS.map((c) => [c.id, c.type]));
 import type { CfChallengeMsg, CfHelloMsg, CfQueueMsg, CfStateMsg, CfTableMsg } from '../shared/cards/protocol';
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -166,6 +167,11 @@ describe('Coups Fourrés : contre l’ordinateur et deck automatique', () => {
     const end4 = await api('/cf/bot/end', { gameId: q4.gameId, actions: m4.mine }, a.token);
     expect(end4.ok).toBe(true);
     expect(end4.won).toBe(m4.state.winner === 'joueur');
+    // Parcours débutant : deck d'entraînement (non possédé) accepté contre l'ordinateur, le même pour l'ordinateur.
+    const pc = await api('/cf/bot/start', { level: 'debutant', deckId: 'parcours:1' }, a.token);
+    expect(pc.ok).toBe(true);
+    expect([...pc.me.deck].sort()).toEqual([...pc.bots[0].deck].sort());
+    expect(pc.me.deck.every((id: string) => ['coup'].includes(CARD_TYPE[id]))).toBe(true);
     expect(end.state.capsules).toBeGreaterThanOrEqual(before.capsules + CAPSULES.vsBot);
     expect(end.state.botCapsulesToday).toBe(CAPSULES.vsBot);
     expect((await api('/cf/bot/end', { gameId: s2.gameId, actions: m2.mine }, a.token)).code).toBe(404); // une seule fois

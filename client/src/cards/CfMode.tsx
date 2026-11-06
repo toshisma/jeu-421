@@ -28,6 +28,8 @@ import { CF_LEVEL_LABEL, type CfLevel } from '../../../shared/cards/ai';
 import { cfBuyBooster, cfDiscover, cfFriends, cfMe, type CfState } from './api';
 import { BoosterPack, CardBack, CardView } from './components';
 import { Capsules, DivisionShield, WaitingOverlay, divisionProgress, seasonEndsIn, seasonName, useCfToast } from './cfui';
+import { PARCOURS, parcoursStepOf } from '../../../shared/cards/parcours';
+import { screenTour } from './tour';
 import { CF_BOTS, LocalCfController, deckList } from './local';
 import type { CfController } from './controller';
 import { CfOnline, type CfOnlineController } from './online';
@@ -203,9 +205,13 @@ export function CfMode(props: CfModeProps) {
     setStarting(true);
     try {
       const own = st?.decks.find((d) => d.id === deckId && d.valid);
-      const cards = own?.cards ?? (STARTER_DECKS.find((d) => d.id === deckId) ?? STARTER_DECKS[0]).cards;
+      // Parcours débutant : deck d'entraînement de l'étape, bulle « ce qui est nouveau », puis étape suivante.
+      const pc = parcoursStepOf(deckId);
+      if (pc) parcoursSet(Math.min(PARCOURS.length + 1, pc.step + 1));
+      const cards = pc?.cards ?? own?.cards ?? (STARTER_DECKS.find((d) => d.id === deckId) ?? STARTER_DECKS[0]).cards;
       const ctrl = await LocalCfController.create({
-        level, deck: deckList(cards), deckId: own ? own.id : null, token: own ? pa.token : null, opponents,
+        level, deck: deckList(cards), deckId: pc ? `parcours:${pc.step}` : own ? own.id : null, token: own || (pc && st?.discovered) ? pa.token : null, opponents,
+        tourSteps: pc ? [...(pc.step === 1 ? screenTour(opponents) : []), { focus: 'hand', title: `Parcours ${pc.step}/${PARCOURS.length} · ${pc.title}`, text: pc.intro }] : undefined,
         me: { name, avatar: props.avatar, photo: pa.photo, account: pa.session?.username },
       });
       setSheet(null);
@@ -537,6 +543,11 @@ function CfMenu(p: CfModeProps & {
 
 const LEVELS: CfLevel[] = ['debutant', 'habitue', 'fine-fouine'];
 
+/** Parcours débutant : prochaine partie (1 à 4), ou 5 quand il est fini ou passé (gardé sur l'appareil). */
+const PARCOURS_KEY = '421.cf.parcours';
+function parcoursNext(): number { try { const n = Number(localStorage.getItem(PARCOURS_KEY) ?? 1); return Number.isFinite(n) && n >= 1 ? n : 1; } catch { return PARCOURS.length + 1; } }
+function parcoursSet(n: number) { try { localStorage.setItem(PARCOURS_KEY, String(n)); } catch { /* */ } }
+
 function BotSheet({ st, acc, starting, onClose, onStart, onAccount }: { st: CfState | null; acc: boolean; starting: boolean; onClose: () => void; onStart: (l: CfLevel, deckId: string | null, opponents: number) => void; onAccount: () => void }) {
   const [opp, setOpp] = useState(1);
   const [level, setLevel] = useState<CfLevel>(() => { try { return (localStorage.getItem('421.cf.niveau') as CfLevel) || 'debutant'; } catch { return 'debutant'; } });
@@ -546,6 +557,14 @@ function BotSheet({ st, acc, starting, onClose, onStart, onAccount }: { st: CfSt
   const left = st ? Math.max(0, CAPSULES.vsBotDailyMax - st.botCapsulesToday) : 0;
   return (
     <Sheet title="Contre l’ordinateur" onClose={onClose}>
+      {parcoursNext() <= PARCOURS.length && (() => { const pc = PARCOURS[parcoursNext() - 1]; return (
+        <div className="cf-parcours">
+          <b>Parcours débutant · partie {pc.step}/{PARCOURS.length}</b>
+          <span>{pc.title} : un type de carte en plus à chaque partie, contre l’ordinateur.</span>
+          <button className="cf-btn gold" disabled={starting} onClick={() => onStart('debutant', `parcours:${pc.step}`, 1)}>{starting ? 'Préparation…' : `Jouer : ${pc.title}`}</button>
+          <button className="cf-link" onClick={() => { parcoursSet(PARCOURS.length + 1); onClose(); }}>Je connais déjà le jeu</button>
+        </div>
+      ); })()}
       <div className="cf-levels" role="radiogroup" aria-label="Niveau">
         {LEVELS.map((l) => (
           <button key={l} role="radio" aria-checked={level === l} className={level === l ? 'on' : ''} onClick={() => { setLevel(l); try { localStorage.setItem('421.cf.niveau', l); } catch { /* */ } }}>

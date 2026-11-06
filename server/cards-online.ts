@@ -16,6 +16,7 @@
  * Socket.IO : espace « /cf » (voir shared/cards/protocol.ts pour la forme des messages).
  */
 import { randomInt, randomUUID } from 'node:crypto';
+import { parcoursStepOf } from '../shared/cards/parcours';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import type { Namespace, Server, Socket } from 'socket.io';
 import { photoUrl, type Store, type UserRow } from './db';
@@ -231,7 +232,10 @@ export function createCfOnline(c: Ctx) {
   const photoOf = (u: UserRow) => photoUrl(u) ?? undefined;
 
   /** Deck de partie d'un compte : celui demandé, sinon le deck actif ; il doit être jouable. */
-  function deckFor(userId: string, deckId?: string | null): { cards: string[]; deckId: string; name: string } | { error: string } {
+  function deckFor(userId: string, deckId?: string | null, parcours = false): { cards: string[]; deckId: string; name: string } | { error: string } {
+    // Parcours débutant : deck d'entraînement (pas besoin de le posséder), contre l'ordinateur seulement.
+    const pc = parcours ? parcoursStepOf(deckId) : null;
+    if (pc) return { cards: deckList(pc.cards), deckId: `parcours:${pc.step}`, name: `Parcours ${pc.step} · ${pc.title}` };
     const st = cards.state(userId);
     if (!st.discovered) return { error: 'Découvrez d’abord le mode Coups Fourrés.' };
     const d = st.decks.find((x) => x.id === (deckId || st.activeDeck));
@@ -919,7 +923,7 @@ export function createCfOnline(c: Ctx) {
     const u = user(req);
     const level = LEVELS.includes(req.body?.level) ? (req.body.level as CfLevel) : null;
     if (!level) return failRes(res, 400, `Niveau inconnu (${LEVELS.map((l) => CF_LEVEL_LABEL[l]).join(', ')}).`);
-    const d = deckFor(u.id, cleanDeckId(req.body?.deckId));
+    const d = deckFor(u.id, cleanDeckId(req.body?.deckId), true);
     if ('error' in d) return failRes(res, 400, d.error);
     const t = now();
     for (const [id, b] of bots) if (t - b.startedAt > BOT_TTL) bots.delete(id);
@@ -930,7 +934,7 @@ export function createCfOnline(c: Ctx) {
     const names = [...CF_BOT_NAMES];
     const botSeats = Array.from({ length: n }, (_, i) => {
       const name = names.splice(randomInt(names.length), 1)[0];
-      return { id: i ? `ordi${i + 1}` : 'ordi', name, deck: deckList(cfBotDeck().cards), level };
+      return { id: i ? `ordi${i + 1}` : 'ordi', name, deck: parcoursStepOf(d.deckId) ? [...d.cards] : deckList(cfBotDeck().cards), level };
     });
     const setup: BotMatchSetup = { seed: randomInt(1, 2 ** 31), me: { id: 'joueur', name: u.username, deck: d.cards }, bots: botSeats };
     const gameId = randomUUID();
