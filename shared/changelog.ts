@@ -7,6 +7,11 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.43', date: '2026-11-07T00:50:00+01:00', title: 'Revenir à sa table', items: [
+    'Vous avez quitté une partie en ligne en cours ? Elle vous attend : « Reprendre la partie » sur l’accueil vous ramène à votre place, tant que la partie n’est pas finie. Seul contre l’ordinateur, la table reste en pause 10 minutes.',
+    'Coups Fourrés à 3 ou 4 : quitter ne vous élimine plus pour de bon. Le serveur joue pour vous et « Reprendre » dans le menu vous ramène à la table. En duel, quitter compte toujours comme une défaite (c’est maintenant écrit avant de confirmer).',
+    'Coups Fourrés : le bandeau « Partie en cours · Reprendre » ne s’affiche plus après une partie terminée.',
+  ] },
   { version: '0.42', date: '2026-11-06T18:55:00+01:00', title: 'Correction : Le dé sous la table', items: [
     'Coups Fourrés : en duel, « Le dé sous la table » montrait vos propres dés au moment de choisir lequel relancer, alors que c’est bien un dé de l’adversaire qui est relancé. Ce sont maintenant ses dés qui s’affichent, avec la question « Quel dé de … relancer ? ».',
   ] },

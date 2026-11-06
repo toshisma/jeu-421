@@ -83,10 +83,12 @@ export class CfOnlineController implements CfController {
     this.closed = true;
     if (this.spectator) void this.session.call('cf:unwatch');
     else if (!this.snap?.finished) void this.session.call('cf:leave', { id: this.id });
-    this.session.forget(this);
+    // 0.43 : à 3 ou 4, la partie continue sans vous (le serveur joue) et vous pouvez y revenir depuis le menu.
+    const multi = !this.spectator && !this.snap?.finished && (this.snap?.view.players.length ?? 0) > 2;
+    this.session.forget(this, multi ? { id: this.id, mode: this.mode, ranked: this.ranked } : null);
   }
   /** Fermer l'écran d'une partie terminée (sans abandon). */
-  close() { this.closed = true; this.session.forget(this); }
+  close() { this.closed = true; this.session.forget(this, null); }
 }
 
 /** Session « Coups Fourrés en ligne » : file classée, défis entre amis, tables à code, reprise, spectateur. */
@@ -183,7 +185,11 @@ export class CfOnline {
   onGame(cb: (c: CfOnlineController) => void) { this.gameSubs.add(cb); return () => { this.gameSubs.delete(cb); }; }
   private changed() { for (const cb of this.changeSubs) cb(); }
   /** Appelé par le contrôleur quand on quitte l'écran de partie. */
-  forget(c: CfOnlineController) { if (this.game === c) { this.game = null; this.changed(); } }
+  /** L'écran de partie se ferme : `resumable` = la partie qu'on peut encore reprendre depuis le menu (sinon plus rien). */
+  forget(c: CfOnlineController, resumable: CfHelloMsg['game'] = null) {
+    if (this.hello && !c.spectator) this.hello = { ...this.hello, game: resumable };
+    if (this.game === c) { this.game = null; this.changed(); }
+  }
 
   // --- Présence ---
   /** Entrée (true) / sortie (false) du menu du mode : les amis voient « Dans Coups Fourrés ». */

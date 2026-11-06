@@ -457,7 +457,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   // Sorti avant la fin : sa place est acquise, partir n'est pas un abandon (pas de confirmation).
   const myPlace = s && earlyOk ? settledPlace(s, controller.meId) : null;
   const leave = async () => {
-    if (s && s.phase !== 'fini' && !tableExit && myPlace == null && !(await askConfirm('Quitter la partie en cours ?', 'Quitter'))) return;
+    if (s && s.phase !== 'fini' && !tableExit && myPlace == null && !(await askConfirm(controller.mode === 'online' ? 'Quitter la partie en cours ? Le serveur jouera à votre place, et vous pourrez revenir à la table depuis l’accueil (« Reprendre la partie »).' : 'Quitter la partie en cours ?', 'Quitter'))) return;
     controller.leave();
     onExit();
   };

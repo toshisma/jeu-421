@@ -844,6 +844,13 @@ export async function startServer(opts: ServerOptions) {
     if (r.tournament) return; // les tables de tournoi vivent avec le tournoi
     if (r.members.every((m) => m.socketId == null || m.left)) {
       const g = r.game;
+      // 0.43 : le dernier joueur humain a quitté une partie en cours sans empocher : la table reste
+      // en pause (le ménage la ferme au bout de 10 min) pour qu'il puisse revenir depuis l'accueil.
+      if (r.status === 'playing' && g && g.phase !== 'fini' && r.paid.size === 0 && r.members.some((m) => !m.bot && m.left && m.quit !== 'cashed')) {
+        if (r.turnTimer) { clearTimeout(r.turnTimer); r.turnTimer = null; }
+        r.lastActivity = Date.now();
+        return;
+      }
       // Partie en cours où quelqu'un a déjà empoché : on la mène à son terme plutôt que de l'effacer.
       if (r.status === 'playing' && g && g.phase !== 'fini' && r.paid.size > 0) {
         const stillIn = r.members.filter((m) => g.players.some((p) => p.id === m.id && !p.out));
@@ -1241,7 +1248,15 @@ export async function startServer(opts: ServerOptions) {
       // Reconnexion avec le jeton secret.
       const existing = typeof p?.token === 'string' ? r.members.find((m) => m.token === p.token) : undefined;
       if (existing) {
-        if (existing.left) return reply({ ok: false, error: existing.quit === 'cashed' ? 'Vous avez déjà empoché vos gains et quitté cette partie.' : 'Vous avez quitté cette partie.' });
+        // 0.43 : un joueur qui a quitté (sans avoir empoché) peut revenir tant que la partie n'est pas finie.
+        let back = false;
+        if (existing.left) {
+          const canReturn = existing.quit !== 'cashed' && !r.tournament && r.status === 'playing' && !!r.game && r.game.phase !== 'fini';
+          if (!canReturn) return reply({ ok: false, error: existing.quit === 'cashed' ? 'Vous avez déjà empoché vos gains et quitté cette partie.' : 'Cette partie est terminée.' });
+          existing.left = false;
+          existing.quit = undefined;
+          back = true;
+        }
         const wasAway = existing.socketId == null;
         existing.userId = existing.userId ?? accounts.userFromToken(p?.auth)?.id;
         attach(r, existing);
@@ -1250,7 +1265,8 @@ export async function startServer(opts: ServerOptions) {
         broadcastRoom(r);
         if (r.game) socket.emit('game:state', { state: r.game });
         // Seul le retour du joueur actif change son minuteur (fin du délai de déconnexion).
-        if (r.status === 'playing' && r.game && wasAway && currentPlayerId(r.game) === existing.id) scheduleTurn(r, STOP_GRACE);
+        if (back && r.status === 'playing' && r.game) scheduleTurn(r, currentPlayerId(r.game) === existing.id ? STOP_GRACE : undefined);
+        else if (r.status === 'playing' && r.game && wasAway && currentPlayerId(r.game) === existing.id) scheduleTurn(r, STOP_GRACE);
         if (r.status === 'lobby') quickPlan(r);
         return;
       }

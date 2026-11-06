@@ -232,7 +232,10 @@ export class OnlineSession {
       setTimeout(() => this.socket.disconnect(), 800);
       return;
     }
-    saveSession(null);
+    // 0.43 : quitter une partie en cours (sans être sorti) garde la place : « Reprendre la partie » sur l'accueil.
+    const me = this.game?.players.find((p) => p.id === this.playerId);
+    const running = this.room?.status === 'playing' && !this.room.tournament && !!this.game && this.game.phase !== 'fini' && !!me && !me.out;
+    saveSession(running && this.code && this.token ? { code: this.code, token: this.token } : null);
     if (this.socket.connected) this.socket.emit('room:leave', {}, () => this.socket.disconnect());
     else this.socket.disconnect();
     setTimeout(() => this.socket.disconnect(), 800);

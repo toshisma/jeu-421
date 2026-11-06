@@ -403,7 +403,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const close = () => { const c = controller as { close?: () => void }; if (c.close) c.close(); else controller.leave(); onExit(); };
   const leave = async () => {
     const over = !!snap?.finished || v?.phase === 'over';
-    if (!over && !(await askConfirm(isTuto ? 'Quitter la partie guidée ? Vous pourrez la relancer depuis le menu.' : controller.ranked ? 'Quitter ? La partie classée compte comme une défaite.' : 'Abandonner la partie en cours ?', 'Quitter'))) return;
+    if (!over && !(await askConfirm(isTuto ? 'Quitter la partie guidée ? Vous pourrez la relancer depuis le menu.' : controller.ranked ? 'Quitter ? La partie classée compte comme une défaite.' : v && v.players.length > 2 ? 'Quitter la partie ? Le serveur jouera à votre place, et vous pourrez revenir depuis le menu (« Reprendre »).' : 'Abandonner la partie en cours ? En duel, quitter compte comme une défaite.', 'Quitter'))) return;
     if (over) close(); else { controller.leave(); onExit(); }
   };
 

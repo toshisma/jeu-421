@@ -228,6 +228,8 @@ export function createCfOnline(c: Ctx) {
     return code;
   };
   const liveGameOf = (userId: string) => [...games.values()].find((g) => !g.ended && g.seats.some((s) => s.userId === userId && !s.left));
+  /** 0.43 : partie à 3 ou 4 qu'on a quittée et qui continue (le serveur joue pour vous) : on peut y revenir. */
+  const rejoinableOf = (userId: string) => [...games.values()].find((g) => !g.ended && g.seats.length > 2 && g.seats.some((s) => s.userId === userId && s.left));
   const tableOf = (userId: string) => [...tables.values()].find((t) => t.members.some((m) => m.userId === userId));
   const photoOf = (u: UserRow) => photoUrl(u) ?? undefined;
 
@@ -618,7 +620,7 @@ export function createCfOnline(c: Ctx) {
 
     // Ce que le serveur sait déjà (reprise après rechargement de la page).
     {
-      const g = liveGameOf(userId);
+      const g = liveGameOf(userId) ?? rejoinableOf(userId);
       const hello: CfHelloMsg = { game: g ? { id: g.id, mode: g.mode, ranked: g.ranked } : null, table: tableOf(userId)?.code ?? null, queue: queue.has(userId), challenges: challengesFor(userId) };
       socket.emit('cf:hello', hello);
     }
@@ -763,13 +765,24 @@ export function createCfOnline(c: Ctx) {
 
     // Partie.
     const myGame = (id?: unknown) => {
-      const g = typeof id === 'string' ? games.get(id) : liveGameOf(userId);
+      const g = typeof id === 'string' ? games.get(id) : liveGameOf(userId) ?? rejoinableOf(userId);
       const seat = g?.seats.find((s) => s.userId === userId);
       return g && seat ? { g, seat } : null;
     };
     socket.on('cf:resume', (p: { id?: unknown } | undefined, a: unknown) => {
       const x = myGame(p?.id ?? undefined) ?? myGame();
-      if (!x || x.seat.left) return fail(a, 'Aucune partie à reprendre.');
+      if (!x || x.g.ended) return fail(a, 'Aucune partie à reprendre.');
+      if (x.seat.left) {
+        // 0.43 : retour à une table à 3 ou 4 quittée en cours de partie.
+        if (x.g.seats.length <= 2) return fail(a, 'Vous avez quitté cette partie.');
+        x.seat.left = false;
+        notice(x.g, `${x.seat.name} revient à la table.`);
+        attachSeat(socket, x.g, x.seat);
+        schedule(x.g);
+        ack(a)({ ok: true, id: x.g.id });
+        publish(x.g, []);
+        return;
+      }
       attachSeat(socket, x.g, x.seat);
       ack(a)({ ok: true, id: x.g.id });
       publish(x.g, []);

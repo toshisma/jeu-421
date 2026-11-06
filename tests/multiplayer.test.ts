@@ -193,3 +193,38 @@ describe('réactions', () => {
     await srv.close();
   });
 });
+
+describe('revenir à sa table (0.43)', () => {
+  it('un joueur qui a quitté une partie en cours reprend sa place avec son jeton', async () => {
+    const a = await client(), b = await client();
+    const cr = await emit(a, 'room:create', { name: 'Paul', avatar: '🦊', config: { variant: 'decharge', maxThrows: 3 } });
+    const jb = await emit(b, 'room:join', { code: cr.code, name: 'Rita', avatar: '🐻' });
+    await emit(b, 'room:ready', { ready: true });
+    expect((await emit(a, 'room:start')).ok).toBe(true);
+    await until(() => a.game != null && b.game != null);
+    await emit(b, 'room:leave');
+    await until(() => a.notices.some((n) => n.includes('Rita a quitté')));
+    const back = await client();
+    const rj = await emit(back, 'room:join', { code: cr.code, token: jb.token });
+    expect(rj.ok).toBe(true);
+    expect(rj.playerId).toBe(jb.playerId);
+    await until(() => back.game != null && a.room!.members.find((m) => m.id === jb.playerId)!.connected);
+    a.s.disconnect(); back.s.disconnect(); b.s.disconnect();
+  });
+
+  it('seul contre l’ordinateur : la table reste en pause et on peut y revenir', async () => {
+    const a = await client();
+    const cr = await emit(a, 'room:create', { name: 'Solo', avatar: '🦊', config: { variant: 'decharge', maxThrows: 3 } });
+    expect((await emit(a, 'room:addBot', { difficulty: 'normal' })).ok).toBe(true);
+    expect((await emit(a, 'room:start')).ok).toBe(true);
+    await until(() => a.game != null);
+    await emit(a, 'room:leave');
+    await wait(300);
+    const back = await client();
+    const rj = await emit(back, 'room:join', { code: cr.code, token: cr.token });
+    expect(rj.ok).toBe(true);
+    await until(() => back.game != null);
+    expect(back.game!.phase).not.toBe('fini');
+    a.s.disconnect(); back.s.disconnect();
+  });
+});

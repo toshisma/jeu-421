@@ -507,10 +507,22 @@ describe('Coups Fourrés en ligne', () => {
     expect(Lc.last!.snap.view.players[0].tokens).toBe(9);
     // Oscar (pas ami) ne peut pas regarder.
     expect((await emit(Oc, 'cf:watch', { code: Lc.last!.id })).ok).toBe(false);
-    await until(() => [Lc, Mc, Nc].every(finished), 90_000, 'fin à 3');
+    // 0.43 : Noé quitte la table à 3 (le serveur joue pour lui), puis revient depuis le menu.
+    const gid = Lc.last!.id;
+    Nc.auto = false;
+    expect((await emit(Nc, 'cf:leave', { id: gid })).ok).toBe(true);
+    await until(() => Lc.notices.some((n) => /Noe abandonne/.test(n)), 3000, 'départ de Noé');
+    expect((await emit(Nc, 'cf:queue:join')).ok).toBe(true); // il n'est plus bloqué par la partie quittée
+    await emit(Nc, 'cf:queue:leave');
+    const Nb = await client(noe);
+    expect(Nb.hello?.game?.id).toBe(gid);
+    expect((await emit(Nb, 'cf:resume', {})).ok).toBe(true);
+    await until(() => Lc.notices.some((n) => /Noe revient/.test(n)), 3000, 'retour de Noé');
+    Nc.s.disconnect();
+    await until(() => [Lc, Mc, Nb].every(finished), 90_000, 'fin à 3');
     const standings = Lc.last!.snap.finished!.standings;
     expect(standings).toHaveLength(3);
-    for (const c of [Lc, Mc, Nc]) { expect(c.leaks).toEqual([]); expect(c.errors).toEqual([]); }
+    for (const c of [Lc, Mc, Nc, Nb]) { expect(c.leaks).toEqual([]); expect(c.errors).toEqual([]); }
     for (const a of [lea, max, noe]) expect((await me(a)).history).toHaveLength(1);
     const first = Lc.last!.snap.seats.find((s) => s.id === standings[0])!.name;
     expect((await me([lea, max, noe].find((a) => a.name === first)!)).history[0].result).toBe('victoire');
