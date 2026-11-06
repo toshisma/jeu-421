@@ -135,6 +135,7 @@ export function createScheduled(d: SchedDeps) {
     const bags = bagPrizes(row?.players ?? standings.length);
     store.tx(() => {
       standings.forEach((userId, place) => {
+        if (store.schedReg(slotId, userId)?.status === 'fini') return; // déjà servi (finale finie avant les autres)
         const n = bags[place] ?? 0;
         store.schedSetReg(slotId, userId, { status: 'fini', place, bags: n, seen: 0 });
         if (n > 0) {
@@ -146,6 +147,28 @@ export function createScheduled(d: SchedDeps) {
     });
     for (const u of standings) d.onProfile(u);
     return bags;
+  }
+
+  /**
+   * Finale : un joueur sorti avant les autres a une place définitive. Il reçoit tout de suite
+   * ses sacs (une seule fois : `finish` saute ensuite les places déjà servies). Renvoie le nombre de sacs.
+   */
+  function award(slotId: string, userId: string, place: number): number {
+    const row = store.schedSlot(slotId);
+    const n = bagPrizes(row?.players ?? 0)[place] ?? 0;
+    let done = false;
+    store.tx(() => {
+      const r = store.schedReg(slotId, userId);
+      if (!r || r.status !== 'joue') return;
+      store.schedSetReg(slotId, userId, { status: 'fini', place, bags: n, seen: 0 });
+      if (n > 0) {
+        const u = store.userById(userId);
+        if (u) { const p = store.profileOf(u); store.saveProfile(userId, { ...p, bags: Math.min(BAGS_MAX, (p.bags ?? 0) + n) }); }
+      }
+      done = true;
+    });
+    if (done) d.onProfile(userId);
+    return done ? n : 0;
   }
 
   const markSlot = (slotId: string, status: SlotStatus) => store.schedSetSlot(slotId, { status });
@@ -219,5 +242,5 @@ export function createScheduled(d: SchedDeps) {
   d.router.post('/tournois/desinscription', withUser((u, slot) => unregister(u.id, slot)));
   d.router.post('/tournois/vu', withUser((u, slot) => { if (store.schedReg(slot, u.id)) store.schedSetReg(slot, u.id, { seen: 1 }); return null; }));
 
-  return { register, unregister, refund, cancel, begin, finish, recover, remind, registered, programme, markSlot, lastResult };
+  return { register, unregister, refund, cancel, begin, finish, award, recover, remind, registered, programme, markSlot, lastResult };
 }

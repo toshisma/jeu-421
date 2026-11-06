@@ -1252,6 +1252,24 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45); color: #fff; font-size: 14px; backdrop-filter: blur(6px);
 }
 .skip-end .btn { white-space: nowrap; flex: none; }
+/* Sorti avant la fin : empocher et quitter, ou continuer à regarder. */
+.early-done {
+  position: fixed; left: 0; right: 0; margin: 0 auto; bottom: calc(14px + env(safe-area-inset-bottom));
+  z-index: 41; width: min(420px, calc(100vw - 24px)); box-sizing: border-box; padding: 14px 14px 12px;
+  border-radius: 16px; background: var(--ardoise-grad, var(--ardoise)); color: var(--blanc);
+  box-shadow: inset 0 2px 0 var(--laiton), 0 14px 40px rgba(0, 0, 0, 0.6); animation: rise 0.35s ease-out;
+}
+.early-done .ed-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.early-done .ed-medal { font-size: 2.2rem; line-height: 1; flex: none; }
+.early-done .ed-head div { display: flex; flex-direction: column; min-width: 0; }
+.early-done .ed-head b { font: 800 1.6rem/1.05 var(--cond); }
+.early-done .ed-head small { color: var(--texte-2); font-size: 0.875rem; }
+.early-done .ed-gain { margin: 10px 0; padding: 8px 10px; border-radius: 10px; background: rgba(0, 0, 0, 0.25); color: var(--texte-2); font-weight: 600; text-align: center; }
+.early-done .ed-gain.ok { color: var(--laiton); }
+.early-done .ed-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.early-done .ed-buttons .btn { flex: 1 1 140px; min-width: 0; white-space: normal; }
+.early-mini { gap: 8px; padding: 8px 8px 8px 14px; }
+.early-mini > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* ---------- Messages privés ---------- */
 .pv-friend { flex-wrap: wrap; gap: 8px; align-items: center; }
 .pm-convs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }

@@ -475,6 +475,8 @@ export class Store {
     this.db.prepare('INSERT INTO escrow (user_id, context, amount, created_at) VALUES (?, ?, ?, ?)').run(userId, context, amount, Date.now());
   }
   escrowRelease(context: string) { this.db.prepare('DELETE FROM escrow WHERE context = ?').run(context); }
+  /** Mise d'un seul joueur levée (il a déjà touché sa part avant la fin). */
+  escrowReleaseUser(context: string, userId: string) { this.db.prepare('DELETE FROM escrow WHERE context = ? AND user_id = ?').run(context, userId); }
   escrowAll(): { user_id: string; context: string; amount: number }[] {
     return this.db.prepare('SELECT user_id, context, amount FROM escrow').all() as unknown as { user_id: string; context: string; amount: number }[];
   }

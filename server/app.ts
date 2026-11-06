@@ -55,6 +55,11 @@ interface Member {
   dice?: string;
   /** Ordinateur de complément : il cède sa place au premier vrai joueur qui arrive avant le départ. */
   filler?: boolean;
+  /**
+   * Parti après avoir fini sa partie (sorti, place définitive, récompense déjà versée) : ce n'est
+   * pas un abandon. Comme tout joueur parti (`left`), il ne peut plus revenir à cette partie.
+   */
+  quit?: 'cashed';
 }
 
 type TableStats = { count421: number; combos: Partial<Record<ComboKind, number>>; gestures: number; roundsLost: number; maxTokens: number; keys: string[]; best: { label: string; rank: number } | null };
@@ -81,6 +86,13 @@ interface Room {
   stats: Map<string, TableStats>;
   lastSummarySeq: number;
   rewarded: boolean;
+  /**
+   * Joueurs déjà récompensés pour la partie en cours : chacun l'est dès que sa place est
+   * définitive (sorti avant les autres), ou à la fin. Jamais deux fois.
+   */
+  paid: Set<string>;
+  /** Parts de cagnotte déjà versées (joueurs sortis avant la fin), par joueur. */
+  potPaid: Map<string, number>;
   /** Début de la partie en cours (durée réelle : récompenses et statistiques). */
   startedAt: number;
   /** Mises engagées pour la partie en cours (comptes débités au lancement). */
@@ -114,6 +126,11 @@ interface TPlayer {
   dice?: string;
   /** Tournoi programmé : déconnecté depuis (salon d'attente). */
   awayAt?: number | null;
+  /**
+   * Son tournoi est fini avant la fin de sa table (éliminé, ou place de finale acquise) : il peut
+   * partir sans que ce soit un abandon. Ses gains de tournoi restent les siens.
+   */
+  finished?: boolean;
 }
 interface TTable { code: string; ids: string[]; ranking: string[] | null; qualified: number }
 interface Tournament {
@@ -128,6 +145,8 @@ interface Tournament {
   nextRoundAt: number | null;
   timer: NodeJS.Timeout | null;
   lastActivity: number;
+  /** Finalistes sortis avant la fin de la finale : gain de tournoi déjà versé. */
+  paidEarly?: Set<string>;
   /** Tournoi programmé (11h / 21h) : rendez-vous, départ, partants, annulation. */
   sched?: { slot: string; hour: number; startsAt: number; beginsAt: number; starters: number | null; cancelled: string | null };
 }
@@ -165,6 +184,8 @@ export interface ServerOptions {
   quickStartMs?: number;
   /** Tournoi Coups Fourrés du samedi (tests : horloge manuelle, pauses courtes, duels courts). */
   cfTour?: CfTourOptions;
+  /** Tests seulement : dés imposés (selon le joueur et la partie) au lieu du tirage officiel. */
+  testDie?: (playerId: string, state: GameState) => number;
 }
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -211,6 +232,8 @@ export async function startServer(opts: ServerOptions) {
   const T_FULL_START = opts.tournamentFullStartMs ?? 6_000;
   const QUICK_FILL = opts.quickFillMs ?? 30_000;
   const QUICK_START = opts.quickStartMs ?? 10_000;
+  /** Source des dés d'un lancer : tirage cryptographique officiel (dés imposés seulement dans les tests). */
+  const dieFor = (g: GameState, pid: string) => (opts.testDie && process.env.VITEST ? () => opts.testDie!(pid, g) : officialDie);
   /**
    * Horloge des tournois programmés. Pour les essais, SCHED_TEST_NOW (date ISO) fait croire au
    * serveur qu'il est cette heure-là au démarrage ; ignoré en production (NODE_ENV=production ou Render).
@@ -436,7 +459,7 @@ export async function startServer(opts: ServerOptions) {
     const r: Room = {
       code: newCode(), title: o.title, hostId: o.host.id, members: o.members, config: o.config, table: o.table, status: 'lobby',
       game: null, turnTimer: null, turnDeadline: null, autoTurnOf: null, timeoutEnd: null, hostTimer: null, stats: new Map(),
-      rewarded: false, startedAt: Date.now(), lastSummarySeq: -1, lastActivity: Date.now(), pot: 0, tournament: o.tournament ?? null, games: 0,
+      rewarded: false, paid: new Set(), potPaid: new Map(), startedAt: Date.now(), lastSummarySeq: -1, lastActivity: Date.now(), pot: 0, tournament: o.tournament ?? null, games: 0,
       spectators: new Map(),
     };
     rooms.set(r.code, r);
@@ -513,7 +536,7 @@ export async function startServer(opts: ServerOptions) {
       if (r.timeoutEnd !== pid) notice(r, `Temps écoulé pour ${m.name} : son tour est terminé automatiquement.`, 'warning');
       if (g.throwsUsed === 0) {
         r.timeoutEnd = pid;
-        afterAction(r, rollAction(g, pid, [false, false, false], officialDie));
+        afterAction(r, rollAction(g, pid, [false, false, false], dieFor(g, pid)));
       } else {
         r.timeoutEnd = null;
         afterAction(r, stopAction(g, pid));
@@ -525,7 +548,7 @@ export async function startServer(opts: ServerOptions) {
       if (!m.left) notice(r, `${m.name} ne répond pas : le serveur joue à sa place.`, 'warning');
     }
     const d = decide(g, pid, m.bot ?? 'normal', Math.random);
-    const res = d.kind === 'roll' ? rollAction(g, pid, d.keep, officialDie) : stopAction(g, pid);
+    const res = d.kind === 'roll' ? rollAction(g, pid, d.keep, dieFor(g, pid)) : stopAction(g, pid);
     afterAction(r, res);
   }
 
@@ -554,6 +577,9 @@ export async function startServer(opts: ServerOptions) {
       r.lastSummarySeq = sm.seq;
       if (!sm.barrage && sm.loserId) r.stats.get(sm.loserId)!.roundsLost++;
     }
+    // Joueurs qui viennent de sortir alors que la partie continue : leur place est définitive,
+    // ils sont récompensés tout de suite (et peuvent partir ou rester regarder).
+    if (g0.phase !== 'fini') settleEarly(r);
     // Le geste du lanceur (direction, force) est relayé : tout le monde voit le même lancer.
     if (res.roll) io.to(r.code).emit('game:roll', { roll: res.roll, seed: randomInt(0, 2 ** 31 - 1), gesture, state: r.game });
     else io.to(r.code).emit('game:state', { state: r.game });
@@ -574,9 +600,86 @@ export async function startServer(opts: ServerOptions) {
     return out;
   };
 
+  /** Membres qui jouent la partie en cours. */
+  const inGameMembers = (r: Room) => r.members.filter((m) => r.game!.players.some((p) => p.id === m.id));
+  /** Abandon : parti avant d'avoir fini (le serveur a joué à sa place). Partir après avoir fini n'en est pas un. */
+  const abandoned = (m: Member) => m.left && m.quit !== 'cashed';
+  const nameIn = (r: Room, id: string) => r.members.find((x) => x.id === id)?.name ?? '?';
+
+  /**
+   * Part de cagnotte d'un joueur sorti avant la fin, ou null si elle ne peut être connue qu'à la fin.
+   * Comme à la fin : tous sauf le dernier, poids selon la place. Connue d'avance quand tous les
+   * joueurs ont un compte (c'est le cas aux tables avec mise) : sa place parmi eux est acquise.
+   */
+  function earlyPotShare(r: Room, id: string): number | null {
+    const g = r.game!;
+    const all = inGameMembers(r);
+    if (r.pot <= 0 || all.length !== g.players.length || all.some((m) => !m.userId)) return null;
+    const shares = rankShares(r.pot, g.players.length - 1);
+    return shares[finalPlace(g, id) - 1] ?? 0;
+  }
+
+  /**
+   * Récompense d'un joueur (une seule fois par partie) : XP, pièces, défis, succès, classement,
+   * saison classée. Appelée dès que sa place est définitive (sorti avant les autres) ou à la fin.
+   */
+  function rewardMember(r: Room, m: Member) {
+    if (r.paid.has(m.id)) return;
+    r.paid.add(m.id);
+    if (!m.userId) return;
+    const g = r.game!;
+    const inGame = inGameMembers(r);
+    // Ordinateurs à la table : barème du solo, plafond quotidien du solo, hors classement.
+    const botRules = botTableRules(inGame.filter((x) => !x.bot).length, inGame.flatMap((x) => (x.bot ? [x.bot] : [])));
+    const st = r.stats.get(m.id) ?? emptyStats();
+    const won = didWin(g, m.id);
+    const place = finalPlace(g, m.id);
+    const out = accounts.onlineGameEnd(m.userId, won, g.round, {
+      ...botRules, opponents: g.players.length - 1, count421: st.count421, combos: st.combos, gestureThrows: st.gestures,
+      rounds: g.round, roundsLost: g.config.variant === 'manches' ? undefined : st.roundsLost, maxTokens: st.maxTokens,
+      suddenDeath: isSuddenDeath(g.config),
+      comboKeys: st.keys, best: st.best ?? undefined,
+      opponentNames: inGame.filter((x) => x.id !== m.id).map((x) => x.name),
+      place,
+      // Durée de SA partie : jusqu'à sa sortie (s'il est sorti avant la fin), sinon jusqu'à la fin.
+      minutes: (Date.now() - r.startedAt) / 60000,
+    }, m.day, abandoned(m));
+    if (out && m.socketId) io.to(m.socketId).emit('profile:reward', out);
+    // Saison classée : entre au moins deux humains, sans mort subite ni ordinateur. Places parmi les humains :
+    // un joueur qui a abandonné est dernier ; sinon 1 + humains (n'ayant pas abandonné) mieux classés.
+    const humans = inGame.filter((x) => !x.bot);
+    if (humans.length >= 2 && !isSuddenDeath(g.config) && !botRules.botLevel) {
+      const sp = abandoned(m) ? humans.length : 1 + humans.filter((x) => x !== m && !abandoned(x) && finalPlace(g, x.id) < place).length;
+      accounts.seasonGame([{ userId: m.userId, place: sp, won: sp === 1 }], humans.length);
+    }
+  }
+
+  /**
+   * Joueurs sortis alors que la partie continue : place définitive, donc récompense tout de suite
+   * (part de cagnotte comprise quand elle est connue), et en tournoi, élimination ou place de finale
+   * acquise. Ceux qui ont abandonné avant de sortir sont traités à la fin, comme avant.
+   */
+  function settleEarly(r: Room) {
+    const g = r.game!;
+    for (const p of g.players) {
+      if (!p.out || p.finishPos == null || r.paid.has(p.id)) continue;
+      const m = r.members.find((x) => x.id === p.id);
+      if (!m || abandoned(m)) continue;
+      const share = earlyPotShare(r, m.id);
+      if (share != null) {
+        r.potPaid.set(m.id, share);
+        if (share > 0) sendProfile(m.socketId, accounts.winPot(m.userId!, share)?.profile);
+        accounts.release(`R:${r.code}:${r.games}`, m.userId);
+        notice(r, `${m.name} finit ${p.finishPos === 1 ? '1er' : `${p.finishPos}e`} et empoche ${share} pièce${share > 1 ? 's' : ''} de la cagnotte.`);
+      }
+      rewardMember(r, m);
+      if (r.tournament) tournamentEarly(r, m.id, p.finishPos);
+    }
+  }
+
   /**
    * Fin de partie en ligne : la cagnotte éventuelle va au(x) gagnant(s), puis chaque joueur
-   * connecté à un compte reçoit sa récompense (calculée ici).
+   * pas encore récompensé reçoit sa récompense (calculée ici).
    */
   function rewardOnline(r: Room) {
     r.rewarded = true;
@@ -584,41 +687,20 @@ export async function startServer(opts: ServerOptions) {
     if (r.pot > 0) {
       // Cagnotte répartie entre tous sauf le dernier, selon la place : le premier touche le plus,
       // les suivants moins (parfois moins que leur mise). À deux, le gagnant rafle tout.
+      // Les parts déjà versées (joueurs sortis avant la fin) ne le sont pas une deuxième fois.
       const ranked = g.ranking.slice(0, -1).filter((id) => r.members.find((x) => x.id === id)?.userId);
       const shares = rankShares(r.pot, ranked.length);
       ranked.forEach((id, i) => {
+        if (r.potPaid.has(id)) return;
         const m = r.members.find((x) => x.id === id)!;
+        r.potPaid.set(id, shares[i]);
         sendProfile(m.socketId, accounts.winPot(m.userId!, shares[i])?.profile);
       });
-      const nameOf = (id: string) => r.members.find((x) => x.id === id)?.name ?? '?';
-      notice(r, ranked.length ? `Cagnotte de ${r.pot} pièces : ${ranked.map((id, i) => `${nameOf(id)} +${shares[i]}`).join(', ')}.` : 'Cagnotte rendue impossible : aucun gagnant avec un compte.');
+      notice(r, ranked.length ? `Cagnotte de ${r.pot} pièces : ${ranked.map((id) => `${nameIn(r, id)} +${r.potPaid.get(id) ?? 0}`).join(', ')}.` : 'Cagnotte rendue impossible : aucun gagnant avec un compte.');
       r.pot = 0;
     }
     accounts.release(`R:${r.code}:${r.games}`);
-    // Ordinateurs à la table : barème du solo, plafond quotidien du solo, hors classement.
-    const inGame = r.members.filter((m) => g.players.some((p) => p.id === m.id));
-    const botRules = botTableRules(inGame.filter((m) => !m.bot).length, inGame.flatMap((m) => (m.bot ? [m.bot] : [])));
-    for (const m of r.members) {
-      if (!m.userId || !g.players.some((p) => p.id === m.id)) continue;
-      const st = r.stats.get(m.id) ?? emptyStats();
-      const out = accounts.onlineGameEnd(m.userId, didWin(g, m.id), g.round, {
-        ...botRules, opponents: g.players.length - 1, count421: st.count421, combos: st.combos, gestureThrows: st.gestures,
-        rounds: g.round, roundsLost: g.config.variant === 'manches' ? undefined : st.roundsLost, maxTokens: st.maxTokens,
-        suddenDeath: isSuddenDeath(g.config),
-        comboKeys: st.keys, best: st.best ?? undefined,
-        opponentNames: r.members.filter((x) => x.id !== m.id && g.players.some((p) => p.id === x.id)).map((x) => x.name),
-        place: finalPlace(g, m.id),
-        minutes: (Date.now() - r.startedAt) / 60000,
-      }, m.day, m.left);
-      if (out && m.socketId) io.to(m.socketId).emit('profile:reward', out);
-    }
-    // Saison classée : entre au moins deux humains, sans mort subite ni ordinateur. Places parmi les humains.
-    const humans = r.members.filter((m) => !m.bot && g.players.some((p) => p.id === m.id));
-    if (humans.length >= 2 && !isSuddenDeath(g.config) && !botRules.botLevel) {
-      // Un joueur parti est dernier ; sinon : 1 + humains restés et mieux classés (ex æquo possibles).
-      const placed = humans.map((m) => ({ m, place: m.left ? humans.length : 1 + humans.filter((x) => !x.left && finalPlace(g, x.id) < finalPlace(g, m.id)).length }));
-      accounts.seasonGame(placed.filter((x) => x.m.userId).map((x) => ({ userId: x.m.userId!, place: x.place, won: x.place === 1 })), humans.length);
-    }
+    for (const m of inGameMembers(r)) rewardMember(r, m);
     // Statistiques : la partie est terminée, on l'enregistre une fois.
     stats.recordOnline({
       startedAt: r.startedAt,
@@ -629,6 +711,27 @@ export async function startServer(opts: ServerOptions) {
     // Rivalités entre comptes : qui a fini devant qui.
     const ranked = g.ranking.map((id) => r.members.find((m) => m.id === id)?.userId).filter((x): x is string => !!x);
     if (ranked.length > 1) accounts.recordRivalry(ranked);
+  }
+
+  /**
+   * Plus personne ne joue vraiment (seulement des ordinateurs, ou des joueurs partis) alors que des
+   * joueurs ont déjà empoché : la fin est jouée d'un coup par le serveur, pour clore la partie
+   * (récompenses restantes, statistiques, cagnotte) avant de ranger la table.
+   */
+  function playOutNow(r: Room) {
+    const g = r.game!;
+    if (r.turnTimer) clearTimeout(r.turnTimer);
+    r.turnTimer = null;
+    const over = () => g.phase === 'fini';
+    for (let guard = 0; guard < 20000 && !over(); guard++) {
+      const pid = currentPlayerId(g)!;
+      const m = r.members.find((x) => x.id === pid);
+      const d = decide(g, pid, m?.bot ?? 'normal', Math.random);
+      const res = d.kind === 'roll' ? rollAction(g, pid, d.keep, dieFor(g, pid)) : stopAction(g, pid);
+      if (!res.ok) stopAction(g, pid);
+      if (!over()) settleEarly(r);
+    }
+    if (over() && !r.rewarded) rewardOnline(r);
   }
 
   /** Un compte bloqué par (ou ayant bloqué) quelqu'un de la table ne peut pas s'y asseoir. */
@@ -663,6 +766,8 @@ export async function startServer(opts: ServerOptions) {
     r.timeoutEnd = null;
     r.stats = new Map();
     r.rewarded = false;
+    r.paid = new Set();
+    r.potPaid = new Map();
     r.lastSummarySeq = -1;
     broadcastRoom(r); // d'abord la table (les joueurs de tournoi y sont installés), puis la donne
     io.to(r.code).emit('game:state', { state: r.game });
@@ -738,6 +843,14 @@ export async function startServer(opts: ServerOptions) {
   function removeIfEmpty(r: Room) {
     if (r.tournament) return; // les tables de tournoi vivent avec le tournoi
     if (r.members.every((m) => m.socketId == null || m.left)) {
+      const g = r.game;
+      // Partie en cours où quelqu'un a déjà empoché : on la mène à son terme plutôt que de l'effacer.
+      if (r.status === 'playing' && g && g.phase !== 'fini' && r.paid.size > 0) {
+        const stillIn = r.members.filter((m) => g.players.some((p) => p.id === m.id && !p.out));
+        // Des joueurs encore en jeu sont seulement déconnectés : le serveur joue pour eux, la partie se termine normalement.
+        if (stillIn.some((m) => !m.bot && !m.left)) return;
+        playOutNow(r);
+      }
       if (r.turnTimer) clearTimeout(r.turnTimer);
       if (r.hostTimer) clearTimeout(r.hostTimer);
       if (r.quick?.timer) clearTimeout(r.quick.timer);
@@ -781,7 +894,9 @@ export async function startServer(opts: ServerOptions) {
     if (userId && r.members.some((m) => m.userId === userId && !m.left && !m.bot)) return 'Vous êtes joueur à cette table.';
     if (blockedAt(userId, r.members)) return 'Impossible de regarder cette partie.';
     if (userId && r.kicked?.has(userId)) return 'Impossible de regarder cette partie.';
-    if (isPrivate) {
+    // Un joueur de la table qui a empoché et quitté peut regarder la fin de sa partie.
+    const wasPlayer = !!userId && r.members.some((m) => m.userId === userId && m.quit === 'cashed');
+    if (isPrivate && !wasPlayer) {
       if (!userId) return 'Partie privée : seuls les amis des joueurs peuvent la regarder (connectez-vous à votre compte).';
       if (!r.members.some((m) => m.userId && friendsEither(m.userId, userId))) return 'Partie privée : seuls les amis des joueurs peuvent la regarder.';
     }
@@ -916,6 +1031,38 @@ export async function startServer(opts: ServerOptions) {
     broadcastT(t);
   }
 
+  /**
+   * Un joueur sort de sa table de tournoi avant la fin de celle-ci. Qualifié : rien ne change, il
+   * attend le tour suivant (il peut regarder ou consulter le tableau). Éliminé : son tournoi est
+   * fini, il peut partir (son gain éventuel lui sera versé à la fin du tournoi, sur son compte).
+   * Finale : sa place au tournoi est acquise, son gain de tournoi (cagnotte, sacs) est versé tout de suite.
+   */
+  function tournamentEarly(r: Room, id: string, finishPos: number) {
+    const t = tournaments.get(r.tournament!);
+    if (!t || t.status !== 'en-cours') return;
+    const roundIdx = t.rounds.length - 1;
+    const round = t.rounds[roundIdx];
+    const tb = round.tables.find((x) => x.code === r.code);
+    const p = t.players.find((x) => x.id === id);
+    if (!tb || tb.ranking || !p) return;
+    const place = finishPos - 1;
+    if (round.tables.length === 1) {
+      p.finished = true;
+      const paid = (t.paidEarly ??= new Set());
+      if (!paid.has(id) && p.userId) {
+        paid.add(id);
+        const gains = prizes(t.pot, t.players.length, t.settings.payout);
+        sendProfile(p.socketId, accounts.tournamentEnd(p.userId, place, gains[place] ?? 0)?.profile);
+        accounts.release(`T:${t.code}`, p.userId);
+        if (t.sched) sched.award(t.sched.slot, p.userId, place);
+      }
+    } else if (place >= tb.qualified) {
+      p.finished = true;
+      p.out = roundIdx;
+    }
+    broadcastT(t);
+  }
+
   function finishTournament(t: Tournament) {
     const last = t.rounds[t.rounds.length - 1].tables[0];
     const standings = last.ranking!.slice();
@@ -930,7 +1077,7 @@ export async function startServer(opts: ServerOptions) {
     const gains = prizes(t.pot, t.players.length, t.settings.payout);
     standings.forEach((id, place) => {
       const p = t.players.find((x) => x.id === id)!;
-      if (p.userId) sendProfile(p.socketId, accounts.tournamentEnd(p.userId, place, gains[place] ?? 0)?.profile);
+      if (p.userId && !t.paidEarly?.has(id)) sendProfile(p.socketId, accounts.tournamentEnd(p.userId, place, gains[place] ?? 0)?.profile);
     });
     accounts.release(`T:${t.code}`);
     admin.tournamentFinished();
@@ -1094,7 +1241,7 @@ export async function startServer(opts: ServerOptions) {
       // Reconnexion avec le jeton secret.
       const existing = typeof p?.token === 'string' ? r.members.find((m) => m.token === p.token) : undefined;
       if (existing) {
-        if (existing.left) return reply({ ok: false, error: 'Vous avez quitté cette partie.' });
+        if (existing.left) return reply({ ok: false, error: existing.quit === 'cashed' ? 'Vous avez déjà empoché vos gains et quitté cette partie.' : 'Vous avez quitté cette partie.' });
         const wasAway = existing.socketId == null;
         existing.userId = existing.userId ?? accounts.userFromToken(p?.auth)?.id;
         attach(r, existing);
@@ -1265,7 +1412,7 @@ export async function startServer(opts: ServerOptions) {
       if (p?.version !== g.version) return reply({ ok: false, error: 'Action ignorée (déjà prise en compte)' });
       if (c.r.autoTurnOf === c.m.id) c.r.autoTurnOf = null; // le joueur reprend la main
       if (c.r.timeoutEnd === c.m.id) return reply({ ok: false, error: 'Temps écoulé' });
-      const res = kind === 'roll' ? rollAction(g, c.m.id, p?.keep, officialDie) : stopAction(g, c.m.id);
+      const res = kind === 'roll' ? rollAction(g, c.m.id, p?.keep, dieFor(g, c.m.id)) : stopAction(g, c.m.id);
       if (!res.ok) return reply(res);
       reply({ ok: true });
       afterAction(c.r, res, kind === 'roll' ? sanitizeGesture(p?.gesture) : undefined);
@@ -1377,7 +1524,12 @@ export async function startServer(opts: ServerOptions) {
       m.socketId = null;
       const wasHost = m.id === r.hostId;
       if (r.status === 'lobby') r.members = r.members.filter((x) => x.id !== m.id);
-      else {
+      else if (r.game && r.game.phase !== 'fini' && r.paid.has(m.id) && !m.left) {
+        // Sa partie était finie (sorti, récompensé) : il empoche et s'en va, ce n'est pas un abandon.
+        m.left = true;
+        m.quit = 'cashed';
+        notice(r, `${m.name} a empoché ses gains et quitté la table.`);
+      } else {
         m.left = true;
         notice(r, `${m.name} a quitté la partie : le serveur jouera à sa place.`, 'warning');
         scheduleTurn(r);
@@ -1450,7 +1602,7 @@ export async function startServer(opts: ServerOptions) {
         const tb = t.rounds.at(-1)?.tables.find((x) => x.ids.includes(existing.id));
         const r = tb && rooms.get(tb.code);
         const m = r?.members.find((x) => x.id === existing.id);
-        if (r && m && t.status === 'en-cours' && !tb!.ranking) {
+        if (r && m && t.status === 'en-cours' && !tb!.ranking && m.quit !== 'cashed') {
           const wasAway = m.socketId == null;
           attach(r, m);
           broadcastRoom(r);
@@ -1567,6 +1719,18 @@ export async function startServer(opts: ServerOptions) {
         if (t.timer) { clearTimeout(t.timer); t.timer = null; t.nextRoundAt = null; }
         if (!t.players.length) { tournaments.delete(t.code); return; }
         if (t.hostId === p.id) t.hostId = (t.players.find((x) => x.socketId) ?? t.players[0]).id;
+      } else if (t.status === 'en-cours' && p.finished) {
+        // Son tournoi est fini (éliminé, ou place de finale acquise) : il part, ce n'est pas un abandon.
+        const tb = t.rounds.at(-1)!.tables.find((x) => x.ids.includes(p.id));
+        const r = tb && rooms.get(tb.code);
+        const m = r?.members.find((x) => x.id === p.id);
+        if (r && m && !m.left) {
+          m.left = true;
+          m.quit = 'cashed';
+          if (m.socketId === socket.id) { m.socketId = null; socket.leave(r.code); socket.data.code = null; }
+          if (!tb!.ranking) notice(r, `${m.name} a fini sa partie et quitté la table.`);
+          broadcastRoom(r);
+        }
       } else if (t.status === 'en-cours' && p.out == null) {
         // Abandon : le serveur joue ses parties (il ne peut pas aller loin).
         p.left = true;
