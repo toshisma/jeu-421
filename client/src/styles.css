@@ -3639,3 +3639,38 @@ span.cfn-hab { cursor: default; }
 .cfn-last { display: block; width: 100%; min-width: 0; padding: 0; border: 0; background: none; text-align: left; color: #efe6d4; font: 600 12px/1.25 Barlow, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .cfn-last em { font-style: normal; font-weight: 800; font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: #bfb1d8; margin-right: 4px; }
 .cfn-opp.compact .cfn-last { font-size: 11px; }
+
+/* ---- Coups Fourrés 0.39 : écran sobre (version C), jusqu'à 4 joueurs, détails au toucher ---- */
+.cfn-tb { flex: none; height: 38px; padding: 0 11px; border-radius: 11px; border: 1px solid rgba(255,255,255,.14); background: rgba(0,0,0,.35); color: #f5eedf; font: 700 12.5px/1 Barlow, sans-serif; cursor: pointer; }
+.cfn-ttl span { font: 700 14px/1 Barlow, sans-serif; }
+.cfn-top .cfn-ttl { min-width: 76px; }
+.cfn-pboxes { flex: none; display: grid; gap: 6px; padding: 8px 12px 0; }
+.cfn-pboxes.n2 { grid-template-columns: 1fr 1fr; } .cfn-pboxes.n3 { grid-template-columns: 1fr 1fr 1fr; }
+.cfn-pbox { position: relative; min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 22px 8px 9px; border-radius: 13px; background: rgba(0,0,0,.32); border: 1px solid rgba(255,255,255,.09); color: #f5eedf; text-align: left; cursor: pointer; font-family: Barlow, sans-serif; transition: border-color .25s, box-shadow .25s; }
+.cfn-pbox.on { border-color: #f1cc7d; box-shadow: 0 0 0 1px #f1cc7d, 0 0 14px rgba(241,204,125,.35); }
+.cfn-pbox.out { opacity: .55; }
+.cfn-pbox .nm { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.cfn-pbox .nm b { font: 700 13px/1.1 Barlow, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cfn-pbox.wide .nm b { font-size: 15px; }
+.cfn-pbox .nm .away { font: 600 10px/1 Barlow, sans-serif; color: #ffb3a8; }
+.cfn-pbox .tk { display: flex; align-items: baseline; gap: 4px; font: 800 22px/1 'Barlow Condensed', sans-serif; color: #fbf6e9; }
+.cfn-pbox .tk .cfn-tok { align-self: center; }
+.cfn-pbox .tk small { font: 600 10.5px/1 Barlow, sans-serif; color: #d9cdf0; }
+.cfn-pbox .mini { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 9px; font: 700 12px/1 Barlow, sans-serif; color: #e9e0f5; }
+.cfn-pbox .mini > span { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.cfn-pbox .mini .tr { color: #e3c6ff; } .cfn-pbox .mini .hb { color: #a8f0cc; }
+.cfn-pbox .mini em { font-style: normal; font-weight: 600; font-size: 10.5px; color: #a99ad0; }
+.cfn-bk.mini { width: 9px; height: 13px; border-radius: 2px; display: inline-block; }
+.cfn-pbox .more { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font: 800 16px/1 Barlow, sans-serif; font-style: normal; color: #bfb1d8; }
+.cfn-pbox .cfn-fx { cursor: inherit; }
+.cfn-say-last { display: block; width: 100%; margin-top: 3px; font: 600 11px/1.2 Barlow, sans-serif; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cfn-banner { flex-wrap: wrap; }
+.cfn-me-name { flex: none; padding: 0; border: 0; background: none; color: #bfb1d8; font: 800 12px/1 Barlow, sans-serif; text-transform: uppercase; letter-spacing: .05em; cursor: pointer; }
+.cfn-me-t { flex: none; display: inline-flex; align-items: baseline; gap: 4px; font: 800 16px/1 'Barlow Condensed', sans-serif; color: #fbf6e9; }
+.cfn-me-t small { font: 700 10.5px/1 Barlow, sans-serif; color: #f2dfae; }
+.cfn-kv { display: grid; grid-template-columns: minmax(96px, 30%) 1fr; gap: 9px 12px; margin: 0; font: 600 14px/1.3 Barlow, sans-serif; }
+.cfn-kv dt { color: var(--texte-2, #bfb1d8); font-weight: 700; }
+.cfn-kv dd { margin: 0; }
+.cfn-kv dd > .cfn-kv-link { display: inline-block; margin-right: 10px; }
+.cfn-kv-link { padding: 0; border: 0; background: none; color: #f1cc7d; font: inherit; text-align: left; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.cfn-banner:has(.cfn-say-last) { height: auto; min-height: 46px; padding-top: 6px; padding-bottom: 6px; }

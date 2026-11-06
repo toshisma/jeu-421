@@ -8,6 +8,7 @@ import { CARD_BY_ID, cardDef, type CardType } from '../../../shared/cards/catalo
 import type { CfAction, CfEvent, CfPlayerView, CfView, PlayParams } from '../../../shared/cards/engine';
 import { Avatar } from '../ui/Avatar';
 import { Icon } from '../ui/Icon';
+import { Sheet } from '../ui/kit';
 import { CardArt } from './art';
 import { CapsuleIcon, CardView } from './components';
 import { FAMILY_STYLE, splitEmphasis } from './meta';
@@ -222,6 +223,67 @@ export function OppPanel({ p, v, seat, active, compact, refEl, tokRef, onTrap, o
     </section>
   );
 }
+/**
+ * Case d'un adversaire (écran sobre, 0.39 « version C ») : nom, jetons en gros, puis Tournées, cartes
+ * en main, pièges posés et Habitués en petits chiffres. Toucher : sa fiche complète (PlayerSheet).
+ * En duel (`wide`), on écrit aussi ses effets en cours et son dernier coup.
+ */
+export function PlayerBox({ p, v, seat, active, wide, tokRef, onOpen, emote, focus, last }: {
+  p: CfPlayerView; v: CfView; seat?: CfSeat & { away?: boolean; left?: boolean }; active: boolean; wide: boolean; focus?: boolean;
+  tokRef?: (el: HTMLElement | null) => void; onOpen: () => void; emote?: string; last?: string | null;
+}) {
+  const traps = v.traps.filter((t) => t.owner === p.id).length;
+  const fx = wide ? activeEffects(v, p, false) : [];
+  return (
+    <button className={`cfn-pbox${active ? ' on' : ''}${p.out ? ' out' : ''}${wide ? ' wide' : ''}${focus ? ' cfn-focus-zone' : ''}`} onClick={onOpen}
+      aria-label={`${p.name} : ${plural(p.tokens, 'jeton')}, ${plural(p.tournees, 'Tournée')}, ${plural(p.handCount, 'carte')} en main, ${plural(traps, 'piège')} posé${traps > 1 ? 's' : ''}, ${plural(p.habitues.length, 'Habitué')}. Touchez pour le détail.`}>
+      <span className="nm">
+        {wide && <Avatar photo={seat?.photo} emoji={seat?.avatar ?? '🎲'} size={32} />}
+        <b>{p.name}</b>
+        {emote && <span className="cfn-emote" aria-hidden>{emote}</span>}
+        {seat?.left ? <small className="away">parti</small> : seat?.away ? <small className="away">déconnecté</small> : null}
+      </span>
+      <span className="tk" ref={tokRef}><i className="cfn-tok" aria-hidden />{p.tokens}<small>jeton{p.tokens > 1 ? 's' : ''}</small></span>
+      <span className="mini" aria-hidden>
+        <span title="Tournées">🍺 {p.tournees}</span>
+        <span title="Cartes en main"><i className="cfn-bk mini" />{p.handCount}</span>
+        {traps > 0 && <span title="Pièges posés" className="tr"><TypeIcon type="piege" size={12} />{traps}</span>}
+        {p.habitues.length > 0 && <span title="Habitués" className="hb"><TypeIcon type="habitue" size={12} />{p.habitues.length}</span>}
+        {wide && <em>{plural(p.handCount, 'carte')} · touchez pour le détail</em>}
+      </span>
+      {fx.length > 0 && <span className="cfn-fx-row">{fx.map((e) => <span key={e.card + e.text} className={`cfn-fx ${e.tone}`} style={{ ['--tc' as string]: TYPE_META[e.type].color }}><TypeIcon type={e.type} size={11} />{e.text}</span>)}</span>}
+      {wide && last && <span className="cfn-last"><em>Dernier coup</em> {last}</span>}
+      <i className="more" aria-hidden>›</i>
+    </button>
+  );
+}
+
+/** Fiche d'un joueur : toutes ses informations en clair (et liens vers ses Habitués, ses pièges). */
+export function PlayerSheet({ p, v, seat, me, last, onClose, onCard, onTraps }: {
+  p: CfPlayerView; v: CfView; seat?: CfSeat; me: boolean; last?: string | null; onClose: () => void; onCard: (id: string) => void; onTraps: () => void;
+}) {
+  const traps = v.traps.filter((t) => t.owner === p.id);
+  const onMe = traps.filter((t) => t.target !== p.id);
+  const fx = activeEffects(v, p, me);
+  const label = seat?.label ? (seat.bot ? `Ordinateur ${seat.label}` : seat.label) : null;
+  return (
+    <Sheet title={me ? 'Vous' : p.name} onClose={onClose}>
+      <dl className="cfn-kv">
+        {label && <><dt>Joueur</dt><dd>{label}</dd></>}
+        <dt>Jetons</dt><dd><b>{p.tokens}</b> · le premier à 0 gagne</dd>
+        <dt>Tournées</dt><dd><b>{p.tournees}</b> sur {v.rules.tourneesMax} · elles paient les cartes ({v.rules.tourneesPerRound} de plus à chaque manche)</dd>
+        <dt>Cartes en main</dt><dd><b>{p.handCount}</b>{me ? '' : ', cachées'} · {plural(p.deckCount, 'carte')} dans son deck</dd>
+        <dt>Habitués</dt><dd>{p.habitues.length ? p.habitues.map((h) => <button key={h.uid} className="cfn-kv-link" onClick={() => onCard(h.id)}>{cardName(h.id)} · encore {plural(h.rounds ?? 1, 'manche')}</button>) : 'aucun'}</dd>
+        <dt>Pièges posés</dt><dd>{traps.length ? <button className="cfn-kv-link" onClick={onTraps}>{plural(traps.length, 'piège')}{me ? '' : ' caché' + (traps.length > 1 ? 's' : '')}{v.players.length > 2 && onMe.length ? ` (sur ${[...new Set(onMe.map((t) => nameIn(v, t.target)))].join(', ')})` : ''} · voir</button> : 'aucun'}</dd>
+        <dt>En cours</dt><dd>{fx.length ? fx.map((e) => <button key={e.card + e.text} className="cfn-kv-link" onClick={() => onCard(e.card)}>{e.text}</button>) : 'rien'}</dd>
+        {p.r.throwsUsed > 0 && <><dt>Ses dés</dt><dd>{p.r.dice.join('-')} · {plural(p.r.throwsUsed, 'lancer')}</dd></>}
+        {last && <><dt>Dernier coup</dt><dd>{last}</dd></>}
+        {p.families.length > 0 && <><dt>Son deck</dt><dd>{familiesLabel(p.families)}</dd></>}
+      </dl>
+    </Sheet>
+  );
+}
+
 export const shortName = (id: string) => (def(id)?.name ?? id).replace(/^(Le |La |Les |L’)/, '').split(',')[0];
 
 // ------------------------------------------------------------------ annonces au centre
@@ -525,19 +587,25 @@ export function HelpSheet({ v, onClose, onRules }: { v: CfView; onClose: () => v
     <div className="cfn-fiche-back" onClick={onClose}>
       <div className="cfn-fiche cfn-journal" role="dialog" aria-modal="true" aria-label="Aide" onClick={(e) => e.stopPropagation()}>
         <div className="cfn-sheet-head"><h2>Aide</h2><button className="cfn-x" onClick={onClose} aria-label="Fermer"><Icon name="close" size={18} /></button></div>
-        <TypeLegend />
         <section className="cfn-help">
-          <b className="cfn-legend-title">Une manche (la frise en haut)</b>
+          <b className="cfn-legend-title">Ce que vous voyez à l’écran</b>
+          <dl className="cfn-kv">
+            <dt>En haut</dt><dd>Une case par adversaire. Le gros chiffre : ses <b>jetons</b> (le premier à 0 gagne). Puis 🍺 ses <b>Tournées</b> (elles paient les cartes), <i className="cfn-bk mini" /> ses <b>cartes en main</b>, <TypeIcon type="piege" size={12} /> ses <b>pièges posés</b>, <TypeIcon type="habitue" size={12} /> ses <b>Habitués</b>. Celui qui joue est encadré en doré. <b>Touchez une case</b> pour tout voir en clair.</dd>
+            <dt>Le bandeau</dt><dd>À qui de jouer et quoi faire ; à plusieurs, la petite ligne dit le dernier coup joué.</dd>
+            <dt>Le bac</dt><dd>Les dés de celui qui joue. À votre tour, touchez un dé pour le garder avant de relancer.</dd>
+            <dt>Vos cartes</dt><dd>Sous chaque nom, ce que fait la carte ; le chiffre doré est son coût en Tournées. Les cartes <b className="cfn-gold">dorées</b> sont jouables maintenant. Touchez une carte pour la lire en grand.</dd>
+            <dt>« Vous »</dt><dd>Vos jetons, vos Tournées, vos Habitués (le chiffre : manches restantes) et vos pièges posés. Touchez « Vous » pour votre fiche.</dd>
+            <dt>Journal</dt><dd>Tout ce qui s’est passé, coup par coup.</dd>
+          </dl>
+          <b className="cfn-legend-title">Une manche</b>
           <ol>
-            <li><b>Service</b> : chacun pioche 1 carte et reçoit {v.rules.tourneesPerRound} Tournées (les verres), {v.rules.tourneesPerRound + v.rules.tourneesLoserBonus} pour le perdant de la manche d’avant.</li>
-            <li><b>Le meneur</b> lance les dés jusqu’à {v.rules.maxThrows} fois. Son nombre de lancers fixe le maximum des autres.</li>
-            <li><b>Les autres</b> jouent ensuite, en voyant la combinaison à battre.</li>
-            <li><b>Dernier mot</b> : les combinaisons sont posées ; les cartes « Dernier mot » peuvent encore tout changer.</li>
-            <li><b>Comptes</b> : le gagnant DONNE au perdant autant de jetons que vaut sa combinaison. Le premier à 0 jeton gagne la partie.</li>
+            <li>Chacun pioche 1 carte et reçoit {v.rules.tourneesPerRound} Tournées ({v.rules.tourneesPerRound + v.rules.tourneesLoserBonus} pour le perdant de la manche d’avant).</li>
+            <li><b>Le meneur</b> lance les dés jusqu’à {v.rules.maxThrows} fois ; son nombre de lancers fixe le maximum des autres. Les autres jouent ensuite, en voyant la combinaison à battre.</li>
+            <li><b>Dernier mot</b> : avant les comptes, les cartes « Dernier mot » peuvent encore tout changer.</li>
+            <li><b>Comptes</b> : le gagnant DONNE au perdant autant de jetons que vaut sa combinaison.</li>
           </ol>
-          <p>Sous le nom de chaque carte, ce qu’elle fait. Quand c’est à vous, les cartes <b className="cfn-gold">dorées</b> sont jouables maintenant (elles passent en premier ; faites glisser la main pour voir les autres). Touchez une carte pour la lire en grand.</p>
-          <p>Sous le nom de l’adversaire : ses jetons, ses Tournées, ses cartes en main, ses effets en cours (Double tournée, Gueule de bois…) et son dernier coup. Les pastilles rondes sont les Habitués en jeu ; le chiffre dit combien de manches il leur reste.</p>
         </section>
+        <TypeLegend />
         <button className="cfn-act ghost full" onClick={onRules}>Règles complètes</button>
       </div>
     </div>

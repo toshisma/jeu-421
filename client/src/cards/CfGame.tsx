@@ -38,9 +38,9 @@ import { RulesContent } from './CfInfo';
 import { Pip } from './cfui';
 import { MomentTracker, makeShareImage, shareImage, type ShareMoment } from './share';
 import { TypeIcon } from './cardTypes';
-import { decisionBanner, friseSteps, handHints, keepAfter, planEvents, type Announce } from './board';
+import { decisionBanner, handHints, keepAfter, planEvents, type Announce } from './board';
 import {
-  AnnounceView, ChoiceWindow, EndScreen, Fiche, Frise, Glasses, HabPin, Hand, HelpSheet, Journal, Mulligan, OppPanel, RespondPanel, Tokens,
+  AnnounceView, ChoiceWindow, EndScreen, Fiche, HabPin, Hand, HelpSheet, Journal, Mulligan, PlayerBox, PlayerSheet, RespondPanel, Tokens,
   TrapSheet, EffectChips, type FicheTarget, type LogLine,
 } from './BoardParts';
 import { activeEffects } from './effects';
@@ -88,7 +88,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const annTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** La voix du bandeau pendant les animations (null : l'état de la partie parle). */
   const [voice, setVoice] = useState<Announce | null>(null);
-  const [stage, setStage] = useState<'comptes' | null>(null);
+  // (La frise des étapes a été retirée en 0.39 : écran sobre.)
   // Jetons affichés : mis à jour dès que les jetons arrivent sur la pile (aux comptes), sans attendre le tour suivant.
   const [tokNow, setTokNow] = useState<Record<string, number> | null>(null);
   const [log, setLog] = useState<LogLine[]>([]);
@@ -97,6 +97,8 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const [fiche, setFiche] = useState<FicheTarget | null>(null);
   const [trapOf, setTrapOf] = useState<string | null>(null);
   const [journal, setJournal] = useState(false);
+  /** Fiche d'un joueur ouverte (identifiant), écran sobre 0.39. */
+  const [sheetOf, setSheetOf] = useState<string | null>(null);
   const [help, setHelp] = useState(false);
   const [rules, setRules] = useState(false);
   const [josiane, setJosiane] = useState(false);
@@ -249,7 +251,6 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         // Grande annonce au centre : le bandeau revient à l'état de la partie (pas deux voix).
         setVoice(null);
         if (a.style === 'comptes') {
-          setStage('comptes');
           const lr = item.snap.view.lastRound;
           if (lr && lr.amount > 0 && lr.winner && lr.loser) {
             sound.chips(Math.min(8, lr.amount));
@@ -272,7 +273,6 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       snapRef.current = item.snap;
       setSnap(item.snap);
       setTokNow(null);
-      setStage(null);
     }
     busy.current = false;
     if (alive.current) { setAnimating(false); setVoice(null); }
@@ -395,7 +395,6 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const discardMode = mine && decision === 'discard';
   const { hints, playable } = hand_;
   const turnId = v.phase === 'turn' ? v.order[v.turn] : null;
-  const turnP = turnId ? v.players.find((p) => p.id === turnId) ?? null : null;
   const lastwordMine = mine && decision === 'lastword' && !onlyPass;
   const respondMine = mine && decision === 'respond' && !onlyPass;
   const choiceMine = mine && decision === 'choice';
@@ -406,23 +405,25 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const allKept = keep.every(Boolean);
   const seat = (id: string) => snap.seats.find((s) => s.id === id);
   const banner = decisionBanner(v, legal, spectator);
-  const steps = friseSteps(v, spectator ? null : me, stage);
-  const title = v.phase === 'mulligan' ? 'Main de départ' : v.phase === 'over' ? 'Partie terminée'
-    : `Manche ${v.round}${mode ? ` · ${mode}` : ''} · ${turnP ? (turnP.id === me && !spectator ? 'à vous' : `${turnP.name} joue`) : v.phase === 'lastword' ? 'Dernier mot' : 'comptes'}`;
+  // Titre court (le bandeau dit qui joue) : la place va aux boutons Journal et Aide.
+  const title = v.phase === 'mulligan' ? 'Main de départ' : v.phase === 'over' ? 'Partie terminée' : `Manche ${v.round}${mode ? ` · ${mode}` : ''}`;
   const myTraps = v.traps.filter((t) => t.owner === me);
   const respWin = snap.responseWindow && snap.responseWindow.player !== me && snap.responseWindow.until > now ? snap.responseWindow : null;
   const overlayOpen = !!ann || animating;
-  // Dernière action de chaque adversaire dans la manche : reste écrite sous son nom jusqu'à la suivante.
-  const lastOf = (id: string): string | null => {
+  // Dernière action d'un joueur dans la manche (ou du dernier adversaire qui a agi) : reste écrite jusqu'à la suivante.
+  const ACTS = ['carte', 'pose', 'josiane', 'fouine-public', 'fin-tour', 'rejoue'];
+  const lastLine = (id: string | null): { who: string; text: string } | null => {
     for (let i = log.length - 1; i >= 0; i--) {
       const { ev, round } = log[i];
       if (round !== v.round) break;
-      if (ev.player !== id || !['carte', 'pose', 'josiane', 'fouine-public', 'fin-tour', 'rejoue'].includes(ev.kind)) continue;
-      const n = nameIn(v, id);
-      return ev.text.startsWith(n) ? ev.text.slice(n.length).trim().replace(/\.$/, '') : ev.text.replace(/\.$/, '');
+      if (!ev.player || !ACTS.includes(ev.kind) || (id ? ev.player !== id : ev.player === me)) continue;
+      const n = nameIn(v, ev.player);
+      return { who: ev.player, text: ev.text.startsWith(n) ? ev.text.slice(n.length).trim().replace(/\.$/, '') : ev.text.replace(/\.$/, '') };
     }
     return null;
   };
+  const lastOf = (id: string) => lastLine(id)?.text ?? null;
+  const lastAny = spectator ? null : lastLine(null);
 
   // Une seule voix : ce que fait l'écran en ce moment (dés, petite annonce), sinon les fenêtres en
   // cours (réponse adverse, Josiane), un avis, et enfin l'état de la partie (à vous / l'adversaire).
@@ -447,21 +448,17 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
     <div className={`cfn-board${opps.length > 1 ? ' multi' : ''}${isTuto ? ' tuto' : ''}`} onPointerDown={() => sound.unlock()}>
       <div className="cfn-top">
         <button className="cfn-ib" onClick={leave} aria-label="Quitter la partie"><Icon name="close" size={18} /></button>
-        <div className="cfn-ttl"><b>CF</b><span>{title}</span></div>
-        <button className="cfn-ib" onClick={() => setJournal(true)} aria-label="Journal de la manche">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10" /></svg>
-        </button>
+        <div className="cfn-ttl"><span>{title}</span></div>
+        <button className="cfn-tb" onClick={() => setJournal(true)}>Journal</button>
         {online && <CfChatButton controller={controller} pa={pa} />}
-        <button className="cfn-ib" onClick={() => setHelp(true)} aria-label="Aide"><b>?</b></button>
+        <button className="cfn-ib" onClick={() => setHelp(true)} aria-label="Aide : ce que veut dire chaque chose à l’écran"><b>?</b></button>
         <VolumeControl settings={settings} onSettings={onSettings} />
       </div>
-      <Frise steps={steps} />
-
-      <div className={`cfn-opps n${opps.length}`}>
+      <div className={`cfn-pboxes n${opps.length}`}>
         {opps.map((o) => (
-          <OppPanel key={o.id} p={o} v={v} seat={seat(o.id)} emote={emotes[o.id]?.e} compact={opps.length > 1}
-            active={turnId === o.id || v.waiting.includes(o.id)} refEl={() => {}} focus={focus === 'opp'} tokRef={(el) => { tokRefs.current[o.id] = el; }}
-            onTrap={() => setTrapOf(o.id)} onCard={(id, owner) => setFiche({ id, owner })} last={lastOf(o.id)} onLast={() => setJournal(true)} />
+          <PlayerBox key={o.id} p={o} v={v} seat={seat(o.id)} emote={emotes[o.id]?.e} wide={opps.length === 1}
+            active={turnId === o.id || v.waiting.includes(o.id)} focus={focus === 'opp'} tokRef={(el) => { tokRefs.current[o.id] = el; }}
+            onOpen={() => { sound.click(); setSheetOf(o.id); }} last={lastOf(o.id)} />
         ))}
       </div>
 
@@ -470,6 +467,8 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
           {say.icon && <TypeIcon type={TONE_ICON[say.icon]!} size={14} />}
           {say.title && <b>{say.title}</b>}<span>{say.text}</span>
         </span>
+        {/* À plusieurs : qui vient de faire quoi (en duel, c'est écrit dans la case de l'adversaire). */}
+        {!voice && opps.length > 1 && lastAny && <small className="cfn-say-last">{nameIn(v, lastAny.who)} {lastAny.text}</small>}
         {clock && !voice && <em className={`cfn-clock${clock.low ? ' low' : ''}`}>{clock.text}</em>}
       </div>
 
@@ -500,8 +499,9 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
           <Hand cards={hand} hints={hints} sel={fiche?.uid ?? null} focus={focus === 'hand'} quiet={!mine} onPick={pickCard} />
         ) : <div className="cfn-hand-empty">Aucune carte en main</div>}
         <div className={`cfn-bar${fx('me')}`}>
+          <button className="cfn-me-name" onClick={() => setSheetOf(me)}>{spectator ? meP.name : 'Vous'}</button>
           <Tokens n={meP.tokens} refEl={(el) => { tokRefs.current[me] = el; }} label />
-          <Glasses n={meP.tournees} max={v.rules.tourneesMax} label />
+          <span className="cfn-me-t" aria-label={plural(meP.tournees, 'Tournée')}>🍺 {meP.tournees}<small>Tournée{meP.tournees > 1 ? 's' : ''}</small></span>
           <span className="cfn-pins">
             {meP.habitues.map((h) => <HabPin key={h.uid} id={h.id} rounds={h.rounds} onClick={() => setFiche({ id: h.id, owner: me, uid: h.uid })} />)}
             {myTraps.map((t) => <HabPin key={t.uid} id={t.id} trap onClick={() => t.id && setFiche({ id: t.id, trapUid: t.uid })} />)}
@@ -536,6 +536,8 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       {fiche && <Fiche key={`${fiche.uid ?? fiche.id}`} t={fiche} v={v} legal={legal} snapLegal={snap.legal} pending={pending} discard={discardMode} onAct={act} onClose={() => setFiche(null)}
         tuto={isTuto && guide ? guide.text : null} />}
       {trapOf && v.players.find((p) => p.id === trapOf) && <TrapSheet owner={v.players.find((p) => p.id === trapOf)!} v={v} onClose={() => setTrapOf(null)} onCard={(id) => { setTrapOf(null); setFiche({ id, owner: trapOf }); }} />}
+      {sheetOf && v.players.find((p) => p.id === sheetOf) && <PlayerSheet p={v.players.find((p) => p.id === sheetOf)!} v={v} seat={seat(sheetOf)} me={sheetOf === me && !spectator} last={lastOf(sheetOf)}
+        onClose={() => setSheetOf(null)} onCard={(id) => { const o = sheetOf; setSheetOf(null); setFiche({ id, owner: o }); }} onTraps={() => { const o = sheetOf; setSheetOf(null); if (o === me) return; setTrapOf(o); }} />}
       {journal && <Journal log={log} v={v} me={me} onCard={(id, owner) => setFiche({ id, owner: owner ?? 'journal' })} onClose={() => setJournal(false)} />}
       {help && <HelpSheet v={v} onClose={() => setHelp(false)} onRules={() => { setHelp(false); setRules(true); }} />}
       {rules && <Sheet title="Règles de Coups Fourrés" onClose={() => setRules(false)}><RulesContent short /></Sheet>}
