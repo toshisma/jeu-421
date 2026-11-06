@@ -118,7 +118,8 @@ describe('statistiques des cartes', () => {
     const rng = mulberry32(2);
     for (let i = 0; i < 20000 && s.phase !== 'over'; i++) {
       const id = waitingFor(s)[0];
-      const a = cfDecide(viewFor(s, id), legalActions(s, id), 'habitue', rng);
+      // 0.41 : Fine fouine (l'Habitué, plus distrait, peut ne jamais payer ses Tournées du patron à 1 Tournée par manche).
+      const a = cfDecide(viewFor(s, id), legalActions(s, id), 'fine-fouine', rng);
       const r = apply(s, id, a);
       t.action(s, id, a);
       t.events(r.events);

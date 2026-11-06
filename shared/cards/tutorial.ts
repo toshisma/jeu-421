@@ -113,6 +113,7 @@ export const TUTO_STEPS: TutoStep[] = [
   { kind: 'bot', text: `${TUTO_BOT_NAME} garde ses deux 6…`, action: () => ({ type: 'roll', keep: [true, true, false] }) },
   { kind: 'bot', text: `Un brelan de 6 ! ${TUTO_BOT_NAME} s’arrête, tout content…`, action: () => ({ type: 'stop' }) },
   { kind: 'info', title: 'Piège déclenché !', text: `Votre Croche-patte : quand ${TUTO_BOT_NAME} finit son tour, un de ses dés est relancé au hasard. Adieu son brelan de 6 !`, focus: 'opp' },
+  { kind: 'me', title: 'Garder sa carte', text: `Avant les comptes vient le « Dernier mot » : une dernière carte pour changer l’issue. Vous gagnez déjà : gardez votre « Coup de l’étrier » et vos Tournées pour plus tard, passez.`, focus: 'hand', expect: (a) => a.type === 'pass' },
   { kind: 'info', title: 'Les comptes', text: `Votre 4-2-1 gagne : il vaut 8, vous donnez donc 8 jetons à ${TUTO_BOT_NAME}. Plus que 3 ! Le perdant mène la manche suivante et reçoit une Tournée de plus pour se refaire.`, focus: 'me' },
   { kind: 'bot', text: `${TUTO_BOT_NAME} mène la manche 2.`, action: () => ({ type: 'roll', keep: NONE }) },
   { kind: 'bot', text: `${TUTO_BOT_NAME} sort une carte…`, action: botPlay('coup-pouce', () => ({ die: 2, delta: -1 })) },

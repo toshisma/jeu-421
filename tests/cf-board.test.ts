@@ -186,7 +186,7 @@ describe('rendu serveur du plateau (aucune erreur)', () => {
     expect(opp).toContain('Ordinateur Habitué');
     const fiche = render(h(Fiche, { t: { uid: 'h2', id: 'tete-tourne' }, v, legal, snapLegal: legal, pending: false, discard: false, onAct: noop, onClose: noop }));
     expect(fiche).toContain('Maintenant :');
-    expect(fiche).toContain('Jouer · 2 Tournées');
+    expect(fiche).toContain(`Jouer · ${cardDef('tete-tourne')!.cost} Tournées`);
     expect(fiche).toContain('Les 5 types de cartes');
     const why = render(h(Fiche, { t: { uid: 'h4', id: 'bon-numero' }, v, legal, snapLegal: legal, pending: false, discard: false, onAct: noop, onClose: noop }));
     expect(why).toContain('Pas maintenant :');

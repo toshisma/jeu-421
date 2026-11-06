@@ -136,13 +136,13 @@ export const CF_RULES = {
  * utilisés par les invités et les ordinateurs. 0.40 : ajustés pour un duel Zinc / Bringue à 50/50, avec
  * des cartes nouvelles (Pourboire, Engrenage, Complice, Coup de l’étrier, Pot aux roses). 0.41 : réajustés
  * après la refonte des coûts (Fermeture, Videur et Domino pour le Zinc ; Cul sec, Vide-poches, Mouchard, Verre de trop pour la Bringue) ; puis économie serrée (1 Tournée par manche) :
- * Mise en bouche remplace L’Engrenage dans le Zinc, pour enchaîner avec ses Tournées du patron.
+ * La petite sœur remplace L’Engrenage dans le Zinc (elle reprend une Tournée du patron ou un Coup de pouce).
  * Les joueurs qui ont déjà reçu leurs decks gardent leur version (seuls les nouveaux venus ont celle-ci).
  */
 export const STARTER_DECKS: { id: string; name: string; cards: Record<string, number> }[] = [
   { id: 'le-zinc', name: 'Le Zinc', cards: {
     josiane: 1, 'vieux-marcel': 1, pilier: 1, 'beau-frere': 1, 'tournee-patron': 2, 'ticket-caisse': 1, pourboire: 1, 'note-salee': 2, 'coup-coude': 2,
-    'coup-pouce': 1, 'calcul-mental': 1, recompter: 1, 'reaction-chaine': 1, 'mise-bouche': 1, fermeture: 1, domino: 1, videur: 1,
+    'coup-pouce': 1, 'calcul-mental': 1, recompter: 1, 'reaction-chaine': 1, 'petite-soeur': 1, fermeture: 1, domino: 1, videur: 1,
   } },
   { id: 'la-bringue', name: 'La Bringue', cards: {
     'tete-tourne': 2, 'pari-comptoir': 1, complice: 1, 'de-sous-table': 1, 'cul-sec': 1, 'gueule-bois': 1, 'double-tournee': 1, 'coup-etrier': 1,

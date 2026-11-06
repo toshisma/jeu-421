@@ -5,10 +5,10 @@ import { describe, expect, it } from 'vitest';
 import {
   apply, defaultAction, eventsFor, legalActions, newGame, throwLimit, viewFor, waitingFor,
   type CfAction, type CfEvent, type CfState,
-  TOURNEE_PATRON_GAIN,
+  FERMETURE_TOURNEES, TOURNEE_PATRON_GAIN,
 } from '../shared/cards/engine';
 import { cfDecide, type CfLevel } from '../shared/cards/ai';
-import { CARDS, STARTER_DECKS, cardDef } from '../shared/cards/catalog';
+import { CARDS, CF_RULES, STARTER_DECKS, cardDef } from '../shared/cards/catalog';
 import { mulberry32 } from '../shared/rng';
 
 // ---------------------------------------------------------------------------------------------
@@ -82,7 +82,7 @@ describe('Coups Fourrés : déroulé', () => {
     s = act(s, 'b', { type: 'mulligan', cards: [] });
     expect(s.phase).toBe('turn');
     expect(s.round).toBe(1);
-    for (const p of s.players) { expect(p.hand).toHaveLength(6); expect(p.tournees).toBe(2); expect(p.tokens).toBe(11); }
+    for (const p of s.players) { expect(p.hand).toHaveLength(6); expect(p.tournees).toBe(CF_RULES.tourneesPerRound); expect(p.tokens).toBe(11); }
     expect(waitingFor(s)).toEqual([s.order[0]]);
   });
 
@@ -190,7 +190,7 @@ describe('Coups Fourrés : les cartes', () => {
     P(s, L).tournees = 0;
     const hand = P(s, L).hand.length;
     s = quickRound(s, L, O, [6, 3, 2], [6, 6, 6]); // L perd
-    expect(P(s, L).tournees).toBe(4); // 2 + 1 (perdant) + 1 (Patron)
+    expect(P(s, L).tournees).toBe(CF_RULES.tourneesPerRound + CF_RULES.tourneesLoserBonus + 1); // service + perdant + Patron
     expect(P(s, L).hand.length).toBe(hand + 2); // pioche + Patron
   });
 
@@ -251,23 +251,26 @@ describe('Coups Fourrés : les cartes', () => {
     give(s, O, 'ticket-caisse');
     s = act(s, L, roll(), [3, 2, 1]);
     expect(cost('bon-numero')).toBeGreaterThan(4);
+    P(s, L).tournees = CF_RULES.tourneesMax;
     s = act(s, L, play(give(s, L, 'bon-numero'), { die: 0, face: 4 }));
     expect(waitingFor(s)).toEqual([L]);
     expect(P(s, L).r.dice).toEqual([4, 2, 1]);
   });
 
-  it('Fermeture ! : un Habitué adverse rentre chez lui ; sans Habitué, on pioche 2 cartes', () => {
+  it('Fermeture ! : un Habitué adverse rentre chez lui ; sans Habitué, on fait la caisse (+2 Tournées)', () => {
     let { s, L, O } = setup();
     const h = hab(s, O, 'josiane');
     s = act(s, L, play(give(s, L, 'fermeture'), { habitue: h }));
     expect(P(s, O).habitues).toHaveLength(0);
     expect(P(s, O).discard.some((k) => k.uid === h)).toBe(true);
     const t = setup();
-    const before = P(t.s, t.L).hand.length;
     const f = give(t.s, t.L, 'fermeture');
+    const before = P(t.s, t.L).hand.length;
+    P(t.s, t.L).tournees = 3;
     expect(legalActions(t.s, t.L).filter((a) => a.type === 'play' && a.card === f)).toEqual([{ type: 'play', card: f }]);
     const s2 = act(t.s, t.L, play(f));
-    expect(P(s2, t.L).hand.length).toBe(before + 2);
+    expect(P(s2, t.L).hand.length).toBe(before - 1);
+    expect(P(s2, t.L).tournees).toBe(3 - cost('fermeture') + FERMETURE_TOURNEES);
   });
 
   it('Habitué : reste 3 manches (celle où il arrive comprise), puis rentre chez lui', () => {
@@ -386,11 +389,13 @@ describe('Coups Fourrés : les cartes', () => {
     expect(P(s, O).r.dice).toEqual([4, 2, 1]);
   });
 
-  it('Leurre : défaussé par une Fouine, son propriétaire pioche 2 cartes', () => {
+  it('Leurre : défaussé par une Fouine, son propriétaire gagne 1 Tournée et pioche 1 carte', () => {
     let { s, L, O } = setup();
     const t = trap(s, O, L, 'leurre');
+    P(s, O).tournees = 2;
     s = act(s, L, play(give(s, L, 'fouine'), { trap: t }));
-    expect(P(s, O).hand).toHaveLength(2);
+    expect(P(s, O).hand).toHaveLength(1);
+    expect(P(s, O).tournees).toBe(3);
     expect(P(s, L).hand).toHaveLength(1); // la Fouine pioche aussi
     expect(s.choice).toBeNull();
     expect(s.traps).toHaveLength(0);
@@ -663,25 +668,33 @@ describe('Coups Fourrés : les cartes', () => {
     }
   });
 
-  it('Le Vide-poches : l’adversaire défausse une carte de sa main au hasard', () => {
+  it('Le Vide-poches : prend 1 Tournée à l’adversaire, qui défausse une carte de sa main au hasard', () => {
     let { s, L, O } = setup();
     const v = give(s, L, 'vide-poches');
-    expect(legalActions(s, L).some((a) => a.type === 'play' && a.card === v)).toBe(false); // main adverse vide
+    P(s, O).tournees = 0;
+    expect(legalActions(s, L).some((a) => a.type === 'play' && a.card === v)).toBe(false); // ni Tournée ni carte
+    P(s, O).tournees = 2;
+    expect(legalActions(s, L).some((a) => a.type === 'play' && a.card === v)).toBe(true); // une Tournée à prendre suffit
     give(s, O, 'domino'); give(s, O, 'cul-sec'); give(s, O, 'leurre');
+    P(s, L).tournees = 3;
     s = act(s, L, play(v, { target: O }));
+    expect(P(s, O).tournees).toBe(1);
+    expect(P(s, L).tournees).toBe(3 - cost('vide-poches') + 1);
     expect(P(s, O).hand).toHaveLength(2);
     expect(P(s, O).discard).toHaveLength(1);
     expect(['domino', 'cul-sec', 'leurre']).toContain(P(s, O).discard[0].id);
   });
 
-  it('Le Mouchard : quand l’adversaire joue un Coup, son poseur pioche 2 cartes', () => {
+  it('Le Mouchard : quand l’adversaire joue un Coup, son poseur gagne 1 Tournée et pioche 1 carte', () => {
     let { s, L, O } = setup();
     trap(s, O, L, 'mouchard');
     s = act(s, L, play(give(s, L, 'pilier'))); // un Habitué : rien
     expect(s.traps).toHaveLength(1);
+    P(s, O).tournees = 2;
     s = act(s, L, play(give(s, L, 'coup-coude')));
     expect(s.traps).toHaveLength(0);
-    expect(P(s, O).hand).toHaveLength(2);
+    expect(P(s, O).hand).toHaveLength(1);
+    expect(P(s, O).tournees).toBe(3);
     expect(lastEvents.some((e) => e.kind === 'mouchard')).toBe(true);
     // Le Videur l'arrête comme les autres pièges.
     const t = setup(2, 3);
@@ -989,8 +1002,8 @@ describe('Coups Fourrés : les 8 cartes de la 0.40', () => {
     P(s, O).tournees = 2;
     trap(s, O, L, 'mouchard');
     s = act(s, L, play(give(s, L, 'coup-coude')));
-    expect(P(s, O).tournees).toBe(3);
-    expect(P(s, O).hand).toHaveLength(3); // 2 (Mouchard) + 1 (Complice)
+    expect(P(s, O).tournees).toBe(4); // +1 (Mouchard) +1 (Complice)
+    expect(P(s, O).hand).toHaveLength(2); // 1 (Mouchard) + 1 (Complice)
     expect(lastEvents.some((e) => e.kind === 'complice')).toBe(true);
   });
 

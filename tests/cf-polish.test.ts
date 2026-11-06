@@ -10,7 +10,7 @@ import { startServer } from '../server/app';
 import { CF_KEEP_WINDOW_MS, CF_RESPONSE_WINDOW_MS } from '../server/cards-online';
 import { CF_TUTORIAL_CAPSULES, CfTutorial, TUTO_BOT, TUTO_ME, TUTO_STEPS, TUTO_VISIBLE } from '../shared/cards/tutorial';
 import { legalActions, pl, type CfEvent, type CfView } from '../shared/cards/engine';
-import { CARDS } from '../shared/cards/catalog';
+import { CARDS, CF_RULES } from '../shared/cards/catalog';
 import { MomentTracker, SHARE_H, SHARE_W, cardArtSvg, drawShareImage, wrapText, type ShareMoment } from '../client/src/cards/share';
 import { CardsCatalogScreen, LexiconScreen, TipsScreen } from '../client/src/cards/CfLearn';
 import { RulesContent } from '../client/src/cards/CfInfo';
@@ -61,10 +61,10 @@ describe('partie guidée (scénario)', () => {
     expect(pl(a.state, TUTO_ME).hand.map((k) => k.id)).toEqual(pl(b.state, TUTO_ME).hand.map((k) => k.id));
     a.next(); a.next();
     expect(a.play({ type: 'ardoise' }).ok).toBe(false);
-    // 0.41 : d'abord la Tournée du patron (les cartes coûtent plus cher), puis le lancer.
-    expect(a.play({ type: 'roll', keep: [false, false, false] }).ok).toBe(false);
+    // 0.41 (économie serrée) : réserve pleine pour la démonstration, d'abord le lancer (pas la Tournée du patron).
+    expect(pl(a.state, TUTO_ME).tournees).toBe(CF_RULES.tourneesMax);
     const tdp = pl(a.state, TUTO_ME).hand.find((k) => k.id === 'tournee-patron')!;
-    expect(a.play({ type: 'play', card: tdp.uid }).ok).toBe(true);
+    expect(a.play({ type: 'play', card: tdp.uid }).ok).toBe(false);
     expect(a.play({ type: 'roll', keep: [false, false, false] }).ok).toBe(true);
     // Garder les mauvais dés : refusé.
     expect(a.play({ type: 'roll', keep: [true, false, false] }).ok).toBe(false);

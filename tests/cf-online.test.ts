@@ -38,6 +38,8 @@ describe('fenêtres de réponse (moteur, option windows)', () => {
   function askedAfterCard(bDeck: string[], windows: boolean) {
     let s = newGame({ windows }, [{ id: 'A', deck: deck('tournee-patron') }, { id: 'B', deck: bDeck }], 7);
     for (const id of ['A', 'B']) s = apply(s, id, { type: 'mulligan', cards: [] }).state;
+    // 0.41 : 1 Tournée par manche ; réserve pleine pour que la carte et la Riposte soient payables.
+    for (const p of s.players) p.tournees = s.rules.tourneesMax;
     const first = waitingFor(s)[0];
     if (first !== 'A') {
       // B mène : il lance puis s'arrête.
@@ -49,7 +51,7 @@ describe('fenêtres de réponse (moteur, option windows)', () => {
     return { waiting: waitingFor(r.state), legalB: legalActions(r.state, 'B') };
   }
   it('sans la carte, l’adversaire est interrogé quand même (il ne peut que passer)', () => {
-    // On prend la famille des Habitués (Ticket de caisse, 1 Tournée).
+    // On prend la famille des Habitués (Ticket de caisse).
     const noRiposte = askedAfterCard(deck('pilier'), true); // famille Habitués, aucune Riposte en main
     expect(noRiposte.waiting).toEqual(['B']);
     expect(noRiposte.legalB).toEqual([{ type: 'pass' }]);
