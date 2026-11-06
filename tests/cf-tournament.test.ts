@@ -15,7 +15,7 @@ import {
   cfTourBoostersFor, cfTourPrizes, type CfTourView,
 } from '../shared/cards/tournament';
 import { CfPlayTracker, cfCardReport, deckCounts, type CfStatGame, type CfStatRow } from '../shared/cards/stats';
-import { CAPSULES } from '../shared/cards/catalog';
+import { CAPSULES, CARDS } from '../shared/cards/catalog';
 import type { CfStateMsg } from '../shared/cards/protocol';
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -296,7 +296,7 @@ describe('tournoi du samedi en ligne', () => {
     expect(st.games).toBe(2);
     expect(st.playerGames).toBe(4);
     expect(st.byMode.tournoi).toBe(2);
-    expect(st.cards).toHaveLength(34);
+    expect(st.cards).toHaveLength(CARDS.length);
     expect(st.cards.some((c: { played: number }) => c.played > 0)).toBe(true);
     expect((await api('/admin/cf/cards?days=7&mode=classee', undefined, admin.token)).games).toBe(0);
   }, 120_000);

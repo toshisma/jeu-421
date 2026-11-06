@@ -9,7 +9,7 @@
  * - threatLine : ce que la carte adverse va vous faire (fenêtre de riposte).
  */
 import { CARDS, CARD_BY_ID, FAMILY_LABEL, type CardFamily, type CardType } from '../../../shared/cards/catalog';
-import { evalPlayer, type CfAction, type CfEvent, type CfPlayerView, type CfView } from '../../../shared/cards/engine';
+import { evalPlayer, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView } from '../../../shared/cards/engine';
 import { comboOf, comboWith, costNow, isTurnOf, meOf, nameIn, playOptions, playerOf, playsAfter, plural } from './describe';
 import { FAMILY_SHORT } from './meta';
 import { TYPE_META } from './cardTypes';
@@ -71,6 +71,15 @@ function playableLabel(v: CfView, legal: CfAction[], uid: string, id: string): s
     case 'note-salee': return '+2 jetons donnés';
     case 'ticket-caisse': case 'reaction-chaine': return 'Annuler sa carte';
     case 'yeux-piquent': return 'Annuler son coup de dés';
+    case 'efface-tout': return 'Ne rien recevoir';
+    case 'trinquer': return 'Échanger un dé';
+    case 'verre-offert': {
+      const o = v.players.find((x) => x.id === opts[0]?.target);
+      return o && !o.r.done && v.order.indexOf(o.id) > v.order.indexOf(p.id) ? 'Un lancer pour lui' : 'Un lancer, manche suivante';
+    }
+    case 'vide-poches': return 'Lui ôter 1 carte';
+    case 'tant-qu-on-y-est': return `+${plural(Math.min(v.rules.tourneesMax - p.tournees + costNow(v, id), p.r.played + 1), 'Tournée')}`;
+    case 'petite-soeur': return 'Reprendre un Coup';
   }
   if (d.type === 'piege') return 'Poser face cachée';
   if (d.type === 'habitue') return 'Installer';
@@ -117,6 +126,8 @@ export function cardHint(v: CfView, legal: CfAction[], k: { uid: string; id: str
     case 'tournee-generale': return wait(second ? 'Après un lancer' : 'En second');
     case 'fermeture': return wait('Aucun Habitué');
     case 'grand-enchainement': return wait('Après un Coup');
+    case 'petite-soeur': return wait('Aucun Coup défaussé');
+    case 'vide-poches': return wait('Sa main est vide');
   }
   return wait('Pas maintenant');
 }
@@ -254,6 +265,7 @@ export const TRAP_WHEN: Record<string, string> = {
   'faux-421': 'quand vous finissez sur 4-2-1 : il ne vaut plus que 2',
   'coup-nenette': 'quand vous devriez gagner avec une combinaison qui vaut 1 ou 2 : elle devient une nénette',
   'retournement-veste': 'quand vous devriez lui donner 6 jetons ou plus : c’est lui qui les reçoit',
+  mouchard: 'quand vous jouez un Coup : son poseur pioche 2 cartes',
 };
 export const TRAP_TIP: Record<string, string> = {
   'faux-421': 'Astuce : la « Fouine » défausse un piège avant que vous vous arrêtiez.',
@@ -263,6 +275,7 @@ export const TRAP_TIP: Record<string, string> = {
   'ardoise-piegee': 'Astuce : la Fouine défausse un piège avant que vous jouiez.',
   'coup-nenette': 'Astuce : une petite combinaison qui vaut 1 est fragile quand un piège est posé.',
   'retournement-veste': 'Astuce : méfiez-vous des gros gains quand un piège est posé devant vous.',
+  mouchard: 'Astuce : la Fouine défausse un piège avant que vous jouiez vos Coups.',
 };
 const TIP_DEFAULT = 'Astuce : la Fouine défausse un piège adverse ; le Videur annule le premier piège de chaque manche.';
 
@@ -297,7 +310,7 @@ export type PlanStep = { kind: 'dice'; ev: CfEvent; strip?: Announce; after?: An
 // Durées de lecture (touchez pour passer). Raccourcies le 5 novembre : le jeu doit rester vif.
 // 0.39 : tout un peu plus court (Sam : « le jeu est lent »). Toucher l'annonce la passe.
 export const ANN_MS = { big: 1800, strip: 1100, trap: 2300, comptes: 2600, reveal: 3200 };
-const TRAP_CONSEQ = new Set(['faux-421', 'croche-patte', 'gueule-bois', 'coup-nenette', 'ardoise-piegee', 'piege', 'annule']);
+const TRAP_CONSEQ = new Set(['faux-421', 'croche-patte', 'gueule-bois', 'coup-nenette', 'ardoise-piegee', 'mouchard', 'piege', 'annule']);
 const noDot = (t: string) => t.replace(/[.!]\s*$/, '');
 
 /**
@@ -457,7 +470,10 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
         const l = lr?.loser ?? null;
         const title = !w ? 'Égalité : personne ne donne' : w === me ? 'Vous gagnez la manche' : `${name(w)} gagne la manche`;
         let text = e.text;
-        if (w && l && lr) {
+        const effaced = !!lr?.detail?.some((d) => d.label === 'On efface tout');
+        if (w && l && lr && effaced) {
+          text = l === me ? 'Vous effacez tout : personne ne donne de jetons.' : w === me ? `${name(l)} efface tout : vous ne donnez rien cette fois.` : `${name(l)} efface tout : personne ne donne de jetons.`;
+        } else if (w && l && lr) {
           if (lr.reversed) text = noDot(e.text);
           else if (w === me) text = `Vous donnez ${plural(lr.amount, 'jeton')} à ${name(l)} : c’est le but, vous vous déchargez !`;
           else if (l === me) text = `${name(w)} vous donne ${plural(lr.amount, 'jeton')}.`;
@@ -535,6 +551,12 @@ export function threatLine(v: CfView): string {
     case 'cul-sec': return 'Ici : il gagne un lancer de plus ce tour.';
     case 'tournee-patron': return 'Ici : il gagne 2 Tournées et pioche 1 carte.';
     case 'fouine': return 'Ici : il défausse un de vos pièges.';
+    case 'verre-offert': return pr.target === me.id ? `Ici : vous n’aurez qu’un seul lancer à votre prochain tour${!me.r.done && v.order.indexOf(me.id) > v.order.indexOf(top.owner) ? ' (celui-ci)' : ''}.` : 'Ici : son adversaire n’aura qu’un seul lancer.';
+    case 'vide-poches': return pr.target === me.id ? 'Ici : vous défaussez une carte de votre main au hasard.' : 'Ici : une carte de main défaussée au hasard.';
+    case 'tant-qu-on-y-est': return `Ici : il gagne ${plural((o?.r.played ?? 0), 'Tournée')}.`;
+    case 'petite-soeur': { const t = o ? [...o.discard].reverse().find(petiteSoeurOk) : undefined; return `Ici : il reprend en main ${t ? `« ${cardName(t.id)} »` : 'une carte de sa défausse'}.`; }
+    case 'efface-tout': return 'Ici : s’il perd la manche, personne ne donne de jetons.';
+    case 'trinquer': return pr.target === me.id ? 'Ici : un de vos dés et un des siens, pris au hasard, changent de camp.' : 'Ici : un de ses dés et un dé de son adversaire changent de camp.';
   }
   const d = def(top.cardId);
   if (d?.type === 'habitue') return `Ici : ${d.name} s’installe devant lui pour ${plural(v.rules.habitueRounds ?? 3, 'manche')}.`;

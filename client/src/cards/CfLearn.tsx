@@ -1,6 +1,6 @@
 /**
  * Coups Fourrés : « Apprendre » (menu du mode) et ses écrans de ressources.
- * Partie guidée, règles, les 34 cartes (pour tous, même les invités et les cartes non possédées),
+ * Partie guidée, règles, toutes les cartes (pour tous, même les invités et les cartes non possédées),
  * conseils de stratégie et lexique. Les chiffres viennent du catalogue (CF_RULES, BOOSTER…).
  */
 import { useState } from 'react';
@@ -42,7 +42,7 @@ export function LearnBlock({ fresh, onTuto, onRules, onCards, onTips, onLexicon 
 }
 
 // ------------------------------------------------------------------------------------------------
-// Les 34 cartes
+// Toutes les cartes
 
 const FAMS: CardFamily[] = ['habitues', 'ivresse', 'pieges', 'chaines'];
 const WHEN: Record<CardType, string> = {

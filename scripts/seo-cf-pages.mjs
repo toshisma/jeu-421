@@ -65,7 +65,7 @@ export const cfPages = [
     blurb: 'Le mode cartes du 421 : dés, deck de 20 cartes, pièges et bluff. Gratuit.',
     published: '2026-11-05', updated: '2026-11-06', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
     title: 'Coups Fourrés : jeu de cartes et de dés gratuit en ligne',
-    description: 'Coups Fourrés, le 421 aux cartes : un duel de dés, de stratégie et de bluff avec 34 cartes à collectionner. Gratuit, dans le navigateur, sans téléchargement.',
+    description: `Coups Fourrés, le 421 aux cartes : un duel de dés, de stratégie et de bluff avec ${CARDS.length} cartes à collectionner. Gratuit, dans le navigateur, sans téléchargement.`,
     h1: 'Coups Fourrés, le 421 aux cartes',
     lead: `Le 421 en duel, avec des cartes dans la manche : trois dés, et un <b>deck de ${R.deckSize} cartes illustrées</b> pour relancer un dé, poser un piège ou retourner la situation au dernier moment. Un jeu de stratégie et de bluff <b>gratuit</b>, dans le navigateur, sans rien télécharger.`,
     image: { src: '/img/partie-coups-fourres.webp', w: 390, h: 844, alt: 'Partie de Coups Fourrés sur téléphone : trois dés dans le bac, l’adversaire Dédé du comptoir en haut avec deux pièges cachés, et cinq cartes illustrées en main en bas de l’écran', caption: 'Une partie contre l’ordinateur : les dés au centre, vos cartes en main, les pièges cachés de l’adversaire en haut.' },

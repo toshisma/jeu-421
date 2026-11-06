@@ -76,6 +76,10 @@ export interface RoundState {
   faux421: boolean;
   /** Le coup de la nénette : combinaison forcée en nénette (tant que les dés ne changent pas). */
   forcedNenette: boolean;
+  /** On efface tout : si ce joueur perd la manche, personne ne donne de jetons (> 0). */
+  efface?: number;
+  /** Carte qui limite ce joueur à un seul lancer (Gueule de bois, Le verre offert). */
+  penaltyCard?: string;
   dice: number[];
   throwsUsed: number;
   /** Tour terminé (combinaison posée sur la table). */
@@ -100,6 +104,8 @@ export interface CfPlayer {
   mulliganDone: boolean;
   /** Gueule de bois : lancers en moins à la manche suivante. */
   penaltyNext: number;
+  /** Carte à l'origine de penaltyNext (Gueule de bois, Le verre offert). */
+  penaltyNextCard?: string;
   out: boolean;
   place: number | null;
   r: RoundState;
@@ -239,7 +245,7 @@ function emit(c: Ctx, e: CfEvent) { c.ev.push(e); }
 function emptyRound(): RoundState {
   return {
     played: 0, lastCoup: null, discount: 0, josianeUsed: 0, videurUsed: 0, throwPenalty: 0, bonusThrows: 0,
-    pari: 0, doubles: 0, noteSalee: 0, faux421: false, forcedNenette: false, dice: [0, 0, 0], throwsUsed: 0, done: false,
+    pari: 0, doubles: 0, noteSalee: 0, faux421: false, forcedNenette: false, efface: 0, dice: [0, 0, 0], throwsUsed: 0, done: false,
   };
 }
 
@@ -404,7 +410,9 @@ function startRound(c: Ctx) {
     const pen = p.penaltyNext;
     p.r = emptyRound();
     p.r.throwPenalty = pen;
+    if (pen) p.r.penaltyCard = p.penaltyNextCard ?? 'gueule-bois';
     p.penaltyNext = 0;
+    delete p.penaltyNextCard;
   }
   // Service : pioche, Tournées, Patron.
   for (const id of s.order) {
@@ -559,6 +567,8 @@ function settle(c: Ctx) {
     if (pari > 0) step('Pari de comptoir', amount + 2 * pari);
     if (L.habitues.some((h) => h.id === 'pilier') && amount > 1) step('Pilier de comptoir', amount - 1);
     if (ev[worst].combo.kind === 'nenette' && amount < s.values.nenetteMin) step('nénette', s.values.nenetteMin);
+    const efface = (L.r.efface ?? 0) > 0;
+    if (efface) step('On efface tout', 0);
     let reversed = false;
     if (amount >= VESTE_MIN) {
       const t = s.traps.find((x) => x.id === 'retournement-veste' && x.owner === L.id && x.target === W.id);
@@ -577,6 +587,7 @@ function settle(c: Ctx) {
     const extra = parts.length ? ` (${parts.join(', ')})` : '';
     const text = reversed
       ? `Retournement de veste ! C'est ${W.name} qui reçoit ${plural(given, 'jeton')} à la place de ${L.name}.`
+      : efface ? `${W.name} gagne la manche avec ${ev[best].combo.label}, mais ${L.name} efface tout : personne ne donne de jetons.`
       : `${W.name} gagne la manche avec ${ev[best].combo.label} et donne ${plural(given, 'jeton')} à ${L.name}${extra}.`;
     summary = { round: s.round, winner: W.id, loser: L.id, amount: given, reversed, combos, text, detail, ...(given < amount ? { cappedFrom: amount } : {}) };
     emit(c, { kind: 'comptes', player: W.id, text });
@@ -584,6 +595,7 @@ function settle(c: Ctx) {
     for (const t of trapsOn(s, L.id, 'gueule-bois')) {
       if (triggerTrap(c, t)) {
         L.penaltyNext = 1;
+        L.penaltyNextCard = 'gueule-bois';
         emit(c, { kind: 'gueule-bois', player: L.id, who: L.id, text: `${L.name} n'aura qu'un seul lancer à la prochaine manche (Gueule de bois).`, textYou: 'Vous n’aurez qu’un seul lancer à la prochaine manche (Gueule de bois).' });
       }
       break;
@@ -657,9 +669,15 @@ function endRound(c: Ctx) {
 // ---------------------------------------------------------------------------------------------
 // Coûts et options des cartes
 
-/** Coût réel d'une carte pour ce joueur maintenant (Mise en bouche). */
-export function costOf(_s: CfState, p: CfPlayer, id: string): number {
-  return Math.max(0, def(id).cost - p.r.discount);
+/** Coût réel d'une carte pour ce joueur maintenant (Mise en bouche, Le Beau-frère). */
+export function costOf(_s: CfState, p: Pick<CfPlayer, 'habitues' | 'r'>, id: string): number {
+  return Math.max(0, def(id).cost - beauFrere(p, id) - p.r.discount);
+}
+/** La petite sœur reprend le dernier Coup de la défausse, sauf une autre petite sœur. */
+export const petiteSoeurOk = (k: { id: string }) => def(k.id)?.type === 'coup' && k.id !== 'petite-soeur';
+/** Le Beau-frère : vos Coups coûtent 1 Tournée de moins (un seul Beau-frère en jeu). */
+export function beauFrere(p: Pick<CfPlayer, 'habitues'>, id: string): number {
+  return def(id)?.type === 'coup' && p.habitues.some((h) => h.id === 'beau-frere') ? 1 : 0;
 }
 
 const diceIdx = [0, 1, 2];
@@ -679,8 +697,19 @@ function effectOptions(s: CfState, p: CfPlayer, id: string): PlayParams[] {
   const rolled = p.r.throwsUsed > 0;
   switch (id) {
     case 'tournee-patron': case 'cul-sec': case 'pari-comptoir': case 'double-tournee': case 'coup-coude':
-    case 'mise-bouche': case 'calcul-mental': case 'note-salee':
+    case 'mise-bouche': case 'calcul-mental': case 'note-salee': case 'efface-tout': case 'tant-qu-on-y-est':
       return [{}];
+    case 'verre-offert':
+      return opps.map((o) => ({ target: o.id }));
+    case 'vide-poches':
+      return opps.filter((o) => o.hand.length > 0).map((o) => ({ target: o.id }));
+    case 'petite-soeur':
+      return p.discard.some(petiteSoeurOk) ? [{}] : [];
+    case 'trinquer': {
+      // Échange : un de mes dés contre un dé de l'adversaire, tous deux pris au hasard.
+      if (!p.r.dice.some((x) => x > 0)) return [];
+      return opps.filter((o) => o.r.dice.some((x) => x > 0)).map((o) => ({ target: o.id }));
+    }
     case 'tete-tourne':
       return myTurn && rolled ? diceIdx.map((die) => ({ die })) : [];
     case 'coup-pouce': case 'recompter': {
@@ -1044,6 +1073,15 @@ function doPlay(c: Ctx, p: CfPlayer, a: Extract<CfAction, { type: 'play' }>) {
       }
     }
   }
+  if (d.type === 'coup') {
+    // Le Mouchard : quand l'adversaire joue un Coup, le poseur pioche 2 cartes.
+    const t = trapsOn(s, p.id, 'mouchard')[0];
+    if (t && triggerTrap(c, t)) {
+      const o = pl(s, t.owner);
+      emit(c, { kind: 'mouchard', player: p.id, card: 'mouchard', who: o.id, text: `Le Mouchard a tout vu : ${o.name} pioche 2 cartes.`, textYou: 'Votre Mouchard a tout vu : vous piochez 2 cartes.' });
+      draw(c, o, 2, false, true);
+    }
+  }
   const returnsToHand = k.id === 'reaction-chaine' && p.r.played >= 3;
   s.stack.push({ kind: 'card', owner: p.id, card: k, type: d.type, params, cost, cancelled: false, playedBefore, returnsToHand, targetIdx });
   if (s.phase === 'lastword' && !responding && d.type === 'dernier-mot') s.lastword!.passes = 0;
@@ -1072,6 +1110,7 @@ export function mightHaveLastword(_s: CfState, p: CfPlayer): boolean {
   if (p.out) return false;
   const f = p.families;
   if (f.includes('habitues') && canPay(p, def('note-salee').cost)) return true;
+  if (f.includes('ivresse') && canPay(p, def('trinquer').cost)) return true;
   return f.includes('chaines') && p.r.played >= 1 && canPay(p, def('recompter').cost);
 }
 function refreshRespond(s: CfState) {
@@ -1157,21 +1196,21 @@ function resolveCard(c: Ctx, it: Extract<StackItem, { kind: 'card' }>) {
     emit(c, { kind: 'rejoue', player: p.id, card: replay, who: p.id, text: `Le grand enchaînement : ${p.name} rejoue ${cardName(replay)}.`, textYou: `Le grand enchaînement : vous rejouez ${cardName(replay)}.` });
     // Revalide la cible (elle a pu changer pendant la chaîne).
     if (!effectOptions(s, p, replay).some((o) => sameParams(o, it.params))) return;
-    effect(c, p, replay, it.params, it.playedBefore);
+    effect(c, p, replay, it.params, it.playedBefore, it.card.uid);
     return;
   }
   if (!effectOptions(s, p, id).some((o) => sameParams(o, it.params))) {
     emit(c, { kind: 'sans-effet', player: p.id, card: id, text: `${d.name} n'a plus d'effet.` });
     return;
   }
-  effect(c, p, id, it.params, it.playedBefore);
+  effect(c, p, id, it.params, it.playedBefore, it.card.uid);
 }
 
 function sameParams(a: PlayParams, b: PlayParams): boolean {
   return PARAM_KEYS.every((k) => a[k] === b[k]);
 }
 
-function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: number) {
+function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: number, selfUid = '') {
   const s = c.s;
   const you = (t: string, y: string, extra: Partial<CfEvent> = {}) => emit(c, { kind: 'effet', player: p.id, card: id, who: p.id, text: t, textYou: y, ...extra });
   switch (id) {
@@ -1265,6 +1304,53 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       break;
     }
     case 'coup-coude': draw(c, p, 1, false, true); break;
+    case 'efface-tout':
+      p.r.efface = (p.r.efface ?? 0) + 1;
+      you(`On efface tout : si ${p.name} perd la manche, personne ne donne de jetons.`, 'On efface tout : si vous perdez la manche, personne ne donne de jetons.');
+      break;
+    case 'verre-offert': {
+      const o = pl(s, prm.target!);
+      const later = o.r.done || s.order.indexOf(o.id) <= s.turn || s.phase !== 'turn';
+      if (later) { o.penaltyNext = 1; o.penaltyNextCard = 'verre-offert'; } else { o.r.throwPenalty = 1; o.r.penaltyCard = 'verre-offert'; }
+      const when = later ? 'à son prochain tour (manche suivante)' : 'ce tour-ci';
+      emit(c, { kind: 'effet', player: o.id, card: id, who: o.id, text: `Le verre offert : ${o.name} n'aura qu'un seul lancer ${when}.`, textYou: `Le verre offert : vous n'aurez qu'un seul lancer ${later ? 'à votre prochain tour (manche suivante)' : 'ce tour-ci'}.` });
+      break;
+    }
+    case 'trinquer': {
+      const o = pl(s, prm.target!);
+      const i = Math.floor(rnd(s) * 3);
+      const j = Math.floor(rnd(s) * 3);
+      const mine = p.r.dice[i];
+      const his = o.r.dice[j];
+      setDice(p, i, his);
+      setDice(o, j, mine);
+      emit(c, { kind: 'effet', player: o.id, card: id, who: o.id, dice: [...o.r.dice], text: `Trinquer : ${o.name} donne son ${his} et reçoit un ${mine} (${o.r.dice.join('-')}).`, textYou: `Trinquer : vous donnez votre ${his} et recevez un ${mine} (${o.r.dice.join('-')}).` });
+      you(`Trinquer : ${p.name} échange son ${mine} contre le ${his} de ${o.name} (${p.r.dice.join('-')}).`, `Trinquer : vous échangez votre ${mine} contre le ${his} de ${o.name} (${p.r.dice.join('-')}).`, { dice: [...p.r.dice] });
+      break;
+    }
+    case 'vide-poches': {
+      const o = pl(s, prm.target!);
+      if (!o.hand.length) break;
+      const [k] = o.hand.splice(Math.floor(rnd(s) * o.hand.length), 1);
+      o.discard.push(k);
+      emit(c, { kind: 'effet', player: o.id, card: id, who: o.id, text: `Le Vide-poches : ${o.name} défausse ${cardName(k.id)} au hasard.`, textYou: `Le Vide-poches : vous défaussez ${cardName(k.id)} au hasard.` });
+      break;
+    }
+    case 'tant-qu-on-y-est': {
+      const g = gainTournees(c, p, playedBefore + 1, true);
+      you(`Tant qu’on y est : ${p.name} gagne ${plural(g, 'Tournée')}.`, `Tant qu’on y est : vous gagnez ${plural(g, 'Tournée')}.`);
+      break;
+    }
+    case 'petite-soeur': {
+      let i = p.discard.length - 1;
+      // Un Coup seulement, jamais une autre petite sœur (sinon deux petites sœurs se renverraient la balle sans fin).
+      while (i >= 0 && (p.discard[i].uid === selfUid || !petiteSoeurOk(p.discard[i]))) i--;
+      if (i < 0) { you(`La petite sœur : aucun Coup à reprendre pour ${p.name}.`, 'La petite sœur : aucun Coup à reprendre.'); break; }
+      const [k] = p.discard.splice(i, 1);
+      p.hand.push({ uid: k.uid, id: k.id });
+      you(`La petite sœur : ${p.name} reprend ${cardName(k.id)} en main.`, `La petite sœur : vous reprenez ${cardName(k.id)} en main.`);
+      break;
+    }
     case 'mise-bouche':
       p.r.discount = MISE_FREE;
       you(`${p.name} : sa prochaine carte sera gratuite.`, 'Votre prochaine carte sera gratuite.');
@@ -1321,6 +1407,7 @@ export interface CfPlayerView {
   ardoiseUsed: boolean;
   ardoiseSkip: boolean;
   penaltyNext: number;
+  penaltyNextCard?: string;
   out: boolean;
   place: number | null;
   r: RoundState;
@@ -1369,7 +1456,7 @@ export function viewFor(s: CfState, pid: string): CfView {
       hand: p.id === pid ? p.hand.map((k) => ({ ...k })) : undefined,
       deckCount: p.deck.length, families: [...p.families], discard: p.discard.map((k) => ({ ...k })),
       habitues: p.habitues.map((k) => ({ ...k })), ardoiseUsed: p.ardoiseUsed, ardoiseSkip: p.ardoiseSkip,
-      penaltyNext: p.penaltyNext, out: p.out, place: p.place, r: structuredClone(p.r),
+      penaltyNext: p.penaltyNext, ...(p.penaltyNextCard ? { penaltyNextCard: p.penaltyNextCard } : {}), out: p.out, place: p.place, r: structuredClone(p.r),
       throwLimit: s.phase === 'turn' && s.order.includes(p.id) && s.order.indexOf(p.id) <= s.turn ? throwLimit(s, p.id) : null,
     })),
     traps: s.traps.map((t) => ({ uid: t.uid, owner: t.owner, target: t.target, posedRound: t.posedRound, id: t.seenBy.includes(pid) ? t.id : null })),

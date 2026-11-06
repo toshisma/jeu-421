@@ -166,7 +166,7 @@ describe('pages Coups Fourrés', () => {
     }
   });
 
-  it('galerie : les 34 cartes, chacune avec son image, son texte alternatif et son effet', () => {
+  it('galerie : toutes les cartes, chacune avec son image, son texte alternatif et son effet', () => {
     const h = read('cartes-coups-fourres');
     for (const c of CARDS) {
       expect(existsSync(join(pub, 'img', 'cartes', `${c.id}.webp`))).toBe(true);

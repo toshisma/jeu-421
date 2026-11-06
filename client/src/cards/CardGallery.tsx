@@ -15,7 +15,7 @@ export function CardGallery() {
   const all = !vue;
   return (
     <div className="cf-gallery">
-      {all && <h1>Coups Fourrés · les 34 cartes</h1>}
+      {all && <h1>Coups Fourrés · les {CARDS.length} cartes</h1>}
       {(all || vue === 'cartes') && (
         <section id="cf-g-cartes">
           <div className="cf-g-grid">

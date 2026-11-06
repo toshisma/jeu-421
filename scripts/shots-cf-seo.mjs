@@ -3,7 +3,7 @@
  * rendues avec les vrais composants du jeu (planche de relecture ?cf-gallery=1, servie seulement par
  * le serveur de développement) :
  *   npx vite --port 5180      (dans un autre terminal)   puis   node scripts/shots-cf-seo.mjs [url]
- *  - une image par carte (34), fond transparent, 345 × 483 (1,5 × la taille de référence 230 × 322) ;
+ * *  - une image par carte, fond transparent, 345 × 483 (1,5 × la taille de référence 230 × 322) ;
  *  - l'image de partage (Open Graph) 1200 × 630, en JPEG ;
  *  - une partie contre l'ordinateur sur téléphone (390 × 844), ouverte par le lien /?mode=cartes.
  * Conversion avec ImageMagick (`convert`). À relancer si une carte ou son illustration change.

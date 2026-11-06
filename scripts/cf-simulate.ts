@@ -25,10 +25,14 @@ const maxOf = (id: string) => (CARD_BY_ID[id].rarity === 'legendaire' ? 1 : 2);
 /** Ordre de préférence (a priori) pour construire des decks « optimisés ». */
 const PREF = [
   'bon-numero', 'patron', 'josiane', 'coup-pouce', 'retournement-veste', 'double-tournee', 'reaction-chaine', 'cul-sec',
-  'tete-tourne', 'coup-coude', 'tournee-patron', 'pilier', 'videur', 'recompter', 'grand-enchainement', 'ticket-caisse',
+  'tete-tourne', 'trinquer', 'coup-coude', 'tournee-patron', 'pilier', 'videur', 'recompter', 'grand-enchainement', 'ticket-caisse',
+  'efface-tout', 'mouchard',
   'tournee-generale', 'faux-421', 'coup-nenette', 'gueule-bois', 'calcul-mental', 'mise-bouche', 'croche-patte', 'ardoise-piegee',
-  'de-sous-table', 'yeux-piquent', 'fouine', 'pari-comptoir', 'leurre', 'domino', 'note-salee', 'fermeture', 'vieux-marcel', 'main-sac',
+  'de-sous-table', 'yeux-piquent', 'fouine', 'vide-poches', 'pari-comptoir', 'leurre', 'domino', 'note-salee', 'fermeture', 'vieux-marcel', 'main-sac',
+  // Nouvelles cartes un peu en dessous de la moyenne dans les simulations : après les autres.
+  'petite-soeur', 'tant-qu-on-y-est', 'verre-offert', 'beau-frere',
 ];
+for (const c of CARDS) if (!PREF.includes(c.id)) throw new Error(`Carte absente de PREF : ${c.id}`);
 
 function buildDeck(families: CardFamily[], mainQuota = 20): string[] {
   const deck: string[] = [];

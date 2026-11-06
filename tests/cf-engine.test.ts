@@ -172,7 +172,7 @@ describe('Coups Fourrés : déroulé', () => {
   });
 });
 
-describe('Coups Fourrés : les 34 cartes', () => {
+describe('Coups Fourrés : les cartes', () => {
   it('Le Patron : +1 Tournée par manche, une carte après une défaite, Habitués protégés', () => {
     let { s, L, O } = setup();
     const u = give(s, L, 'patron');
@@ -579,9 +579,141 @@ describe('Coups Fourrés : les 34 cartes', () => {
     expect(P(s, L).tournees).toBe(6 - cost('coup-pouce') - cost('grand-enchainement'));
   });
 
+  it('Le Beau-frère : vos Coups coûtent 1 Tournée de moins (pas les autres cartes)', () => {
+    let { s, L, O } = setup();
+    s = act(s, L, play(give(s, L, 'beau-frere')));
+    expect(P(s, L).habitues.map((h) => h.id)).toEqual(['beau-frere']);
+    expect(P(s, L).tournees).toBe(6 - cost('beau-frere'));
+    const t0 = P(s, L).tournees;
+    s = act(s, L, roll(), [6, 3, 2]);
+    s = act(s, L, play(give(s, L, 'coup-pouce'), { die: 1, delta: 1 }));
+    expect(P(s, L).tournees).toBe(t0 - (cost('coup-pouce') - 1));
+    P(s, L).tournees = 0;
+    const d = give(s, L, 'domino'); // 1 Tournée imprimée : gratuite avec le Beau-frère
+    expect(legalActions(s, L).some((a) => a.type === 'play' && a.card === d)).toBe(true);
+    const tr = give(s, L, 'mouchard'); // un piège ne profite pas de la réduction (il coûte déjà 0)
+    expect(legalActions(s, L).some((a) => a.type === 'play' && a.card === tr)).toBe(true);
+    expect(P(s, O).habitues).toHaveLength(0);
+  });
+
+  it('On efface tout (Dernier mot) : si vous perdez, personne ne donne de jetons', () => {
+    let { s, L, O } = setup();
+    const e = give(s, L, 'efface-tout');
+    s = act(s, L, roll(), [6, 3, 2]);
+    s = act(s, L, stop);
+    s = act(s, O, roll(), [6, 6, 6]);
+    expect(s.phase).toBe('lastword');
+    s = act(s, L, play(e));
+    expect(P(s, L).tokens).toBe(11);
+    expect(P(s, O).tokens).toBe(11);
+    expect(s.lastRound!.winner).toBe(O);
+    expect(s.lastRound!.detail!.at(-1)).toEqual({ label: 'On efface tout', delta: -6 });
+    expect(s.lastRound!.text).toContain('personne ne donne');
+    expect(s.order[0]).toBe(L); // il a quand même perdu : il mène
+    // Joué par le gagnant : sans effet.
+    const t = setup(2, 4);
+    s = t.s;
+    const e2 = give(s, t.L, 'efface-tout');
+    s = act(s, t.L, roll(), [6, 6, 6]);
+    s = act(s, t.L, stop);
+    s = act(s, t.O, roll(), [6, 3, 2]);
+    s = act(s, t.L, play(e2));
+    expect(P(s, t.L).tokens).toBe(5); // il gagne : il donne ses 6 jetons comme d'habitude
+  });
+
+  it('Le verre offert : un seul lancer à son prochain tour (ce tour-ci, ou la manche suivante)', () => {
+    let { s, L, O } = setup();
+    s = act(s, L, play(give(s, L, 'verre-offert'), { target: O }));
+    s = act(s, L, roll(), [6, 3, 2]);
+    s = act(s, L, roll(), [6, 5, 4]);
+    s = act(s, L, stop);
+    expect(throwLimit(s, O)).toBe(1);
+    expect(P(s, O).r.penaltyCard).toBe('verre-offert');
+    // L a déjà joué : l'effet attend la manche suivante.
+    s = act(s, O, play(give(s, O, 'verre-offert'), { target: L }));
+    expect(P(s, L).penaltyNext).toBe(1);
+    expect(viewFor(s, O).players.find((p) => p.id === L)!.penaltyNextCard).toBe('verre-offert');
+    s = act(s, O, roll(), [6, 6, 6]); // un seul lancer : fin de tour automatique
+    expect(s.round).toBe(2);
+    expect(s.order[0]).toBe(L);
+    expect(throwLimit(s, L)).toBe(1);
+    expect(P(s, L).r.penaltyCard).toBe('verre-offert');
+  });
+
+  it('Trinquer (Dernier mot) : un dé de chaque côté, pris au hasard, change de camp', () => {
+    for (let seed = 1; seed <= 6; seed++) {
+      let { s, L, O } = setup(2, seed);
+      const t = give(s, L, 'trinquer');
+      s = act(s, L, roll(), [6, 5, 3]);
+      s = act(s, L, stop);
+      s = act(s, O, roll(), [4, 2, 1]);
+      expect(s.phase).toBe('lastword');
+      expect(legalActions(s, L).filter((a) => a.type === 'play')).toEqual([{ type: 'play', card: t, target: O }]);
+      s = act(s, L, play(t, { target: O }));
+      const a = s.lastRound!.combos[L].dice, b = s.lastRound!.combos[O].dice;
+      expect([...a, ...b].sort()).toEqual([1, 2, 3, 4, 5, 6]);
+      expect(a.filter((x, i) => x !== [6, 5, 3][i])).toHaveLength(1);
+      expect(b.filter((x, i) => x !== [4, 2, 1][i])).toHaveLength(1);
+    }
+  });
+
+  it('Le Vide-poches : l’adversaire défausse une carte de sa main au hasard', () => {
+    let { s, L, O } = setup();
+    const v = give(s, L, 'vide-poches');
+    expect(legalActions(s, L).some((a) => a.type === 'play' && a.card === v)).toBe(false); // main adverse vide
+    give(s, O, 'domino'); give(s, O, 'cul-sec'); give(s, O, 'leurre');
+    s = act(s, L, play(v, { target: O }));
+    expect(P(s, O).hand).toHaveLength(2);
+    expect(P(s, O).discard).toHaveLength(1);
+    expect(['domino', 'cul-sec', 'leurre']).toContain(P(s, O).discard[0].id);
+  });
+
+  it('Le Mouchard : quand l’adversaire joue un Coup, son poseur pioche 2 cartes', () => {
+    let { s, L, O } = setup();
+    trap(s, O, L, 'mouchard');
+    s = act(s, L, play(give(s, L, 'pilier'))); // un Habitué : rien
+    expect(s.traps).toHaveLength(1);
+    s = act(s, L, play(give(s, L, 'coup-coude')));
+    expect(s.traps).toHaveLength(0);
+    expect(P(s, O).hand).toHaveLength(2);
+    expect(lastEvents.some((e) => e.kind === 'mouchard')).toBe(true);
+    // Le Videur l'arrête comme les autres pièges.
+    const t = setup(2, 3);
+    s = t.s;
+    trap(s, t.O, t.L, 'mouchard');
+    hab(s, t.L, 'videur');
+    s = act(s, t.L, play(give(s, t.L, 'coup-coude')));
+    expect(P(s, t.O).hand).toHaveLength(0);
+  });
+
+  it('Tant qu’on y est : 1 Tournée par carte jouée dans la manche, celle-ci comprise', () => {
+    let { s, L } = setup();
+    P(s, L).tournees = 0;
+    s = act(s, L, play(give(s, L, 'coup-coude')));
+    s = act(s, L, play(give(s, L, 'cul-sec')));
+    s = act(s, L, play(give(s, L, 'tant-qu-on-y-est')));
+    expect(P(s, L).tournees).toBe(3);
+    s = act(s, L, play(give(s, L, 'tant-qu-on-y-est')));
+    expect(P(s, L).tournees).toBe(6); // 4 de plus, plafonné à 6
+  });
+
+  it('La petite sœur : reprend le dernier Coup de la défausse (jamais une autre petite sœur)', () => {
+    let { s, L } = setup();
+    const ps = give(s, L, 'petite-soeur');
+    expect(legalActions(s, L).some((a) => a.type === 'play' && a.card === ps)).toBe(false); // défausse vide
+    s = act(s, L, roll(), [6, 3, 2]);
+    s = act(s, L, play(give(s, L, 'coup-pouce'), { die: 1, delta: 1 }));
+    P(s, L).discard.push({ uid: 'x-pil', id: 'pilier' }); // un Habitué rentré chez lui : ignoré
+    s = act(s, L, play(ps));
+    expect(P(s, L).hand.map((k) => k.id)).toEqual(['coup-pouce']);
+    expect(P(s, L).discard.map((k) => k.id)).toEqual(['pilier', 'petite-soeur']);
+    const ps2 = give(s, L, 'petite-soeur');
+    expect(legalActions(s, L).some((a) => a.type === 'play' && a.card === ps2)).toBe(false);
+  });
+
   it('chaque carte du catalogue a son test', () => {
     const src = readFileSync(fileURLToPath(import.meta.url), 'utf8');
-    expect(CARDS).toHaveLength(34);
+    expect(CARDS).toHaveLength(42);
     for (const c of CARDS) expect(src, c.id).toContain(`'${c.id}'`);
   });
 });

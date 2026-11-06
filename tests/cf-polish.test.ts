@@ -213,9 +213,9 @@ describe('image de partage', () => {
 
 // --- Écrans « Apprendre » ------------------------------------------------------------------------
 describe('écrans « Apprendre »', () => {
-  it('les 34 cartes, conseils, lexique et règles enrichies s’affichent', () => {
+  it('toutes les cartes, conseils, lexique et règles enrichies s’affichent', () => {
     const cards = renderToStaticMarkup(createElement(CardsCatalogScreen, { onBack: () => {} }));
-    expect(cards).toContain('Les 34 cartes');
+    expect(cards).toContain(`Les ${CARDS.length} cartes`);
     expect(cards).toContain('Le Patron');
     const tips = renderToStaticMarkup(createElement(TipsScreen, { onBack: () => {} }));
     expect((tips.match(/<li>/g) ?? []).length).toBeGreaterThanOrEqual(10);

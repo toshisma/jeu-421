@@ -1,5 +1,5 @@
 /**
- * Coups Fourrés : les illustrations des 34 cartes (affiches de bistrot, aplats, peu de couleurs).
+ * Coups Fourrés : les illustrations des cartes (affiches de bistrot, aplats, peu de couleurs).
  * Chaque dessin est un SVG 214×122 qui raconte l'effet de la carte d'un coup d'œil.
  * Les 10 premières viennent telles quelles du prototype validé par Sam (CFCartes), « Tournée du
  * patron » du prototype de plateau ; les autres sont dessinées dans le même style.
@@ -829,6 +829,207 @@ const ART: Record<string, (g: G, u: U) => ReactNode> = {
         <text x="107" y="59" fontFamily={SLAB} fontSize="14" fill="#ffd36b" textAnchor="middle">×2</text>
       </MiniCardShape>
       <Spark x={24} y={24} r={7} /><Spark x={192} y={98} r={7} /><Spark x={186} y={44} r={4} fill="#fffaf0" />
+    </>
+  ),
+
+  // ================================================================ Deuxième vague (8 cartes de plus)
+
+  // Le beau-frère en marinière, clin d'œil complice : l'étiquette passe de 2 à 1.
+  'beau-frere': (g, u) => (
+    <>
+      <Radial g={g} u={u} c={['#a8dcbd', '#3f8a65', '#123e2b']} cx="35%" cy="30%" r="80%" />
+      <g fill="#ffffff" opacity=".14"><circle cx="60" cy="34" r="36" /></g>
+      <defs>
+        <pattern id={g('raies')} width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="#fbf6e9" /><rect y="5" width="10" height="5" fill="#2c54c2" /></pattern>
+      </defs>
+      <path d="M22 122 Q26 84 72 78 Q118 84 124 122Z" fill={u('raies')} />
+      <path d="M58 80 L72 94 L86 80Z" fill="#e6b088" />
+      <rect x="64" y="64" width="16" height="18" fill="#e6b088" />
+      <ellipse cx="51" cy="50" rx="4.5" ry="6.5" fill="#e6b088" /><ellipse cx="93" cy="50" rx="4.5" ry="6.5" fill="#e6b088" />
+      <ellipse cx="72" cy="48" rx="21" ry="23" fill="#f0c39a" />
+      <path d="M50 42 Q50 22 72 22 Q94 22 94 40 Q86 30 72 31 Q58 30 50 42Z" fill="#3a2414" />
+      <path d="M60 46 Q64 43 68 46" fill="none" stroke="#1d1712" strokeWidth="2.4" strokeLinecap="round" />
+      <circle cx="82" cy="46" r="2.2" fill="#1d1712" />
+      <path d="M77 40 Q82 37 87 40" fill="none" stroke="#3a2414" strokeWidth="2.4" strokeLinecap="round" />
+      <path d="M72 48 Q69 55 73 57" fill="none" stroke="#c98b62" strokeWidth="2" strokeLinecap="round" />
+      <path d="M56 61 Q64 55 72 59 Q80 55 88 61 Q80 66 72 62 Q64 66 56 61Z" fill="#3a2414" />
+      <path d="M118 104 Q130 86 140 66" fill="none" stroke="#f0c39a" strokeWidth="11" strokeLinecap="round" />
+      <g transform="translate(160 52) rotate(-12)">
+        <path d="M-30 -20 L18 -20 L32 0 L18 20 L-30 20Z" fill="#fbf6e9" stroke="#b9a56a" strokeWidth="2" />
+        <circle cx="18" cy="0" r="3" fill="#123e2b" />
+        <text x="-18" y="8" fontFamily={SLAB} fontSize="20" fill="#2a1d12" textAnchor="middle">2</text>
+        <path d="M-27 10 L-9 -10" stroke="#c8312b" strokeWidth="3" strokeLinecap="round" />
+        <text x="4" y="9" fontFamily={SLAB} fontSize="22" fill="#2f7a55" textAnchor="middle">1</text>
+      </g>
+      <path d="M190 22 Q204 36 196 48" fill="none" stroke="#b9a56a" strokeWidth="2" />
+      <Spark x={196} y={96} r={7} /><Spark x={24} y={22} r={5} fill="#fffaf0" />
+    </>
+  ),
+
+  // L'ardoise des comptes, et le chiffon qui efface les bâtons de craie.
+  'efface-tout': (g, u) => (
+    <>
+      <Radial g={g} u={u} c={['#8fd3b0', '#2f7a55', '#0f3523']} cx="50%" cy="35%" />
+      <rect x="30" y="14" width="154" height="94" rx="5" fill="#8a5a2e" />
+      <rect x="37" y="21" width="140" height="80" fill="#22302a" />
+      <g stroke="#f4efe6" strokeWidth="3" strokeLinecap="round" opacity=".9">
+        <path d="M50 34 L50 56" /><path d="M58 34 L58 56" /><path d="M66 34 L66 56" /><path d="M74 34 L74 56" /><path d="M44 52 L80 38" />
+      </g>
+      <g stroke="#f4efe6" strokeWidth="3" strokeLinecap="round" opacity=".35">
+        <path d="M96 34 L96 56" /><path d="M104 34 L104 56" /><path d="M112 34 L112 56" />
+      </g>
+      <path d="M44 72 Q80 64 120 74 Q150 82 170 70" fill="none" stroke="#f4efe6" strokeWidth="14" opacity=".12" strokeLinecap="round" />
+      <path d="M48 86 Q90 78 130 88" fill="none" stroke="#f4efe6" strokeWidth="10" opacity=".08" strokeLinecap="round" />
+      <g transform="rotate(-16 142 66)">
+        <path d="M118 52 Q140 44 166 52 L170 80 Q144 88 116 80Z" fill="#ffd36b" />
+        <path d="M118 52 Q140 44 166 52 L166 58 Q140 50 118 58Z" fill="#fff3c4" />
+        <g stroke="#d4ad2f" strokeWidth="1.6"><path d="M126 62 L124 78" /><path d="M140 60 L140 80" /><path d="M154 61 L156 79" /></g>
+      </g>
+      <g fill="#f4efe6" opacity=".7"><circle cx="112" cy="94" r="2" /><circle cx="122" cy="98" r="1.4" /><circle cx="104" cy="99" r="1.6" /></g>
+      <Spark x={20} y={24} r={6} /><Spark x={196} y={102} r={7} />
+    </>
+  ),
+
+  // Un verre glisse sur le zinc vers l'adversaire ; un seul dé l'attend.
+  'verre-offert': (g, u) => (
+    <>
+      <Radial g={g} u={u} c={['#f6826a', '#b8303e', '#4a0d18']} cx="40%" cy="40%" r="80%" />
+      <g fill="#fff3c4" opacity=".18"><circle cx="70" cy="40" r="40" /></g>
+      <Counter y={92} dark="#3a1a0e" top="#8a5a2e" />
+      <g stroke="#ffd9a8" strokeWidth="3" strokeLinecap="round" opacity=".6"><path d="M28 84 L52 84" /><path d="M20 76 L46 76" /><path d="M34 68 L54 68" /></g>
+      <path d="M-6 88 L60 84" stroke="#fbf6e9" strokeWidth="13" strokeLinecap="round" />
+      <ellipse cx="66" cy="84" rx="9" ry="6.5" fill="#f0c39a" />
+      <Wine x={90} y={92} rot={-4} />
+      <Wine x={150} y={92} rot={0} />
+      <path d="M120 56 Q120 40 134 40" fill="none" stroke="#ffd36b" strokeWidth="2.5" strokeDasharray="3 4" strokeLinecap="round" />
+      <Die x={170} y={26} s={30} v={1} rot={10} />
+      <g transform="translate(186 74)">
+        <circle r="13" fill="#fbf6e9" />
+        <text y="6" fontFamily={SLAB} fontSize="16" fill="#a3263a" textAnchor="middle">×1</text>
+      </g>
+      <Spark x={120} y={20} r={7} />
+    </>
+  ),
+
+  // Deux verres qui trinquent ; deux dés qui changent de camp.
+  trinquer: (g, u) => (
+    <>
+      <Radial g={g} u={u} c={['#ffb35c', '#b8303e', '#3a0a14']} cx="50%" cy="35%" r="75%" />
+      <g fill="#fff3c4" opacity=".25">
+        <path d="M107 30 L80 -6 L96 -6Z" /><path d="M107 30 L118 -6 L134 -6Z" /><path d="M107 30 L176 10 L180 24Z" /><path d="M107 30 L38 10 L34 24Z" />
+      </g>
+      <Beer x={74} y={74} w={26} h={36} rot={18} />
+      <g transform="rotate(-18 128 70)"><Wine x={128} y={78} /></g>
+      <Spark x={107} y={30} r={10} fill="#fffaf0" />
+      <Die x={22} y={84} s={28} v={6} rot={-10} />
+      <Die x={164} y={84} s={28} v={1} rot={8} />
+      <path d="M40 80 Q107 50 170 80" fill="none" stroke="#ffd36b" strokeWidth="3" strokeLinecap="round" />
+      <path d="M166 72 L172 82 L160 84Z" fill="#ffd36b" />
+      <path d="M170 116 Q107 124 42 116" fill="none" stroke="#ffd36b" strokeWidth="3" strokeLinecap="round" />
+      <path d="M48 110 L40 117 L50 122Z" fill="#ffd36b" />
+    </>
+  ),
+
+  // Une main gantée tire une carte de la poche du veston.
+  'vide-poches': (g, u) => (
+    <>
+      <Radial g={g} u={u} c={['#9a7ad0', '#4a2c7a', '#1c1030']} cx="40%" cy="55%" />
+      <path d="M-6 30 Q40 22 86 30 L96 122 L-6 122Z" fill="#3a2a22" />
+      <path d="M86 30 L96 122" stroke="#5a463a" strokeWidth="3" />
+      <path d="M14 60 L76 60 L74 100 Q46 106 18 100Z" fill="#2a1e18" />
+      <path d="M14 60 L76 60" stroke="#a99ad0" strokeWidth="2.5" />
+      <g transform="rotate(-22 70 52)">
+        <MiniCardShape x={50} y={22} w={30} h={42} fill="#2f7a55" edge="#f1cc7d" />
+        <MiniCardShape x={60} y={18} w={30} h={42} fill="#a3263a" edge="#f1cc7d" />
+      </g>
+      <path d="M220 -4 L118 30" stroke="#1d1712" strokeWidth="16" strokeLinecap="round" />
+      <g transform="rotate(-20 108 34)">
+        <rect x="92" y="22" width="30" height="24" rx="10" fill="#1d1712" />
+        <rect x="90" y="34" width="10" height="20" rx="5" fill="#1d1712" />
+        <rect x="100" y="36" width="10" height="20" rx="5" fill="#2a2420" />
+      </g>
+      <g stroke="#ffd36b" strokeWidth="2.5" strokeLinecap="round"><path d="M128 64 L140 72" /><path d="M120 74 L128 86" /></g>
+      <MiniCardShape x={150} y={70} w={26} h={36} rot={24} fill="#5a3b85" edge="#a99ad0">
+        <text x="163" y="94" fontFamily={SLAB} fontSize="14" fill="#a99ad0" textAnchor="middle">?</text>
+      </MiniCardShape>
+      <Spark x={190} y={40} r={7} /><Spark x={176} y={20} r={4} fill="#fffaf0" />
+    </>
+  ),
+
+  // Derrière son journal troué, le mouchard ne perd rien ; deux cartes pour son complice.
+  mouchard: (g, u) => (
+    <>
+      <Radial g={g} u={u} c={['#9a7ad0', '#4a2c7a', '#1c1030']} cx="45%" cy="40%" />
+      <path d="M30 122 Q34 92 76 88 Q118 92 122 122Z" fill="#2a1e18" />
+      <path d="M44 34 Q76 4 108 34 L108 40 L44 40Z" fill="#2a1e18" />
+      <rect x="38" y="38" width="76" height="5" rx="2.5" fill="#2a1e18" />
+      <g transform="rotate(-4 76 72)">
+        <rect x="26" y="40" width="100" height="64" fill="#efe6d2" />
+        <rect x="26" y="40" width="100" height="64" fill="none" stroke="#c9bfa8" strokeWidth="1.5" />
+        <text x="76" y="54" fontFamily={SLAB} fontSize="9" fill="#2a1d12" textAnchor="middle">LE COMPTOIR</text>
+        <g stroke="#b9ad94" strokeWidth="2" strokeLinecap="round">
+          <path d="M34 82 L70 82" /><path d="M34 90 L66 90" /><path d="M34 98 L70 98" /><path d="M82 82 L118 82" /><path d="M82 90 L114 90" /><path d="M82 98 L118 98" />
+        </g>
+        <ellipse cx="62" cy="68" rx="7" ry="5" fill="#1c1030" /><ellipse cx="90" cy="68" rx="7" ry="5" fill="#1c1030" />
+        <circle cx="64" cy="68" r="2.4" fill="#fbf6e9" /><circle cx="92" cy="68" r="2.4" fill="#fbf6e9" />
+      </g>
+      <path d="M134 42 Q150 26 170 30" fill="none" stroke="#ffd36b" strokeWidth="2.5" strokeDasharray="3 4" strokeLinecap="round" />
+      <MiniCardShape x={156} y={36} w={26} h={36} rot={-10} fill="#5a3b85" edge="#a99ad0" />
+      <MiniCardShape x={176} y={44} w={26} h={36} rot={12} fill="#5a3b85" edge="#ffd36b">
+        <text x="189" y="67" fontFamily={SLAB} fontSize="12" fill="#ffd36b" textAnchor="middle">+2</text>
+      </MiniCardShape>
+      <Spark x={150} y={100} r={6} /><Spark x={20} y={20} r={6} fill="#fffaf0" />
+    </>
+  ),
+
+  // Une rangée de cartes jouées, et une pile de Tournées qui grandit à chaque fois.
+  'tant-qu-on-y-est': (g, u) => (
+    <>
+      <Radial g={g} u={u} c={['#7aa0ff', '#2c54c2', '#0b1840']} cx="50%" cy="40%" />
+      <Counter y={96} dark="#0a1433" top="#3a64d8" />
+      {[0, 1, 2].map((i) => (
+        <g key={i}>
+          <MiniCardShape x={24 + i * 34} y={44 - i * 6} w={26} h={36} rot={-8 + i * 8} fill={['#a3263a', '#2f7a55', '#2c54c2'][i]} edge="#e3c060" />
+          <text x={37 + i * 34} y={30 - i * 6} fontFamily={SLAB} fontSize="12" fill="#ffd36b" textAnchor="middle">+1</text>
+        </g>
+      ))}
+      {[0, 1, 2].map((i) => (
+        <g key={i}>
+          <Beer x={140 + i * 20} y={96} w={14} h={22 + i * 8} />
+        </g>
+      ))}
+      <path d="M118 66 Q128 56 136 64" fill="none" stroke="#e3c060" strokeWidth="2.5" strokeDasharray="3 4" strokeLinecap="round" />
+      <path d="M132 58 L140 66 L130 68Z" fill="#e3c060" />
+      <Spark x={196} y={22} r={7} /><Spark x={124} y={16} r={4} fill="#fffaf0" />
+    </>
+  ),
+
+  // La grande bouteille et sa petite sœur ; une flèche ramène la carte de la défausse à la main.
+  'petite-soeur': (g, u) => (
+    <>
+      <Radial g={g} u={u} c={['#7aa0ff', '#2c54c2', '#0b1840']} cx="40%" cy="45%" />
+      <Counter y={100} dark="#0a1433" top="#3a64d8" />
+      <g>
+        <rect x="40" y="40" width="30" height="60" rx="8" fill="#2f7a55" />
+        <rect x="48" y="18" width="14" height="26" rx="4" fill="#2f7a55" />
+        <rect x="47" y="14" width="16" height="7" rx="2" fill="#c8312b" />
+        <rect x="40" y="58" width="30" height="22" fill="#fbf6e9" />
+        <rect x="46" y="44" width="4" height="50" rx="2" fill="#fff" opacity=".3" />
+      </g>
+      <g>
+        <rect x="82" y="66" width="20" height="34" rx="6" fill="#2f7a55" />
+        <rect x="87" y="52" width="10" height="16" rx="3" fill="#2f7a55" />
+        <rect x="86" y="49" width="12" height="5" rx="2" fill="#c8312b" />
+        <rect x="82" y="76" width="20" height="13" fill="#fbf6e9" />
+      </g>
+      <MiniCardShape x={162} y={62} w={24} h={34} rot={10} fill="#5a3b85" edge="#a99ad0" />
+      <MiniCardShape x={156} y={58} w={24} h={34} rot={-6} fill="#a3263a" edge="#d9a07a" />
+      <MiniCardShape x={140} y={14} w={28} h={40} rot={-12} fill="#2c54c2" edge="#ffd36b">
+        <path d="M154 30 l2.4 5.4 5.6 .6 -4.2 3.8 1.2 5.6 -5 -2.9 -5 2.9 1.2 -5.6 -4.2 -3.8 5.6 -.6z" fill="#ffd36b" />
+      </MiniCardShape>
+      <path d="M180 58 Q196 36 176 22" fill="none" stroke="#ffd36b" strokeWidth="3" strokeLinecap="round" />
+      <path d="M182 20 L172 18 L176 28Z" fill="#ffd36b" />
+      <Spark x={120} y={30} r={6} /><Spark x={22} y={26} r={5} fill="#fffaf0" />
     </>
   ),
 };

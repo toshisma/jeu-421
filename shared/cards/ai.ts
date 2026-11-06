@@ -17,7 +17,7 @@
 import { evaluate, singleThrowCdf } from '../combos';
 import type { Rng } from '../rng';
 import { CARD_BY_ID, type CardDef } from './catalog';
-import { actionKey, type CfAction, type CfPlayerView, type CfView } from './engine';
+import { actionKey, beauFrere, petiteSoeurOk, type CfAction, type CfPlayerView, type CfView } from './engine';
 
 export type CfLevel = 'debutant' | 'habitue' | 'fine-fouine';
 export const CF_LEVEL_LABEL: Record<CfLevel, string> = { debutant: 'Débutant', habitue: 'Habitué', 'fine-fouine': 'Fine fouine' };
@@ -95,7 +95,7 @@ const pct = (rank: number) => cdfBelow(rank + 0.5);
 // ---------------------------------------------------------------------------------------------
 // Contexte de décision
 
-interface Mods { doubles: number; note: number; pari: number; marcel: boolean; faux: boolean; piliers: number }
+interface Mods { doubles: number; note: number; pari: number; marcel: boolean; faux: boolean; piliers: number; /** On efface tout : s'il perd, personne ne donne. */ efface: boolean }
 
 interface DiceCtx {
   view: CfView;
@@ -114,6 +114,7 @@ function modsOf(p: CfPlayerView): Mods {
     doubles: p.r.doubles, note: p.r.noteSalee, pari: p.r.pari,
     marcel: p.habitues.some((h) => h.id === 'vieux-marcel'), faux: p.r.faux421,
     piliers: p.habitues.filter((h) => h.id === 'pilier').length,
+    efface: (p.r.efface ?? 0) > 0,
   };
 }
 const valueOf = (i: number, m: Mods) => {
@@ -131,6 +132,7 @@ function valueOfC(i: number, m: Mods): number {
 }
 /** Jetons donnés par le gagnant au perdant. */
 function amount(winValue: number, w: Mods, l: Mods, loserNenette: boolean): number {
+  if (l.efface) return 0;
   let a = winValue * 2 ** w.doubles + w.note + 2 * (w.pari + l.pari);
   if (l.piliers && a > 1) a -= 1;
   if (loserNenette && a < 2) a = 2;
@@ -269,12 +271,12 @@ function valueNow(ctx: DiceCtx, dice: number[], used: number, limit: number, dep
 // Valeur des ressources
 
 /** Réglages de l'IA (modifiables par les scripts d'équilibrage). */
-export const CF_AI_TUNING = { hbSkip: 0.6, hbDiceNoise: 0.4, hbOverflow: false, hbStingy: 1.5, hbNoise: 0.6, ffNoise: 0, ffBias: 0, exactBeat: true, ffDepth: 9, hold: 1, tv: 0.4, cv: 0.55, ffMargin: 0.45, hbMargin: 0.15, reservePenalty: 0.5, risk: true, riposteRisk: true, endBonus: 6 };
+export const CF_AI_TUNING = { verreLater: 0.45, hbSkip: 0.6, hbDiceNoise: 0.4, hbOverflow: false, hbStingy: 1.5, hbNoise: 0.6, ffNoise: 0, ffBias: 0, exactBeat: true, ffDepth: 9, hold: 1, tv: 0.4, cv: 0.55, ffMargin: 0.45, hbMargin: 0.15, reservePenalty: 0.5, risk: true, riposteRisk: true, endBonus: 6 };
 let TV = CF_AI_TUNING.tv;
 let CV = CF_AI_TUNING.cv;
 
 const STATIC: Record<string, number> = {
-  patron: 2.0, josiane: 1.6, 'vieux-marcel': 0.9 + 0.55, pilier: 1.2, videur: 1.0,
+  patron: 2.0, josiane: 1.6, 'vieux-marcel': 0.9 + 0.55, pilier: 1.2, videur: 1.0, 'beau-frere': 1.1, mouchard: 0.9,
   leurre: 0.35, 'gueule-bois': 0.9, 'croche-patte': 0.8, 'main-sac': 1.0, 'ardoise-piegee': 0.7,
   'faux-421': 1.1, 'coup-nenette': 1.1, 'retournement-veste': 1.6,
 };
@@ -288,7 +290,8 @@ function keepValue(id: string, me: CfPlayerView): number {
   if (d.type === 'piege') v = 0.9 + (STATIC[id] ?? 0) * 0.3;
   if (d.type === 'dernier-mot') v = 0.8;
   if (['bon-numero', 'double-tournee', 'cul-sec', 'coup-pouce', 'tete-tourne'].includes(id)) v = 1.3;
-  if (id === 'coup-coude' || id === 'tournee-patron') v = 1.0;
+  if (id === 'coup-coude' || id === 'tournee-patron' || id === 'petite-soeur' || id === 'efface-tout') v = 1.0;
+  if (id === 'trinquer' || id === 'verre-offert') v = 1.1;
   if (d.cost > me.tournees + 2) v -= 0.3;
   if (d.rarity === 'legendaire') v += 0.3;
   return v;
@@ -454,7 +457,7 @@ function holdValue(view: CfView, me: CfPlayerView, id: string): number {
 }
 
 function costNow(me: CfPlayerView, id: string): number {
-  return Math.max(0, def(id).cost - me.r.discount);
+  return Math.max(0, def(id).cost - beauFrere(me, id) - me.r.discount);
 }
 
 function riposteRisk(view: CfView, me: CfPlayerView): number {
@@ -547,6 +550,29 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
       return saved >= 2 ? saved * TV * 0.8 + 0.1 : null;
     }
     case 'domino': return target && target.tournees > 0 ? target.tournees * TV * 0.9 : null;
+    case 'verre-offert': {
+      const o = ctx.opps.find((x) => x.p.id === a.target);
+      if (!o) return null;
+      if (!o.done && view.order.indexOf(o.p.id) > view.order.indexOf(me.id)) {
+        // Il jouera après moi cette manche : un seul lancer pour battre ma combinaison.
+        const c2 = { ...ctx, opps: ctx.opps.map((x) => (x === o ? { ...o, penalty: 3 } : x)) };
+        return valueNow(c2, me.r.dice, used, limit, depth) - base;
+      }
+      return o.p.penaltyNext > 0 ? null : CF_AI_TUNING.verreLater;
+    }
+    case 'vide-poches':
+      return target && target.handCount > 0 ? CV + 0.15 + (target.handCount <= 2 ? 0.25 : 0) : null;
+    case 'tant-qu-on-y-est': {
+      // Une carte contre des Tournées : intéressant à partir de 2.
+      const n = Math.min(me.r.played + 1, view.rules.tourneesMax - me.tournees);
+      return n >= 2 ? n * TV - 0.1 : null;
+    }
+    case 'petite-soeur': {
+      const top = [...me.discard].reverse().find(petiteSoeurOk);
+      if (!top) return null;
+      // On échange la petite sœur contre la carte reprise : seulement si celle-ci vaut plus.
+      return CV * (keepValue(top.id, me) - keepValue('petite-soeur', me)) + def(top.id).cost * TV * 0.6;
+    }
     case 'fermeture': {
       if (!a.habitue) return 2 * CV - drawCost(2);
       const h = opps.flatMap((o) => o.habitues).find((x) => x.uid === a.habitue);
@@ -565,8 +591,9 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
   const d = def(id);
   if (d.type === 'habitue') {
     let v = STATIC[id] ?? 0.5;
+    if (id === 'beau-frere') v = 0.5 + 0.25 * Math.min(4, me.hand!.filter((k) => def(k.id).type === 'coup' && def(k.id).cost >= 1).length);
     if (id === 'videur') v += opps.some((o) => o.families.includes('pieges')) ? 0.8 : -0.4;
-    if (id === 'patron' || id === 'josiane') v *= lateGame ? 0.4 : 1;
+    if (id === 'patron' || id === 'josiane' || id === 'beau-frere') v *= lateGame ? 0.4 : 1;
     if (id === 'pilier' && lateGame) v *= 0.5;
     if (me.habitues.some((h) => h.id === id) && (id === 'vieux-marcel' || id === 'pilier')) v = 0;
     return v;
@@ -632,6 +659,29 @@ function threatOf(view: CfView, me: CfPlayerView): number {
     case 'calcul-mental': return CV;
     case 'mise-bouche': return 0.6;
     case 'grand-enchainement': return 1.6;
+    case 'verre-offert': return top.params.target === me.id && !me.r.done && view.order.indexOf(me.id) > view.order.indexOf(owner.id) ? 1.3 : 0.5;
+    case 'vide-poches': return top.params.target === me.id ? CV * 0.9 : 0;
+    case 'tant-qu-on-y-est': return Math.min(owner.r.played, view.rules.tourneesMax - owner.tournees) * TV;
+    case 'petite-soeur': return 0.8;
+    case 'efface-tout': case 'trinquer': {
+      // Ce que je perds si la carte passe (comptes en duel, vue de ma combinaison contre la sienne).
+      const outcome = (myD: number[], oD: number[], oEfface: boolean) => {
+        const mr = T_RANK[tidx(myD)], orr = T_RANK[tidx(oD)];
+        if (mr > orr) return oEfface ? 0 : evaluate(myD, DV).value;
+        if (mr < orr) return -evaluate(oD, DV).value;
+        return 0;
+      };
+      const before = outcome(me.r.dice, owner.r.dice, false);
+      if (id === 'efface-tout') return Math.max(0, before - outcome(me.r.dice, owner.r.dice, true)) + 0.2;
+      if (top.params.target !== me.id) return 0.3;
+      let lost = 0;
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+        const myD = [...me.r.dice]; const oD = [...owner.r.dice];
+        myD[j] = owner.r.dice[i]; oD[i] = me.r.dice[j];
+        lost += before - outcome(myD, oD, false);
+      }
+      return Math.max(0, lost / 9) + 0.2;
+    }
     default: break;
   }
   if (d.type === 'habitue') return (STATIC[id] ?? 0.8) * 0.9;
@@ -681,7 +731,21 @@ function lastword(view: CfView, legal: CfAction[], level: CfLevel, rng: Rng, han
     const id = handId(a.card);
     let g: number;
     if (id === 'note-salee') g = utility(withMods(ctx, { note: ctx.mine.note + 1 }), ti, 3, me.r.forcedNenette ? 0 : undefined) - now;
-    else { const d = [...me.r.dice]; d[a.die!] += a.delta!; g = utility(ctx, tidx(d), 3) - now; }
+    else if (id === 'efface-tout') g = utility(withMods(ctx, { efface: true }), ti, 3, me.r.forcedNenette ? 0 : undefined) - now;
+    else if (id === 'trinquer') {
+      const o = ctx.opps.find((x) => x.p.id === a.target);
+      if (!o) continue;
+      // Moyenne sur les 9 échanges possibles (un dé de chaque côté, au hasard).
+      let sum = 0;
+      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+        const d = [...me.r.dice]; const od = [...o.p.r.dice];
+        od[j] = me.r.dice[i]; d[i] = o.p.r.dice[j];
+        const oi = tidx(od);
+        const o2 = { ...o, rank: T_RANK[oi], value: valueOfC(oi, o.mods) };
+        sum += utility({ ...ctx, opps: ctx.opps.map((x) => (x === o ? o2 : x)) }, tidx(d), 3);
+      }
+      g = sum / 9 - now;
+    } else { const d = [...me.r.dice]; d[a.die!] += a.delta!; g = utility(ctx, tidx(d), 3) - now; }
     const score = g - costNow(me, id) * TV - 0.1 + (level === 'habitue' ? (rng() - 0.5) * 0.2 : 0);
     if (score > bv) { bv = score; best = a; }
   }
