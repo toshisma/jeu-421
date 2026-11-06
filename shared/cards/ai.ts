@@ -272,7 +272,7 @@ function valueNow(ctx: DiceCtx, dice: number[], used: number, limit: number, dep
 // Valeur des ressources
 
 /** Réglages de l'IA (modifiables par les scripts d'équilibrage). */
-export const CF_AI_TUNING = { verreLater: 0.45, hbSkip: 0.75, hbDiceNoise: 0.4, hbOverflow: false, hbStingy: 1.5, hbNoise: 0.6, ffNoise: 0, ffBias: 0, exactBeat: true, ffDepth: 9, hold: 1, tv: 0.4, cv: 0.55, ffMargin: 0.45, hbMargin: 0.15, reservePenalty: 0.5, risk: true, riposteRisk: true, endBonus: 6, tvExp: 0.5, passive: 1.3 };
+export const CF_AI_TUNING = { verreLater: 0.45, hbSkip: 0.75, hbDiceNoise: 0.4, hbOverflow: false, hbStingy: 1.5, hbNoise: 0.6, ffNoise: 0, ffBias: 0, exactBeat: true, ffDepth: 9, hold: 1, tv: 0.4, cv: 0.55, ffMargin: 0.45, hbMargin: 0.15, reservePenalty: 0.5, risk: true, riposteRisk: true, endBonus: 6, tvExp: 0.5, passive: 1 };
 let TV = CF_AI_TUNING.tv;
 let CV = CF_AI_TUNING.cv;
 

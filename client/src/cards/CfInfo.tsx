@@ -161,7 +161,7 @@ export function RulesContent({ short }: { short?: boolean }) {
       <section>
         <h3>Une manche</h3>
         <ol>
-          <li><b>Service</b> : chacun pioche 1 carte et reçoit {R.tourneesPerRound} Tournées ({R.tourneesPerRound + R.tourneesLoserBonus} pour le perdant de la manche d’avant). Réserve : {R.tourneesMax} au plus.</li>
+          <li><b>Service</b> : chacun pioche 1 carte et reçoit {R.tourneesPerRound} Tournée{R.tourneesPerRound > 1 ? 's' : ''} ({R.tourneesPerRound + R.tourneesLoserBonus} pour le perdant de la manche d’avant). Réserve : {R.tourneesMax} au plus, pour économiser en vue d’un enchaînement.</li>
           <li><b>Le meneur</b> lance les 3 dés jusqu’à {R.maxThrows} fois, garde des dés entre deux lancers, et peut jouer des cartes avant ou après chaque lancer. Son nombre de lancers fixe le maximum de l’autre.</li>
           <li><b>L’autre joueur</b> joue à son tour, en voyant le résultat du meneur.</li>
           <li><b>Dernier mot</b> : les combinaisons sont sur la table ; celui qui perd peut jouer une carte « Dernier mot », l’autre peut répondre, jusqu’à ce que les deux passent.</li>

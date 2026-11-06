@@ -603,7 +603,7 @@ export function HelpSheet({ v, onClose, onRules, onTour }: { v: CfView; onClose:
           </dl>
           <b className="cfn-legend-title">Une manche</b>
           <ol>
-            <li>Chacun pioche 1 carte et reçoit {v.rules.tourneesPerRound} Tournées ({v.rules.tourneesPerRound + v.rules.tourneesLoserBonus} pour le perdant de la manche d’avant).</li>
+            <li>Chacun pioche 1 carte et reçoit {v.rules.tourneesPerRound} Tournée{v.rules.tourneesPerRound > 1 ? 's' : ''} ({v.rules.tourneesPerRound + v.rules.tourneesLoserBonus} pour le perdant de la manche d’avant) : jouer une carte est un choix, économisez pour enchaîner.</li>
             <li><b>Le meneur</b> lance les dés jusqu’à {v.rules.maxThrows} fois ; son nombre de lancers fixe le maximum des autres. Les autres jouent ensuite, en voyant la combinaison à battre.</li>
             <li><b>Dernier mot</b> : avant les comptes, les cartes « Dernier mot » peuvent encore tout changer.</li>
             <li><b>Comptes</b> : le gagnant DONNE au perdant autant de jetons que vaut sa combinaison.</li>

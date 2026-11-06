@@ -177,7 +177,7 @@ ${toc([['but', 'Le but'], ['mise-en-place', 'Mise en place'], ['manche', 'Une ma
 
 <h2 id="manche">Une manche</h2>
 <ol class="steps">
-<li><b>Service</b> : chacun pioche 1 carte et reçoit ${R.tourneesPerRound} Tournées (${R.tourneesPerRound + R.tourneesLoserBonus} pour le perdant de la manche précédente). Réserve : ${R.tourneesMax} Tournées au plus.</li>
+<li><b>Service</b> : chacun pioche 1 carte et reçoit ${R.tourneesPerRound} Tournée${R.tourneesPerRound > 1 ? 's' : ''} (${R.tourneesPerRound + R.tourneesLoserBonus} pour le perdant de la manche précédente). Réserve : ${R.tourneesMax} Tournées au plus, pour économiser en vue d’un enchaînement.</li>
 <li><b>Tour du meneur</b> : il lance les 3 dés jusqu’à ${R.maxThrows} fois, garde des dés entre deux lancers et s’arrête quand il veut. Il peut jouer des cartes avant ou après chaque lancer. Son nombre de lancers fixe le maximum de l’autre joueur.</li>
 <li><b>Tour de l’autre joueur</b>, dans cette limite, en voyant le résultat du meneur.</li>
 <li><b>Dernier mot</b> : les deux combinaisons sont sur la table. Le joueur qui perd à ce moment peut jouer une carte « Dernier mot » ; l’autre peut répondre, et ainsi de suite jusqu’à ce que les deux passent.</li>

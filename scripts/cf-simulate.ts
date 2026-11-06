@@ -39,18 +39,19 @@ function fits(deck: string[], id: string, curve = false): boolean {
 
 /**
  * Ordre de préférence pour construire des decks « optimisés » : les cartes les mieux notées par les
- * dernières simulations d'abord (valeur marginale moyenne de 5 séries de 20 000 à 30 000 parties, 0.41 : nouveaux coûts),
+ * dernières simulations d'abord (valeur marginale d'une série de 8 000 parties, 0.41 : économie serrée, 1 Tournée par manche),
  * pour chercher les decks les plus forts possibles.
  * PREF_FILE (variable d'environnement) : fichier JSON { carte: valeur } pour le recalculer.
  */
 let PREF = [
-  'tournee-patron', 'josiane', 'tete-tourne', 'tant-qu-on-y-est', 'beau-frere', 'retournement-veste',
-  'pari-comptoir', 'vide-poches', 'coup-pouce', 'trinquer', 'pot-aux-roses', 'cul-sec', 'efface-tout', 'faux-421',
-  'pilier', 'recompter', 'fouine', 'videur', 'note-salee', 'leurre', 'de-sous-table', 'mouchard', 'domino',
-  'reaction-chaine', 'ardoise-piegee', 'gueule-bois', 'ticket-caisse', 'verre-offert', 'coup-coude', 'coup-etrier',
-  'croche-patte', 'main-sac', 'grand-enchainement', 'tournee-generale', 'mise-bouche', 'yeux-piquent',
-  'double-tournee', 'bon-numero', 'vieux-marcel', 'verre-de-trop', 'coup-nenette', 'calcul-mental', 'complice',
-  'patron', 'petite-soeur', 'fanfaron', 'courant-air', 'pourboire', 'engrenage', 'fermeture',
+  'mouchard', 'tournee-generale', 'grand-enchainement', 'tournee-patron', 'note-salee', 'bon-numero',
+  'tant-qu-on-y-est', 'fanfaron', 'leurre', 'courant-air', 'trinquer', 'mise-bouche', 'coup-coude',
+  'main-sac', 'efface-tout', 'vieux-marcel', 'ticket-caisse', 'cul-sec', 'yeux-piquent', 'tete-tourne',
+  'beau-frere', 'recompter', 'petite-soeur', 'verre-de-trop', 'de-sous-table', 'vide-poches', 'fermeture',
+  'coup-pouce', 'pot-aux-roses', 'calcul-mental', 'retournement-veste', 'josiane', 'pilier', 'coup-etrier',
+  'ardoise-piegee', 'domino', 'pari-comptoir', 'videur', 'double-tournee', 'fouine', 'faux-421',
+  'reaction-chaine', 'gueule-bois', 'croche-patte', 'pourboire', 'complice', 'coup-nenette', 'patron',
+  'verre-offert', 'engrenage',
 ];
 if (process.env.PREF_FILE) {
   const mg = JSON.parse(readFileSync(process.env.PREF_FILE, 'utf8')) as Record<string, number>;
@@ -138,9 +139,11 @@ export interface GameRecord {
 }
 
 /** Compteurs d'économie : manches-joueur, cartes payantes (coût imprimé ≥ 1) jouées, manches à 2+ cartes payantes, Tournées restantes, Tournées perdues au plafond. */
-export interface Eco { pr: number; paid: number; paid2: number; paid0: number; plays: number; left: number; atCap: number; waste: number; spent: number; n3: number; n4: number; p3: number; p4: number; combos: string[] }
+export interface Eco { pr: number; paid: number; paid2: number; paid0: number; plays: number; left: number; atCap: number; waste: number; spent: number; n3: number; n4: number; p3: number; p4: number; p2raw: number; combos: string[] }
 
 const STEP_CAP = 30000;
+/** Cartes qui rapportent des Tournées ou font baisser les coûts (moteurs de combo). */
+const ENGINES = new Set(['tournee-patron', 'tant-qu-on-y-est', 'fermeture', 'vide-poches', 'mise-bouche', 'beau-frere', 'patron', 'grand-enchainement', 'petite-soeur', 'leurre', 'mouchard', 'complice']);
 
 export function playGame(seats: Seat[], seed: number, config: CfConfig, set: string): GameRecord {
   let s = newGame({ commandes: true, ...config }, seats.map((x, i) => ({ id: `p${i}`, name: `J${i + 1}`, deck: x.deck.cards })), seed);
@@ -149,7 +152,9 @@ export function playGame(seats: Seat[], seed: number, config: CfConfig, set: str
   let steps = 0, real = 0, firstLeader = -1;
   let stalled = false;
   const ring: string[] = [];
-  const eco: Eco = { pr: 0, paid: 0, paid2: 0, paid0: 0, plays: 0, left: 0, atCap: 0, waste: 0, spent: 0, n3: 0, n4: 0, p3: 0, p4: 0, combos: [] };
+  const eco: Eco = { pr: 0, paid: 0, paid2: 0, paid0: 0, plays: 0, left: 0, atCap: 0, waste: 0, spent: 0, n3: 0, n4: 0, p3: 0, p4: 0, p2raw: 0, combos: [] };
+  let startT = seats.map(() => 0);
+  let engineOn = seats.map(() => false);
   let paidRound = seats.map(() => 0);
   let seqRound: string[][] = seats.map(() => []);
   let roundNow = s.round;
@@ -158,7 +163,12 @@ export function playGame(seats: Seat[], seed: number, config: CfConfig, set: str
       if (p.out && paidRound[i] === 0 && tBefore[i] === 0) return;
       eco.pr++;
       eco.paid += paidRound[i];
-      if (paidRound[i] >= 2) eco.paid2++;
+      if (paidRound[i] >= 2) {
+        eco.paid2++;
+        // « Sans préparation » : 2 cartes payantes ou plus sans avoir économisé (moins de 3 Tournées au service),
+        // sans carte qui rapporte ou fait baisser les coûts, et sans moteur installé.
+        if (startT[i] < 3 && !engineOn[i] && !seqRound[i].some((id) => ENGINES.has(id))) eco.p2raw++;
+      }
       if (paidRound[i] === 0) eco.paid0++;
       eco.left += tBefore[i];
       if (tBefore[i] >= s.rules.tourneesMax) eco.atCap++;
@@ -197,6 +207,8 @@ export function playGame(seats: Seat[], seed: number, config: CfConfig, set: str
     if (s.round !== roundNow || s.phase === 'over') {
       if (roundNow >= 1) {
         closeRound(tBefore);
+        startT = s.players.map((p) => p.tournees);
+        engineOn = s.players.map((p) => p.habitues.some((h) => h.id === 'beau-frere' || h.id === 'patron' || h.id === 'complice'));
         if (s.phase !== 'over') s.players.forEach((p, k) => {
           if (p.out) return;
           const inc = s.rules.tourneesPerRound + (s.prevLoser === p.id ? s.rules.tourneesLoserBonus : 0) + (s.commande === 'tournees' ? 1 : 0);
@@ -204,6 +216,7 @@ export function playGame(seats: Seat[], seed: number, config: CfConfig, set: str
         });
       }
       roundNow = s.round;
+      if (roundNow >= 1 && startT.every((x) => x === 0)) startT = s.players.map((p) => p.tournees);
     } else if (s.round >= 1) eco.spent += Math.max(0, tAll - s.players.reduce((x, y) => x + y.tournees, 0));
     if (firstLeader < 0 && s.round >= 1) firstLeader = s.players.findIndex((p) => p.id === s.order[0]);
   }
@@ -299,7 +312,7 @@ export function summarize(recs: GameRecord[]) {
   }
   // Économie des Tournées (duels Fine fouine hors decks de départ, et decks de départ à part)
   const ecoOf = (rs: GameRecord[]) => {
-    const keys = ['pr', 'paid', 'paid2', 'paid0', 'plays', 'left', 'atCap', 'waste', 'spent', 'n3', 'n4', 'p3', 'p4'] as const;
+    const keys = ['pr', 'paid', 'paid2', 'paid0', 'plays', 'left', 'atCap', 'waste', 'spent', 'n3', 'n4', 'p3', 'p4', 'p2raw'] as const;
     const t = Object.fromEntries(keys.map((k) => [k, 0])) as Record<(typeof keys)[number], number>;
     const combos: Record<string, number> = {};
     for (const r of rs) {
@@ -309,7 +322,7 @@ export function summarize(recs: GameRecord[]) {
     const n = Math.max(1, t.pr);
     return {
       paidPerRound: t.paid / n, paid2: t.paid2 / n, paid0: t.paid0 / n, playsPerRound: t.plays / n, left: t.left / n, atCap: t.atCap / n, waste: t.waste / n, spent: t.spent / n,
-      n3: t.n3 / n, n4: t.n4 / n, p3: t.p3 / n, p4: t.p4 / n, combos: Object.entries(combos).sort((a, b) => b[1] - a[1]).slice(0, 40),
+      n3: t.n3 / n, n4: t.n4 / n, p3: t.p3 / n, p4: t.p4 / n, p2raw: t.p2raw / n, combos: Object.entries(combos).sort((a, b) => b[1] - a[1]).slice(0, 40),
     };
   };
   out.economy = ecoOf(ff.filter((r) => r.set !== 'depart'));
@@ -414,7 +427,7 @@ export function printSummary(sm: ReturnType<typeof summarize>) {
   for (const n of [3, 4]) { const m = sm[`multi${n}`] as Record<string, number> | undefined; if (m) lines.push(`À ${n} : ${m.rounds.toFixed(1)} manches, ${m.realDecisions.toFixed(0)} vrais choix ≈ ${m.minutes.toFixed(1)} min, premier meneur gagne ${pctf(m.firstLeaderWins)}`); }
   for (const [lab, key] of [['tous decks', 'economy'], ['decks de départ', 'economyStarters']] as const) {
     const e = sm[key] as Record<string, number>;
-    lines.push(`Tournées (${lab}) : ${e.paidPerRound.toFixed(2)} carte payante par joueur et par manche ; 2+ payantes ${pctf(e.paid2)} ; aucune ${pctf(e.paid0)} ; cartes jouées ${e.playsPerRound.toFixed(2)} ; Tournées dépensées ${e.spent.toFixed(2)} ; restantes en fin de manche ${e.left.toFixed(2)} (au plafond ${pctf(e.atCap)}) ; perdues au plafond ${e.waste.toFixed(2)} ; 3+ cartes ${pctf(e.n3)} ; 4+ cartes ${pctf(e.n4)} ; 3+ payantes ${pctf(e.p3)} ; 4+ payantes ${pctf(e.p4)}`);
+    lines.push(`Tournées (${lab}) : ${e.paidPerRound.toFixed(2)} carte payante par joueur et par manche ; 2+ payantes ${pctf(e.paid2)} (dont sans économie ni carte qui rapporte ${pctf(e.p2raw)}) ; aucune ${pctf(e.paid0)} ; cartes jouées ${e.playsPerRound.toFixed(2)} ; Tournées dépensées ${e.spent.toFixed(2)} ; restantes en fin de manche ${e.left.toFixed(2)} (au plafond ${pctf(e.atCap)}) ; perdues au plafond ${e.waste.toFixed(2)} ; 3+ cartes ${pctf(e.n3)} ; 4+ cartes ${pctf(e.n4)} ; 3+ payantes ${pctf(e.p3)} ; 4+ payantes ${pctf(e.p4)}`);
   }
   for (const [q] of ((sm.economy as { combos: [string, number][] }).combos ?? []).slice(0, 5)) lines.push(`  Manche à 3+ cartes payantes : ${q}`);
   const st = sm.starters as Record<string, number>;
