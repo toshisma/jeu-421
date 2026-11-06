@@ -61,6 +61,10 @@ describe('partie guidée (scénario)', () => {
     expect(pl(a.state, TUTO_ME).hand.map((k) => k.id)).toEqual(pl(b.state, TUTO_ME).hand.map((k) => k.id));
     a.next(); a.next();
     expect(a.play({ type: 'ardoise' }).ok).toBe(false);
+    // 0.41 : d'abord la Tournée du patron (les cartes coûtent plus cher), puis le lancer.
+    expect(a.play({ type: 'roll', keep: [false, false, false] }).ok).toBe(false);
+    const tdp = pl(a.state, TUTO_ME).hand.find((k) => k.id === 'tournee-patron')!;
+    expect(a.play({ type: 'play', card: tdp.uid }).ok).toBe(true);
     expect(a.play({ type: 'roll', keep: [false, false, false] }).ok).toBe(true);
     // Garder les mauvais dés : refusé.
     expect(a.play({ type: 'roll', keep: [true, false, false] }).ok).toBe(false);
