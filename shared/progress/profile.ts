@@ -123,8 +123,21 @@ export function botTableRules(humans: number, botLevels: Difficulty[]): { mode: 
   return { mode: humans >= 2 ? 'online' : 'solo', botLevel };
 }
 
-/** Place finale d'un joueur (1 = premier ; ex æquo aux points : même place). */
+/**
+ * Joueur dont la partie est finie alors que les autres jouent encore : il est sorti, sa place
+ * est définitive (les suivants ne peuvent que finir derrière lui). Renvoie cette place (1 = premier),
+ * ou null s'il joue encore, si la partie est terminée ou dans la variante aux points.
+ */
+export function settledPlace(state: GameState, meId: string): number | null {
+  if (state.phase === 'fini' || state.config.variant === 'manches') return null;
+  const me = state.players.find((p) => p.id === meId);
+  return me?.out && me.finishPos != null ? me.finishPos : null;
+}
+
+/** Place finale d'un joueur (1 = premier ; ex æquo aux points : même place). Aussi pour un joueur déjà sorti. */
 export function finalPlace(state: GameState, meId: string): number {
+  const early = settledPlace(state, meId);
+  if (early != null) return early;
   if (state.config.variant === 'manches') {
     const me = state.players.find((p) => p.id === meId);
     return me ? 1 + state.players.filter((p) => p.score > me.score).length : state.players.length;
@@ -278,13 +291,14 @@ export interface Reward {
 /** Victoire d'un joueur dans une partie terminée (aux points : les ex æquo en tête gagnent tous). */
 export function didWin(state: GameState, meId: string): boolean {
   const me = state.players.find((p) => p.id === meId);
-  if (!me || state.phase !== 'fini') return false;
+  if (!me) return false;
+  if (state.phase !== 'fini') return settledPlace(state, meId) === 1; // sorti le premier : gagné, même si les autres jouent encore
   if (state.config.variant === 'manches') return me.score === Math.max(...state.players.map((p) => p.score));
   return state.ranking[0] === meId;
 }
 
 export function computeReward(state: GameState, meId: string, ctx: RewardContext): Reward {
-  if (!state.players.some((p) => p.id === meId) || state.phase !== 'fini') return { won: false, xp: 0, coins: 0, lines: [] };
+  if (!state.players.some((p) => p.id === meId) || (state.phase !== 'fini' && settledPlace(state, meId) == null)) return { won: false, xp: 0, coins: 0, lines: [] };
   return rewardFor(didWin(state, meId), state.round, { ...ctx, place: ctx.place ?? finalPlace(state, meId) });
 }
 

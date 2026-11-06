@@ -674,7 +674,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     return p;
   }
   /** Fin de la partie ou du tournoi : les mises ont été redistribuées, le séquestre est levé. */
-  const release = (context: string) => store.escrowRelease(context);
+  const release = (context: string, userId?: string) => (userId ? store.escrowReleaseUser(context, userId) : store.escrowRelease(context));
   // Démarrage : toute mise encore en séquestre appartient à une partie interrompue → remboursement.
   {
     const left = store.escrowAll();

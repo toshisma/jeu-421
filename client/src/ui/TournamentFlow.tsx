@@ -14,7 +14,7 @@ import { publicUrl } from '../platform';
 import { loadSession, type Settings } from '../settings';
 import { Avatar } from './Avatar';
 import { ConfigEditor } from './ConfigEditor';
-import { GameScreen } from './GameScreen';
+import { GameScreen, type EarlyOptions } from './GameScreen';
 import { Chat } from './Chat';
 import { Icon } from './Icon';
 import { Seg, StakePicker } from './OnlineHub';
@@ -100,11 +100,30 @@ export function TournamentFlow({ mode, settings, onSettings, onExit, onCancel, a
         if (roundIdx === total - 1 || t.rounds[roundIdx].tables.length === 1) return rank === 0 ? 'Vous remportez le tournoi !' : `Finale terminée : vous finissez ${PLACE(rank)}.`;
         return rank >= 0 && tb && rank < tb.qualified ? `Qualifié pour ${roundName(roundIdx + 1, total).toLowerCase()} !` : 'Éliminé du tournoi. Merci d’avoir joué !';
       };
+      // Sorti avant la fin de la table : qualifié (on attend le tour suivant), éliminé ou place de finale acquise (on peut partir).
+      const early = (_st: GameState, place: number): EarlyOptions => {
+        const tb = currentTableOf(t, session.playerId);
+        const final = t.rounds[roundIdx].tables.length === 1;
+        const board = { label: 'Voir le tableau', run: () => setWatchBracket(true) };
+        const quit = { label: 'Empocher et quitter', run: () => { session.tLeave(); onExit(); } };
+        if (final) return {
+          title: place === 1 ? 'Vous remportez le tournoi !' : `Vous finissez ${PLACE(place - 1)} du tournoi !`,
+          note: pa.isAccount ? 'Votre place est acquise : votre gain de tournoi vous est déjà versé.' : 'Votre place au tournoi est acquise.', quit, alt: board,
+        };
+        if (tb && place - 1 < tb.qualified) return {
+          title: `Qualifié pour ${roundName(roundIdx + 1, total).toLowerCase()} !`,
+          note: 'Restez dans les parages : le tour suivant commence quand toutes les tables ont fini.', quit: null, alt: board,
+        };
+        return {
+          title: `Éliminé : ${PLACE(place - 1)} de la table`,
+          note: pa.isAccount ? 'Votre classement final (et votre gain éventuel) vous sera versé à la fin du tournoi.' : 'Merci d’avoir joué ! Vous pouvez partir ou regarder la fin.', quit, alt: board,
+        };
+      };
       return (
         <>
         <GameScreen key={room!.code} controller={controller} settings={settings} onSettings={onSettings} onExit={() => setWatchBracket(true)}
           appearance={appearance} pa={pa} onGameEnd={(st, ctx) => onGameEnd(st, controller.meId, ctx)}
-          tableExit={{ label: 'Voir le tableau', note }} />
+          tableExit={{ label: 'Voir le tableau', note }} early={early} />
           {/* Tchat de la table, comme à une table en ligne ordinaire. */}
           <Chat session={session} pa={pa} />
         </>

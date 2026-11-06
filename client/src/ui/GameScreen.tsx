@@ -4,7 +4,7 @@ import { askConfirm } from './confirm';
 import { Icon } from './Icon';
 import { flyTokens } from './flyTokens';
 import { isSuddenDeath } from '../../../shared/config';
-import { albumKey, botTableRules, finalPlace } from '../../../shared/progress/profile';
+import { albumKey, botTableRules, finalPlace, settledPlace } from '../../../shared/progress/profile';
 import { setPresence } from '../presence';
 import { fxDef } from '../../../shared/progress/dice-collection';
 import { Celebration } from './Celebration';
@@ -53,12 +53,30 @@ interface Props {
   tableExit?: { label: string; note?: (state: GameState) => string };
   /** Partie contre le patron de la semaine. */
   bossId?: string;
+  /**
+   * Sorti avant la fin (place définitive) : récompense tout de suite, puis « Empocher et quitter »
+   * ou « Continuer à regarder ». `false` : désactivé (partie guidée). Une fonction adapte le
+   * bandeau (tournoi : qualifié, éliminé, finale).
+   */
+  early?: false | ((state: GameState, place: number) => EarlyOptions);
 }
 
+export interface EarlyOptions {
+  title?: string;
+  note?: string;
+  /** Bouton principal pour partir (null : pas proposé, par exemple qualifié pour le tour suivant). */
+  quit?: { label: string; run: () => void } | null;
+  /** Bouton secondaire (tournoi : voir le tableau). */
+  alt?: { label: string; run: () => void };
+}
+
+const placeLabel = (n: number) => (n === 1 ? '1er' : `${n}e`);
+
 const NO_KEEP = [false, false, false];
+const MEDALS = ['🥇', '🥈', '🥉'];
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export function GameScreen({ controller, settings, onSettings, onExit, personas, appearance, onGameEnd, onGameStart, pa, tableExit, bossId }: Props) {
+export function GameScreen({ controller, settings, onSettings, onExit, personas, appearance, onGameEnd, onGameStart, pa, tableExit, bossId, early }: Props) {
   const tray = useRef<DiceTrayHandle>(null);
   const [shown, setShown] = useState<GameState | null>(null);
   const shownRef = useRef<GameState | null>(null);
@@ -94,6 +112,18 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   useEffect(() => { if (!bigShot) return; const t = setTimeout(() => setBigShot(null), 2400); return () => clearTimeout(t); }, [bigShot]);
   const [now, setNow] = useState(Date.now());
   const [endReward, setEndReward] = useState<EndReward | null>(null);
+  /**
+   * Récompense de la partie : pas encore demandée, en calcul, connue (endReward, éventuellement null :
+   * aucune), ou déjà comptée avant l'ouverture de l'écran (retour dans une partie où l'on était sorti).
+   */
+  const [rewardStatus, setRewardStatus] = useState<'none' | 'pending' | 'done' | 'earlier'>('none');
+  /** Sorti avant la fin : le joueur a choisi de continuer à regarder (bandeau réduit). */
+  const [watching, setWatching] = useState(false);
+  /** La récompense de cette partie a déjà été demandée (à la sortie du joueur) : jamais une deuxième fois. */
+  const rewardAsked = useRef(false);
+  const earlyOk = early !== false && !controller.spectator && !(controller instanceof PartyController);
+  const earlyOkRef = useRef(earlyOk);
+  earlyOkRef.current = earlyOk;
   const count421 = useRef(0);
   const startedAt = useRef(Date.now());
   const albumKeys = useRef<string[]>([]);
@@ -149,6 +179,37 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
     return () => clearTimeout(t);
   }, [controller]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** Calcule et enregistre la récompense de la partie (une seule fois), à la fin ou à la sortie du joueur. */
+  const askReward = (state: GameState) => {
+    const me = controller.meId;
+    const bots = controller.getMeta().filter((m) => m.isBot);
+    // En ligne avec des ordinateurs : mêmes règles que le serveur (barème du solo, hors classement).
+    const botRules = controller.mode === 'online' ? botTableRules(controller.getMeta().length - bots.length, bots.map((b) => b.difficulty ?? 'normal')) : { mode: controller.mode };
+    setRewardStatus('pending');
+    void Promise.resolve(onGameEndRef.current?.(state, {
+      ...botRules,
+      opponents: state.players.length - 1,
+      difficulty: bots[0]?.difficulty,
+      count421: count421.current,
+      combos: { ...combos.current },
+      gestureThrows: gestureThrows.current,
+      rounds: state.round,
+      roundsLost: state.config.variant === 'manches' ? undefined : roundsLost.current,
+      maxTokens: maxTokens.current,
+      suddenDeath: isSuddenDeath(state.config),
+      comboKeys: [...albumKeys.current],
+      best: bestRoll.current ?? undefined,
+      opponentNames: controller.getMeta().filter((m) => m.id !== me).map((m) => m.name),
+      hour: new Date().getHours(),
+      boss: bossId,
+      place: finalPlace(state, me),
+      minutes: (Date.now() - startedAt.current) / 60000,
+      now: Date.now(),
+    })).then((r) => { setEndReward(r ?? null); setRewardStatus('done'); }, () => setRewardStatus('done'));
+  };
+  const askRewardRef = useRef(askReward);
+  askRewardRef.current = askReward;
+
   // ------------------------------------------------------------------------------------------
   // File d'événements : chaque lancer est animé jusqu'au bout avant d'afficher le nouvel état.
   const pump = useCallback(async () => {
@@ -170,6 +231,9 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
         maxTokens.current = 0;
         onGameStartRef.current?.();
         setEndReward(null);
+        setRewardStatus('none');
+        setWatching(false);
+        rewardAsked.current = false;
       }
       if (!prev) onGameStartRef.current?.(); // première partie
       if (ev.type === 'roll' && ev.roll.playerId === controller.meId) {
@@ -225,35 +289,23 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
         }
         await wait(ev.state.phase === 'fini' ? 600 : 1500);
       }
+      const me = controller.meId;
+      // Joueur sorti avant la fin : sa place est définitive, sa récompense est calculée tout de suite
+      // (le serveur fait de même pour les comptes en ligne). Il pourra partir ou regarder la fin.
+      const outNow = earlyOkRef.current && settledPlace(ev.state, me) != null;
+      if (outNow && !rewardAsked.current) {
+        rewardAsked.current = true;
+        if (prev && settledPlace(prev, me) == null) {
+          if (settledPlace(ev.state, me) === 1) sound.win();
+          askRewardRef.current(ev.state);
+        } else setRewardStatus('earlier'); // déjà sorti en arrivant sur l'écran (reconnexion) : déjà compté
+      }
       if (prev && prev.phase !== 'fini' && ev.state.phase === 'fini') {
-        const me = controller.meId;
         if (onGameStartRef.current) setPresence('menu'); // partie solo terminée : plus « en cours »
         if (ev.state.ranking[0] === me) sound.win();
         else if (ev.state.loserId === me || ev.state.ranking[ev.state.ranking.length - 1] === me) sound.lose();
         else sound.win();
-        const bots = controller.getMeta().filter((m) => m.isBot);
-        // En ligne avec des ordinateurs : mêmes règles que le serveur (barème du solo, hors classement).
-        const botRules = controller.mode === 'online' ? botTableRules(controller.getMeta().length - bots.length, bots.map((b) => b.difficulty ?? 'normal')) : { mode: controller.mode };
-        void Promise.resolve(onGameEndRef.current?.(ev.state, {
-          ...botRules,
-          opponents: ev.state.players.length - 1,
-          difficulty: bots[0]?.difficulty,
-          count421: count421.current,
-          combos: { ...combos.current },
-          gestureThrows: gestureThrows.current,
-          rounds: ev.state.round,
-          roundsLost: ev.state.config.variant === 'manches' ? undefined : roundsLost.current,
-          maxTokens: maxTokens.current,
-          suddenDeath: isSuddenDeath(ev.state.config),
-          comboKeys: [...albumKeys.current],
-          best: bestRoll.current ?? undefined,
-          opponentNames: controller.getMeta().filter((m) => m.id !== controller.meId).map((m) => m.name),
-          hour: new Date().getHours(),
-          boss: bossId,
-          place: finalPlace(ev.state, me),
-          minutes: (Date.now() - startedAt.current) / 60000,
-          now: Date.now(),
-        })).then((r) => setEndReward(r ?? null));
+        if (!rewardAsked.current) { rewardAsked.current = true; askRewardRef.current(ev.state); }
       }
     }
     busy.current = false;
@@ -402,8 +454,10 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
 
   const spectator = !!controller.spectator;
   const watchers = controller.spectatorCount?.() ?? 0;
+  // Sorti avant la fin : sa place est acquise, partir n'est pas un abandon (pas de confirmation).
+  const myPlace = s && earlyOk ? settledPlace(s, controller.meId) : null;
   const leave = async () => {
-    if (s && s.phase !== 'fini' && !tableExit && !(await askConfirm('Quitter la partie en cours ?', 'Quitter'))) return;
+    if (s && s.phase !== 'fini' && !tableExit && myPlace == null && !(await askConfirm('Quitter la partie en cours ?', 'Quitter'))) return;
     controller.leave();
     onExit();
   };
@@ -566,7 +620,39 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
         ))}
       </div>
 
-      {s && s.phase !== 'fini' && s.players.find((p) => p.id === controller.meId)?.out && controller.canSkipToEnd?.() && (
+      {s && myPlace != null && (() => {
+        const o = (typeof early === 'function' ? early(s, myPlace) : null) ?? {};
+        const quit = o.quit === undefined ? { label: 'Empocher et quitter', run: () => { controller.leave(); onExit(); } } : o.quit;
+        const title = o.title ?? `Vous avez fini ${placeLabel(myPlace)} !`;
+        const r = endReward?.reward;
+        const gain = rewardStatus === 'pending' || rewardStatus === 'none' ? 'Récompense : calcul…'
+          : rewardStatus === 'earlier' ? 'Récompense déjà comptée.'
+            : r && (r.xp || r.coins) ? `+${r.xp} XP · +${r.coins} pièce${r.coins > 1 ? 's' : ''}${endReward?.applied.bagsFound ? ' · sac de dés !' : ''}`
+              : 'Pas de récompense pour cette partie.';
+        const skip = controller.canSkipToEnd?.() ? <button className="btn small" onClick={() => controller.skipToEnd?.()} aria-label="Voir le résultat">⏩ Résultat</button> : null;
+        if (watching) return (
+          <div className="skip-end early-mini" role="status">
+            <span><b>{placeLabel(myPlace)}</b> · {gain}</span>
+            {skip}
+            {quit && <button className="btn primary small" onClick={quit.run}>Quitter</button>}
+          </div>
+        );
+        return (
+          <div className="early-done" role="dialog" aria-label={title}>
+            <div className="ed-head">
+              <span className="ed-medal" aria-hidden>{myPlace <= 3 ? MEDALS[myPlace - 1] : '🎲'}</span>
+              <div><b>{title}</b><small>{o.note ?? 'Les autres terminent la partie. Votre place est acquise.'}</small></div>
+            </div>
+            <p className={`ed-gain${rewardStatus === 'done' && r && (r.xp || r.coins) ? ' ok' : ''}`}>{gain}</p>
+            <div className="ed-buttons">
+              {quit && <button className="btn primary" onClick={quit.run}>{quit.label}</button>}
+              {o.alt && <button className="btn" onClick={o.alt.run}>{o.alt.label}</button>}
+              <button className="btn" onClick={() => setWatching(true)}>Continuer à regarder</button>
+            </div>
+          </div>
+        );
+      })()}
+      {s && s.phase !== 'fini' && myPlace == null && s.players.find((p) => p.id === controller.meId)?.out && controller.canSkipToEnd?.() && (
         <div className="skip-end">
           <span>Vous êtes sorti : les autres finissent la partie.</span>
           <button className="btn primary small" onClick={() => controller.skipToEnd?.()}>⏩ Voir le résultat</button>

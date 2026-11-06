@@ -23,7 +23,7 @@ export function TutorialScreen({ controller, settings, onSettings, onExit, appea
   const msg = coachMessage(state, controller.meId);
   return (
     <>
-      <GameScreen controller={controller} settings={settings} onSettings={onSettings} onExit={onExit} appearance={appearance} pa={pa}
+      <GameScreen controller={controller} settings={settings} onSettings={onSettings} onExit={onExit} appearance={appearance} pa={pa} early={false}
         tableExit={{ label: 'Terminer', note: () => (pa.profile.tutorial && rewarded ? '+50 pièces pour votre première partie !' : 'Partie guidée terminée.') }}
         onGameEnd={async () => {
           if (!pa.profile.tutorial) { const err = await pa.finishTutorial(); if (!err) setRewarded(true); }

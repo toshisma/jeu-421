@@ -295,8 +295,8 @@ export function useProfile(enabled: boolean) {
     const token = soloToken.current;
     soloToken.current = null;
     if (!token) return null;
-    const me = state.players.find((p) => p.id === meId);
-    const won = state.config.variant === 'manches' ? me!.score === Math.max(...state.players.map((p) => p.score)) : state.ranking[0] === meId;
+    // Aussi pour un joueur sorti avant la fin (place définitive) : voir settledPlace.
+    const won = didWin(state, meId);
     try {
       const r = await api<EndReward>('/solo/end', {
         token: s.token,
