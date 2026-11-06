@@ -95,7 +95,7 @@ const pct = (rank: number) => cdfBelow(rank + 0.5);
 // ---------------------------------------------------------------------------------------------
 // Contexte de décision
 
-interface Mods { doubles: number; note: number; pari: number; marcel: boolean; faux: boolean; piliers: number; /** On efface tout : s'il perd, personne ne donne. */ efface: boolean }
+interface Mods { doubles: number; note: number; pari: number; marcel: boolean; faux: boolean; piliers: number; /** Le Fanfaron : +1 s'il gagne. */ fanfaron: boolean; /** On efface tout : s'il perd, personne ne donne. */ efface: boolean }
 
 interface DiceCtx {
   view: CfView;
@@ -114,6 +114,7 @@ function modsOf(p: CfPlayerView): Mods {
     doubles: p.r.doubles, note: p.r.noteSalee, pari: p.r.pari,
     marcel: p.habitues.some((h) => h.id === 'vieux-marcel'), faux: p.r.faux421,
     piliers: p.habitues.filter((h) => h.id === 'pilier').length,
+    fanfaron: p.habitues.some((h) => h.id === 'fanfaron'),
     efface: (p.r.efface ?? 0) > 0,
   };
 }
@@ -133,7 +134,7 @@ function valueOfC(i: number, m: Mods): number {
 /** Jetons donnés par le gagnant au perdant. */
 function amount(winValue: number, w: Mods, l: Mods, loserNenette: boolean): number {
   if (l.efface) return 0;
-  let a = winValue * 2 ** w.doubles + w.note + 2 * (w.pari + l.pari);
+  let a = winValue * 2 ** w.doubles + w.note + 2 * (w.pari + l.pari) + (w.fanfaron ? 1 : 0);
   if (l.piliers && a > 1) a -= 1;
   if (loserNenette && a < 2) a = 2;
   return a;
@@ -279,6 +280,7 @@ const STATIC: Record<string, number> = {
   patron: 2.0, josiane: 1.6, 'vieux-marcel': 0.9 + 0.55, pilier: 1.2, videur: 1.0, 'beau-frere': 1.1, mouchard: 0.9,
   leurre: 0.35, 'gueule-bois': 0.9, 'croche-patte': 0.8, 'main-sac': 1.0, 'ardoise-piegee': 0.7,
   'faux-421': 1.1, 'coup-nenette': 1.1, 'retournement-veste': 1.6,
+  fanfaron: 1.0, complice: 0.6, 'verre-de-trop': 0.7, 'courant-air': 0.8, engrenage: 0.9,
 };
 
 /** Valeur « en main » d'une carte (mulligan, défausse, Calcul mental). */
@@ -500,8 +502,9 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
       return valueNow(ctx, d, used, limit, depth) - base;
     }
     case 'cul-sec':
-      if (used < limit && used > 0) return valueNow(ctx, me.r.dice, used, limit + 1, depth) - base - 0.15;
-      return valueNow(ctx, me.r.dice, used, limit + 1, depth) - base;
+      // 0.40 : Cul sec pioche aussi une carte.
+      if (used < limit && used > 0) return valueNow(ctx, me.r.dice, used, limit + 1, depth) - base - 0.15 + CV - drawCost(1);
+      return valueNow(ctx, me.r.dice, used, limit + 1, depth) - base + CV - drawCost(1);
     case 'double-tournee':
       return valueNow(withMods(ctx, { doubles: ctx.mine.doubles + 1 }), me.r.dice, used, limit, depth) - base;
     case 'pari-comptoir':
@@ -543,11 +546,13 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
     }
     case 'tournee-patron': return Math.min(2, view.rules.tourneesMax - me.tournees) * TV + (me.tournees <= 1 ? 0.2 : 0) + CV - drawCost(1);
     case 'coup-coude': return CV + 0.1 - drawCost(1);
+    // Le Pourboire : un jeton de moins tout de suite ; le dernier fait gagner la partie.
+    case 'pourboire': return 1 + (me.tokens <= 1 ? CF_AI_TUNING.endBonus : 0);
     case 'calcul-mental': return me.deckCount > 0 ? CV + 0.25 : null;
     case 'mise-bouche': {
       // La prochaine carte est gratuite : utile si une carte chère (hors Dernier mot et Riposte) attend en main.
       const saved = Math.max(0, ...me.hand!.filter((k) => k.id !== 'mise-bouche' && !['dernier-mot', 'riposte'].includes(def(k.id).type)).map((k) => def(k.id).cost));
-      return saved >= 2 ? saved * TV * 0.8 + 0.1 : null;
+      return CV - drawCost(1) + (saved >= 2 ? saved * TV * 0.8 : 0);
     }
     case 'domino': return target && target.tournees > 0 ? target.tournees * TV * 0.9 : null;
     case 'verre-offert': {
@@ -564,7 +569,7 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
       return target && target.handCount > 0 ? CV + 0.15 + (target.handCount <= 2 ? 0.25 : 0) : null;
     case 'tant-qu-on-y-est': {
       // Une carte contre des Tournées : intéressant à partir de 2.
-      const n = Math.min(me.r.played + 1, view.rules.tourneesMax - me.tournees);
+      const n = Math.min(me.r.played + 2, view.rules.tourneesMax - me.tournees);
       return n >= 2 ? n * TV - 0.1 : null;
     }
     case 'petite-soeur': {
@@ -582,17 +587,23 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
       if (!a.trap) return CV - drawCost(1);
       const t = view.traps.find((x) => x.uid === a.trap);
       if (!t) return null;
-      if (t.id) return t.id === 'leurre' ? -0.3 : (STATIC[t.id] ?? 0.6) + (t.target === me.id ? 0.2 : -0.3);
+      const draw1 = CV - drawCost(1);
+      if (t.id) return draw1 + (t.id === 'leurre' ? -0.3 : (STATIC[t.id] ?? 0.6) + (t.target === me.id ? 0.2 : -0.3));
       const o = view.players.find((p) => p.id === t.owner)!;
-      return (o.families.includes('pieges') ? 1.0 : 0.7) + (t.target === me.id ? 0.2 : -0.3);
+      return draw1 + (o.families.includes('pieges') ? 1.0 : 0.7) + (t.target === me.id ? 0.2 : -0.3);
     }
     default: break;
   }
   const d = def(id);
   if (d.type === 'habitue') {
     let v = STATIC[id] ?? 0.5;
-    if (id === 'beau-frere') v = 0.5 + 0.25 * Math.min(4, me.hand!.filter((k) => def(k.id).type === 'coup' && def(k.id).cost >= 1).length);
+    if (id === 'beau-frere') v = 0.5 + 0.25 * Math.min(4, me.hand!.filter((k) => k.id !== 'beau-frere' && def(k.id).cost >= 1).length);
     if (id === 'videur') v += opps.some((o) => o.families.includes('pieges')) ? 0.8 : -0.4;
+    if (id === 'complice') {
+      // Vaut d'autant plus que des pièges sont posés ou en main.
+      const traps = view.traps.filter((t) => t.owner === me.id).length + me.hand!.filter((k) => def(k.id).type === 'piege').length;
+      v = 0.3 + 0.35 * Math.min(4, traps);
+    }
     if (id === 'patron' || id === 'josiane' || id === 'beau-frere') v *= lateGame ? 0.4 : 1;
     if (id === 'pilier' && lateGame) v *= 0.5;
     if (me.habitues.some((h) => h.id === id) && (id === 'vieux-marcel' || id === 'pilier')) v = 0;
@@ -601,6 +612,8 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
   if (d.type === 'piege') {
     let v = STATIC[id] ?? 0.4;
     if (id === 'main-sac') v = (target ?? opps[0]).families.some((f) => f === 'ivresse' || f === 'chaines') ? 1.0 : 0.6;
+    if (id === 'courant-air') v = (target ?? opps[0]).habitues.length >= 3 ? 0.3 : 0.8;
+    if (me.habitues.some((h) => h.id === 'complice')) v += 0.3;
     if (id === 'retournement-veste' && lateGame) v *= 1.3;
     if (level === 'fine-fouine' && id === 'leurre') v = 0.45; // bluff : occupe la place et attire les Fouines
     // Multi : viser celui qui est le plus près de gagner.
@@ -655,13 +668,15 @@ function threatOf(view: CfView, me: CfPlayerView): number {
     case 'fouine': return view.traps.some((t) => t.uid === top.params.trap && t.owner === me.id && t.id !== 'leurre') ? 1.0 : 0.1;
     case 'domino': return me.tournees * TV;
     case 'tournee-patron': return 2 * TV + CV;
+    case 'pourboire': return owner.tokens <= 1 ? 6 : 1.0;
+    case 'coup-etrier': return owner.r.done && me.r.done && T_RANK[tidx(owner.r.dice)] < T_RANK[tidx(me.r.dice)] ? 1.2 : 0.3;
     case 'coup-coude': return CV * 0.8;
     case 'calcul-mental': return CV;
     case 'mise-bouche': return 0.6;
     case 'grand-enchainement': return 1.6;
     case 'verre-offert': return top.params.target === me.id && !me.r.done && view.order.indexOf(me.id) > view.order.indexOf(owner.id) ? 1.3 : 0.5;
     case 'vide-poches': return top.params.target === me.id ? CV * 0.9 : 0;
-    case 'tant-qu-on-y-est': return Math.min(owner.r.played, view.rules.tourneesMax - owner.tournees) * TV;
+    case 'tant-qu-on-y-est': return Math.min(owner.r.played + 1, view.rules.tourneesMax - owner.tournees) * TV;
     case 'petite-soeur': return 0.8;
     case 'efface-tout': case 'trinquer': {
       // Ce que je perds si la carte passe (comptes en duel, vue de ma combinaison contre la sienne).
@@ -732,6 +747,12 @@ function lastword(view: CfView, legal: CfAction[], level: CfLevel, rng: Rng, han
     let g: number;
     if (id === 'note-salee') g = utility(withMods(ctx, { note: ctx.mine.note + 1 }), ti, 3, me.r.forcedNenette ? 0 : undefined) - now;
     else if (id === 'efface-tout') g = utility(withMods(ctx, { efface: true }), ti, 3, me.r.forcedNenette ? 0 : undefined) - now;
+    else if (id === 'coup-etrier') {
+      // Relance d'un dé : moyenne sur les 6 faces.
+      let sum = 0;
+      for (let f = 1; f <= 6; f++) { const d = [...me.r.dice]; d[a.die!] = f; sum += utility(ctx, tidx(d), 3); }
+      g = sum / 6 - now;
+    }
     else if (id === 'trinquer') {
       const o = ctx.opps.find((x) => x.p.id === a.target);
       if (!o) continue;

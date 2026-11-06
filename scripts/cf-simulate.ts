@@ -8,11 +8,11 @@
  * durée, avantage du premier meneur, victoires par deck et par famille, statistiques par carte.
  */
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { apply, legalActions, newGame, viewFor, waitingFor, type CfConfig } from '../shared/cards/engine';
 import { cfDecide, type CfLevel } from '../shared/cards/ai';
-import { CARDS, CARD_BY_ID, STARTER_DECKS, deckProblems, type CardFamily } from '../shared/cards/catalog';
+import { CARDS, CARD_BY_ID, CF_RULES, DECK_RULES, STARTER_DECKS, deckProblems, type CardFamily } from '../shared/cards/catalog';
 import { mulberry32 } from '../shared/rng';
 
 // ---------------------------------------------------------------------------------------------
@@ -20,18 +20,36 @@ import { mulberry32 } from '../shared/rng';
 
 const FAMILIES: CardFamily[] = ['habitues', 'ivresse', 'pieges', 'chaines'];
 const expand = (cards: Record<string, number>) => Object.entries(cards).flatMap(([id, n]) => Array(n).fill(id) as string[]);
-const maxOf = (id: string) => (CARD_BY_ID[id].rarity === 'legendaire' ? 1 : 2);
+const maxOf = (id: string) => (CARD_BY_ID[id].rarity === 'legendaire' ? CF_RULES.maxLegendaryCopies : CF_RULES.maxCopies);
+/** Peut-on ajouter cette carte au deck sans enfreindre la règle de construction (familles, légendaires, épiques) ? */
+function fits(deck: string[], id: string): boolean {
+  const c = CARD_BY_ID[id];
+  if (deck.filter((x) => x === id).length >= maxOf(id)) return false;
+  const fams = new Set(deck.map((x) => CARD_BY_ID[x].family));
+  if (!fams.has(c.family) && fams.size >= DECK_RULES.maxFamilies) return false;
+  if (c.rarity === 'legendaire' && new Set(deck.filter((x) => CARD_BY_ID[x].rarity === 'legendaire')).size >= DECK_RULES.maxLegendaries) return false;
+  if (c.rarity === 'epique' && deck.filter((x) => CARD_BY_ID[x].rarity === 'epique').length >= DECK_RULES.maxEpics) return false;
+  return true;
+}
 
-/** Ordre de préférence (a priori) pour construire des decks « optimisés ». */
-const PREF = [
-  'bon-numero', 'patron', 'josiane', 'coup-pouce', 'retournement-veste', 'double-tournee', 'reaction-chaine', 'cul-sec',
-  'tete-tourne', 'trinquer', 'coup-coude', 'tournee-patron', 'pilier', 'videur', 'recompter', 'grand-enchainement', 'ticket-caisse',
-  'efface-tout', 'mouchard',
-  'tournee-generale', 'faux-421', 'coup-nenette', 'gueule-bois', 'calcul-mental', 'mise-bouche', 'croche-patte', 'ardoise-piegee',
-  'de-sous-table', 'yeux-piquent', 'fouine', 'vide-poches', 'pari-comptoir', 'leurre', 'domino', 'note-salee', 'fermeture', 'vieux-marcel', 'main-sac',
-  // Nouvelles cartes un peu en dessous de la moyenne dans les simulations : après les autres.
-  'petite-soeur', 'tant-qu-on-y-est', 'verre-offert', 'beau-frere',
+/**
+ * Ordre de préférence pour construire des decks « optimisés » : les cartes les mieux notées par la
+ * dernière grosse simulation d'abord (valeur marginale), pour chercher les decks les plus forts possibles.
+ * PREF_FILE (variable d'environnement) : fichier JSON { carte: valeur } pour le recalculer.
+ */
+let PREF = [
+  'retournement-veste', 'recompter', 'videur', 'reaction-chaine', 'trinquer', 'efface-tout', 'tournee-patron', 'bon-numero',
+  'grand-enchainement', 'patron', 'leurre', 'mouchard', 'double-tournee', 'tournee-generale', 'faux-421', 'calcul-mental',
+  'yeux-piquent', 'de-sous-table', 'coup-nenette', 'domino', 'vieux-marcel', 'coup-coude', 'tete-tourne', 'gueule-bois',
+  'pourboire', 'coup-etrier', 'fanfaron', 'verre-de-trop', 'courant-air', 'pot-aux-roses', 'complice', 'engrenage',
+  'note-salee', 'main-sac', 'ticket-caisse', 'croche-patte', 'vide-poches', 'fermeture', 'beau-frere', 'pari-comptoir',
+  'pilier', 'coup-pouce', 'josiane', 'tant-qu-on-y-est', 'ardoise-piegee', 'fouine', 'verre-offert', 'mise-bouche',
+  'petite-soeur', 'cul-sec',
 ];
+if (process.env.PREF_FILE) {
+  const mg = JSON.parse(readFileSync(process.env.PREF_FILE, 'utf8')) as Record<string, number>;
+  PREF = [...CARDS.map((c) => c.id)].sort((a, b) => (mg[b] ?? 0) - (mg[a] ?? 0));
+}
 for (const c of CARDS) if (!PREF.includes(c.id)) throw new Error(`Carte absente de PREF : ${c.id}`);
 
 function buildDeck(families: CardFamily[], mainQuota = 20): string[] {
@@ -40,43 +58,57 @@ function buildDeck(families: CardFamily[], mainQuota = 20): string[] {
   for (const id of PREF) {
     if (deck.length >= mainQuota) break;
     if (CARD_BY_ID[id].family !== main) continue;
-    for (let k = 0; k < maxOf(id) && deck.length < mainQuota; k++) deck.push(id);
+    for (let k = 0; k < maxOf(id) && deck.length < mainQuota; k++) if (fits(deck, id)) deck.push(id);
   }
   for (const id of PREF) {
     if (deck.length >= 20) break;
     if (!rest.includes(CARD_BY_ID[id].family)) continue;
-    for (let k = 0; k < maxOf(id) && deck.length < 20; k++) deck.push(id);
+    for (let k = 0; k < maxOf(id) && deck.length < 20; k++) if (fits(deck, id)) deck.push(id);
   }
   return deck;
 }
 
 interface DeckSpec { name: string; kind: 'depart' | 'aleatoire' | 'optimise'; cards: string[] }
 
-const STARTERS: DeckSpec[] = STARTER_DECKS.map((d) => ({ name: d.name, kind: 'depart', cards: expand(d.cards) }));
-const OPTIMIZED: DeckSpec[] = [];
+let STARTERS: DeckSpec[] = [];
+let OPTIMIZED: DeckSpec[] = [];
 const FL: Record<CardFamily, string> = { habitues: 'Habitués', ivresse: 'Ivresse', pieges: 'Pièges', chaines: 'Chaînes' };
-FAMILIES.forEach((f, i) => {
-  OPTIMIZED.push({ name: `Mono ${FL[f]}`, kind: 'optimise', cards: buildDeck([f, FAMILIES[(i + 1) % 4]], 17) });
-});
-for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) {
-  const a = FAMILIES[i], b = FAMILIES[j];
-  const half = buildDeck([a], 10);
-  const deck = [...half, ...buildDeck([b], 10)];
-  OPTIMIZED.push({ name: `${FL[a]} + ${FL[b]}`, kind: 'optimise', cards: deck.slice(0, 20) });
-}
-for (const d of [...STARTERS, ...OPTIMIZED]) {
-  const rec: Record<string, number> = {};
-  for (const id of d.cards) rec[id] = (rec[id] ?? 0) + 1;
-  const pb = deckProblems(rec);
-  if (pb.length) throw new Error(`${d.name} : ${pb.join(' ')}`);
-}
-
-function randomDeck(r: () => number): DeckSpec {
-  const d: string[] = [];
-  while (d.length < 20) {
-    const c = CARDS[Math.floor(r() * CARDS.length)];
-    if (d.filter((x) => x === c.id).length < maxOf(c.id)) d.push(c.id);
+/** Decks de départ et decks optimisés (à refaire après un changement de règle de construction). */
+export function buildDecks() {
+  STARTERS = STARTER_DECKS.map((d) => ({ name: d.name, kind: 'depart', cards: expand(d.cards) }));
+  OPTIMIZED = [];
+  FAMILIES.forEach((f, i) => {
+    OPTIMIZED.push({ name: `Mono ${FL[f]}`, kind: 'optimise', cards: buildDeck([f, FAMILIES[(i + 1) % 4]], 17) });
+  });
+  for (let i = 0; i < 4; i++) for (let j = i + 1; j < 4; j++) {
+    const a = FAMILIES[i], b = FAMILIES[j];
+    const half = buildDeck([a], 10);
+    const deck = [...half];
+    for (const id of buildDeck([b], 20)) if (deck.length < 20 && fits(deck, id)) deck.push(id);
+    OPTIMIZED.push({ name: `${FL[a]} + ${FL[b]}`, kind: 'optimise', cards: deck });
   }
+  for (const d of [...STARTERS, ...OPTIMIZED]) {
+    const rec: Record<string, number> = {};
+    for (const id of d.cards) rec[id] = (rec[id] ?? 0) + 1;
+    const pb = deckProblems(rec);
+    if (pb.length) throw new Error(`${d.name} : ${pb.join(' ')}`);
+  }
+}
+export const optimizedDecks = () => OPTIMIZED;
+
+/** Deck aléatoire valide : familles tirées au hasard (autant que la règle le permet), puis cartes au hasard. */
+export function randomDeck(r: () => number): DeckSpec {
+  const n = Math.min(4, DECK_RULES.maxFamilies);
+  const fams = [...FAMILIES];
+  for (let i = 3; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [fams[i], fams[j]] = [fams[j], fams[i]]; }
+  fams.length = n;
+  const pool = CARDS.filter((c) => fams.includes(c.family));
+  const d: string[] = [];
+  for (let guard = 0; d.length < 20 && guard < 10000; guard++) {
+    const c = pool[Math.floor(r() * pool.length)];
+    if (fits(d, c.id)) d.push(c.id);
+  }
+  if (d.length < 20) throw new Error('Deck aléatoire impossible');
   return { name: 'Aléatoire', kind: 'aleatoire', cards: d };
 }
 
@@ -124,6 +156,7 @@ export function playGame(seats: Seat[], seed: number, config: CfConfig, set: str
     s = res.state;
     if (firstLeader < 0 && s.round >= 1) firstLeader = s.players.findIndex((p) => p.id === s.order[0]);
   }
+  if (stalled) console.error(`Partie bloquée (${set}, graine ${seed}, ${steps} étapes) : phase ${s.phase}, attend ${waitingFor(s).join(',')}, pile ${s.stack.length}, choix ${s.choice?.kind ?? '-'}, decks ${seats.map((x) => x.deck.cards.join('/')).join(' | ')}`);
   return {
     set,
     seats: seats.map((x, i) => ({
@@ -198,6 +231,9 @@ export function summarize(recs: GameRecord[]) {
   out.games = recs.length;
   out.stalled = recs.filter((r) => r.stalled).length;
   out.timeUp = recs.filter((r) => r.timeUp).length;
+  const tu: Record<string, number> = {};
+  for (const r of recs) if (r.timeUp) tu[r.set] = (tu[r.set] ?? 0) + 1;
+  out.timeUpBySet = tu;
   out.duel = {
     rounds: mean(ff.map((r) => r.rounds)), roundsP90: pctl(ff.map((r) => r.rounds), 0.9), roundsMax: Math.max(...ff.map((r) => r.rounds)),
     decisions: mean(ff.map((r) => r.decisions)), realDecisions: mean(ff.map((r) => r.realDecisions)),
@@ -303,7 +339,7 @@ export function marginal(recs: GameRecord[]): Record<string, number> {
 export function printSummary(sm: ReturnType<typeof summarize>) {
   const d = sm.duel as Record<string, number>;
   const lines: string[] = [];
-  lines.push(`Parties : ${sm.games} — bloquées : ${sm.stalled} — arrêtées au garde-fou : ${sm.timeUp}`);
+  lines.push(`Parties : ${sm.games} — bloquées : ${sm.stalled} — arrêtées au garde-fou : ${sm.timeUp} (${Object.entries(sm.timeUpBySet as Record<string, number>).map(([k, v]) => `${k} ${v}`).join(', ')})`);
   lines.push(`Duel : ${d.rounds.toFixed(1)} manches (90 % sous ${d.roundsP90}, max ${d.roundsMax}), ${d.decisions.toFixed(0)} décisions dont ${d.realDecisions.toFixed(0)} vrais choix ≈ ${d.minutes.toFixed(1)} min`);
   lines.push(`Premier meneur gagne : ${pctf(d.firstLeaderWins)} ; siège 1 gagne : ${pctf(d.seat0Wins)}`);
   for (const n of [3, 4]) { const m = sm[`multi${n}`] as Record<string, number> | undefined; if (m) lines.push(`À ${n} : ${m.rounds.toFixed(1)} manches, ${m.realDecisions.toFixed(0)} vrais choix ≈ ${m.minutes.toFixed(1)} min, premier meneur gagne ${pctf(m.firstLeaderWins)}`); }
@@ -343,8 +379,13 @@ async function main() {
   const seed = Number(arg('seed', '421'));
   const config: CfConfig = { rules, startTokens };
   const costs = JSON.parse(arg('costs', '{}')!) as Record<string, number>;
+  const deckRule = JSON.parse(arg('deckrule', '{}')!) as Partial<typeof DECK_RULES>;
   applyCosts(costs);
+  Object.assign(DECK_RULES, deckRule);
+  buildDecks();
+  console.log(`Règle de construction : ${JSON.stringify(DECK_RULES)}`);
   const jobs = plan(total, seed);
+  if (process.argv.includes('--decks')) for (const d of OPTIMIZED) console.log(`${d.name} : ${d.cards.join(', ')}`);
   const t0 = Date.now();
   let recs: GameRecord[] = [];
   if (workers <= 1) recs = jobs.map((j) => playGame(j.seats, j.seed, config, j.set));
@@ -353,7 +394,7 @@ async function main() {
     jobs.forEach((j, i) => chunks[i % workers].push(j));
     const file = fileURLToPath(import.meta.url);
     const parts = await Promise.all(chunks.map((chunk) => new Promise<GameRecord[]>((res, rej) => {
-      const w = new Worker(file, { workerData: { chunk, config, costs }, execArgv: ['--import', 'tsx'] });
+      const w = new Worker(file, { workerData: { chunk, config, costs, deckRule }, execArgv: ['--import', 'tsx'] });
       w.on('message', res); w.on('error', rej);
     })));
     recs = parts.flat();
@@ -367,8 +408,9 @@ async function main() {
 }
 
 if (!isMainThread && workerData?.chunk) {
-  const { chunk, config, costs } = workerData as { chunk: Job[]; config: CfConfig; costs: Record<string, number> };
+  const { chunk, config, costs, deckRule } = workerData as { chunk: Job[]; config: CfConfig; costs: Record<string, number>; deckRule: Partial<typeof DECK_RULES> };
   applyCosts(costs);
+  Object.assign(DECK_RULES, deckRule);
   parentPort!.postMessage(chunk.map((j) => playGame(j.seats, j.seed, config, j.set)));
 } else if (isMainThread && process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   void main();
