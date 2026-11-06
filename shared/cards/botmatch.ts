@@ -27,7 +27,7 @@ export const botRngSeed = (seed: number) => (seed ^ 0x5bd1e995) >>> 0;
 
 export function startBotMatch(setup: BotMatchSetup): { match: BotMatch; events: CfEvent[] } {
   const players = [setup.me, ...setup.bots].map((p) => ({ id: p.id, name: p.name, deck: p.deck }));
-  const match: BotMatch = { setup, state: newGame({}, players, setup.seed), aiRng: mulberry32(botRngSeed(setup.seed)), mine: [] };
+  const match: BotMatch = { setup, state: newGame({ commandes: true }, players, setup.seed), aiRng: mulberry32(botRngSeed(setup.seed)), mine: [] };
   const events = advanceBots(match);
   return { match, events };
 }

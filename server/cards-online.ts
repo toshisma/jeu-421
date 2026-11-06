@@ -483,7 +483,7 @@ export function createCfOnline(c: Ctx) {
     // Ordre des sièges au hasard (le moteur tire ensuite le meneur).
     for (let i = seats.length - 1; i > 0; i--) { const j = randomInt(i + 1); [seats[i], seats[j]] = [seats[j], seats[i]]; }
     const deckOf = new Map(players.map((p) => [p.userId, p.deck]));
-    const state = newGame({ ...config, windows: true }, seats.map((s) => ({ id: s.id, name: s.name, deck: deckOf.get(s.userId)! })), randomInt(1, 2 ** 31));
+    const state = newGame({ ...config, windows: true, commandes: true }, seats.map((s) => ({ id: s.id, name: s.name, deck: deckOf.get(s.userId)! })), randomInt(1, 2 ** 31));
     const g: Game = {
       id, mode, ranked: mode === 'classee', seats, state, startedAt: now(), spectators: new Map(), since: new Map(), timers: new Map(),
       window: null, autoTimer: null, ended: false, endedAt: 0, standings: [], abandon: null, rewards: new Map(), dm: new Set(),

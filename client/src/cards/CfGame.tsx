@@ -19,7 +19,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CF_RULES } from '../../../shared/cards/catalog';
-import type { CfAction, CfEvent, CfView } from '../../../shared/cards/engine';
+import { commandeOf, type CfAction, type CfEvent, type CfView } from '../../../shared/cards/engine';
 import type { ProfileApi } from '../account/useProfile';
 import type { Settings } from '../settings';
 import { sound } from '../audio/sound';
@@ -469,7 +469,8 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
     <div className={`cfn-board${opps.length > 1 ? ' multi' : ''}${isTuto ? ' tuto' : ''}`} onPointerDown={() => sound.unlock()}>
       <div className={`cfn-top${fx('top')}`}>
         <button className="cfn-ib" onClick={leave} aria-label="Quitter la partie"><Icon name="close" size={18} /></button>
-        <div className="cfn-ttl"><span>{title}</span></div>
+        <div className="cfn-ttl"><span>{title}</span>{commandeOf(v.commande) && v.phase !== 'mulligan' && v.phase !== 'over' && (
+          <button className="cfn-cmd" onClick={() => setHelp(true)} aria-label={`Commande du comptoir : ${commandeOf(v.commande)!.text}`}>{commandeOf(v.commande)!.title}</button>)}</div>
         <button className="cfn-tb" onClick={() => setJournal(true)}>Journal</button>
         {canFast && <button className={`cfn-tb fast${fast ? ' on' : ''}`} onClick={() => setFast((f) => !f)} aria-pressed={fast} aria-label={fast ? 'Vitesse normale' : 'Jouer deux fois plus vite'}>×2</button>}
         {online && <CfChatButton controller={controller} pa={pa} />}

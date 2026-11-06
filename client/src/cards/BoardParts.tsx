@@ -5,7 +5,7 @@
  */
 import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { CARD_BY_ID, cardDef, type CardType } from '../../../shared/cards/catalog';
-import type { CfAction, CfEvent, CfPlayerView, CfView, PlayParams } from '../../../shared/cards/engine';
+import { commandeOf, type CfAction, type CfEvent, type CfPlayerView, type CfView, type PlayParams } from '../../../shared/cards/engine';
 import { Avatar } from '../ui/Avatar';
 import { Icon } from '../ui/Icon';
 import { Sheet } from '../ui/kit';
@@ -589,6 +589,7 @@ export function HelpSheet({ v, onClose, onRules, onTour }: { v: CfView; onClose:
       <div className="cfn-fiche cfn-journal" role="dialog" aria-modal="true" aria-label="Aide" onClick={(e) => e.stopPropagation()}>
         <div className="cfn-sheet-head"><h2>Aide</h2><button className="cfn-x" onClick={onClose} aria-label="Fermer"><Icon name="close" size={18} /></button></div>
         <section className="cfn-help">
+          {commandeOf(v.commande) && <p className="cfn-help-cmd"><b>Commande du comptoir</b> (cette manche, pour tout le monde) : {commandeOf(v.commande)!.text}</p>}
           <b className="cfn-legend-title">Ce que vous voyez à l’écran</b>
           <dl className="cfn-kv">
             <dt>En haut</dt><dd>Une case par adversaire. Le gros chiffre : ses <b>jetons</b> (le premier à 0 gagne). Puis 🍺 ses <b>Tournées</b> (elles paient les cartes), <i className="cfn-bk mini" /> ses <b>cartes en main</b>, <TypeIcon type="piege" size={12} /> ses <b>pièges posés</b>, <TypeIcon type="habitue" size={12} /> ses <b>Habitués</b>. Celui qui joue est encadré en doré. <b>Touchez une case</b> pour tout voir en clair.</dd>
@@ -597,6 +598,7 @@ export function HelpSheet({ v, onClose, onRules, onTour }: { v: CfView; onClose:
             <dt>Vos cartes</dt><dd>Sous chaque nom, ce que fait la carte ; le chiffre doré est son coût en Tournées. Les cartes <b className="cfn-gold">dorées</b> sont jouables maintenant. Touchez une carte pour la lire en grand.</dd>
             <dt>« Vous »</dt><dd>Vos jetons, vos Tournées, vos Habitués (le chiffre : manches restantes) et vos pièges posés. Touchez « Vous » pour votre fiche.</dd>
             <dt>Journal</dt><dd>Tout ce qui s’est passé, coup par coup.</dd>
+            <dt>À côté de la manche</dt><dd>La <b>commande du comptoir</b> : une règle bonus tirée à chaque manche, la même pour tous (touchez-la pour la relire).</dd>
           </dl>
           <b className="cfn-legend-title">Une manche</b>
           <ol>

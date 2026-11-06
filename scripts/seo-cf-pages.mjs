@@ -183,6 +183,7 @@ ${toc([['but', 'Le but'], ['mise-en-place', 'Mise en place'], ['manche', 'Une ma
 <li><b>Dernier mot</b> : les deux combinaisons sont sur la table. Le joueur qui perd à ce moment peut jouer une carte « Dernier mot » ; l’autre peut répondre, et ainsi de suite jusqu’à ce que les deux passent.</li>
 <li><b>Comptes</b> : le gagnant donne au perdant autant de jetons que vaut sa combinaison, cartes comprises, sans plafond. En cas d’égalité parfaite, personne ne donne rien.</li>
 <li><b>Fin de manche</b> : le perdant devient le meneur de la manche suivante.</li>
+<li><b>Commande du comptoir</b> : au début de chaque manche, une règle bonus tirée au hasard vaut pour tout le monde, le temps de la manche (les brelans valent 2 de plus, un lancer de plus, le perdant pioche 2 cartes…).</li>
 </ol>
 
 <h2 id="combinaisons">Les combinaisons</h2>

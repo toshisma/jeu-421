@@ -118,6 +118,7 @@ export function TipsScreen({ onBack }: { onBack: () => void }) {
 // Lexique
 
 const LEXICON: { w: string; d: string }[] = [
+  { w: 'Commande du comptoir', d: 'Une règle bonus tirée au début de chaque manche, la même pour tous et pour cette manche seulement (brelans +2, un lancer de plus, bonne pioche…). Elle est écrite en haut de l’écran.' },
   { w: 'Booster', d: `${BOOSTER.size} cartes tirées au pur hasard, pour ${BOOSTER.price} capsules. Une carte sur vingt sort brillante (sans effet en partie).` },
   { w: 'Capsules', d: 'La monnaie du mode : parties, missions du jour, ligue. Elles servent à acheter des boosters.' },
   { w: 'Comptes', d: 'Fin de manche : le gagnant donne au perdant autant de jetons que vaut sa combinaison, cartes comprises.' },

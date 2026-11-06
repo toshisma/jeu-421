@@ -167,6 +167,7 @@ export function RulesContent({ short }: { short?: boolean }) {
           <li><b>Dernier mot</b> : les combinaisons sont sur la table ; celui qui perd peut jouer une carte « Dernier mot », l’autre peut répondre, jusqu’à ce que les deux passent.</li>
           <li><b>Comptes</b> : le gagnant donne au perdant autant de jetons que vaut sa combinaison, cartes comprises. Égalité parfaite : rien.</li>
           <li><b>Fin de manche</b> : le perdant mène la manche suivante.</li>
+          <li><b>Commande du comptoir</b> : au début de chaque manche, une règle bonus est tirée au hasard, la même pour tous et pour cette manche seulement (par exemple « Les brelans valent 2 de plus » ou « Un lancer de plus pour tout le monde »). Elle est écrite en haut de l’écran.</li>
         </ol>
       </section>
       <section>

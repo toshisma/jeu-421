@@ -100,7 +100,7 @@ export interface GameRecord {
 const STEP_CAP = 30000;
 
 export function playGame(seats: Seat[], seed: number, config: CfConfig, set: string): GameRecord {
-  let s = newGame(config, seats.map((x, i) => ({ id: `p${i}`, name: `J${i + 1}`, deck: x.deck.cards })), seed);
+  let s = newGame({ commandes: true, ...config }, seats.map((x, i) => ({ id: `p${i}`, name: `J${i + 1}`, deck: x.deck.cards })), seed);
   const rng = mulberry32(seed ^ 0x9e3779b9);
   const played: Set<string>[] = seats.map(() => new Set());
   let steps = 0, real = 0, firstLeader = -1;

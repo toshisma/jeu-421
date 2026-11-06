@@ -9,7 +9,7 @@
  * - threatLine : ce que la carte adverse va vous faire (fenêtre de riposte).
  */
 import { CARDS, CARD_BY_ID, FAMILY_LABEL, type CardFamily, type CardType } from '../../../shared/cards/catalog';
-import { evalPlayer, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView } from '../../../shared/cards/engine';
+import { commandeOf, evalPlayer, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView } from '../../../shared/cards/engine';
 import { comboOf, comboWith, costNow, isTurnOf, meOf, nameIn, playOptions, playerOf, playsAfter, plural } from './describe';
 import { FAMILY_SHORT } from './meta';
 import { TYPE_META } from './cardTypes';
@@ -488,6 +488,12 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
       case 'manche': case 'tirage':
         out.push({ kind: 'ann', ev: e, ann: strip(e.text, 'manche', 1600) });
         continue;
+      case 'commande': {
+        // Commande du comptoir : annoncée en grand au début de la manche (elle reste écrite en haut).
+        const k = commandeOf(next.commande);
+        if (k) out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'info', kicker: 'Commande du comptoir', ms: 2600, title: k.title, text: `${k.text} Pour tout le monde, cette manche seulement.` } });
+        continue;
+      }
       case 'comptes': {
         const lr = next.lastRound;
         const w = lr?.winner ?? null;

@@ -32,6 +32,8 @@ export interface CfConfig {
   /** Surcharge de réglages (essais d'équilibrage). */
   rules?: Partial<CfRules>;
   values?: ComboValues;
+  /** « Commande du comptoir » : une règle bonus tirée au hasard à chaque manche (0.39). */
+  commandes?: boolean;
   /**
    * Parties en ligne : fenêtres de réponse « à l'aveugle ». Une Riposte ou un Dernier mot est proposé
    * à tout joueur qui POURRAIT en avoir un d'après l'information publique (familles de son deck,
@@ -154,8 +156,27 @@ export interface RoundSummary {
   cappedFrom?: number;
 }
 
+/**
+ * Commandes du comptoir (0.39, idée validée par Sam) : une règle bonus par manche, la même pour tous,
+ * annoncée en grand au début de la manche. Une phrase chacune, rien à retenir d'une manche à l'autre.
+ */
+export const COMMANDES: { id: string; title: string; text: string }[] = [
+  { id: 'brelans', title: 'Brelans +2', text: 'Les brelans valent 2 de plus.' },
+  { id: 'suites', title: 'Suites à 4', text: 'Les suites valent 4.' },
+  { id: '421', title: '4-2-1 à 10', text: 'Le 4-2-1 vaut 10.' },
+  { id: 'nenette', title: 'Nénette à 4', text: 'Celui qui perd avec une nénette reçoit au moins 4 jetons.' },
+  { id: 'tournees', title: 'Tournée générale', text: 'Chacun reçoit 1 Tournée de plus au service.' },
+  { id: 'pioche', title: 'Bonne pioche', text: 'Chacun pioche 1 carte de plus au service.' },
+  { id: 'lancers', title: 'Un pour la route', text: 'Un lancer de plus pour tout le monde.' },
+  { id: 'consolation', title: 'Consolation', text: 'Le perdant de la manche pioche 2 cartes.' },
+];
+export const commandeOf = (id: string | null | undefined) => COMMANDES.find((c) => c.id === id) ?? null;
+
 export interface CfState {
   v: 1;
+  /** Commandes du comptoir activées (partie de l'ordinateur, en ligne) et celle de la manche en cours. */
+  commandes?: boolean;
+  commande?: string | null;
   rules: CfRules;
   values: ComboValues;
   rng: number;
@@ -265,6 +286,7 @@ export function newGame(config: CfConfig, players: { id: string; name?: string; 
     winner: null, version: 0, decisions: 0,
   };
   if (config.windows) s.windows = true;
+  if (config.commandes) { s.commandes = true; s.commande = null; }
   for (const p of players) {
     for (const id of p.deck) if (!CARD_BY_ID[id]) throw new Error(`Carte inconnue : ${id}`);
     const deck = p.deck.map((id) => ({ uid: `k${s.nextUid++}`, id }));
@@ -344,14 +366,16 @@ function triggerTrap(c: Ctx, t: PosedTrap): boolean {
 export interface Eval { combo: Combo; value: number; rank: number }
 
 /** Combinaison d'un joueur, avec les effets de cartes (Vieux Marcel, nénette forcée, Faux 4-2-1). */
-export function evalPlayer(s: Pick<CfState, 'values'>, p: Pick<CfPlayer, 'habitues' | 'r'>): Eval {
+export function evalPlayer(s: Pick<CfState, 'values'> & { commande?: string | null }, p: Pick<CfPlayer, 'habitues' | 'r'>): Eval {
   if (p.r.forcedNenette) {
     const combo = evaluate([2, 2, 1], s.values);
     return { combo, value: combo.value, rank: 0 };
   }
   const combo = evaluate(p.r.dice, s.values);
   let value = combo.value;
-  if (combo.kind === 'suite' && p.habitues.some((h) => h.id === 'vieux-marcel')) value = 4;
+  if (combo.kind === 'suite' && (p.habitues.some((h) => h.id === 'vieux-marcel') || s.commande === 'suites')) value = Math.max(value, 4);
+  if (combo.kind === 'brelan' && s.commande === 'brelans') value += 2;
+  if (combo.kind === '421' && s.commande === '421') value = 10;
   if (combo.kind === '421' && p.r.faux421) value = 2;
   return { combo, value, rank: combo.rank };
 }
@@ -405,6 +429,13 @@ function startRound(c: Ctx) {
   s.phase = 'turn';
   s.lastword = null;
   emit(c, { kind: 'manche', text: `Manche ${s.round} : ${nm(s, s.leader)} mène.`, who: s.leader, textYou: `Manche ${s.round} : vous menez.` });
+  if (s.commandes) {
+    // Commande du comptoir : tirée au hasard, jamais deux fois de suite la même.
+    const pool = COMMANDES.filter((x) => x.id !== s.commande);
+    const k = pool[Math.floor(rnd(s) * pool.length)];
+    s.commande = k.id;
+    emit(c, { kind: 'commande', text: `Commande du comptoir : ${k.text}`, card: undefined });
+  }
   for (const id of s.order) {
     const p = pl(s, id);
     const pen = p.penaltyNext;
@@ -417,12 +448,12 @@ function startRound(c: Ctx) {
   // Service : pioche, Tournées, Patron.
   for (const id of s.order) {
     const p = pl(s, id);
-    draw(c, p, 1);
+    draw(c, p, s.commande === 'pioche' ? 2 : 1);
     if (p.ardoiseSkip) {
       p.ardoiseSkip = false;
       emit(c, { kind: 'ardoise', player: id, who: id, text: `${p.name} rembourse l'ardoise : pas de Tournées cette manche.`, textYou: 'Vous remboursez l’ardoise : pas de Tournées cette manche.' });
     } else {
-      const n = s.rules.tourneesPerRound + (s.prevLoser === id ? s.rules.tourneesLoserBonus : 0);
+      const n = s.rules.tourneesPerRound + (s.prevLoser === id ? s.rules.tourneesLoserBonus : 0) + (s.commande === 'tournees' ? 1 : 0);
       gainTournees(c, p, n, false);
     }
   }
@@ -454,7 +485,7 @@ export function throwLimit(s: CfState, pid: string): number {
   const leader = pl(s, s.order[0]);
   // Le meneur fixe le maximum des autres (sauf s'il était lui-même limité par une Gueule de bois).
   const base = pid === s.order[0] || leader.r.throwPenalty > 0 ? s.rules.maxThrows : Math.min(s.rules.maxThrows, Math.max(1, leader.r.throwsUsed));
-  return (p.r.throwPenalty > 0 ? 1 : base) + p.r.bonusThrows;
+  return (p.r.throwPenalty > 0 ? 1 : base) + p.r.bonusThrows + (s.commande === 'lancers' ? 1 : 0);
 }
 
 function rollDice(c: Ctx, p: CfPlayer, keep: boolean[]) {
@@ -566,7 +597,8 @@ function settle(c: Ctx) {
     const pari = W.r.pari + L.r.pari;
     if (pari > 0) step('Pari de comptoir', amount + 2 * pari);
     if (L.habitues.some((h) => h.id === 'pilier') && amount > 1) step('Pilier de comptoir', amount - 1);
-    if (ev[worst].combo.kind === 'nenette' && amount < s.values.nenetteMin) step('nénette', s.values.nenetteMin);
+    const nenMin = s.commande === 'nenette' ? Math.max(4, s.values.nenetteMin) : s.values.nenetteMin;
+    if (ev[worst].combo.kind === 'nenette' && amount < nenMin) step('nénette', nenMin);
     const efface = (L.r.efface ?? 0) > 0;
     if (efface) step('On efface tout', 0);
     let reversed = false;
@@ -602,6 +634,10 @@ function settle(c: Ctx) {
     }
     s.prevLoser = L.id;
     s.leader = L.id;
+    if (s.commande === 'consolation' && !L.out) {
+      emit(c, { kind: 'effet', player: L.id, who: L.id, text: `Consolation : ${L.name} pioche 2 cartes.`, textYou: 'Consolation : vous piochez 2 cartes.' });
+      draw(c, L, 2);
+    }
   }
   s.lastRound = summary;
   // Sorties
@@ -1418,6 +1454,8 @@ export interface CfTrapView { uid: string; owner: string; target: string; posedR
 
 export interface CfView {
   you: string;
+  /** Commande du comptoir de la manche (identifiant, voir COMMANDES), si la partie en a. */
+  commande?: string | null;
   phase: CfPhase;
   round: number;
   leader: string;
@@ -1442,6 +1480,7 @@ export interface CfView {
 export function viewFor(s: CfState, pid: string): CfView {
   return {
     you: pid,
+    ...(s.commandes ? { commande: s.commande ?? null } : {}),
     phase: s.phase,
     round: s.round,
     leader: s.leader,

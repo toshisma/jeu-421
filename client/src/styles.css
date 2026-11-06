@@ -3702,3 +3702,6 @@ span.cfn-hab { cursor: default; }
 .cf-parcours > b { font: 800 15px/1.1 Barlow, sans-serif; color: #f6dfa6; }
 .cf-parcours > span { font: 600 12.5px/1.3 Barlow, sans-serif; color: #efe6d4; }
 .cf-parcours .cf-link { align-self: center; }
+/* Commande du comptoir (0.39) */
+.cfn-cmd { flex: none; margin-left: 6px; padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(241,204,125,.6); background: rgba(241,204,125,.16); color: #f6dfa6; font: 800 11px/1 Barlow, sans-serif; white-space: nowrap; cursor: pointer; }
+.cfn-help-cmd { margin: 0 0 10px; padding: 8px 10px; border-radius: 10px; background: rgba(241,204,125,.14); border: 1px solid rgba(241,204,125,.45); }
