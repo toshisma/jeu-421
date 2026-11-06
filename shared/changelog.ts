@@ -7,6 +7,13 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.41', date: '2026-11-06T17:15:00+01:00', title: 'Coups Fourrés : chaque Tournée compte', items: [
+    'Les Tournées deviennent précieuses : 1 par manche (2 pour le perdant de la manche d’avant), 6 au plus en réserve. Jouer une carte est un vrai choix ; pour en jouer plusieurs, économisez.',
+    'Les coûts des cartes sont refaits : beaucoup moins de cartes gratuites, la plupart coûtent maintenant 1 à 3 Tournées.',
+    'Place aux combos : Tournée du patron (coûte 2, rend 3), Mise en bouche, Tant qu’on y est, Le Beau-frère… bien préparés, ils permettent d’enchaîner 3 ou 4 cartes dans la même manche.',
+    'Le Leurre, Le Mouchard, Le Vide-poches et Fermeture ! font maintenant gagner (ou voler) des Tournées.',
+    'Deux nouveaux conseils dans « Bien débuter » (économiser, enchaîner), et la partie guidée est mise à jour.',
+  ] },
   { version: '0.40', date: '2026-11-06T12:50:00+01:00', title: 'Coups Fourrés : 50 cartes équilibrées', items: [
     'Coups Fourrés passe à 50 cartes : 8 nouvelles (Le Pourboire, Le Coup de l’étrier, Le Fanfaron, Le Verre de trop, Le Courant d’air, Le Pot aux roses, Le Complice, L’Engrenage), et un grand rééquilibrage testé sur des dizaines de milliers de parties : les quatre familles et les deux decks de départ gagnent maintenant autant les uns que les autres.',
     'Nouvelle règle de deck : 2 familles au plus et une seule légendaire. Si l’un de vos decks ne la respecte plus, il vous dit quelles cartes retirer.',
