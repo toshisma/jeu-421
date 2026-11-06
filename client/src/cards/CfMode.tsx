@@ -489,7 +489,7 @@ function CfMenu(p: CfModeProps & {
           </button>
           <button className="cf-tile" onClick={p.onCollection}>
             <span className="cf-tile-art num" aria-hidden>{acc ? owned : '?'}<small>/{CARDS.length}</small></span>
-            <b>Collection</b><small>{acc ? 'Cartes, éclats' : 'Les 34 cartes'}</small>
+            <b>Collection</b><small>{acc ? 'Cartes, éclats' : `Les ${CARDS.length} cartes`}</small>
           </button>
           <button className="cf-tile" onClick={p.onMissions}>
             {st && st.missions.some((m) => m.done) && missionsDone < st.missions.length && <span className="cf-badge green">{missionsDone}</span>}

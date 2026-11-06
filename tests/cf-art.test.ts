@@ -11,8 +11,8 @@ const ids = (html: string) => [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m
 const refs = (html: string) => [...html.matchAll(/url\(#([^)]+)\)/g)].map((m) => m[1]);
 
 describe('Coups Fourrés : illustrations des cartes', () => {
-  it('chacune des 34 cartes a son illustration (et aucune en trop)', () => {
-    expect(CARDS).toHaveLength(34);
+  it('chacune des cartes a son illustration (et aucune en trop)', () => {
+    expect(CARDS).toHaveLength(42);
     for (const c of CARDS) expect(hasCardArt(c.id), c.id).toBe(true);
     expect([...CARD_ART_IDS].sort()).toEqual(CARDS.map((c) => c.id).sort());
   });

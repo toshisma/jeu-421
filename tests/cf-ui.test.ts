@@ -217,7 +217,7 @@ describe('rendu des écrans du mode', () => {
     const st = fakeState();
     const coll = renderToString(h(CollectionScreen, { token: 't', state: st, onState: noop, onBack: noop, onAccount: noop }));
     expect(coll).toContain('Recycler tous les doublons en trop');
-    expect(coll).toContain(`${CARDS.filter((c) => st.collection[c.id].count > 0).length}/34 cartes`);
+    expect(coll).toContain(`${CARDS.filter((c) => st.collection[c.id].count > 0).length}/${CARDS.length} cartes`);
     expect(extrasOf(st.collection).copies).toBeGreaterThan(0);
     expect(renderToString(h(CollectionScreen, { token: null, state: null, onState: noop, onBack: noop, onAccount: noop }))).toContain('Créer un compte');
     expect(renderToString(h(DecksScreen, { token: 't', state: st, onState: noop, onBack: noop, onAccount: noop, onEdit: noop }))).toContain('Construire automatiquement');

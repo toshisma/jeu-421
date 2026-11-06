@@ -25,10 +25,12 @@ export function activeEffects(v: CfView, p: CfPlayerView, me: boolean): ActiveEf
   if (r.pari > 0) out.push({ text: `Pari : ±${2 * r.pari} jetons`, card: 'pari-comptoir', type: 'coup', tone: 'good' });
   if (r.bonusThrows > 0) out.push({ text: `+${r.bonusThrows} lancer${r.bonusThrows > 1 ? 's' : ''}`, card: 'cul-sec', type: 'coup', tone: 'good' });
   if (r.discount > 0) out.push({ text: r.discount >= 5 ? s('Prochaine carte gratuite', 'Sa prochaine carte gratuite') : s(`Prochaine carte −${r.discount}`, `Sa prochaine carte −${r.discount}`), card: 'mise-bouche', type: 'coup', tone: 'good' });
-  if (r.throwPenalty > 0) out.push({ text: `Un seul lancer`, card: 'gueule-bois', type: 'piege', tone: 'bad' });
+  if ((r.efface ?? 0) > 0) out.push({ text: s('Si vous perdez : personne ne donne', 'S’il perd : personne ne donne'), card: 'efface-tout', type: 'dernier-mot', tone: 'good' });
+  const penCard = (id: string | undefined) => (id === 'verre-offert' ? { card: id, type: 'coup' as const } : { card: 'gueule-bois', type: 'piege' as const });
+  if (r.throwPenalty > 0) out.push({ text: `Un seul lancer`, ...penCard(r.penaltyCard), tone: 'bad' });
   if (r.faux421) out.push({ text: '4-2-1 ne vaut que 2', card: 'faux-421', type: 'piege', tone: 'bad' });
   if (r.forcedNenette) out.push({ text: 'Combinaison changée en nénette', card: 'coup-nenette', type: 'piege', tone: 'bad' });
-  if (p.penaltyNext > 0 && v.phase !== 'turn') out.push({ text: 'Un seul lancer à la prochaine manche', card: 'gueule-bois', type: 'piege', tone: 'bad' });
+  if (p.penaltyNext > 0 && (v.phase !== 'turn' || p.penaltyNextCard === 'verre-offert')) out.push({ text: 'Un seul lancer à la prochaine manche', ...penCard(p.penaltyNextCard), tone: 'bad' });
   return out;
 }
 
@@ -71,4 +73,12 @@ export const CARD_GIST: Record<string, string> = {
   'reaction-chaine': 'Annule une carte adverse',
   'bon-numero': 'Un dé sur la face voulue',
   'grand-enchainement': 'Rejouez votre dernier Coup',
+  'beau-frere': 'Vos Coups coûtent 1 de moins',
+  'efface-tout': 'Si vous perdez : personne ne donne',
+  'verre-offert': 'Un seul lancer pour l’adversaire',
+  trinquer: 'Échange un dé avec l’adversaire',
+  'vide-poches': 'Il défausse une carte au hasard',
+  mouchard: 'S’il joue un Coup : piochez 2',
+  'tant-qu-on-y-est': '+1 Tournée par carte jouée',
+  'petite-soeur': 'Reprend le dernier Coup défaussé',
 };

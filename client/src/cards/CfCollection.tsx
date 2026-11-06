@@ -1,5 +1,5 @@
 /**
- * Coups Fourrés : ouverture des boosters (prototype CFBooster) et collection des 34 cartes
+ * Coups Fourrés : ouverture des boosters (prototype CFBooster) et collection de toutes les cartes
  * (possédées / manquantes, filtres, détail, éclats de verre, fabrication, recyclage).
  * Le serveur fait foi : chaque action renvoie l'état complet du joueur, affiché tel quel.
  */
@@ -182,7 +182,7 @@ export function CollectionScreen({ token, state, onState, onBack, onAccount }: {
   };
 
   return (
-    <CfShell title="Collection" sub={state ? `${ownedN}/${CARDS.length} cartes${shinyN ? ` · ${shinyN} brillante${shinyN > 1 ? 's' : ''}` : ''}` : 'Les 34 cartes du premier set'} onBack={onBack}
+    <CfShell title="Collection" sub={state ? `${ownedN}/${CARDS.length} cartes${shinyN ? ` · ${shinyN} brillante${shinyN > 1 ? 's' : ''}` : ''}` : `Les ${CARDS.length} cartes du jeu`} onBack={onBack}
       right={state ? <Shards n={state.shards} /> : undefined}>
       {!state && <button className="cf-guest-card" onClick={onAccount}><b>Collectionnez les cartes</b><small>Avec un compte gratuit : 2 decks de départ, 3 boosters offerts, et vos cartes gardées pour toujours.</small><em>Créer un compte</em></button>}
       {state && extras.copies > 0 && (

@@ -41,6 +41,8 @@ export const CARDS: CardDef[] = [
   c('ticket-caisse', 'Ticket de caisse', 'habitues', 'riposte', 1, 'commune', 'Annulez un Coup adverse qui coûte 3 ou moins.', '« Ça, ce n’est pas sur l’addition. »'),
   c('fermeture', 'Fermeture !', 'habitues', 'coup', 1, 'rare', 'Un Habitué adverse rentre chez lui (défaussé). S’il n’y en a aucun, piochez 2 cartes.', '« On ferme, messieurs-dames ! »'),
   c('note-salee', 'La note est salée', 'habitues', 'dernier-mot', 1, 'rare', 'Si vous gagnez la manche, le perdant reçoit 2 jetons de plus.', '« Et le service n’est pas compris. »'),
+  c('beau-frere', 'Le Beau-frère', 'habitues', 'habitue', 0, 'rare', 'Vos Coups coûtent 1 Tournée de moins.', '« Pour toi, c’est prix de famille. »'),
+  c('efface-tout', 'On efface tout', 'habitues', 'dernier-mot', 4, 'epique', 'Si vous perdez la manche, personne ne donne de jetons.', '« Allez, on n’en parle plus. »'),
   // --- L'Ivresse ---
   c('cul-sec', 'Cul sec', 'ivresse', 'coup', 0, 'commune', 'Faites un lancer de plus ce tour, au-delà de la limite.', '« Allez, la dernière ! »'),
   c('tete-tourne', 'Tête qui tourne', 'ivresse', 'coup', 2, 'commune', 'Retournez un de vos dés sur sa face opposée (1 devient 6, 2 devient 5, 3 devient 4).', '« Le comptoir bouge, ou c’est moi ? »'),
@@ -50,6 +52,8 @@ export const CARDS: CardDef[] = [
   c('yeux-piquent', 'Les yeux qui piquent', 'ivresse', 'riposte', 1, 'rare', 'Annulez un Coup adverse qui change des dés.', '« Tu es sûr de ce que tu vois ? »'),
   c('gueule-bois', 'Gueule de bois', 'ivresse', 'piege', 0, 'commune', 'Quand l’adversaire perd une manche, il n’aura qu’un seul lancer à la suivante.', '« Ça se paie le lendemain. »'),
   c('tournee-generale', 'Tournée générale', 'ivresse', 'coup', 3, 'legendaire', 'Si un adversaire a fini son tour : vous relancez tous les deux tous vos dés, puis vous pouvez relancer un des vôtres. Sinon, relancez tous vos dés sans utiliser de lancer.', '« Tout le monde reboit, c’est ma tournée ! »'),
+  c('verre-offert', 'Le verre offert', 'ivresse', 'coup', 1, 'commune', 'L’adversaire n’aura qu’un seul lancer à son prochain tour.', '« Celui-là, il est pour moi. »'),
+  c('trinquer', 'Trinquer', 'ivresse', 'dernier-mot', 3, 'rare', 'Échangez un de vos dés avec un dé de l’adversaire, tous deux pris au hasard.', '« À la vôtre ! Oups, mauvais verre. »'),
   // --- Les Pièges ---
   c('leurre', 'Leurre', 'pieges', 'piege', 0, 'commune', 'Ne fait rien. Quand il est révélé ou qu’il revient en main, piochez 1 carte.', '« Rien dans les mains, rien dans les poches. »'),
   c('croche-patte', 'Croche-patte', 'pieges', 'piege', 0, 'commune', 'Quand l’adversaire finit son tour, un de ses dés est relancé au hasard.', '« Attention à la marche. »'),
@@ -59,6 +63,8 @@ export const CARDS: CardDef[] = [
   c('faux-421', 'Faux 4-2-1', 'pieges', 'piege', 1, 'rare', 'Quand l’adversaire termine avec un 4-2-1, il ne vaut que 2 cette manche.', '« Regarde mieux : c’est un 4 ou un 3 ? »'),
   c('coup-nenette', 'Le coup de la nénette', 'pieges', 'piege', 0, 'epique', 'Quand l’adversaire devrait gagner la manche avec une combinaison qui vaut 1 ou 2, elle devient une nénette.', '« Deux, deux, un. Et bonne nuit. »'),
   c('retournement-veste', 'Retournement de veste', 'pieges', 'piege', 5, 'legendaire', 'Quand l’adversaire devrait vous donner 6 jetons ou plus, c’est lui qui les reçoit à votre place.', '« Je n’ai jamais dit que j’étais de ton côté. »'),
+  c('vide-poches', 'Le Vide-poches', 'pieges', 'coup', 0, 'commune', 'L’adversaire défausse une carte de sa main au hasard.', '« Tiens, c’est à qui, ça ? »'),
+  c('mouchard', 'Le Mouchard', 'pieges', 'piege', 0, 'commune', 'Quand l’adversaire joue un Coup, vous piochez 2 cartes.', '« Il n’a rien dit… à part à vous. »'),
   // --- Les Chaînes ---
   c('coup-coude', 'Coup de coude', 'chaines', 'coup', 0, 'commune', 'Piochez 1 carte.', '« Psst, regarde un peu ça. »'),
   c('mise-bouche', 'Mise en bouche', 'chaines', 'coup', 0, 'commune', 'Votre prochaine carte de la manche est gratuite.', '« Juste de quoi ouvrir l’appétit. »'),
@@ -69,6 +75,8 @@ export const CARDS: CardDef[] = [
   c('reaction-chaine', 'Réaction en chaîne', 'chaines', 'riposte', 2, 'rare', 'Annulez une carte adverse. Si c’est au moins votre 3e carte de la manche, elle revient dans votre main.', '« Un qui tombe, et tout le zinc suit. »'),
   c('bon-numero', 'Le bon numéro', 'chaines', 'coup', 4, 'epique', 'Mettez un de vos dés sur la face de votre choix.', '« Celui-là, je l’ai vu venir. »'),
   c('grand-enchainement', 'Le grand enchaînement', 'chaines', 'coup', 1, 'legendaire', 'Rejouez gratuitement le dernier Coup que vous avez joué dans cette manche. Si vous n’en avez joué aucun, piochez 2 cartes.', '« Et on remet ça, dans le même ordre. »'),
+  c('tant-qu-on-y-est', 'Tant qu’on y est', 'chaines', 'coup', 0, 'commune', 'Gagnez 1 Tournée par carte jouée dans cette manche, celle-ci comprise.', '« Une de plus, une de moins… »'),
+  c('petite-soeur', 'La petite sœur', 'chaines', 'coup', 1, 'rare', 'Reprenez en main le dernier Coup de votre défausse (sauf une petite sœur).', '« Remettez-moi la petite sœur, patron. »'),
 ];
 
 export const CARD_BY_ID: Record<string, CardDef> = Object.fromEntries(CARDS.map((x) => [x.id, x]));
@@ -117,8 +125,8 @@ export const STARTER_DECKS: { id: string; name: string; cards: Record<string, nu
     'coup-coude': 2, 'coup-pouce': 1, 'calcul-mental': 2, recompter: 1, 'reaction-chaine': 1, domino: 2,
   } },
   { id: 'la-bringue', name: 'La Bringue', cards: {
-    'tete-tourne': 2, 'pari-comptoir': 2, 'de-sous-table': 2, 'yeux-piquent': 1, 'gueule-bois': 1, 'double-tournee': 2,
-    leurre: 2, 'croche-patte': 2, fouine: 1, 'ardoise-piegee': 1, 'faux-421': 2, 'coup-nenette': 2,
+    'tete-tourne': 2, 'pari-comptoir': 2, 'de-sous-table': 2, 'yeux-piquent': 1, 'gueule-bois': 1, 'double-tournee': 2, 'verre-offert': 1,
+    leurre: 2, mouchard: 1, fouine: 1, 'ardoise-piegee': 1, 'faux-421': 2, 'coup-nenette': 2,
   } },
 ];
 

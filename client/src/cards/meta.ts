@@ -65,6 +65,14 @@ export const CARD_EMPHASIS: Record<string, string> = {
   'reaction-chaine': 'Annulez une carte adverse.',
   'bon-numero': 'sur la face de votre choix',
   'grand-enchainement': 'Rejouez gratuitement',
+  'beau-frere': '1 Tournée de moins',
+  'efface-tout': 'personne ne donne de jetons',
+  'verre-offert': 'qu’un seul lancer',
+  trinquer: 'tous deux pris au hasard',
+  'vide-poches': 'défausse une carte de sa main au hasard',
+  mouchard: 'vous piochez 2 cartes',
+  'tant-qu-on-y-est': '1 Tournée par carte jouée',
+  'petite-soeur': 'Reprenez en main',
 };
 
 /** Coupe le texte en trois morceaux : avant, en gras, après. */
