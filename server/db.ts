@@ -909,6 +909,22 @@ export class Store {
     });
     return n;
   }
+  /**
+   * 0.40 (50 cartes, demande de Sam) : une seule fois, un booster offert à chaque joueur qui a déjà
+   * ouvert tous ses boosters (ceux qui en ont encore les ouvriront avec les nouvelles cartes, tirées
+   * à l'ouverture). Renvoie le nombre de joueurs servis (0 si déjà fait).
+   */
+  cfGiftBoosterV40(): number {
+    this.cfInit();
+    if (this.getMeta('cf:gift:v40')) return 0;
+    let n = 0;
+    this.cfTx(() => {
+      n = Number(this.db.prepare('UPDATE cf_players SET boosters = boosters + 1 WHERE discovered = 1 AND boosters = 0').run().changes);
+      this.setMeta('cf:gift:v40', String(Date.now()));
+    });
+    return n;
+  }
+
   /** Transaction du mode cartes, réentrante (une fonction peut en appeler une autre). */
   cfTx<T>(fn: () => T): T {
     this.cfInit();
