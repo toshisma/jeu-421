@@ -130,7 +130,12 @@ export interface GameRecord {
   timeUp: boolean;
   /** Décisions qui ont réellement demandé un choix (plus d'une action possible). */
   realDecisions: number;
+  /** Économie des Tournées (par joueur et par manche jouée) : voir `economy` dans le rapport. */
+  eco: Eco;
 }
+
+/** Compteurs d'économie : manches-joueur, cartes payantes (coût imprimé ≥ 1) jouées, manches à 2+ cartes payantes, Tournées restantes, Tournées perdues au plafond. */
+export interface Eco { pr: number; paid: number; paid2: number; paid0: number; plays: number; left: number; atCap: number; waste: number; spent: number }
 
 const STEP_CAP = 30000;
 
@@ -141,6 +146,21 @@ export function playGame(seats: Seat[], seed: number, config: CfConfig, set: str
   let steps = 0, real = 0, firstLeader = -1;
   let stalled = false;
   const ring: string[] = [];
+  const eco: Eco = { pr: 0, paid: 0, paid2: 0, paid0: 0, plays: 0, left: 0, atCap: 0, waste: 0, spent: 0 };
+  let paidRound = seats.map(() => 0);
+  let roundNow = s.round;
+  const closeRound = (tBefore: number[]) => {
+    s.players.forEach((p, i) => {
+      if (p.out && paidRound[i] === 0 && tBefore[i] === 0) return;
+      eco.pr++;
+      eco.paid += paidRound[i];
+      if (paidRound[i] >= 2) eco.paid2++;
+      if (paidRound[i] === 0) eco.paid0++;
+      eco.left += tBefore[i];
+      if (tBefore[i] >= s.rules.tourneesMax) eco.atCap++;
+    });
+    paidRound = seats.map(() => 0);
+  };
   while (s.phase !== 'over') {
     if (++steps > STEP_CAP) { stalled = true; break; }
     const w = waitingFor(s);
@@ -153,12 +173,28 @@ export function playGame(seats: Seat[], seed: number, config: CfConfig, set: str
     const a = cfDecide(viewFor(s, pid), legal, seats[i].level, rng);
     if (a.type === 'play') {
       const k = s.players[i].hand.find((x) => x.uid === a.card);
-      if (k) played[i].add(k.id);
+      if (k) {
+        played[i].add(k.id);
+        if (s.round >= 1) { eco.plays++; if (CARD_BY_ID[k.id].cost >= 1) paidRound[i]++; }
+      }
     }
+    const tBefore = s.players.map((p) => p.tournees);
+    const tAll = tBefore.reduce((x, y) => x + y, 0);
     const res = apply(s, pid, a, { inPlace: true });
     if (!res.ok) throw new Error(`Action illégale de l'IA : ${res.error} ${JSON.stringify(a)}`);
     if (steps > STEP_CAP - 40) ring.push(`${pid} ${JSON.stringify(a)} ${res.events.map((e) => e.text).join(' | ')}`);
     s = res.state;
+    if (s.round !== roundNow || s.phase === 'over') {
+      if (roundNow >= 1) {
+        closeRound(tBefore);
+        if (s.phase !== 'over') s.players.forEach((p, k) => {
+          if (p.out) return;
+          const inc = s.rules.tourneesPerRound + (s.prevLoser === p.id ? s.rules.tourneesLoserBonus : 0) + (s.commande === 'tournees' ? 1 : 0);
+          eco.waste += Math.max(0, tBefore[k] + inc - s.rules.tourneesMax);
+        });
+      }
+      roundNow = s.round;
+    } else if (s.round >= 1) eco.spent += Math.max(0, tAll - s.players.reduce((x, y) => x + y.tournees, 0));
     if (firstLeader < 0 && s.round >= 1) firstLeader = s.players.findIndex((p) => p.id === s.order[0]);
   }
   if (stalled) console.error(`Partie bloquée (${set}, graine ${seed}, ${steps} étapes) : phase ${s.phase}, attend ${waitingFor(s).join(',')}, pile ${s.stack.length}, choix ${s.choice?.kind ?? '-'}, decks ${seats.map((x) => x.deck.cards.join('/')).join(' | ')}\n${ring.join('\n')}`);
@@ -175,6 +211,7 @@ export function playGame(seats: Seat[], seed: number, config: CfConfig, set: str
     stalled,
     timeUp: !stalled && !s.players.some((p) => p.tokens <= 0),
     realDecisions: real,
+    eco,
   };
 }
 
@@ -250,6 +287,14 @@ export function summarize(recs: GameRecord[]) {
     const m = recs.filter((r) => r.set === `multi${n}`);
     if (m.length) out[`multi${n}`] = { games: m.length, rounds: mean(m.map((r) => r.rounds)), realDecisions: mean(m.map((r) => r.realDecisions)), minutes: mean(m.map((r) => r.realDecisions)) * 6 / 60, firstLeaderWins: mean(m.map((r) => (r.winner === r.firstLeader ? 1 : 0))) };
   }
+  // Économie des Tournées (duels Fine fouine hors decks de départ, et decks de départ à part)
+  const ecoOf = (rs: GameRecord[]) => {
+    const t = rs.reduce((a, r) => { for (const k of Object.keys(a) as (keyof Eco)[]) a[k] += r.eco[k]; return a; }, { pr: 0, paid: 0, paid2: 0, paid0: 0, plays: 0, left: 0, atCap: 0, waste: 0, spent: 0 } as Eco);
+    const n = Math.max(1, t.pr);
+    return { paidPerRound: t.paid / n, paid2: t.paid2 / n, paid0: t.paid0 / n, playsPerRound: t.plays / n, left: t.left / n, atCap: t.atCap / n, waste: t.waste / n, spent: t.spent / n };
+  };
+  out.economy = ecoOf(ff.filter((r) => r.set !== 'depart'));
+  out.economyStarters = ecoOf(ff.filter((r) => r.set === 'depart'));
   // Decks de départ
   const dep = recs.filter((r) => r.set === 'depart');
   const zincWins = dep.filter((r) => r.seats[r.winner]?.deck === 'Le Zinc').length;
@@ -348,6 +393,10 @@ export function printSummary(sm: ReturnType<typeof summarize>) {
   lines.push(`Duel : ${d.rounds.toFixed(1)} manches (90 % sous ${d.roundsP90}, max ${d.roundsMax}), ${d.decisions.toFixed(0)} décisions dont ${d.realDecisions.toFixed(0)} vrais choix ≈ ${d.minutes.toFixed(1)} min`);
   lines.push(`Premier meneur gagne : ${pctf(d.firstLeaderWins)} ; siège 1 gagne : ${pctf(d.seat0Wins)}`);
   for (const n of [3, 4]) { const m = sm[`multi${n}`] as Record<string, number> | undefined; if (m) lines.push(`À ${n} : ${m.rounds.toFixed(1)} manches, ${m.realDecisions.toFixed(0)} vrais choix ≈ ${m.minutes.toFixed(1)} min, premier meneur gagne ${pctf(m.firstLeaderWins)}`); }
+  for (const [lab, key] of [['tous decks', 'economy'], ['decks de départ', 'economyStarters']] as const) {
+    const e = sm[key] as Record<string, number>;
+    lines.push(`Tournées (${lab}) : ${e.paidPerRound.toFixed(2)} carte payante par joueur et par manche ; 2+ payantes ${pctf(e.paid2)} ; aucune ${pctf(e.paid0)} ; cartes jouées ${e.playsPerRound.toFixed(2)} ; Tournées dépensées ${e.spent.toFixed(2)} ; restantes en fin de manche ${e.left.toFixed(2)} (au plafond ${pctf(e.atCap)}) ; perdues au plafond ${e.waste.toFixed(2)}`);
+  }
   const st = sm.starters as Record<string, number>;
   lines.push(`Le Zinc contre La Bringue : ${pctf(st.zinc)} / ${pctf(1 - st.zinc)} (${st.games} parties)`);
   lines.push(`Niveaux : ${Object.entries(sm.levels as Record<string, number>).map(([k, v]) => `${k.split(':')[1]} ${pctf(v)}`).join(' ; ')}`);
