@@ -17,7 +17,7 @@
 import { evaluate, singleThrowCdf } from '../combos';
 import type { Rng } from '../rng';
 import { CARD_BY_ID, type CardDef } from './catalog';
-import { TOURNEE_PATRON_GAIN, actionKey, beauFrere, petiteSoeurOk, type CfAction, type CfPlayerView, type CfView } from './engine';
+import { FERMETURE_TOURNEES, TOURNEE_PATRON_GAIN, actionKey, beauFrere, petiteSoeurOk, type CfAction, type CfPlayerView, type CfView } from './engine';
 
 export type CfLevel = 'debutant' | 'habitue' | 'fine-fouine';
 export const CF_LEVEL_LABEL: Record<CfLevel, string> = { debutant: 'Débutant', habitue: 'Habitué', 'fine-fouine': 'Fine fouine' };
@@ -272,7 +272,7 @@ function valueNow(ctx: DiceCtx, dice: number[], used: number, limit: number, dep
 // Valeur des ressources
 
 /** Réglages de l'IA (modifiables par les scripts d'équilibrage). */
-export const CF_AI_TUNING = { verreLater: 0.45, hbSkip: 0.75, hbDiceNoise: 0.4, hbOverflow: false, hbStingy: 1.5, hbNoise: 0.6, ffNoise: 0, ffBias: 0, exactBeat: true, ffDepth: 9, hold: 1, tv: 0.4, cv: 0.55, ffMargin: 0.45, hbMargin: 0.15, reservePenalty: 0.5, risk: true, riposteRisk: true, endBonus: 6, tvExp: 0.5 };
+export const CF_AI_TUNING = { verreLater: 0.45, hbSkip: 0.75, hbDiceNoise: 0.4, hbOverflow: false, hbStingy: 1.5, hbNoise: 0.6, ffNoise: 0, ffBias: 0, exactBeat: true, ffDepth: 9, hold: 1, tv: 0.4, cv: 0.55, ffMargin: 0.45, hbMargin: 0.15, reservePenalty: 0.5, risk: true, riposteRisk: true, endBonus: 6, tvExp: 0.5, passive: 1.3 };
 let TV = CF_AI_TUNING.tv;
 let CV = CF_AI_TUNING.cv;
 
@@ -579,7 +579,10 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
       return o.p.penaltyNext > 0 ? null : CF_AI_TUNING.verreLater;
     }
     case 'vide-poches':
-      return target && target.handCount > 0 ? CV + 0.15 + (target.handCount <= 2 ? 0.25 : 0) : null;
+      // 0.41 : une Tournée prise (elle manque à l'adversaire et vous revient) et une carte défaussée.
+      if (!target || (target.handCount === 0 && target.tournees === 0)) return null;
+      return (target.handCount > 0 ? CV + 0.15 + (target.handCount <= 2 ? 0.25 : 0) : 0)
+        + (target.tournees > 0 ? TV * (1 + (me.tournees < view.rules.tourneesMax ? 1 : 0)) : 0);
     case 'tant-qu-on-y-est': {
       // Une carte contre des Tournées : intéressant à partir de 2.
       const n = Math.min(me.r.played + 2, view.rules.tourneesMax - me.tournees);
@@ -592,7 +595,7 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
       return CV * (keepValue(top.id, me) - keepValue('petite-soeur', me)) + def(top.id).cost * TV * 0.6;
     }
     case 'fermeture': {
-      if (!a.habitue) return 2 * CV - drawCost(2);
+      if (!a.habitue) return Math.min(FERMETURE_TOURNEES, view.rules.tourneesMax - me.tournees + costNow(me, id)) * TV - 0.1;
       const h = opps.flatMap((o) => o.habitues).find((x) => x.uid === a.habitue);
       return h ? (STATIC[h.id] ?? 0.8) * 0.9 + 0.3 : null;
     }
@@ -620,7 +623,8 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
     if (id === 'patron' || id === 'josiane' || id === 'beau-frere') v *= lateGame ? 0.4 : 1;
     if (id === 'pilier' && lateGame) v *= 0.5;
     if (me.habitues.some((h) => h.id === id) && (id === 'vieux-marcel' || id === 'pilier')) v = 0;
-    return v;
+    // 0.41 : un Habitué ou un piège agit sans qu'on repaie ; quand les Tournées sont rares, il vaut un peu plus.
+    return v * CF_AI_TUNING.passive;
   }
   if (d.type === 'piege') {
     let v = STATIC[id] ?? 0.4;
@@ -635,7 +639,7 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
     if (level === 'fine-fouine' && id === 'leurre') v = 0.45; // bluff : occupe la place et attire les Fouines
     // Multi : viser celui qui est le plus près de gagner.
     if (opps.length > 1 && target) { const minT = Math.min(...opps.map((o) => o.tokens)); if (target.tokens > minT) v -= 0.25; }
-    return v;
+    return v * CF_AI_TUNING.passive;
   }
   return null;
 }

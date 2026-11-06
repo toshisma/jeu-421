@@ -9,7 +9,7 @@
  * - threatLine : ce que la carte adverse va vous faire (fenêtre de riposte).
  */
 import { CARDS, CARD_BY_ID, FAMILY_LABEL, type CardFamily, type CardType } from '../../../shared/cards/catalog';
-import { ARDOISE_EXTRA, TOURNEE_PATRON_GAIN, LEURRE_DRAW, VESTE_MIN, commandeOf, evalPlayer, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView } from '../../../shared/cards/engine';
+import { ARDOISE_EXTRA, FERMETURE_TOURNEES, TOURNEE_PATRON_GAIN, LEURRE_DRAW, LEURRE_TOURNEES, VESTE_MIN, commandeOf, evalPlayer, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView } from '../../../shared/cards/engine';
 import { comboOf, comboWith, costNow, isTurnOf, meOf, nameIn, playOptions, playerOf, playsAfter, plural } from './describe';
 import { FAMILY_SHORT } from './meta';
 import { TYPE_META } from './cardTypes';
@@ -66,7 +66,7 @@ function playableLabel(v: CfView, legal: CfAction[], uid: string, id: string): s
     case 'de-sous-table': return 'Relancer son dé';
     case 'tournee-generale': return 'Tout relancer';
     case 'domino': { const o = v.players.find((x) => x.id === opts[0]?.target); const n = o ? o.tournees : 0; return `Lui ôter ${plural(n, 'Tournée')}`; }
-    case 'fermeture': return 'Chasser un Habitué';
+    case 'fermeture': return v.players.some((o) => o.id !== p.id && o.habitues.length) ? 'Chasser un Habitué' : `+${FERMETURE_TOURNEES} Tournées`;
     case 'grand-enchainement': return p.r.lastCoup ? `Rejouer ${cardName(p.r.lastCoup).split(' ')[0]}` : 'Rejouer';
     case 'note-salee': return '+2 jetons donnés';
     case 'ticket-caisse': case 'reaction-chaine': case 'pot-aux-roses': return 'Annuler sa carte';
@@ -79,7 +79,7 @@ function playableLabel(v: CfView, legal: CfAction[], uid: string, id: string): s
       const o = v.players.find((x) => x.id === opts[0]?.target);
       return o && !o.r.done && v.order.indexOf(o.id) > v.order.indexOf(p.id) ? 'Un lancer pour lui' : 'Un lancer, manche suivante';
     }
-    case 'vide-poches': return 'Lui ôter 1 carte';
+    case 'vide-poches': return 'Lui prendre 1 Tournée';
     case 'tant-qu-on-y-est': return `+${plural(Math.min(v.rules.tourneesMax - p.tournees + costNow(v, id), p.r.played + 2), 'Tournée')}`;
     case 'petite-soeur': return 'Reprendre un Coup';
   }
@@ -129,7 +129,7 @@ export function cardHint(v: CfView, legal: CfAction[], k: { uid: string; id: str
     case 'fermeture': return wait('Aucun Habitué');
     case 'grand-enchainement': return wait('Après un Coup');
     case 'petite-soeur': return wait('Aucun Coup défaussé');
-    case 'vide-poches': return wait('Sa main est vide');
+    case 'vide-poches': return wait('Ni Tournée ni carte à lui prendre');
   }
   return wait('Pas maintenant');
 }
@@ -260,7 +260,7 @@ export function familiesLabel(families: CardFamily[]): string {
 /** Quand un piège se déclenche (pour la victime, 2e personne). */
 export const TRAP_WHEN: Record<string, string> = {
   'gueule-bois': 'quand vous perdez une manche : un seul lancer à la suivante',
-  leurre: 'jamais : il ne fait rien (son poseur pioche s’il est découvert)',
+  leurre: 'jamais : il ne fait rien (son poseur gagne 1 Tournée et pioche s’il est découvert)',
   'verre-de-trop': 'quand vous faites un 2e lancer dans votre tour : vous recevez 1 jeton',
   'courant-air': 'quand vous installez un Habitué ou jouez une Riposte : la carte est défaussée sans effet',
   engrenage: 'quand vous jouez votre 2e carte de la manche : elle est annulée',
@@ -270,7 +270,7 @@ export const TRAP_WHEN: Record<string, string> = {
   'faux-421': 'quand vous finissez sur 4-2-1 : il ne vaut plus que 2',
   'coup-nenette': 'quand vous devriez gagner avec une combinaison qui vaut 1 ou 2 : elle devient une nénette',
   'retournement-veste': `quand vous devriez lui donner ${VESTE_MIN} jetons ou plus : c’est lui qui les reçoit`,
-  mouchard: 'quand vous jouez un Coup : son poseur pioche 2 cartes',
+  mouchard: 'quand vous jouez un Coup : son poseur gagne 1 Tournée et pioche 1 carte',
 };
 export const TRAP_TIP: Record<string, string> = {
   'faux-421': 'Astuce : la « Fouine » défausse un piège avant que vous vous arrêtiez.',
@@ -491,7 +491,7 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
         } : { style: 'big', tone: 'piege', kicker: 'Piège défaussé', card: e.card, ms: ANN_MS.big, title: noDot(e.text) } });
         continue;
       case 'leurre':
-        out.push({ kind: 'ann', ev: e, ann: mine ? strip(e.text, 'piege') : { style: 'big', tone: 'piege', kicker: 'Leurre', card: 'leurre', ms: ANN_MS.big, title: 'C’était un Leurre !', text: `Il ne fait rien… et ${n} pioche ${plural(LEURRE_DRAW, 'carte')}.` } });
+        out.push({ kind: 'ann', ev: e, ann: mine ? strip(e.text, 'piege') : { style: 'big', tone: 'piege', kicker: 'Leurre', card: 'leurre', ms: ANN_MS.big, title: 'C’était un Leurre !', text: `Il ne fait rien… et ${n} gagne ${plural(LEURRE_TOURNEES, 'Tournée')} et pioche ${plural(LEURRE_DRAW, 'carte')}.` } });
         continue;
       case 'videur':
         out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'habitue', kicker: 'Le Videur', card: 'videur', ms: ANN_MS.big, title: noDot(e.text) } });
@@ -591,7 +591,7 @@ export function threatLine(v: CfView): string {
     }
     case 'tournee-generale': return 'Ici : vous relancez tous vos dés, lui aussi, puis il peut encore en relancer un.';
     case 'domino': return `Ici : vous perdez toutes vos Tournées (${me.tournees}).`;
-    case 'fermeture': { const h = v.players.flatMap((p) => p.habitues).find((x) => x.uid === pr.habitue); return `Ici : ${cardName(h?.id)} rentre chez lui (défaussé).`; }
+    case 'fermeture': { if (!pr.habitue) return `Ici : il gagne ${FERMETURE_TOURNEES} Tournées.`; const h = v.players.flatMap((p) => p.habitues).find((x) => x.uid === pr.habitue); return `Ici : ${cardName(h?.id)} rentre chez lui (défaussé).`; }
     case 'double-tournee': return 'Ici : s’il gagne la manche, sa combinaison vaut le double.';
     case 'pari-comptoir': return 'Ici : le perdant de la manche recevra 2 jetons de plus.';
     case 'note-salee': return 'Ici : s’il gagne, vous recevrez 2 jetons de plus.';
@@ -599,7 +599,7 @@ export function threatLine(v: CfView): string {
     case 'tournee-patron': return `Ici : il gagne ${TOURNEE_PATRON_GAIN} Tournées et pioche 1 carte.`;
     case 'fouine': return 'Ici : il défausse un de vos pièges.';
     case 'verre-offert': return pr.target === me.id ? `Ici : vous n’aurez qu’un seul lancer à votre prochain tour${!me.r.done && v.order.indexOf(me.id) > v.order.indexOf(top.owner) ? ' (celui-ci)' : ''}.` : 'Ici : son adversaire n’aura qu’un seul lancer.';
-    case 'vide-poches': return pr.target === me.id ? 'Ici : vous défaussez une carte de votre main au hasard.' : 'Ici : une carte de main défaussée au hasard.';
+    case 'vide-poches': return pr.target === me.id ? 'Ici : on vous prend 1 Tournée et vous défaussez une carte de votre main au hasard.' : 'Ici : 1 Tournée prise et une carte de main défaussée au hasard.';
     case 'tant-qu-on-y-est': return `Ici : il gagne ${plural((o?.r.played ?? 0) + 1, 'Tournée')}.`;
     case 'pot-aux-roses': case 'ticket-caisse': case 'reaction-chaine': {
       const under = v.stack[v.stack.length - 2];

@@ -760,6 +760,10 @@ export const TOURNEE_PATRON_GAIN = 3;
 /** Leurre : cartes piochées et Tournées gagnées quand il est révélé ou revient en main (0.41 : 1 + 1 Tournée, avant 2 cartes). */
 export const LEURRE_DRAW = 1;
 export const LEURRE_TOURNEES = 1;
+/** Fermeture ! sans Habitué adverse : Tournées gagnées (0.41, avant 2 cartes piochées). */
+export const FERMETURE_TOURNEES = 2;
+/** Le Vide-poches : Tournées prises à l'adversaire (0.41), en plus de la carte défaussée au hasard. */
+export const VIDE_POCHES_TOURNEES = 1;
 /** Le Mouchard : ce que gagne son poseur quand il se déclenche (0.41 : 1 Tournée + 1 carte, avant 2 cartes). */
 export const MOUCHARD_DRAW = 1;
 export const MOUCHARD_TOURNEES = 1;
@@ -784,7 +788,7 @@ function effectOptions(s: CfState, p: CfPlayer, id: string): PlayParams[] {
     case 'coup-etrier':
       return p.r.dice.some((x) => x > 0) ? diceIdx.map((die) => ({ die })) : [];
     case 'vide-poches':
-      return opps.filter((o) => o.hand.length > 0).map((o) => ({ target: o.id }));
+      return opps.filter((o) => o.hand.length > 0 || o.tournees > 0).map((o) => ({ target: o.id }));
     case 'petite-soeur':
       return p.discard.some(petiteSoeurOk) ? [{}] : [];
     case 'trinquer': {
@@ -1187,7 +1191,7 @@ function doPlay(c: Ctx, p: CfPlayer, a: Extract<CfAction, { type: 'play' }>) {
     }
   }
   if (d.type === 'coup') {
-    // Le Mouchard : quand l'adversaire joue un Coup, le poseur pioche 2 cartes.
+    // Le Mouchard : quand l'adversaire joue un Coup, le poseur gagne 1 Tournée et pioche 1 carte (0.41).
     const t = trapsOn(s, p.id, 'mouchard')[0];
     if (t && triggerTrap(c, t)) {
       const o = pl(s, t.owner);
@@ -1342,8 +1346,9 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
     }
     case 'fermeture': {
       if (!prm.habitue) {
-        you(`Fermeture ! Aucun Habitué à chasser : ${p.name} pioche 2 cartes.`, 'Fermeture ! Aucun Habitué à chasser : vous piochez 2 cartes.');
-        draw(c, p, 2, false, true);
+        // 0.41 : on fait la caisse (2 Tournées) au lieu de piocher 2 cartes.
+        const g = gainTournees(c, p, FERMETURE_TOURNEES, true);
+        you(`Fermeture ! Aucun Habitué à chasser : ${p.name} fait la caisse (+${plural(g, 'Tournée')}).`, `Fermeture ! Aucun Habitué à chasser : vous faites la caisse (+${plural(g, 'Tournée')}).`);
         break;
       }
       const owner = s.players.find((o) => o.habitues.some((h) => h.uid === prm.habitue));
@@ -1466,7 +1471,14 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       break;
     }
     case 'vide-poches': {
+      // 0.41 : prend aussi 1 Tournée à l'adversaire (s'il en a).
       const o = pl(s, prm.target!);
+      const took = Math.min(VIDE_POCHES_TOURNEES, o.tournees);
+      if (took > 0) {
+        o.tournees -= took;
+        const g = gainTournees(c, p, took, true);
+        emit(c, { kind: 'effet', player: o.id, card: id, who: o.id, text: `Le Vide-poches : ${p.name} prend ${plural(took, 'Tournée')} à ${o.name}${g < took ? ' (sa réserve est pleine)' : ''}.`, textYou: `Le Vide-poches : ${p.name} vous prend ${plural(took, 'Tournée')}.` });
+      }
       if (!o.hand.length) break;
       const [k] = o.hand.splice(Math.floor(rnd(s) * o.hand.length), 1);
       o.discard.push(k);

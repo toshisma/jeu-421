@@ -5,7 +5,9 @@
  * les dés (source `rollDie` imposée) et les décisions de Dédé sont écrits à l'avance. Le joueur ne
  * peut faire que l'action attendue à chaque étape (les autres sont retirées des actions possibles).
  *
- * Déroulé : manche 1 (vous menez) Tournée du patron (0.41 : les cartes coûtent plus cher), lancer, garder, Tête qui tourne → 4-2-1, poser Croche-patte,
+ * 0.41 (économie serrée : 1 Tournée par manche) : chacun commence la démonstration avec sa réserve pleine,
+ * pour pouvoir tout essayer ; le texte le dit et rappelle la vraie règle.
+ * Déroulé : manche 1 (vous menez) lancer, garder, Tête qui tourne → 4-2-1, Tournée du patron, poser Croche-patte,
  * s'arrêter (limite de lancers) ; Dédé fait un brelan de 6 et se fait piéger en finissant son tour ; comptes.
  * Manche 2 (Dédé mène) : Riposte avec Ticket de caisse, Fouine sur son Mouchard, Leurre,
  * un lancer, s'arrêter, puis Dernier mot « Le Coup de l’étrier » (Recompter coûte 3, trop cher
@@ -59,8 +61,13 @@ function build(seed: number, myName: string): CfState {
   const me = pl(s, TUTO_ME), bot = pl(s, TUTO_BOT);
   me.hand = inst(MY_HAND); me.deck = inst(MY_DECK);
   bot.hand = inst(BOT_HAND); bot.deck = inst(BOT_DECK);
+  // Réserve pleine dès la première manche (avec les Tournées du service).
+  me.tournees = TUTO_HEAD_START; bot.tournees = TUTO_HEAD_START;
   return s;
 }
+
+/** Tournées d'avance de la démonstration : la réserve est pleine après le service de la manche 1. */
+export const TUTO_HEAD_START = CF_RULES.tourneesMax - CF_RULES.tourneesPerRound;
 
 /** Graine pour laquelle le tirage au sort donne la première manche au joueur (cherchée une fois). */
 let SEED = 0;
@@ -88,17 +95,19 @@ const botPlay = (id: string, params: (s: CfState) => PlayParams = () => ({})) =>
 const NONE = [false, false, false];
 const R = CF_RULES;
 /** Coût imprimé d'une carte, en toutes lettres (« 2 Tournées », « gratuite »). */
-const cost = (id: string) => { const n = cardDef(id)?.cost ?? 0; return n === 0 ? 'gratuite' : `${n} Tournée${n > 1 ? 's' : ''}`; };
+const cost = (id: string) => { const n = cardDef(id)?.cost ?? 0; return n === 0 ? 'gratuite' : tour(n); };
+/** « 1 Tournée », « 3 Tournées ». */
+const tour = (n: number) => `${n} Tournée${n > 1 ? 's' : ''}`;
 
 /** Les étapes de la partie guidée. */
 export const TUTO_STEPS: TutoStep[] = [
   { kind: 'info', title: 'Partie guidée', text: `Bienvenue au comptoir ! Vous affrontez ${TUTO_BOT_NAME}. Chacun a ${R.startTokens} jetons : le premier qui n’en a plus aucun gagne. Le 421, mais avec des cartes pour piéger, retourner les dés… et se refaire.`, button: 'C’est parti' },
-  { kind: 'info', title: 'Vos cartes et vos Tournées', text: `En bas, votre main. Chaque carte coûte des Tournées (le chiffre dans le petit verre) : vous en recevez ${R.tourneesPerRound} à chaque manche.`, focus: 'me' },
-  { kind: 'me', title: 'Reprendre des Tournées', text: `Pour bien jouer, il en faut plus. « Tournée du patron » en coûte ${cardDef('tournee-patron')?.cost}, vous en rend ${TOURNEE_PATRON_GAIN} et vous fait piocher une carte : jouez-la.`, focus: 'hand', expect: isPlay('tournee-patron') },
+  { kind: 'info', title: 'Vos cartes et vos Tournées', text: `En bas, votre main. Chaque carte coûte des Tournées (le chiffre dans le petit verre). En vraie partie, vous n’en recevez que ${tour(R.tourneesPerRound)} par manche (${tour(R.tourneesPerRound + R.tourneesLoserBonus)} après une manche perdue) : chaque carte est un choix, et il faut économiser pour en jouer plusieurs. Pour cette démonstration, votre réserve est pleine : ${tour(R.tourneesMax)}.`, focus: 'me' },
   { kind: 'me', title: 'Lancer', text: `Vous menez cette manche : lancez les 3 dés (${R.maxThrows} lancers au plus).`, focus: 'roll', expect: isRoll(NONE) },
   { kind: 'me', title: 'Garder des dés', text: 'Un 4 et un 2 : il ne manque qu’un 1 pour le 4-2-1, la meilleure combinaison. Touchez le 4 et le 2 dans le bac pour les garder, puis relancez le dernier dé.', focus: 'tray', expect: isRoll([true, true, false]) },
   { kind: 'me', title: 'Jouer un Coup', text: `Un 6… Mais « Tête qui tourne » retourne un dé sur sa face opposée : le 6 devient 1 ! Touchez la carte, choisissez le 6, puis « Jouer ». Elle coûte ${cost('tete-tourne')}.`, focus: 'hand', expect: isPlay('tete-tourne', (p) => p.die === 2) },
-  { kind: 'me', title: 'Poser un piège', text: `4-2-1 ! Posez maintenant « Croche-patte » (${cost('croche-patte')}) : un piège face cachée. ${TUTO_BOT_NAME} verra qu’il y a un piège, pas lequel. Il se déclenchera tout seul.`, focus: 'hand', expect: isPlay('croche-patte') },
+  { kind: 'me', title: 'Reprendre des Tournées', text: `4-2-1 ! Il vous reste ${tour(R.tourneesMax - (cardDef('tete-tourne')?.cost ?? 0))}. « Tournée du patron » en coûte ${cardDef('tournee-patron')?.cost}, vous en rend ${TOURNEE_PATRON_GAIN} et vous fait piocher une carte : de quoi enchaîner. Jouez-la.`, focus: 'hand', expect: isPlay('tournee-patron') },
+  { kind: 'me', title: 'Poser un piège', text: `Posez maintenant « Croche-patte » (${cost('croche-patte')}) : un piège face cachée. ${TUTO_BOT_NAME} verra qu’il y a un piège, pas lequel. Il se déclenchera tout seul.`, focus: 'hand', expect: isPlay('croche-patte') },
   { kind: 'me', title: 'La limite de lancers', text: `Arrêtez-vous là. Vous avez fait 2 lancers : ${TUTO_BOT_NAME} n’aura droit qu’à 2 lancers lui aussi. Le meneur fixe la limite de l’autre.`, focus: 'stop', expect: (a) => a.type === 'stop' },
   { kind: 'bot', text: `À ${TUTO_BOT_NAME} de jouer, en voyant votre 4-2-1…`, action: () => ({ type: 'roll', keep: NONE }) },
   { kind: 'bot', text: `${TUTO_BOT_NAME} garde ses deux 6…`, action: () => ({ type: 'roll', keep: [true, true, false] }) },

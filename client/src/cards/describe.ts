@@ -7,7 +7,7 @@
 import { evaluate } from '../../../shared/combos';
 import { DEFAULT_CONFIG } from '../../../shared/config';
 import { CARD_BY_ID, TYPE_LABEL, type CardDef } from '../../../shared/cards/catalog';
-import { ARDOISE_EXTRA, TOURNEE_PATRON_GAIN, TICKET_MAX, LEURRE_DRAW, POT_MIN, VESTE_MIN, beauFrere, evalPlayer, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView, type PlayParams } from '../../../shared/cards/engine';
+import { ARDOISE_EXTRA, FERMETURE_TOURNEES, TOURNEE_PATRON_GAIN, TICKET_MAX, LEURRE_DRAW, LEURRE_TOURNEES, MOUCHARD_DRAW, MOUCHARD_TOURNEES, VIDE_POCHES_TOURNEES, POT_MIN, VESTE_MIN, beauFrere, evalPlayer, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView, type PlayParams } from '../../../shared/cards/engine';
 
 const def = (id: string): CardDef | undefined => CARD_BY_ID[id];
 export const plural = (n: number, w: string) => `${n} ${w}${n > 1 ? 's' : ''}`;
@@ -93,14 +93,14 @@ export function paramQuestion(k: ParamKey, cardId: string): string {
 
 const conditionOf: Record<string, string> = {
   'gueule-bois': 'il perd une manche (il n’aura qu’un lancer à la suivante)',
-  leurre: `il est révélé ou revient dans votre main (vous piochez ${plural(LEURRE_DRAW, 'carte')}) ; sinon il ne fait rien`,
+  leurre: `il est révélé ou revient dans votre main (vous gagnez ${plural(LEURRE_TOURNEES, 'Tournée')} et piochez ${plural(LEURRE_DRAW, 'carte')}) ; sinon il ne fait rien`,
   'croche-patte': 'il finit son tour (un de ses dés est relancé au hasard)',
   'main-sac': 'il joue un Coup qui coûte 1 ou plus (ce Coup est annulé)',
   'ardoise-piegee': `il joue un Coup (il paie ${ARDOISE_EXTRA} Tournées de plus, sinon le Coup est annulé)`,
   'faux-421': 'il termine avec un 4-2-1 (qui ne vaudra que 2)',
   'coup-nenette': 'il devrait gagner avec une combinaison qui vaut 1 ou 2 (elle devient une nénette)',
   'retournement-veste': `il devrait vous donner ${VESTE_MIN} jetons ou plus (c’est lui qui les reçoit)`,
-  mouchard: 'il joue un Coup (vous piochez 2 cartes)',
+  mouchard: `il joue un Coup (vous gagnez ${plural(MOUCHARD_TOURNEES, 'Tournée')} et piochez ${plural(MOUCHARD_DRAW, 'carte')})`,
   'verre-de-trop': 'il fait un 2e lancer dans son tour (il reçoit 1 jeton)',
   'courant-air': 'il installe un Habitué ou joue une Riposte (la carte est défaussée sans effet)',
   engrenage: 'il joue sa 2e carte de la manche (elle est annulée)',
@@ -192,7 +192,7 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
         const h = owner?.habitues.find((x) => x.uid === params.habitue);
         return `${h ? def(h.id)?.name : 'Cet Habitué'} de ${owner?.name ?? 'l’adversaire'} rentre chez lui (défaussé).`;
       }
-      if (!opts.some((o) => o.habitue)) return 'Aucun Habitué adverse à chasser : vous piochez 2 cartes.';
+      if (!opts.some((o) => o.habitue)) return `Aucun Habitué adverse à chasser : vous gagnez ${plural(FERMETURE_TOURNEES, 'Tournée')} (vous en aurez ${Math.min(v.rules.tourneesMax, p.tournees - costNow(v, cardId) + FERMETURE_TOURNEES)} sur ${v.rules.tourneesMax}).`;
       return 'Un Habitué adverse rentre chez lui (défaussé).';
     }
     case 'fouine':
@@ -227,7 +227,9 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
       return `Un de vos dés (${p.r.dice.join('-')}) et un dé de ${tName}${c ? ` (${target!.r.dice.join('-')})` : ''}, tous deux pris au hasard, changent de camp.`;
     }
     case 'vide-poches':
-      return target ? `${tName} défausse au hasard une de ses ${plural(target.handCount, 'carte')}.` : 'L’adversaire défausse une carte de sa main au hasard.';
+      return target
+        ? `${target.tournees > 0 ? `Vous prenez ${plural(Math.min(VIDE_POCHES_TOURNEES, target.tournees), 'Tournée')} à ${tName}${p.tournees >= v.rules.tourneesMax ? ' (votre réserve est pleine : elle est perdue pour vous)' : ''}. ` : `${tName} n’a pas de Tournée à prendre. `}${target.handCount > 0 ? `${tName} défausse au hasard une de ses ${plural(target.handCount, 'carte')}.` : 'Sa main est vide.'}`
+        : 'Prenez 1 Tournée à l’adversaire ; il défausse une carte de sa main au hasard.';
     case 'tant-qu-on-y-est': {
       const n = p.r.played + 2;
       const after = Math.min(v.rules.tourneesMax, p.tournees - costNow(v, cardId) + n);
@@ -307,7 +309,7 @@ export function whyNot(v: CfView, cardId: string, legal: CfAction[], uid: string
     case 'tete-tourne': case 'coup-pouce': case 'bon-numero': return 'Lancez d’abord les dés.';
     case 'de-sous-table': case 'tournee-generale': return 'Lancez d’abord vos dés.';
     case 'petite-soeur': return 'Aucun Coup à reprendre dans votre défausse.';
-    case 'vide-poches': return 'L’adversaire n’a plus de carte en main.';
+    case 'vide-poches': return 'L’adversaire n’a ni Tournée ni carte en main.';
   }
   return 'Pas jouable maintenant.';
 }
