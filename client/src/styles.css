@@ -3705,3 +3705,6 @@ span.cfn-hab { cursor: default; }
 /* Commande du comptoir (0.39) */
 .cfn-cmd { flex: none; margin-left: 6px; padding: 4px 8px; border-radius: 999px; border: 1px solid rgba(241,204,125,.6); background: rgba(241,204,125,.16); color: #f6dfa6; font: 800 11px/1 Barlow, sans-serif; white-space: nowrap; cursor: pointer; }
 .cfn-help-cmd { margin: 0 0 10px; padding: 8px 10px; border-radius: 10px; background: rgba(241,204,125,.14); border: 1px solid rgba(241,204,125,.45); }
+.cfn-ttl:has(.cfn-cmd) { flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px; padding: 0 8px; }
+.cfn-ttl:has(.cfn-cmd) > span { font-size: 11px; line-height: 1; color: #d9cdf0; }
+.cfn-ttl .cfn-cmd { margin-left: 0; padding: 2px 7px; font-size: 10.5px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
