@@ -28,6 +28,7 @@ import { createMessages } from './messages';
 import { muteText } from '../shared/moderation';
 import { createDiscord } from './discord';
 import { createCards } from './cards';
+import { createCfEnigme } from './cf-enigme';
 import { DIVISIONS, SEASON_DIE_FROM, SEASON_TITLE_FROM, divisionIndex, divisionOf, nextSeasonStart, seasonDelta, seasonOf } from '../shared/season';
 import { today } from '../shared/progress/quests';
 import type { ComboKind } from '../shared/combos';
@@ -868,6 +869,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   createDiscord({ router, store, auth, userOf, userFromToken, now: () => opts.now?.() ?? Date.now(), env: opts.discord?.env, discordApi: opts.discord?.api });
   // Coups Fourrés (mode cartes) : collection, decks, boosters, ligue et missions.
   const cards = createCards({ router, store, auth, userOf, fail, now: () => opts.now?.() ?? Date.now(), push: (u, t, b, url) => void social.push(u, t, b, url), rng: opts.cardsRng });
+  // Coups Fourrés : l'énigme du jour (score recalculé ici, une validation par jour).
+  const enigme = createCfEnigme({ router, store, auth, userOf, fail, now: () => opts.now?.() ?? Date.now() });
 
-  return { social, messages, cards, router, setPresence, setCfPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
+  return { social, messages, cards, enigme, router, setPresence, setCfPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
 }

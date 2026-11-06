@@ -3708,3 +3708,68 @@ span.cfn-hab { cursor: default; }
 .cfn-ttl:has(.cfn-cmd) { flex-direction: column; align-items: flex-start; justify-content: center; gap: 3px; padding: 0 8px; }
 .cfn-ttl:has(.cfn-cmd) > span { font-size: 11px; line-height: 1; color: #d9cdf0; }
 .cfn-ttl .cfn-cmd { margin-left: 0; padding: 2px 7px; font-size: 10.5px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Coups Fourrés : l'énigme du jour (client/src/cards/CfEnigme.tsx) ---------- */
+.cf-enigme-entry { flex: none; display: flex; align-items: center; gap: 11px; width: 100%; min-width: 0; padding: 10px 12px; border-radius: 14px; cursor: pointer; text-align: left; color: #fbf6e9;
+  background: linear-gradient(180deg, #1f4f63, #12293a); border: 1.5px solid rgba(159,208,255,0.55); box-shadow: 0 4px 0 #08141d, inset 0 1px 0 rgba(255,255,255,0.12); }
+.cf-enigme-entry:active { transform: translateY(2px); }
+.cf-enigme-entry.done { border-color: rgba(127,224,178,0.55); }
+.cf-enigme-entry-ic { position: relative; flex: none; display: flex; gap: 2px; padding: 7px 6px; border-radius: 12px; background: rgba(0,0,0,0.28); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
+.cf-enigme-entry-ic i { position: absolute; right: -6px; top: -7px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font: 900 13px/1 var(--font); font-style: normal; color: #2a1a05; background: var(--cf-gold); box-shadow: 0 2px 4px rgba(0,0,0,0.4); }
+.cf-enigme-entry-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cf-enigme-entry-tx b { font: 800 18px/1.05 var(--cond); }
+.cf-enigme-entry-tx small { font: 600 12px/1.25 var(--font); color: #cfe3f2; }
+.cf-enigme-entry em { flex: none; font: 700 12px/1 var(--font); font-style: normal; padding: 7px 10px; border-radius: 999px; background: var(--cf-gold); color: #2a1a05; white-space: nowrap; }
+.cf-enigme-entry em.ok { background: rgba(127,224,178,0.18); color: #9ff0c8; font-size: 14px; }
+
+.cf-enigme .cf-body { gap: 10px; }
+.cf-enigme-wait { color: var(--cf-lilac); text-align: center; padding: 40px 8px; margin: 0; }
+.cf-enigme-goal { margin: 0; font: 500 14px/1.35 var(--font); color: #efe6d4; }
+.cf-enigme-goal b { color: #fbf6e9; }
+.cf-enigme-err { margin: 0; padding: 8px 10px; border-radius: 10px; background: rgba(224,74,58,0.18); color: #ffc9c0; font: 600 13px/1.3 var(--font); }
+.cf-enigme-table { display: flex; flex-direction: column; gap: 8px; }
+.cf-enigme-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "who dice" "combo dice" "extras extras" "fx fx"; align-items: center; gap: 4px 10px;
+  padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,0.06); border: 1.5px solid rgba(255,255,255,0.12); min-width: 0; }
+.cf-enigme-row.me { background: rgba(241,204,125,0.08); border-color: rgba(241,204,125,0.35); }
+.cf-enigme-row.me.lead { border-color: rgba(127,224,178,0.55); }
+.cf-enigme-row.me.win { border-color: #7fe0b2; background: rgba(127,224,178,0.12); }
+.cf-enigme-row.me.lose { border-color: rgba(224,74,58,0.7); }
+.cf-enigme-row .who { grid-area: who; display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.cf-enigme-row .who b { font: 800 17px/1.1 var(--cond); color: #fbf6e9; }
+.cf-enigme-row .who small { font: 600 12px/1 var(--font); color: var(--cf-lilac); white-space: nowrap; }
+.cf-enigme-row .dice { grid-area: dice; display: flex; gap: 5px; }
+.cf-enigme-row .combo { grid-area: combo; font: 700 14px/1.1 var(--font); color: var(--cf-gold); }
+.cf-enigme-row .extras { grid-area: extras; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.cf-enigme-row .cfn-fx-row { grid-area: fx; }
+.cf-enigme-row .tag { border: 0; cursor: pointer; padding: 5px 9px; border-radius: 999px; font: 700 12px/1.1 var(--font); color: #fbf6e9; text-align: left; max-width: 100%; }
+.cf-enigme-row .tag.hab { background: linear-gradient(160deg, #2f7a55, #0f3523); box-shadow: inset 0 0 0 1px #b9a56a; }
+.cf-enigme-row .tag.trap { background: linear-gradient(160deg, #5a3b85, #1c1030); box-shadow: inset 0 0 0 1px #a99ad0; }
+.cf-enigme-steps { margin: 0; padding: 8px 10px 8px 30px; border-radius: 12px; background: rgba(0,0,0,0.22); font: 500 13px/1.35 var(--font); color: #efe6d4; display: flex; flex-direction: column; gap: 3px; }
+.cf-enigme-hint { margin: 0; font: 600 13px/1.3 var(--font); color: var(--cf-lilac); }
+.cf-enigme .cfn-hand { margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
+.cf-enigme-acts { display: flex; gap: 10px; }
+.cf-enigme-acts .cf-btn { flex: 1; min-width: 0; }
+.cf-enigme-acts .cf-btn.gold { flex: 1.4; }
+.cf-enigme-result { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; background: rgba(241,204,125,0.1); border: 1.5px solid rgba(241,204,125,0.45); }
+.cf-enigme-result > b { font: 800 17px/1.2 var(--cond); color: #fbf6e9; }
+.cf-enigme-result > small { font: 600 12.5px/1.3 var(--font); color: var(--cf-lilac); }
+.cf-enigme-done { display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 14px 12px; border-radius: 16px; text-align: center; background: rgba(255,255,255,0.07); border: 1.5px solid rgba(255,255,255,0.18); }
+.cf-enigme-done.is-best { border-color: var(--cf-gold); background: linear-gradient(180deg, rgba(241,204,125,0.18), rgba(241,204,125,0.04)); }
+.cf-enigme-done .big { font: 900 40px/1 var(--cond); color: var(--cf-gold); }
+.cf-enigme-done .big small { display: block; margin-top: 2px; font: 700 14px/1.2 var(--font); color: #efe6d4; }
+.cf-enigme-done > b { font: 800 16px/1.2 var(--font); color: #fbf6e9; }
+.cf-enigme-done .meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.cf-enigme-done .meta > span { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,0.1); font: 700 12.5px/1 var(--font); color: #fbf6e9; }
+.cf-enigme-done .shared { color: #9ff0c8; font: 600 12.5px/1.3 var(--font); white-space: pre-line; }
+.cf-enigme-sol { text-align: left; border-radius: 12px; background: rgba(0,0,0,0.25); padding: 8px 10px; }
+.cf-enigme-sol summary { cursor: pointer; font: 800 14px/1.2 var(--font); color: var(--cf-gold); }
+.cf-enigme-sol ol { margin: 6px 0 0; padding-left: 20px; font: 500 13px/1.35 var(--font); color: #efe6d4; display: flex; flex-direction: column; gap: 3px; }
+.cf-enigme-note { margin: 0; font: 600 12.5px/1.3 var(--font); color: var(--cf-lilac); }
+.cf-enigme-board { padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); }
+.cf-enigme-board h3 { margin: 0 0 6px; display: flex; justify-content: space-between; align-items: baseline; font: 800 16px/1.1 var(--cond); color: #fbf6e9; }
+.cf-enigme-board h3 small { font: 600 12px/1 var(--font); color: var(--cf-lilac); }
+.cf-enigme-board ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.cf-enigme-board li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 5px 6px; border-radius: 8px; font: 600 13.5px/1.2 var(--font); color: #efe6d4; }
+.cf-enigme-board li b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cf-enigme-board li em { font-style: normal; color: var(--cf-gold); }
+.cf-enigme-board li.me { background: rgba(241,204,125,0.15); }
