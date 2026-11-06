@@ -596,7 +596,7 @@ export function HelpSheet({ v, onClose, onRules, onTour }: { v: CfView; onClose:
             <dt>En haut</dt><dd>Une case par adversaire. Le gros chiffre : ses <b>jetons</b> (le premier à 0 gagne). Puis 🍺 ses <b>Tournées</b> (elles paient les cartes), <i className="cfn-bk mini" /> ses <b>cartes en main</b>, <TypeIcon type="piege" size={12} /> ses <b>pièges posés</b>, <TypeIcon type="habitue" size={12} /> ses <b>Habitués</b>. Celui qui joue est encadré en doré. <b>Touchez une case</b> pour tout voir en clair.</dd>
             <dt>Le bandeau</dt><dd>À qui de jouer et quoi faire ; à plusieurs, la petite ligne dit le dernier coup joué.</dd>
             <dt>Le bac</dt><dd>Les dés de celui qui joue. À votre tour, touchez un dé pour le garder avant de relancer.</dd>
-            <dt>Vos cartes</dt><dd>Sous chaque nom, ce que fait la carte ; le chiffre doré est son coût en Tournées. Les cartes <b className="cfn-gold">dorées</b> sont jouables maintenant. Touchez une carte pour la lire en grand.</dd>
+            <dt>Vos cartes</dt><dd>Sous chaque nom, ce que fait la carte ; le chiffre dans le petit verre est son coût en Tournées (pas en jetons). Les cartes <b className="cfn-gold">dorées</b> sont jouables maintenant. Touchez une carte pour la lire en grand.</dd>
             <dt>« Vous »</dt><dd>Vos jetons, vos Tournées, vos Habitués (le chiffre : manches restantes) et vos pièges posés. Touchez « Vous » pour votre fiche.</dd>
             <dt>Journal</dt><dd>Tout ce qui s’est passé, coup par coup.</dd>
             <dt>À côté de la manche</dt><dd>La <b>commande du comptoir</b> : une règle bonus tirée à chaque manche, la même pour tous (touchez-la pour la relire).</dd>

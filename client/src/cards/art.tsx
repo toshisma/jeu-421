@@ -440,7 +440,7 @@ const ART: Record<string, (g: G, u: U) => ReactNode> = {
           <path d="M58 58 L94 58" /><path d="M102 58 L110 58" />
         </g>
         <path d="M58 68 L110 68" stroke="#0f3523" strokeWidth="2" strokeDasharray="3 3" />
-        <text x="84" y="95" fontFamily={SLAB} fontSize="22" fill="#c8312b" textAnchor="middle">+1</text>
+        <text x="84" y="95" fontFamily={SLAB} fontSize="22" fill="#c8312b" textAnchor="middle">+2</text>
       </g>
       <g fill="#ffffff">
         <rect x="122" y="40" width="3" height="3" /><rect x="128" y="48" width="2.5" height="2.5" /><rect x="118" y="54" width="3" height="3" />
@@ -632,7 +632,7 @@ const ART: Record<string, (g: G, u: U) => ReactNode> = {
         <path d="M66 26 Q72 22 78 26 T90 26 T102 26" />
         <path d="M66 38 L96 38" /><path d="M66 48 L90 48" /><path d="M66 58 L100 58" />
       </g>
-      <text x="130" y="56" fontFamily={SLAB} fontSize="24" fill="#f4efe6" textAnchor="middle" opacity=".92">+1</text>
+      <text x="130" y="56" fontFamily={SLAB} fontSize="24" fill="#f4efe6" textAnchor="middle" opacity=".92">+2</text>
       <rect x="120" y="72" width="16" height="5" rx="2" fill="#fbf6e9" />
       <ellipse cx="107" cy="112" rx="46" ry="7" fill="#4f5a5e" />
       <ellipse cx="107" cy="110" rx="42" ry="5" fill="#6f7b80" />

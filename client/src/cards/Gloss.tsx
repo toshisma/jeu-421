@@ -14,7 +14,7 @@ const R = CF_RULES;
 export const TERMS: Term[] = [
   { re: /dernier mot/i, title: 'Dernier mot', text: 'Carte qui se joue à la toute fin de la manche, quand toutes les combinaisons sont posées, juste avant les comptes.' },
   { re: /commande du comptoir/i, title: 'Commande du comptoir', text: 'Une règle bonus tirée au début de chaque manche, la même pour tous, écrite en haut de l’écran.' },
-  { re: /tournées?/i, title: 'Tournée', text: `Ce que coûtent les cartes (le chiffre doré). ${R.tourneesPerRound} de plus à chaque manche (${R.tourneesPerRound + R.tourneesLoserBonus} pour le perdant de la manche d’avant), ${R.tourneesMax} au plus.` },
+  { re: /tournées?/i, title: 'Tournée', text: `Ce que coûtent les cartes (le chiffre dans le petit verre), à ne pas confondre avec les jetons. ${R.tourneesPerRound} de plus à chaque manche (${R.tourneesPerRound + R.tourneesLoserBonus} pour le perdant de la manche d’avant), ${R.tourneesMax} au plus.` },
   { re: /habitués?/i, title: 'Habitué', text: `Carte qui s’installe devant vous et agit toute seule pendant ${R.habitueRounds} manches, puis rentre chez lui. ${R.maxHabitues} au plus, jamais deux fois le même.` },
   { re: /pièges?/i, title: 'Piège', text: `Posé face cachée devant un adversaire, il se déclenche tout seul quand sa condition arrive. L’adversaire voit qu’il y a un piège, pas lequel. ${R.maxTraps} posés au plus.` },
   { re: /ripostes?/i, title: 'Riposte', text: 'Carte jouée en réponse à une carte adverse, au moment où elle est jouée (vous avez 15 secondes).' },

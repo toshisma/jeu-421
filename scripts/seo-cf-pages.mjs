@@ -104,7 +104,7 @@ ${cardFig('coup-pouce', { full: false, caption: FAM_TEXT.chaines })}
 <p>Les ${CARDS.length} cartes, avec leur effet complet et leur rareté, sont réunies sur la page <a href="/cartes-coups-fourres">les cartes de Coups Fourrés</a>.</p>
 
 <h2 id="types">Cinq types de cartes</h2>
-<p>Chaque carte coûte des Tournées (la pastille dorée en haut à gauche) et se joue à un moment précis :</p>
+<p>Chaque carte coûte des Tournées (le chiffre dans le petit verre, en haut à gauche) et se joue à un moment précis :</p>
 ${typesTable()}
 
 <h2 id="modes">Les façons de jouer</h2>
@@ -201,7 +201,7 @@ ${toc([['but', 'Le but'], ['mise-en-place', 'Mise en place'], ['manche', 'Une ma
 <p>Le classement détaillé et les probabilités de chaque combinaison sont sur la page <a href="/combinaisons-du-421">combinaisons du 421</a>.</p>
 
 <h2 id="tournees">Les Tournées</h2>
-<p>Les Tournées paient les cartes : le chiffre dans la pastille dorée de chaque carte est son coût. On en reçoit à chaque service, certaines cartes en donnent (« Tournée du patron » : +2), d’autres font perdre toutes les siennes à l’adversaire (« Domino »). Les Tournées de chaque joueur sont <b>visibles de tous</b> : un adversaire à zéro Tournée ne peut presque rien jouer, un adversaire à quatre ou plus peut préparer un gros coup.</p>
+<p>Les Tournées paient les cartes : le chiffre dans le petit verre de chaque carte est son coût. On en reçoit à chaque service, certaines cartes en donnent (« Tournée du patron » : +2), d’autres font perdre toutes les siennes à l’adversaire (« Domino »). Les Tournées de chaque joueur sont <b>visibles de tous</b> : un adversaire à zéro Tournée ne peut presque rien jouer, un adversaire à quatre ou plus peut préparer un gros coup.</p>
 
 <h2 id="types">Les types de cartes</h2>
 ${typesTable()}
