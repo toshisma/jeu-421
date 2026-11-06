@@ -9,7 +9,7 @@
  * - threatLine : ce que la carte adverse va vous faire (fenêtre de riposte).
  */
 import { CARDS, CARD_BY_ID, FAMILY_LABEL, type CardFamily, type CardType } from '../../../shared/cards/catalog';
-import { ARDOISE_EXTRA, LEURRE_DRAW, VESTE_MIN, commandeOf, evalPlayer, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView } from '../../../shared/cards/engine';
+import { ARDOISE_EXTRA, TOURNEE_PATRON_GAIN, LEURRE_DRAW, VESTE_MIN, commandeOf, evalPlayer, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView } from '../../../shared/cards/engine';
 import { comboOf, comboWith, costNow, isTurnOf, meOf, nameIn, playOptions, playerOf, playsAfter, plural } from './describe';
 import { FAMILY_SHORT } from './meta';
 import { TYPE_META } from './cardTypes';
@@ -56,7 +56,7 @@ function playableLabel(v: CfView, legal: CfAction[], uid: string, id: string): s
     case 'coup-pouce': case 'recompter': return bestDice(v, p, opts, (o) => p.r.dice[o.die!] + (o.delta ?? 0)) ?? '±1 à un dé';
     case 'bon-numero': { const b = bestDice(v, p, opts, (o) => o.face!); return b ? `→ ${b.split(' : ')[1]}` : 'Choisir une face'; }
     case 'fouine': return opts.some((o) => o.trap) ? 'Défausser son piège' : 'Piocher 1 carte';
-    case 'tournee-patron': return '+2 Tournées, 1 carte';
+    case 'tournee-patron': return `+${TOURNEE_PATRON_GAIN} Tournées, 1 carte`;
     case 'cul-sec': return '+1 lancer, 1 carte';
     case 'coup-coude': return 'Piocher 1 carte';
     case 'mise-bouche': return '1 carte, suivante gratuite';
@@ -596,7 +596,7 @@ export function threatLine(v: CfView): string {
     case 'pari-comptoir': return 'Ici : le perdant de la manche recevra 2 jetons de plus.';
     case 'note-salee': return 'Ici : s’il gagne, vous recevrez 2 jetons de plus.';
     case 'cul-sec': return 'Ici : il gagne un lancer de plus ce tour.';
-    case 'tournee-patron': return 'Ici : il gagne 2 Tournées et pioche 1 carte.';
+    case 'tournee-patron': return `Ici : il gagne ${TOURNEE_PATRON_GAIN} Tournées et pioche 1 carte.`;
     case 'fouine': return 'Ici : il défausse un de vos pièges.';
     case 'verre-offert': return pr.target === me.id ? `Ici : vous n’aurez qu’un seul lancer à votre prochain tour${!me.r.done && v.order.indexOf(me.id) > v.order.indexOf(top.owner) ? ' (celui-ci)' : ''}.` : 'Ici : son adversaire n’aura qu’un seul lancer.';
     case 'vide-poches': return pr.target === me.id ? 'Ici : vous défaussez une carte de votre main au hasard.' : 'Ici : une carte de main défaussée au hasard.';

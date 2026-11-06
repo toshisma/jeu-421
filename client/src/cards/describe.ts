@@ -7,7 +7,7 @@
 import { evaluate } from '../../../shared/combos';
 import { DEFAULT_CONFIG } from '../../../shared/config';
 import { CARD_BY_ID, TYPE_LABEL, type CardDef } from '../../../shared/cards/catalog';
-import { ARDOISE_EXTRA, TICKET_MAX, LEURRE_DRAW, POT_MIN, VESTE_MIN, beauFrere, evalPlayer, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView, type PlayParams } from '../../../shared/cards/engine';
+import { ARDOISE_EXTRA, TOURNEE_PATRON_GAIN, TICKET_MAX, LEURRE_DRAW, POT_MIN, VESTE_MIN, beauFrere, evalPlayer, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView, type PlayParams } from '../../../shared/cards/engine';
 
 const def = (id: string): CardDef | undefined => CARD_BY_ID[id];
 export const plural = (n: number, w: string) => `${n} ${w}${n > 1 ? 's' : ''}`;
@@ -140,8 +140,8 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
   const top = v.stack[v.stack.length - 1];
   switch (cardId) {
     case 'tournee-patron': {
-      const after = Math.min(v.rules.tourneesMax, p.tournees - costNow(v, cardId) + 2);
-      return `Vous gagnez 2 Tournées (vous en aurez ${after} sur ${v.rules.tourneesMax}) et piochez 1 carte.`;
+      const after = Math.min(v.rules.tourneesMax, p.tournees - costNow(v, cardId) + TOURNEE_PATRON_GAIN);
+      return `Vous gagnez ${TOURNEE_PATRON_GAIN} Tournées (vous en aurez ${after} sur ${v.rules.tourneesMax}) et piochez 1 carte.`;
     }
     case 'cul-sec': {
       const lim = p.throwLimit ?? v.rules.maxThrows;

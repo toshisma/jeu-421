@@ -36,7 +36,7 @@ export const CARD_EMPHASIS: Record<string, string> = {
   'vieux-marcel': 'Vos suites valent 4',
   pilier: '2 jetons de moins',
   videur: 'annulé et défaussé',
-  'tournee-patron': 'Gagnez 2 Tournées',
+  'tournee-patron': 'Gagnez 3 Tournées',
   'ticket-caisse': 'Annulez un Coup adverse',
   fermeture: 'rentre chez lui',
   'note-salee': '2 jetons de plus',

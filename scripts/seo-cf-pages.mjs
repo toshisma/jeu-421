@@ -201,7 +201,7 @@ ${toc([['but', 'Le but'], ['mise-en-place', 'Mise en place'], ['manche', 'Une ma
 <p>Le classement détaillé et les probabilités de chaque combinaison sont sur la page <a href="/combinaisons-du-421">combinaisons du 421</a>.</p>
 
 <h2 id="tournees">Les Tournées</h2>
-<p>Les Tournées paient les cartes : le chiffre dans le petit verre de chaque carte est son coût. On en reçoit à chaque service, certaines cartes en donnent (« Tournée du patron » : +2), d’autres font perdre toutes les siennes à l’adversaire (« Domino »). Les Tournées de chaque joueur sont <b>visibles de tous</b> : un adversaire à zéro Tournée ne peut presque rien jouer, un adversaire à quatre ou plus peut préparer un gros coup.</p>
+<p>Les Tournées paient les cartes : le chiffre dans le petit verre de chaque carte est son coût. On en reçoit à chaque service, certaines cartes en donnent (« Tournée du patron » : +3), d’autres font perdre toutes les siennes à l’adversaire (« Domino »). Les Tournées de chaque joueur sont <b>visibles de tous</b> : un adversaire à zéro Tournée ne peut presque rien jouer, un adversaire à quatre ou plus peut préparer un gros coup.</p>
 
 <h2 id="types">Les types de cartes</h2>
 ${typesTable()}

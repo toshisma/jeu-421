@@ -749,6 +749,8 @@ export const POT_MIN = 2;
 const MISE_FREE = 99;
 /** Retournement de veste : se déclenche quand le perdant devrait recevoir au moins ce nombre de jetons. */
 export const VESTE_MIN = 8;
+/** Tournée du patron : Tournées gagnées (0.41 : 3, pour 2 Tournées, au lieu de 2 pour 1). */
+export const TOURNEE_PATRON_GAIN = 3;
 /** Leurre : cartes piochées quand il est révélé ou revient en main. */
 export const LEURRE_DRAW = 2;
 /** Ardoise piégée : Tournées à payer en plus pour un Coup. */
@@ -1322,7 +1324,7 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
   const you = (t: string, y: string, extra: Partial<CfEvent> = {}) => emit(c, { kind: 'effet', player: p.id, card: id, who: p.id, text: t, textYou: y, ...extra });
   switch (id) {
     case 'tournee-patron': {
-      const g = gainTournees(c, p, 2, true);
+      const g = gainTournees(c, p, TOURNEE_PATRON_GAIN, true);
       you(`${p.name} gagne ${plural(g, 'Tournée')} et pioche 1 carte.`, `Vous gagnez ${plural(g, 'Tournée')} et piochez 1 carte.`);
       draw(c, p, 1, false, true);
       break;

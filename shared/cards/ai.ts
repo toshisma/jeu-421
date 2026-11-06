@@ -17,7 +17,7 @@
 import { evaluate, singleThrowCdf } from '../combos';
 import type { Rng } from '../rng';
 import { CARD_BY_ID, type CardDef } from './catalog';
-import { actionKey, beauFrere, petiteSoeurOk, type CfAction, type CfPlayerView, type CfView } from './engine';
+import { TOURNEE_PATRON_GAIN, actionKey, beauFrere, petiteSoeurOk, type CfAction, type CfPlayerView, type CfView } from './engine';
 
 export type CfLevel = 'debutant' | 'habitue' | 'fine-fouine';
 export const CF_LEVEL_LABEL: Record<CfLevel, string> = { debutant: 'Débutant', habitue: 'Habitué', 'fine-fouine': 'Fine fouine' };
@@ -556,7 +556,7 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
       }
       return sum / N - base;
     }
-    case 'tournee-patron': return Math.min(2, view.rules.tourneesMax - me.tournees) * TV + (me.tournees <= 1 ? 0.2 : 0) + CV - drawCost(1);
+    case 'tournee-patron': return Math.min(TOURNEE_PATRON_GAIN, view.rules.tourneesMax - me.tournees + costNow(me, id)) * TV + (me.tournees <= 1 ? 0.2 : 0) + CV - drawCost(1);
     case 'coup-coude': return CV + 0.1 - drawCost(1);
     // Le Pourboire : un jeton de moins tout de suite ; le dernier fait gagner la partie.
     case 'pourboire': return 1 + CV - drawCost(1) + (me.tokens <= 1 ? CF_AI_TUNING.endBonus : 0);
@@ -684,7 +684,7 @@ function threatOf(view: CfView, me: CfPlayerView): number {
     case 'fermeture': { const h = me.habitues.find((x) => x.uid === top.params.habitue); return h ? (STATIC[h.id] ?? 0.8) + 0.4 : 0.1; }
     case 'fouine': return view.traps.some((t) => t.uid === top.params.trap && t.owner === me.id && t.id !== 'leurre') ? 1.0 : 0.1;
     case 'domino': return me.tournees * TV;
-    case 'tournee-patron': return 2 * TV + CV;
+    case 'tournee-patron': return TOURNEE_PATRON_GAIN * TV + CV;
     case 'pourboire': return owner.tokens <= 1 ? 6 : 1.0;
     case 'coup-etrier': return owner.r.done && me.r.done && T_RANK[tidx(owner.r.dice)] < T_RANK[tidx(me.r.dice)] ? 1.2 : 0.3;
     case 'coup-coude': return CV * 0.8;
