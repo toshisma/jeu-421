@@ -337,6 +337,7 @@ export function AnnounceView({ a, onDone, spectator, me, v }: { a: Announce; onD
             </span>
           ))}</div>}
           <span>{a.text}</span>
+          {a.recap && a.recap.length > 0 && <ul className="cfn-recap" aria-label="La manche en bref">{a.recap.map((r) => <li key={r}>{r}</li>)}</ul>}
           {bar}
         </div>
       </div>

@@ -225,6 +225,9 @@ export class LocalCfController implements CfController {
    * d'animer le coup précédent : enchaînements réguliers (≈ 0,5 à 0,9 s), jamais de rafale ni de
    * longue attente. Un simple « je laisse faire » ne fait presque pas attendre.
    */
+  /** Vitesse ×2 de l'écran : pauses des ordinateurs plus courtes (1 = normal, 0,5 = deux fois plus vite). */
+  setPace(p: number) { if (this.pace > 0) this.pace = p; }
+
   private async pause(kind: ReturnType<typeof decisionKind>, action: CfAction): Promise<void> {
     if (this.pace <= 0) return;
     await this.gate.idle();

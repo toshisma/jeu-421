@@ -3674,3 +3674,8 @@ span.cfn-hab { cursor: default; }
 .cfn-kv dd > .cfn-kv-link { display: inline-block; margin-right: 10px; }
 .cfn-kv-link { padding: 0; border: 0; background: none; color: #f1cc7d; font: inherit; text-align: left; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .cfn-banner:has(.cfn-say-last) { height: auto; min-height: 46px; padding-top: 6px; padding-bottom: 6px; }
+/* Comptes : la manche en bref (0.39) */
+.cfn-recap { list-style: none; margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; background: rgba(0,0,0,.28); display: flex; flex-direction: column; gap: 4px; text-align: left; font: 600 12px/1.3 Barlow, sans-serif; color: #efe6d4; }
+.cfn-recap li::before { content: '•'; margin-right: 6px; color: #f1cc7d; }
+.cfn-tb.fast { padding: 0 9px; font-family: 'Barlow Condensed', sans-serif; font-size: 15px; }
+.cfn-tb.fast.on { background: linear-gradient(180deg, #f1cc7d, #d9a441); color: #2a1a05; border-color: #f1cc7d; }

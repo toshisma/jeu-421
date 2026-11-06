@@ -38,7 +38,7 @@ import { RulesContent } from './CfInfo';
 import { Pip } from './cfui';
 import { MomentTracker, makeShareImage, shareImage, type ShareMoment } from './share';
 import { TypeIcon } from './cardTypes';
-import { decisionBanner, handHints, keepAfter, planEvents, type Announce } from './board';
+import { decisionBanner, handHints, keepAfter, planEvents, roundRecap, type Announce } from './board';
 import {
   AnnounceView, ChoiceWindow, EndScreen, Fiche, HabPin, Hand, HelpSheet, Journal, Mulligan, PlayerBox, PlayerSheet, RespondPanel, Tokens,
   TrapSheet, EffectChips, type FicheTarget, type LogLine,
@@ -63,7 +63,9 @@ interface Props {
 }
 
 const NO_KEEP = [false, false, false];
-const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+/** Vitesse des animations contre l'ordinateur (×2 au choix du joueur, gardé d'une partie à l'autre). */
+let SPEED = (() => { try { return localStorage.getItem('421.cf.vitesse') === '2' ? 2 : 1; } catch { return 1; } })();
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms / SPEED));
 const reduced = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 let rollSeed = 1;
 const nextSeed = () => (rollSeed = (Math.imul(rollSeed, 1664525) + 1013904223) >>> 0);
@@ -93,6 +95,8 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   // Jetons affichés : mis à jour dès que les jetons arrivent sur la pile (aux comptes), sans attendre le tour suivant.
   const [tokNow, setTokNow] = useState<Record<string, number> | null>(null);
   const [log, setLog] = useState<LogLine[]>([]);
+  /** Événements de la manche en cours (résumé aux comptes). */
+  const roundEvents = useRef<CfEvent[]>([]);
   const logKey = useRef(0);
   const logRound = useRef<number | null>(null);
   const [fiche, setFiche] = useState<FicheTarget | null>(null);
@@ -100,6 +104,14 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const [journal, setJournal] = useState(false);
   /** Fiche d'un joueur ouverte (identifiant), écran sobre 0.39. */
   const [sheetOf, setSheetOf] = useState<string | null>(null);
+  // Vitesse ×2 (contre l'ordinateur seulement) : animations et pauses des ordinateurs deux fois plus courtes.
+  const canFast = controller.kind === 'bot' && !(controller as { tutorial?: boolean }).tutorial && typeof (controller as { setPace?: unknown }).setPace === 'function';
+  const [fast, setFast] = useState(() => canFast && SPEED === 2);
+  useEffect(() => {
+    SPEED = canFast && fast ? 2 : 1;
+    (controller as { setPace?: (p: number) => void }).setPace?.(canFast && fast ? 0.5 : 1);
+    try { if (canFast) localStorage.setItem('421.cf.vitesse', fast ? '2' : '1'); } catch { /* */ }
+  }, [fast, canFast, controller]);
   // Visite guidée de l'écran (parties guidées, ou depuis l'aide) : étape en cours, ou null.
   const [tourAt, setTourAt] = useState<number | null>(() => ((controller as { tour?: boolean }).tour ? 0 : null));
   const [help, setHelp] = useState(false);
@@ -168,7 +180,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
     annView.current = view;
     annDone.current = () => { annDone.current = null; if (annTimer.current) clearTimeout(annTimer.current); if (alive.current) setAnn(null); resolve(); };
     setAnn(a);
-    if (!a.block || spectator) annTimer.current = setTimeout(() => annDone.current?.(), reduced() ? Math.min(a.ms, 2000) : a.ms);
+    if (!a.block || spectator) annTimer.current = setTimeout(() => annDone.current?.(), (reduced() ? Math.min(a.ms, 2000) : a.ms) / SPEED);
   }), [spectator]);
   const skipAnn = useCallback(() => annDone.current?.(), []);
 
@@ -212,6 +224,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         }
       }
       if (lines.length) setLog((l) => [...l, ...lines].slice(-300));
+      roundEvents.current.push(...item.events);
       let steps = planEvents(item.events, viewer, item.snap.view, prev?.view ?? null);
       // En ligne, c'est à moi de riposter et le temps est compté : la fenêtre de riposte montre déjà la carte
       // adverse en grand, donc pas de grande annonce avant (elle mangeait la moitié du temps de réponse).
@@ -265,7 +278,10 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
           const after = Object.fromEntries(item.snap.view.players.map((p) => [p.id, p.tokens]));
           const flyMs = lr && lr.amount > 0 ? 350 + 820 + Math.min(12, lr.amount) * 75 : 0;
           setTimeout(() => { if (alive.current) setTokNow(after); }, reduced() ? 0 : flyMs);
-          await showAnn(a, item.snap.view);
+          // La manche en bref (cartes jouées, pièges, annulations), affichée aux comptes un peu plus longtemps.
+          const recap = roundRecap(roundEvents.current, item.snap.view, spectator ? '' : meRef.current);
+          roundEvents.current = [];
+          await showAnn({ ...a, recap, ms: a.ms + (recap.length > 1 ? 1600 : 800) }, item.snap.view);
           continue;
         }
         if (a.style === 'reveal') sound.party('thunder', 0.7);
@@ -455,6 +471,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         <button className="cfn-ib" onClick={leave} aria-label="Quitter la partie"><Icon name="close" size={18} /></button>
         <div className="cfn-ttl"><span>{title}</span></div>
         <button className="cfn-tb" onClick={() => setJournal(true)}>Journal</button>
+        {canFast && <button className={`cfn-tb fast${fast ? ' on' : ''}`} onClick={() => setFast((f) => !f)} aria-pressed={fast} aria-label={fast ? 'Vitesse normale' : 'Jouer deux fois plus vite'}>×2</button>}
         {online && <CfChatButton controller={controller} pa={pa} />}
         <button className="cfn-ib" onClick={() => setHelp(true)} aria-label="Aide : ce que veut dire chaque chose à l’écran"><b>?</b></button>
         <VolumeControl settings={settings} onSettings={onSettings} />

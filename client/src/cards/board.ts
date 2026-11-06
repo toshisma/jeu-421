@@ -287,6 +287,30 @@ export interface Announce {
   block?: boolean;
   /** Possibilités (piège posé). */
   list?: string[];
+  /** Comptes : la manche en bref (cartes jouées, pièges, annulations), 3 lignes au plus. */
+  recap?: string[];
+}
+
+/** La manche en bref, à partir des événements de la manche (ordre du journal). */
+export function roundRecap(events: CfEvent[], v: CfView, me: string): string[] {
+  const nm = (id: string) => (id === me ? 'Vous' : nameIn(v, id));
+  const played = new Map<string, string[]>();
+  const traps: string[] = [];
+  const cancels: string[] = [];
+  for (const e of events) {
+    if (!e.player) continue;
+    if (e.kind === 'carte' && e.card) played.set(e.player, [...(played.get(e.player) ?? []), cardName(e.card)]);
+    else if (e.kind === 'pose') played.set(e.player, [...(played.get(e.player) ?? []), e.player === me && e.card ? `${cardName(e.card)} (piège)` : 'un piège']);
+    else if (e.kind === 'piege-revele' && e.card) traps.push(`${cardName(e.card)} (${nm(e.player)})`);
+    else if (e.kind === 'annule' && e.card) cancels.push(cardName(e.card));
+  }
+  const out: string[] = [];
+  const who = [...played].map(([id, cs]) => `${nm(id)} : ${cs.join(', ')}`);
+  if (who.length) out.push(`Cartes · ${who.join(' — ')}`);
+  else out.push('Aucune carte jouée cette manche');
+  if (traps.length) out.push(`Pièges déclenchés · ${traps.join(', ')}`);
+  if (cancels.length) out.push(`Annulés · ${cancels.join(', ')}`);
+  return out.slice(0, 3);
 }
 /**
  * Étape à jouer : des dés à animer (`strip` : la phrase du bandeau pendant le lancer ; `after` : la phrase

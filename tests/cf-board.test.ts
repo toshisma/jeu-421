@@ -8,7 +8,7 @@ import { TUTO_ME } from '../shared/cards/tutorial';
 import { deckList } from '../client/src/cards/local';
 import { TutorialCfController } from '../client/src/cards/tutorial';
 import type { CfSnapshot } from '../client/src/cards/controller';
-import { cardHint, decisionBanner, friseSteps, handHints, keepAfter, planEvents, shortCombo, threatLine, trapPossibilities } from '../client/src/cards/board';
+import { cardHint, decisionBanner, friseSteps, handHints, keepAfter, planEvents, roundRecap, shortCombo, threatLine, trapPossibilities } from '../client/src/cards/board';
 import { AnnounceView, BigCard, Fiche, Hand, HelpSheet, Journal, OppPanel, RespondPanel, TrapSheet } from '../client/src/cards/BoardParts';
 import { TYPE_META, TypeLegend } from '../client/src/cards/cardTypes';
 
@@ -145,6 +145,18 @@ describe('file d’annonces', () => {
     expect(() => handHints(v, [], false, false)).not.toThrow();
     expect(() => decisionBanner(v, [], true)).not.toThrow();
     expect(() => friseSteps(v, null, null)).not.toThrow();
+  });
+  it('la manche en bref (comptes) : cartes jouées par joueur, pièges déclenchés, annulations', () => {
+    const v = viewFor(started(), 'a');
+    const r = roundRecap([
+      { kind: 'carte', player: 'b', card: 'tete-tourne', text: '' },
+      { kind: 'pose', player: 'b', text: '' },
+      { kind: 'carte', player: 'a', card: 'coup-coude', text: '' },
+      { kind: 'piege-revele', player: 'b', card: 'faux-421', text: '' },
+      { kind: 'annule', player: 'a', card: 'cul-sec', text: '' },
+    ], v, 'a');
+    expect(r).toEqual(['Cartes · Bob : Tête qui tourne, un piège — Vous : Coup de coude', 'Pièges déclenchés · Faux 4-2-1 (Bob)', 'Annulés · Cul sec']);
+    expect(roundRecap([], v, 'a')).toEqual(['Aucune carte jouée cette manche']);
   });
   it('comptes : qui donne combien', () => {
     const c = structuredClone(s);
