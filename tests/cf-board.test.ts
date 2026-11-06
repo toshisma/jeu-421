@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { createElement as h } from 'react';
 import { renderToString as rts } from 'react-dom/server';
-import { STARTER_DECKS } from '../shared/cards/catalog';
+import { STARTER_DECKS, cardDef } from '../shared/cards/catalog';
 import { apply, newGame, legalActions, viewFor, type CfEvent, type CfState } from '../shared/cards/engine';
 import { TUTO_ME } from '../shared/cards/tutorial';
 import { deckList } from '../client/src/cards/local';
@@ -197,7 +197,7 @@ describe('rendu serveur du plateau (aucune erreur)', () => {
     const resp = render(h(RespondPanel, { v: viewFor(r, 'a'), legal: legalActions(r, 'a'), pending: false, onAct: noop }));
     expect(resp).toContain('Bob joue une carte contre vous');
     expect(resp).toContain('Ici : il relance votre 4');
-    expect(resp).toContain('Coût : 3 Tournées (il vous en reste 3)');
+    expect(resp).toContain(`Coût : ${cardDef('reaction-chaine')!.cost} Tournées (il vous en reste 3)`);
     for (const st of planEvents([{ kind: 'pose', player: 'b', text: 'Bob pose un piège.' }, { kind: 'carte', player: 'b', card: 'josiane', text: 'Bob installe Josiane, la serveuse.' }, { kind: 'piege-revele', player: 'b', card: 'faux-421', text: 'x' }], 'a', v, v)) {
       if (st.kind === 'ann') expect(render(h(AnnounceView, { a: st.ann, onDone: noop, spectator: false, me: 'a', v }))).toContain(st.ann.title.slice(0, 10));
     }

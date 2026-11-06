@@ -5,7 +5,7 @@ import type { CfSnapshot } from '../client/src/cards/controller';
 import { replayBotMatch } from '../shared/cards/botmatch';
 import { cfDecide, type CfLevel } from '../shared/cards/ai';
 import { STARTER_DECKS, cardDef } from '../shared/cards/catalog';
-import { newGame, apply, viewFor, legalActions, type CfState, type CfAction } from '../shared/cards/engine';
+import { newGame, apply, viewFor, legalActions, TOURNEE_PATRON_GAIN, type CfState, type CfAction } from '../shared/cards/engine';
 import { mulberry32 } from '../shared/rng';
 import {
   comboOf, costNow, decisionLine, describeNow, filterOptions, isBigShot, nextParam, phaseLine, playOptions,
@@ -150,7 +150,7 @@ describe('ce que fait une carte ici et maintenant', () => {
     const v = viewFor(s, leader);
     expect(describeNow(v, 'faux-421')).toMatch(/face cachée devant .*1\/3 pièges.*4-2-1/);
     expect(describeNow(v, 'josiane')).toMatch(/^S’installe devant vous/);
-    expect(describeNow(v, 'tournee-patron')).toBe('Vous gagnez 2 Tournées (vous en aurez 6 sur 6) et piochez 1 carte.');
+    expect(describeNow(v, 'tournee-patron')).toBe(`Vous gagnez ${TOURNEE_PATRON_GAIN} Tournées (vous en aurez 6 sur 6) et piochez 1 carte.`);
     expect(costNow(v, 'josiane')).toBe(cardDef('josiane')!.cost);
     const s2 = structuredClone(s);
     s2.players.find((p) => p.id === leader)!.r.discount = 2;

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   apply, defaultAction, eventsFor, legalActions, newGame, throwLimit, viewFor, waitingFor,
   type CfAction, type CfEvent, type CfState,
+  TOURNEE_PATRON_GAIN,
 } from '../shared/cards/engine';
 import { cfDecide, type CfLevel } from '../shared/cards/ai';
 import { CARDS, STARTER_DECKS, cardDef } from '../shared/cards/catalog';
@@ -181,9 +182,10 @@ describe('Coups Fourrés : les cartes', () => {
     expect(waitingFor(s)).toEqual([O]); // le Patron lui-même peut être annulé pendant qu'on le pose
     s = act(s, O, pass);
     s = act(s, L, play(give(s, L, 'josiane')));
-    // 0.40 : Réaction en chaîne coûte 3, le Patron ne protège que d'une carte qui coûte 2 ou moins.
-    expect(waitingFor(s)).toEqual([O]);
-    s = act(s, O, pass);
+    // Le Patron protège ses Habitués d'une carte qui coûte 2 ou moins : selon le coût de Réaction en chaîne,
+    // l'adversaire peut répondre ou non (0.41 : elle coûte 2, Josiane est protégée).
+    if (cost('reaction-chaine') <= 2) expect(waitingFor(s)).not.toContain(O);
+    else { expect(waitingFor(s)).toEqual([O]); s = act(s, O, pass); }
     expect(P(s, L).habitues.map((h) => h.id)).toEqual(['patron', 'josiane']);
     P(s, L).tournees = 0;
     const hand = P(s, L).hand.length;
@@ -228,11 +230,11 @@ describe('Coups Fourrés : les cartes', () => {
     expect(lastEvents.some((e) => e.kind === 'videur')).toBe(true);
   });
 
-  it('Tournée du patron : +2 Tournées et 1 carte', () => {
+  it('Tournée du patron : +3 Tournées et 1 carte', () => {
     let { s, L } = setup();
     P(s, L).tournees = 2;
     s = act(s, L, play(give(s, L, 'tournee-patron')));
-    expect(P(s, L).tournees).toBe(2 - cost('tournee-patron') + 2);
+    expect(P(s, L).tournees).toBe(Math.min(6, 2 - cost('tournee-patron') + TOURNEE_PATRON_GAIN));
     expect(P(s, L).hand).toHaveLength(1);
   });
 
@@ -557,7 +559,7 @@ describe('Coups Fourrés : les cartes', () => {
     s = act(s, L, play(rL)); // 4e carte de L : elle revient
     expect(s.stack).toHaveLength(0);
     // La Riposte de L s'applique d'abord (annule celle de O), puis la Tournée du patron se résout.
-    expect(P(s, L).tournees).toBe(6 - 2 * cost('coup-coude') - cost('tournee-patron') - cost('reaction-chaine') + 2);
+    expect(P(s, L).tournees).toBe(6 - 2 * cost('coup-coude') - cost('tournee-patron') - cost('reaction-chaine') + TOURNEE_PATRON_GAIN);
     expect(P(s, L).hand.some((k) => k.uid === rL)).toBe(true);
     expect(P(s, O).discard.some((k) => k.uid === rO)).toBe(true);
   });
@@ -586,15 +588,16 @@ describe('Coups Fourrés : les cartes', () => {
     let { s, L, O } = setup();
     s = act(s, L, play(give(s, L, 'beau-frere')));
     expect(P(s, L).habitues.map((h) => h.id)).toEqual(['beau-frere']);
-    expect(P(s, L).tournees).toBe(6 - cost('beau-frere'));
+    expect(P(s, L).tournees).toBe(Math.min(6, 6 - cost('beau-frere') + 1)); // il arrive avec une Tournée
     const t0 = P(s, L).tournees;
     s = act(s, L, roll(), [6, 3, 2]);
     s = act(s, L, play(give(s, L, 'coup-pouce'), { die: 1, delta: 1 }));
     expect(P(s, L).tournees).toBe(t0 - (cost('coup-pouce') - 1));
     P(s, L).tournees = 0;
-    const d = give(s, L, 'domino'); // 1 Tournée imprimée : gratuite avec le Beau-frère
+    const oneCost = ['verre-offert', 'cul-sec', 'domino', 'fermeture'].find((id) => cost(id) === 1)!;
+    const d = give(s, L, oneCost); // 1 Tournée imprimée : gratuite avec le Beau-frère
     expect(legalActions(s, L).some((a) => a.type === 'play' && a.card === d)).toBe(true);
-    const tr = give(s, L, 'mouchard'); // un piège ne profite pas de la réduction (il coûte déjà 0)
+    const tr = give(s, L, 'mouchard'); // une carte gratuite reste jouable (rien à déduire)
     expect(legalActions(s, L).some((a) => a.type === 'play' && a.card === tr)).toBe(true);
     expect(P(s, O).habitues).toHaveLength(0);
   });
@@ -691,11 +694,11 @@ describe('Coups Fourrés : les cartes', () => {
 
   it('Tant qu’on y est : 2 Tournées, plus 1 par autre carte jouée dans la manche', () => {
     let { s, L } = setup();
-    P(s, L).tournees = 0;
+    P(s, L).tournees = cost('coup-coude') + cost('fouine') + cost('tant-qu-on-y-est');
     s = act(s, L, play(give(s, L, 'coup-coude')));
     s = act(s, L, play(give(s, L, 'fouine')));
     s = act(s, L, play(give(s, L, 'tant-qu-on-y-est')));
-    expect(P(s, L).tournees).toBe(4 - cost('tant-qu-on-y-est'));
+    expect(P(s, L).tournees).toBe(4);
     s = act(s, L, play(give(s, L, 'tant-qu-on-y-est')));
     expect(P(s, L).tournees).toBe(6); // 5 de plus, plafonné à 6
   });

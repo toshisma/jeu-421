@@ -7,12 +7,12 @@
  *
  * Déroulé : manche 1 (vous menez) Tournée du patron (0.41 : les cartes coûtent plus cher), lancer, garder, Tête qui tourne → 4-2-1, poser Croche-patte,
  * s'arrêter (limite de lancers) ; Dédé fait un brelan de 6 et se fait piéger en finissant son tour ; comptes.
- * Manche 2 (Dédé mène) : Riposte avec Ticket de caisse, Fouine sur son Mouchard, 2e Tournée du patron, Leurre,
+ * Manche 2 (Dédé mène) : Riposte avec Ticket de caisse, Fouine sur son Mouchard, Leurre,
  * un lancer, s'arrêter, puis Dernier mot « Le Coup de l’étrier » (Recompter coûte 3, trop cher
  * ici) : le 2 relancé devient un as, 4-2-1 et victoire.
  */
 import { CF_RULES, cardDef } from './catalog';
-import { apply, legalActions, newGame, pl, waitingFor, type CfAction, type CfEvent, type CfState, type PlayParams } from './engine';
+import { TOURNEE_PATRON_GAIN, apply, legalActions, newGame, pl, waitingFor, type CfAction, type CfEvent, type CfState, type PlayParams } from './engine';
 
 /** Récompense unique de la partie guidée (comptes, versée par le serveur). Volontairement basse. */
 export const CF_TUTORIAL_CAPSULES = 20;
@@ -33,7 +33,7 @@ export type TutoStep =
 
 const MY_HAND = ['tete-tourne', 'croche-patte', 'ticket-caisse', 'fouine', 'tournee-patron'];
 /** Dessus du deck en premier : pioche de la manche 1, puis de la manche 2. */
-const MY_DECK = ['coup-etrier', 'tournee-patron', 'leurre', 'coup-coude', 'mise-bouche', 'cul-sec', 'pilier', 'vieux-marcel', 'gueule-bois', 'coup-pouce', 'calcul-mental', 'pari-comptoir', 'main-sac', 'domino', 'josiane', 'note-salee'];
+const MY_DECK = ['coup-etrier', 'calcul-mental', 'leurre', 'coup-coude', 'mise-bouche', 'cul-sec', 'pilier', 'vieux-marcel', 'gueule-bois', 'coup-pouce', 'calcul-mental', 'pari-comptoir', 'main-sac', 'domino', 'josiane', 'note-salee'];
 const BOT_HAND = ['pari-comptoir', 'coup-pouce', 'mouchard', 'cul-sec'];
 const BOT_DECK = ['tournee-patron', 'pari-comptoir', 'vieux-marcel', 'pilier', 'leurre', 'coup-coude', 'mise-bouche', 'croche-patte', 'calcul-mental', 'tete-tourne', 'main-sac', 'cul-sec', 'coup-pouce', 'faux-421', 'leurre', 'gueule-bois'];
 
@@ -94,7 +94,7 @@ const cost = (id: string) => { const n = cardDef(id)?.cost ?? 0; return n === 0 
 export const TUTO_STEPS: TutoStep[] = [
   { kind: 'info', title: 'Partie guidée', text: `Bienvenue au comptoir ! Vous affrontez ${TUTO_BOT_NAME}. Chacun a ${R.startTokens} jetons : le premier qui n’en a plus aucun gagne. Le 421, mais avec des cartes pour piéger, retourner les dés… et se refaire.`, button: 'C’est parti' },
   { kind: 'info', title: 'Vos cartes et vos Tournées', text: `En bas, votre main. Chaque carte coûte des Tournées (le chiffre dans le petit verre) : vous en recevez ${R.tourneesPerRound} à chaque manche.`, focus: 'me' },
-  { kind: 'me', title: 'Reprendre des Tournées', text: `Pour bien jouer, il en faut plus. « Tournée du patron » en coûte ${cardDef('tournee-patron')?.cost}, vous en rend 2 et vous fait piocher une carte : jouez-la.`, focus: 'hand', expect: isPlay('tournee-patron') },
+  { kind: 'me', title: 'Reprendre des Tournées', text: `Pour bien jouer, il en faut plus. « Tournée du patron » en coûte ${cardDef('tournee-patron')?.cost}, vous en rend ${TOURNEE_PATRON_GAIN} et vous fait piocher une carte : jouez-la.`, focus: 'hand', expect: isPlay('tournee-patron') },
   { kind: 'me', title: 'Lancer', text: `Vous menez cette manche : lancez les 3 dés (${R.maxThrows} lancers au plus).`, focus: 'roll', expect: isRoll(NONE) },
   { kind: 'me', title: 'Garder des dés', text: 'Un 4 et un 2 : il ne manque qu’un 1 pour le 4-2-1, la meilleure combinaison. Touchez le 4 et le 2 dans le bac pour les garder, puis relancez le dernier dé.', focus: 'tray', expect: isRoll([true, true, false]) },
   { kind: 'me', title: 'Jouer un Coup', text: `Un 6… Mais « Tête qui tourne » retourne un dé sur sa face opposée : le 6 devient 1 ! Touchez la carte, choisissez le 6, puis « Jouer ». Elle coûte ${cost('tete-tourne')}.`, focus: 'hand', expect: isPlay('tete-tourne', (p) => p.die === 2) },
@@ -112,7 +112,6 @@ export const TUTO_STEPS: TutoStep[] = [
   { kind: 'bot', action: () => ({ type: 'roll', keep: NONE }) },
   { kind: 'bot', action: () => ({ type: 'stop' }) },
   { kind: 'me', title: 'Parer un piège', text: `Deux as et un 3 pour ${TUTO_BOT_NAME}. Avant de lancer, méfiez-vous de son piège : jouez la « Fouine » (${cost('fouine')}) : elle le défausse, vous montre ce que c’était et vous fait piocher une carte.`, focus: 'hand', expect: isPlay('fouine') },
-  { kind: 'me', title: 'Encore une tournée', text: 'Plus qu’une Tournée ? Revoilà « Tournée du patron », piochée tout à l’heure. Jouez-la : vous en aurez besoin pour la fin.', focus: 'hand', expect: isPlay('tournee-patron') },
   { kind: 'me', title: 'Bluffer', text: `Posez ce « Leurre » : il ne fait rien… mais ${TUTO_BOT_NAME} ne le sait pas. Retenez qu’il est posé.`, focus: 'hand', expect: isPlay('leurre') },
   { kind: 'me', title: 'Lancer', text: `${TUTO_BOT_NAME} s’est arrêté après 2 lancers : vous en avez 2 au plus. Croisez les doigts et lancez !`, focus: 'roll', expect: isRoll(NONE) },
   { kind: 'me', title: 'S’arrêter', text: `4-2-2 : ça ne bat pas les deux as de ${TUTO_BOT_NAME}… Arrêtez-vous quand même : vous gardez une carte pour la fin.`, focus: 'stop', expect: (a) => a.type === 'stop' },
