@@ -1001,6 +1001,59 @@ export class Store {
     this.db.prepare('INSERT OR REPLACE INTO cf_missions (user_id, day, mission_id, progress, done) VALUES (?, ?, ?, ?, ?)').run(userId, day, missionId, progress, done ? 1 : 0);
   }
 
+  // --- Coups Fourrés : l'énigme du jour (voir server/cf-enigme.ts) ---
+  private cfEnigmeReady = false;
+  private cfEnigmeInit() {
+    this.cfInit();
+    if (this.cfEnigmeReady) return;
+    this.cfEnigmeReady = true;
+    this.db.exec(`
+      -- Une seule réponse validée par compte et par jour ; score recalculé par le serveur.
+      CREATE TABLE IF NOT EXISTS cf_enigme (
+        day TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        score INTEGER NOT NULL, best INTEGER NOT NULL, cards INTEGER NOT NULL, capsules INTEGER NOT NULL DEFAULT 0,
+        actions TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (day, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_cf_enigme_rank ON cf_enigme(day, score DESC, created_at ASC);
+      CREATE INDEX IF NOT EXISTS idx_cf_enigme_user ON cf_enigme(user_id, day DESC);
+    `);
+  }
+  /** Enregistre la réponse du jour ; false si le compte a déjà validé ce jour-là. */
+  cfEnigmeAdd(r: CfEnigmeRow): boolean {
+    this.cfEnigmeInit();
+    const x = this.db.prepare('INSERT OR IGNORE INTO cf_enigme (day, user_id, score, best, cards, capsules, actions, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(r.day, r.user_id, r.score, r.best, r.cards, r.capsules, r.actions, r.created_at);
+    return Number(x.changes) > 0;
+  }
+  cfEnigmeOf(day: string, userId: string): CfEnigmeRow | undefined {
+    this.cfEnigmeInit();
+    return this.db.prepare('SELECT * FROM cf_enigme WHERE day = ? AND user_id = ?').get(day, userId) as unknown as CfEnigmeRow | undefined;
+  }
+  cfEnigmeTop(day: string, limit = 20): { username: string; score: number; cards: number; created_at: number }[] {
+    this.cfEnigmeInit();
+    return this.db.prepare('SELECT u.username, e.score, e.cards, e.created_at FROM cf_enigme e JOIN users u ON u.id = e.user_id WHERE e.day = ? ORDER BY e.score DESC, e.created_at ASC, e.rowid ASC LIMIT ?')
+      .all(day, limit) as unknown as { username: string; score: number; cards: number; created_at: number }[];
+  }
+  /** Place du compte : meilleurs scores d'abord, puis le plus tôt validé. */
+  cfEnigmeRank(day: string, userId: string): { rank: number; total: number } | null {
+    const me = this.cfEnigmeOf(day, userId);
+    const total = this.cfEnigmeCount(day);
+    if (!me) return null;
+    const rowid = (this.db.prepare('SELECT rowid AS r FROM cf_enigme WHERE day = ? AND user_id = ?').get(day, userId) as { r: number }).r;
+    const better = (this.db.prepare('SELECT COUNT(*) AS n FROM cf_enigme WHERE day = ? AND (score > ? OR (score = ? AND (created_at < ? OR (created_at = ? AND rowid < ?))))')
+      .get(day, me.score, me.score, me.created_at, me.created_at, rowid) as { n: number }).n;
+    return { rank: Number(better) + 1, total };
+  }
+  cfEnigmeCount(day: string): number {
+    this.cfEnigmeInit();
+    return Number((this.db.prepare('SELECT COUNT(*) AS n FROM cf_enigme WHERE day = ?').get(day) as { n: number }).n);
+  }
+  /** Derniers jours joués par ce compte (le plus récent d'abord). */
+  cfEnigmeDays(userId: string, limit = 400): { day: string; score: number; best: number }[] {
+    this.cfEnigmeInit();
+    return this.db.prepare('SELECT day, score, best FROM cf_enigme WHERE user_id = ? ORDER BY day DESC LIMIT ?').all(userId, limit) as unknown as { day: string; score: number; best: number }[];
+  }
+
   close() { this.db.close(); }
 }
 
@@ -1010,6 +1063,7 @@ export interface CfPlayerRow {
   /** Partie guidée récompensée (0 / 1). */
   tutorial?: number;
 }
+export interface CfEnigmeRow { day: string; user_id: string; score: number; best: number; cards: number; capsules: number; actions: string; created_at: number }
 export interface CfDeckRow { id: string; user_id: string; name: string; cards: string; created_at: number; updated_at: number }
 export interface CfLeagueRow { season: string; user_id: string; points: number; best: number; games: number; wins: number; updated_at: number }
 export interface CfGameRow { id: number; user_id: string; opponent_id: string | null; opponent_name: string | null; ranked: number; vs_bot: number; result: string; points: number; capsules: number; at: number }

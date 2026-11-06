@@ -42,6 +42,7 @@ import { CardsCatalogScreen, LearnBlock, LearnHero, LexiconScreen, TipsScreen } 
 import { TutorialCfController, markTutorialSeen, tutorialSeen } from './tutorial';
 import { askConfirm } from '../ui/confirm';
 import { TournamentCard, TournamentScreen } from './CfTournament';
+import { EnigmeEntry, EnigmeScreen } from './CfEnigme';
 import './fonts';
 import { trackEvent } from '../visit';
 
@@ -80,6 +81,7 @@ type Route =
   | { r: 'tips' }
   | { r: 'lexicon' }
   | { r: 'tournoi' }
+  | { r: 'enigme' }
   | { r: 'game'; ctrl: CfController; mode: string; again?: () => void; online?: boolean };
 
 type SheetKind = 'bot' | 'friends' | 'boosters' | 'missions' | null;
@@ -274,6 +276,7 @@ export function CfMode(props: CfModeProps) {
   if (route.r === 'cards') return <CardsCatalogScreen onBack={menu} />;
   if (route.r === 'tips') return <TipsScreen onBack={menu} />;
   if (route.r === 'lexicon') return <LexiconScreen onBack={menu} />;
+  if (route.r === 'enigme') return <EnigmeScreen token={pa.token} acc={acc} onBack={menu} onAccount={props.onAccount} />;
   if (route.r === 'tournoi') {
     return <>
       <TournamentScreen token={pa.token} acc={acc} onBack={menu} onWatch={watch} onAccount={props.onAccount} onError={(t) => showToast(t, 'err')}
@@ -290,7 +293,7 @@ export function CfMode(props: CfModeProps) {
         onBot={() => setSheet('bot')} onFriendsPlay={() => setSheet('friends')} onRanked={ranked}
         onDecks={() => setRoute({ r: 'decks' })} onBoosters={() => setSheet('boosters')} onCollection={() => setRoute({ r: 'collection' })}
         onMissions={() => setSheet('missions')} onLeague={() => setRoute({ r: 'league' })} onRules={() => setRoute({ r: 'rules' })}
-        onChallenge={challenge} onWatch={(f) => f.code && watch(f.code)} onRetry={() => void reload()} onTournament={() => setRoute({ r: 'tournoi' })}
+        onChallenge={challenge} onWatch={(f) => f.code && watch(f.code)} onRetry={() => void reload()} onTournament={() => setRoute({ r: 'tournoi' })} onEnigme={() => setRoute({ r: 'enigme' })}
         onLearn={(r) => setRoute({ r })} onTuto={startTutorial} onTuto4={() => void startTutorial4()}
         top={<>
           {resumeGame && <button className="cf-banner gold" onClick={() => void tryOnline((o) => o.resume(resumeGame.id))}><b>Partie en cours</b><span>{resumeGame.ranked ? 'Classée' : 'Entre amis'} : reprenez-la avant d’être compté absent.</span><em>Reprendre</em></button>}
@@ -373,7 +376,7 @@ function CfMenu(p: CfModeProps & {
   onLearn: (r: 'cards' | 'tips' | 'lexicon') => void;
   onTuto: () => void;
   onTuto4?: () => void;
-  onTournament: () => void; token?: string | null; top?: React.ReactNode;
+  onTournament: () => void; onEnigme: () => void; token?: string | null; top?: React.ReactNode;
 }) {
   const { pa, st } = p;
   const acc = pa.isAccount;
@@ -474,6 +477,8 @@ function CfMenu(p: CfModeProps & {
             <button className="cf-play ami" onClick={p.onFriendsPlay}><span className="cf-play-text"><b>Entre amis</b><small>De 2 à 4 joueurs</small></span></button>
           </div>
         </div>
+
+        <EnigmeEntry token={pa.token} acc={acc} onOpen={p.onEnigme} />
 
         <TournamentCard token={pa.token} acc={acc} onOpen={p.onTournament} />
 
