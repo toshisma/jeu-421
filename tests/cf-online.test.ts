@@ -156,6 +156,16 @@ describe('Coups Fourrés : contre l’ordinateur et deck automatique', () => {
     expect(end.won).toBe(m2.state.winner === 'joueur');
     expect(end.reward.capsules).toBe(CAPSULES.vsBot);
     expect(end.state.history[0]).toMatchObject({ vsBot: true, ranked: false, opponent: 'Ordinateur', result: end.won ? 'victoire' : 'defaite' });
+    // 0.39 : partie à 4 contre 3 ordinateurs (noms différents), vérifiée de la même façon.
+    const q4 = await api('/cf/bot/start', { level: 'debutant', opponents: 3 }, a.token);
+    expect(q4.bots).toHaveLength(3);
+    expect(new Set(q4.bots.map((b: { name: string }) => b.name)).size).toBe(3);
+    expect((await api('/cf/bot/start', { level: 'debutant', opponents: 9 }, a.token)).bots).toHaveLength(3);
+    const m4 = playLocal({ seed: q4.seed, me: q4.me, bots: q4.bots }, 5);
+    clock += 20 * 60_000;
+    const end4 = await api('/cf/bot/end', { gameId: q4.gameId, actions: m4.mine }, a.token);
+    expect(end4.ok).toBe(true);
+    expect(end4.won).toBe(m4.state.winner === 'joueur');
     expect(end.state.capsules).toBeGreaterThanOrEqual(before.capsules + CAPSULES.vsBot);
     expect(end.state.botCapsulesToday).toBe(CAPSULES.vsBot);
     expect((await api('/cf/bot/end', { gameId: s2.gameId, actions: m2.mine }, a.token)).code).toBe(404); // une seule fois

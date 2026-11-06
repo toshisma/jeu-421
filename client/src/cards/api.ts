@@ -71,8 +71,8 @@ export const cfAutoDeck = (token: Tok, name?: string) => api<WithState<{ id: str
 export type { CfFriendPresence, CfGameReward };
 
 /** Nouvelle partie : graine et decks (le deck actif, ou `deckId`). Le résultat sert tel quel de `BotMatchSetup`. */
-export const cfBotStart = (token: Tok, level: CfLevel, deckId?: string) =>
-  api<{ ok: true; gameId: string } & BotMatchSetup>('/cf/bot/start', { token, body: { level, ...(deckId ? { deckId } : {}) } });
+export const cfBotStart = (token: Tok, level: CfLevel, deckId?: string, opponents = 1) =>
+  api<{ ok: true; gameId: string } & BotMatchSetup>('/cf/bot/start', { token, body: { level, opponents, ...(deckId ? { deckId } : {}) } });
 /** Fin de partie : le serveur rejoue `actions` (= match.mine) ; une seule fois par partie. */
 export const cfBotEnd = (token: Tok, gameId: string, actions: CfAction[]) =>
   api<WithState<{ won: boolean; reward: CfGameReward | null }>>('/cf/bot/end', { token, body: { gameId, actions } });

@@ -27,6 +27,8 @@ export class TutorialCfController implements CfController {
   readonly ranked = false;
   readonly me = TUTO_ME;
   readonly tutorial = true;
+  /** Visite de l'écran avant la première étape. */
+  readonly tour = true;
   readonly rewarded: boolean;
   readonly notice = null;
   readonly run: CfTutorial;

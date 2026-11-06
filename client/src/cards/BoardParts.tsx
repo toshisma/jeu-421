@@ -582,7 +582,7 @@ export function Journal({ log, v, me, onCard, onClose }: { log: LogLine[]; v: Cf
   );
 }
 
-export function HelpSheet({ v, onClose, onRules }: { v: CfView; onClose: () => void; onRules: () => void }) {
+export function HelpSheet({ v, onClose, onRules, onTour }: { v: CfView; onClose: () => void; onRules: () => void; onTour?: () => void }) {
   return (
     <div className="cfn-fiche-back" onClick={onClose}>
       <div className="cfn-fiche cfn-journal" role="dialog" aria-modal="true" aria-label="Aide" onClick={(e) => e.stopPropagation()}>
@@ -606,6 +606,7 @@ export function HelpSheet({ v, onClose, onRules }: { v: CfView; onClose: () => v
           </ol>
         </section>
         <TypeLegend />
+        {onTour && <button className="cfn-act gold full" onClick={onTour}>Visite guidée de l’écran</button>}
         <button className="cfn-act ghost full" onClick={onRules}>Règles complètes</button>
       </div>
     </div>

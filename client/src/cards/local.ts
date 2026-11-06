@@ -43,7 +43,14 @@ export interface LocalCfOptions {
   pace?: number;
   /** Graine imposée (tests). */
   seed?: number;
+  /** Nombre d'ordinateurs (1 à 3). */
+  opponents?: number;
+  /** Partie guidée à plusieurs : visite de l'écran au début, sans minuteur. */
+  tour?: boolean;
 }
+
+/** Autres habitués du comptoir pour les parties à plusieurs (noms originaux). */
+const MORE_BOTS = [{ name: 'Bébert la Tournée', avatar: '🎩' }, { name: 'Josette du coin', avatar: '💄' }, { name: 'Le Grand Roger', avatar: '🧔' }];
 
 /** Deck de l'ordinateur hors serveur : un deck de départ, ou un deck complet pour la Fine fouine. */
 function localBotDeck(level: CfLevel, mine: string[], rnd: () => number): string[] {
@@ -67,6 +74,8 @@ export class LocalCfController implements CfController {
   /** Message à montrer au début (ex. « partie d'entraînement, non récompensée »). */
   readonly notice: string | null;
   readonly level: CfLevel;
+  /** Visite guidée de l'écran au début (partie guidée à plusieurs). */
+  readonly tour: boolean;
   private match: BotMatch;
   private gameId: string | null;
   private token: string | null;
@@ -94,6 +103,7 @@ export class LocalCfController implements CfController {
     this.notice = notice;
     this.token = o.token ?? null;
     this.pace = o.pace ?? 1;
+    this.tour = !!o.tour;
     this.timed = o.timed ?? true;
     this.reserve = 60;
     this.me = setup.me.id;
@@ -114,7 +124,7 @@ export class LocalCfController implements CfController {
   static async create(o: LocalCfOptions): Promise<LocalCfController> {
     if (o.token) {
       try {
-        const r = await cfBotStart(o.token, o.level, o.deckId ?? undefined);
+        const r = await cfBotStart(o.token, o.level, o.deckId ?? undefined, o.opponents ?? 1);
         if (r && typeof r.seed === 'number' && r.me && Array.isArray(r.bots) && r.bots.length) {
           return new LocalCfController(o, { seed: r.seed, me: r.me, bots: r.bots }, r.gameId, null);
         }
@@ -130,9 +140,10 @@ export class LocalCfController implements CfController {
     const setup: BotMatchSetup = {
       seed,
       me: { id: 'moi', name: o.me.name || 'Vous', deck: o.deck },
-      bots: [{ id: 'ordi', name: bot.name, deck: localBotDeck(o.level, o.deck, rnd), level: o.level }],
+      bots: [{ id: 'ordi', name: bot.name, deck: localBotDeck(o.level, o.deck, rnd), level: o.level },
+        ...MORE_BOTS.slice(0, Math.min(3, Math.max(1, o.opponents ?? 1)) - 1).map((b, i) => ({ id: `ordi${i + 2}`, name: b.name, deck: localBotDeck(o.level, o.deck, rnd), level: o.level }))],
     };
-    const notice = o.token ? 'Partie d’entraînement : elle ne rapporte pas de capsules cette fois.' : 'Partie d’essai : créez un compte gratuit pour gagner des capsules et ouvrir des boosters.';
+    const notice = o.tour ? null : o.token ? 'Partie d’entraînement : elle ne rapporte pas de capsules cette fois.' : 'Partie d’essai : créez un compte gratuit pour gagner des capsules et ouvrir des boosters.';
     return new LocalCfController(o, setup, null, notice);
   }
 

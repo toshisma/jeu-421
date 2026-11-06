@@ -925,12 +925,14 @@ export function createCfOnline(c: Ctx) {
     for (const [id, b] of bots) if (t - b.startedAt > BOT_TTL) bots.delete(id);
     const mine = [...bots].filter(([, b]) => b.userId === u.id).sort((x, y) => x[1].startedAt - y[1].startedAt);
     while (mine.length >= 5) bots.delete(mine.shift()![0]);
-    const bd = cfBotDeck();
-    const setup: BotMatchSetup = {
-      seed: randomInt(1, 2 ** 31),
-      me: { id: 'joueur', name: u.username, deck: d.cards },
-      bots: [{ id: 'ordi', name: CF_BOT_NAMES[randomInt(CF_BOT_NAMES.length)], deck: deckList(bd.cards), level }],
-    };
+    // 1 à 3 ordinateurs (0.39 : parties à 3 ou 4 contre l'ordinateur), noms tous différents.
+    const n = Math.min(3, Math.max(1, Math.floor(Number(req.body?.opponents) || 1)));
+    const names = [...CF_BOT_NAMES];
+    const botSeats = Array.from({ length: n }, (_, i) => {
+      const name = names.splice(randomInt(names.length), 1)[0];
+      return { id: i ? `ordi${i + 1}` : 'ordi', name, deck: deckList(cfBotDeck().cards), level };
+    });
+    const setup: BotMatchSetup = { seed: randomInt(1, 2 ** 31), me: { id: 'joueur', name: u.username, deck: d.cards }, bots: botSeats };
     const gameId = randomUUID();
     bots.set(gameId, { userId: u.id, setup, startedAt: t });
     menu.set(u.id, t);

@@ -24,18 +24,19 @@ export function LearnHero({ onTuto }: { onTuto: () => void }) {
 }
 
 /** Section « Apprendre » du menu : mise en avant tant que la partie guidée n'est pas faite. */
-export function LearnBlock({ fresh, onTuto, onRules, onCards, onTips, onLexicon }: {
-  fresh: boolean; onTuto: () => void; onRules: () => void; onCards: () => void; onTips: () => void; onLexicon: () => void;
+export function LearnBlock({ fresh, onTuto, onTuto4, onRules, onCards, onTips, onLexicon }: {
+  fresh: boolean; onTuto: () => void; onTuto4?: () => void; onRules: () => void; onCards: () => void; onTips: () => void; onLexicon: () => void;
 }) {
   return (
     <section className={`cf-learn${fresh ? ' fresh' : ''}`} aria-labelledby="cf-learn-h">
       <h2 id="cf-learn-h">{fresh ? 'Bien débuter' : 'Apprendre'}</h2>
       <div className="cf-learn-grid">
-        <button className={fresh ? 'hot' : ''} onClick={onTuto}><Icon name="dice" size={18} /><span><b>Partie guidée</b><small>3 minutes, pas à pas</small></span></button>
+        <button className={fresh ? 'hot' : ''} onClick={onTuto}><Icon name="dice" size={18} /><span><b>Partie guidée à 2</b><small>3 minutes, pas à pas</small></span></button>
+        {onTuto4 && <button onClick={onTuto4}><Icon name="people" size={18} /><span><b>Partie guidée à 4</b><small>Visite de l’écran, puis 3 ordinateurs</small></span></button>}
         <button onClick={onRules}><Icon name="rules" size={18} /><span><b>Règles du jeu</b><small>Manche, Tournées, cartes</small></span></button>
         <button onClick={onCards}><span className="cf-learn-n" aria-hidden>{CARDS.length}</span><span><b>Les {CARDS.length} cartes</b><small>Par famille, texte complet</small></span></button>
         <button onClick={onTips}><Icon name="target" size={18} /><span><b>Conseils</b><small>Stratégie de comptoir</small></span></button>
-        <button onClick={onLexicon}><Icon name="album" size={18} /><span><b>Lexique</b><small>Tournée, ardoise, Riposte…</small></span></button>
+        <button onClick={onLexicon}><Icon name="album" size={18} /><span><b>Lexique</b><small>Tournée, Habitué, Riposte…</small></span></button>
       </div>
     </section>
   );

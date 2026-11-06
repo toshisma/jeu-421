@@ -44,6 +44,7 @@ import {
   TrapSheet, EffectChips, type FicheTarget, type LogLine,
 } from './BoardParts';
 import { activeEffects } from './effects';
+import { screenTour } from './tour';
 
 export { EndScreen, Mulligan, ChoiceWindow, RespondPanel } from './BoardParts';
 
@@ -99,6 +100,8 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const [journal, setJournal] = useState(false);
   /** Fiche d'un joueur ouverte (identifiant), écran sobre 0.39. */
   const [sheetOf, setSheetOf] = useState<string | null>(null);
+  // Visite guidée de l'écran (parties guidées, ou depuis l'aide) : étape en cours, ou null.
+  const [tourAt, setTourAt] = useState<number | null>(() => ((controller as { tour?: boolean }).tour ? 0 : null));
   const [help, setHelp] = useState(false);
   const [rules, setRules] = useState(false);
   const [josiane, setJosiane] = useState(false);
@@ -295,7 +298,9 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   // sont déjà réduites à celle attendue par le contrôleur.
   const guide = !animating ? snap?.guide ?? null : null;
   const isTuto = !!(controller as { tutorial?: boolean }).tutorial;
-  const focus = guide?.focus ?? null;
+  const tour = tourAt !== null && snap ? screenTour(snap.view.players.length - 1) : null;
+  const tourStep = tour && tourAt !== null ? tour[tourAt] ?? null : null;
+  const focus = tourStep ? tourStep.focus : guide?.focus ?? null;
   const fx = (k: string) => (focus === k ? ' cfn-focus' : '');
   const myTurn = mine && decision === 'turn';
   const canKeep = myTurn && !!meP && meP.r.throwsUsed > 0 && legal.some((a) => a.type === 'roll');
@@ -446,7 +451,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
 
   return (
     <div className={`cfn-board${opps.length > 1 ? ' multi' : ''}${isTuto ? ' tuto' : ''}`} onPointerDown={() => sound.unlock()}>
-      <div className="cfn-top">
+      <div className={`cfn-top${fx('top')}`}>
         <button className="cfn-ib" onClick={leave} aria-label="Quitter la partie"><Icon name="close" size={18} /></button>
         <div className="cfn-ttl"><span>{title}</span></div>
         <button className="cfn-tb" onClick={() => setJournal(true)}>Journal</button>
@@ -462,7 +467,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         ))}
       </div>
 
-      <div className={`cfn-banner ${say.tone}${bigShot ? ' hush' : ''}`} role="status" aria-live="polite">
+      <div className={`cfn-banner ${say.tone}${bigShot ? ' hush' : ''}${fx('say')}`} role="status" aria-live="polite">
         <span key={sayKey} className="cfn-say">
           {say.icon && <TypeIcon type={TONE_ICON[say.icon]!} size={14} />}
           {say.title && <b>{say.title}</b>}<span>{say.text}</span>
@@ -525,7 +530,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       {ann && <AnnounceView a={ann} onDone={skipAnn} spectator={spectator} me={spectator ? '' : me} v={annView.current ?? v} />}
       {toast && <div key={toast.key} className="cf-toast is-err" role="alert">{toast.text}</div>}
 
-      {!overlayOpen && mulliganMine && <Mulligan v={v} legal={legal} pending={pending} onAct={act} clock={clock?.text} />}
+      {!overlayOpen && mulliganMine && !tourStep && <Mulligan v={v} legal={legal} pending={pending} onAct={act} clock={clock?.text} />}
       {!overlayOpen && respondMine && <RespondPanel v={v} legal={legal} pending={pending} onAct={act} deadline={deadline} focus={focus === 'respond'} tuto={guide?.text ?? null} />}
       {!overlayOpen && choiceMine && <ChoiceWindow v={v} legal={legal} pending={pending} onAct={act} focus={focus === 'choice'} tuto={guide?.text ?? null} />}
       {(snap.finished || v.phase === 'over') && !animating && <EndScreen snap={snap} v={v} me={me} onExit={close} onAgain={onAgain} onAccount={onAccount}
@@ -539,10 +544,15 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       {sheetOf && v.players.find((p) => p.id === sheetOf) && <PlayerSheet p={v.players.find((p) => p.id === sheetOf)!} v={v} seat={seat(sheetOf)} me={sheetOf === me && !spectator} last={lastOf(sheetOf)}
         onClose={() => setSheetOf(null)} onCard={(id) => { const o = sheetOf; setSheetOf(null); setFiche({ id, owner: o }); }} onTraps={() => { const o = sheetOf; setSheetOf(null); if (o === me) return; setTrapOf(o); }} />}
       {journal && <Journal log={log} v={v} me={me} onCard={(id, owner) => setFiche({ id, owner: owner ?? 'journal' })} onClose={() => setJournal(false)} />}
-      {help && <HelpSheet v={v} onClose={() => setHelp(false)} onRules={() => { setHelp(false); setRules(true); }} />}
+      {help && <HelpSheet v={v} onClose={() => setHelp(false)} onRules={() => { setHelp(false); setRules(true); }} onTour={() => { setHelp(false); setTourAt(0); }} />}
       {rules && <Sheet title="Règles de Coups Fourrés" onClose={() => setRules(false)}><RulesContent short /></Sheet>}
 
-      {guide && !snap.finished && !overlayOpen && !fiche && !(respondMine || choiceMine) && (
+      {tourStep && tour && (
+        <TutoBubble g={{ title: tourStep.title, text: tourStep.text, focus: tourStep.focus === 'opp' || tourStep.focus === 'top' || tourStep.focus === 'say' ? 'opp' : undefined, index: tourAt! + 1, total: tour.length, next: tourAt! + 1 < tour.length ? 'Suivant' : 'C’est parti !' }}
+          onNext={() => { sound.click(); setTourAt((i) => (i === null || i + 1 >= tour.length ? null : i + 1)); }} skipLabel="Passer la visite"
+          onSkip={() => setTourAt(null)} />
+      )}
+      {guide && !tourStep && !snap.finished && !overlayOpen && !fiche && !(respondMine || choiceMine) && (
         <TutoBubble g={guide} onNext={() => { sound.click(); (controller as { guideNext?: () => void }).guideNext?.(); }}
           onSkip={async () => { if (await askConfirm('Passer la partie guidée ? Vous pourrez la refaire quand vous voulez depuis le menu du mode.', 'Passer')) { controller.leave(); onExit(); } }} />
       )}
@@ -553,10 +563,10 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
 const TONE_ICON: Partial<Record<string, 'coup' | 'piege' | 'riposte' | 'dernier-mot' | 'habitue'>> = { coup: 'coup', piege: 'piege', riposte: 'riposte', 'dernier-mot': 'dernier-mot', habitue: 'habitue' };
 
 /** Bulle de la partie guidée : texte court, une seule action attendue, « Passer le tutoriel ». */
-function TutoBubble({ g, onNext, onSkip }: { g: NonNullable<CfSnapshot['guide']>; onNext: () => void; onSkip: () => void }) {
+function TutoBubble({ g, onNext, onSkip, skipLabel }: { g: NonNullable<CfSnapshot['guide']>; onNext: () => void; onSkip: () => void; skipLabel?: string }) {
   return (
     <div className={`cfn-tuto at-${g.focus === 'opp' ? 'bottom' : 'top'}`} role="dialog" aria-live="polite" aria-label="Partie guidée">
-      <div className="cfn-tuto-head"><b>{g.title ?? 'Partie guidée'}</b><small>{g.index}/{g.total}</small><button className="cfn-tuto-skip" onClick={onSkip}>Passer le tutoriel</button></div>
+      <div className="cfn-tuto-head"><b>{g.title ?? 'Partie guidée'}</b><small>{g.index}/{g.total}</small><button className="cfn-tuto-skip" onClick={onSkip}>{skipLabel ?? 'Passer le tutoriel'}</button></div>
       <p>{g.text}</p>
       {g.next && <button className="cfn-act gold full" onClick={onNext} autoFocus>{g.next}</button>}
     </div>

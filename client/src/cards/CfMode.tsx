@@ -177,6 +177,16 @@ export function CfMode(props: CfModeProps) {
     setSheet(null);
     setRoute({ r: 'game', ctrl, mode: 'partie guidée', again: () => { setRoute({ r: 'menu' }); setSheet('bot'); } });
   }, [name, props.avatar, pa.photo, pa.session, pa.token, reload]);
+  /** Partie guidée à 4 : visite de l'écran, puis une vraie partie contre 3 ordinateurs débutants, sans minuteur ni gain. */
+  const startTutorial4 = useCallback(async () => {
+    sound.unlock();
+    const ctrl = await LocalCfController.create({
+      level: 'debutant', deck: deckList(STARTER_DECKS[0].cards), token: null, opponents: 3, tour: true, timed: false,
+      me: { name, avatar: props.avatar, photo: pa.photo, account: pa.session?.username },
+    });
+    setSheet(null);
+    setRoute({ r: 'game', ctrl, mode: 'guidée à 4', again: () => void startTutorial4() });
+  }, [name, props.avatar, pa.photo, pa.session]);
   /** Première partie dans le mode (ni partie jouée, ni partie guidée vue) : on propose la partie guidée. */
   const offerTutorial = useCallback(async (): Promise<boolean> => {
     if (tutorialSeen() || st?.tutorialDone || (st?.history.length ?? 0) > 0) return false;
@@ -186,7 +196,7 @@ export function CfMode(props: CfModeProps) {
     return yes;
   }, [st, acc, startTutorial]);
 
-  const startBot = useCallback(async (level: CfLevel, deckId: string | null) => {
+  const startBot = useCallback(async (level: CfLevel, deckId: string | null, opponents = 1) => {
     if (starting) return;
     if (await offerTutorial()) return;
     sound.unlock();
@@ -195,11 +205,11 @@ export function CfMode(props: CfModeProps) {
       const own = st?.decks.find((d) => d.id === deckId && d.valid);
       const cards = own?.cards ?? (STARTER_DECKS.find((d) => d.id === deckId) ?? STARTER_DECKS[0]).cards;
       const ctrl = await LocalCfController.create({
-        level, deck: deckList(cards), deckId: own ? own.id : null, token: own ? pa.token : null,
+        level, deck: deckList(cards), deckId: own ? own.id : null, token: own ? pa.token : null, opponents,
         me: { name, avatar: props.avatar, photo: pa.photo, account: pa.session?.username },
       });
       setSheet(null);
-      setRoute({ r: 'game', ctrl, mode: '', again: () => void startBot(level, deckId) });
+      setRoute({ r: 'game', ctrl, mode: '', again: () => void startBot(level, deckId, opponents) });
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Impossible de lancer la partie.', 'err');
     } finally { setStarting(false); }
@@ -275,7 +285,7 @@ export function CfMode(props: CfModeProps) {
         onDecks={() => setRoute({ r: 'decks' })} onBoosters={() => setSheet('boosters')} onCollection={() => setRoute({ r: 'collection' })}
         onMissions={() => setSheet('missions')} onLeague={() => setRoute({ r: 'league' })} onRules={() => setRoute({ r: 'rules' })}
         onChallenge={challenge} onWatch={(f) => f.code && watch(f.code)} onRetry={() => void reload()} onTournament={() => setRoute({ r: 'tournoi' })}
-        onLearn={(r) => setRoute({ r })} onTuto={startTutorial}
+        onLearn={(r) => setRoute({ r })} onTuto={startTutorial} onTuto4={() => void startTutorial4()}
         top={<>
           {resumeGame && <button className="cf-banner gold" onClick={() => void tryOnline((o) => o.resume(resumeGame.id))}><b>Partie en cours</b><span>{resumeGame.ranked ? 'Classée' : 'Entre amis'} : reprenez-la avant d’être compté absent.</span><em>Reprendre</em></button>}
           {online?.challenges.map((c) => (
@@ -356,6 +366,7 @@ function CfMenu(p: CfModeProps & {
   onMissions: () => void; onLeague: () => void; onRules: () => void; onChallenge: (u: string) => void; onWatch: (f: CfFriend) => void; onRetry: () => void;
   onLearn: (r: 'cards' | 'tips' | 'lexicon') => void;
   onTuto: () => void;
+  onTuto4?: () => void;
   onTournament: () => void; token?: string | null; top?: React.ReactNode;
 }) {
   const { pa, st } = p;
@@ -489,7 +500,7 @@ function CfMenu(p: CfModeProps & {
           </button>
         </div>
 
-        <LearnBlock fresh={fresh} onTuto={p.onTuto} onRules={p.onRules} onCards={() => p.onLearn('cards')} onTips={() => p.onLearn('tips')} onLexicon={() => p.onLearn('lexicon')} />
+        <LearnBlock fresh={fresh} onTuto={p.onTuto} onTuto4={p.onTuto4} onRules={p.onRules} onCards={() => p.onLearn('cards')} onTips={() => p.onLearn('tips')} onLexicon={() => p.onLearn('lexicon')} />
 
         {last ? (
           <div className="cf-last">
@@ -526,7 +537,8 @@ function CfMenu(p: CfModeProps & {
 
 const LEVELS: CfLevel[] = ['debutant', 'habitue', 'fine-fouine'];
 
-function BotSheet({ st, acc, starting, onClose, onStart, onAccount }: { st: CfState | null; acc: boolean; starting: boolean; onClose: () => void; onStart: (l: CfLevel, deckId: string | null) => void; onAccount: () => void }) {
+function BotSheet({ st, acc, starting, onClose, onStart, onAccount }: { st: CfState | null; acc: boolean; starting: boolean; onClose: () => void; onStart: (l: CfLevel, deckId: string | null, opponents: number) => void; onAccount: () => void }) {
+  const [opp, setOpp] = useState(1);
   const [level, setLevel] = useState<CfLevel>(() => { try { return (localStorage.getItem('421.cf.niveau') as CfLevel) || 'debutant'; } catch { return 'debutant'; } });
   const decks = useMemo(() => (acc && st ? st.decks.filter((d) => d.valid).map((d) => ({ id: d.id, name: d.name, n: 20 })) : STARTER_DECKS.map((d) => ({ id: d.id, name: d.name, n: 20 }))), [acc, st]);
   const [deckId, setDeckId] = useState<string | null>(() => (acc && st ? st.activeDeck : STARTER_DECKS[0].id));
@@ -543,6 +555,10 @@ function BotSheet({ st, acc, starting, onClose, onStart, onAccount }: { st: CfSt
         ))}
       </div>
       <div className="cf-deckpick">
+        <b>Adversaires</b>
+        <div className="cf-chips" role="radiogroup" aria-label="Nombre d’adversaires">{[1, 2, 3].map((n) => <button key={n} role="radio" aria-checked={opp === n} className={opp === n ? 'on' : ''} onClick={() => setOpp(n)}>{n === 1 ? 'Duel (1)' : `${n} ordinateurs`}</button>)}</div>
+      </div>
+      <div className="cf-deckpick">
         <b>Votre deck</b>
         {decks.length ? (
           <div className="cf-chips">{decks.map((d) => <button key={d.id} className={chosen?.id === d.id ? 'on' : ''} onClick={() => setDeckId(d.id)}>{d.name}</button>)}</div>
@@ -550,7 +566,7 @@ function BotSheet({ st, acc, starting, onClose, onStart, onAccount }: { st: CfSt
       </div>
       <p className="cf-sheet-note">{acc ? (left > 0 ? `+${CAPSULES.vsBot} capsules par partie terminée (encore ${left} aujourd’hui).` : 'Plafond de capsules contre l’ordinateur atteint aujourd’hui : la partie reste un bon entraînement.')
         : <>Partie d’essai sans gain. <button className="cf-link" onClick={onAccount}>Créer un compte</button> pour gagner des capsules.</>}</p>
-      <button className="cf-btn gold big" disabled={starting || !chosen} onClick={() => chosen && onStart(level, chosen.id)}>{starting ? 'Préparation…' : 'Jouer'}</button>
+      <button className="cf-btn gold big" disabled={starting || !chosen} onClick={() => chosen && onStart(level, chosen.id, opp)}>{starting ? 'Préparation…' : 'Jouer'}</button>
     </Sheet>
   );
 }
