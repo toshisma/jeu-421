@@ -49,7 +49,7 @@ describe('fenêtres de réponse (moteur, option windows)', () => {
     return { waiting: waitingFor(r.state), legalB: legalActions(r.state, 'B') };
   }
   it('sans la carte, l’adversaire est interrogé quand même (il ne peut que passer)', () => {
-    // 0.40 : Réaction en chaîne coûte 3 (trop cher au premier tour) ; on prend la famille des Habitués (Ticket de caisse, 1).
+    // On prend la famille des Habitués (Ticket de caisse, 1 Tournée).
     const noRiposte = askedAfterCard(deck('pilier'), true); // famille Habitués, aucune Riposte en main
     expect(noRiposte.waiting).toEqual(['B']);
     expect(noRiposte.legalB).toEqual([{ type: 'pass' }]);
@@ -57,8 +57,10 @@ describe('fenêtres de réponse (moteur, option windows)', () => {
     expect(withRiposte.waiting).toEqual(['B']);
     expect(withRiposte.legalB.some((a) => a.type === 'play')).toBe(true);
   });
-  it('information publique : un deck sans famille de Riposte n’est jamais interrogé ; sans l’option, rien ne change', () => {
-    expect(askedAfterCard(deck('leurre'), true).waiting).not.toContain('B');
+  it('information publique : un deck sans Riposte possible contre cette carte n’est jamais interrogé ; sans l’option, rien ne change', () => {
+    // 0.41 : la Tournée du patron coûte 2, le Pot aux roses (Pièges) pourrait l'annuler ; l'Ivresse, elle,
+    // n'a que « Les yeux qui piquent », qui n'annule qu'un Coup qui change des dés.
+    expect(askedAfterCard(deck('verre-de-trop'), true).waiting).not.toContain('B');
     expect(askedAfterCard(deck('coup-coude'), false).waiting).not.toContain('B');
   });
   it('une partie complète avec fenêtres se termine (IA des deux côtés)', () => {
