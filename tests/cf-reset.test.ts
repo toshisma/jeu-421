@@ -23,4 +23,19 @@ describe('Coups Fourrés : remise à zéro des collections (refonte 0.39)', () =
     expect(store.cfResetCollectionsV2()).toBe(0);
     expect(cfCollection(store, 'u1').patron.count).toBe(1);
   });
+
+  it('0.40 : un booster offert, une seule fois, à ceux qui ont déjà tout ouvert', () => {
+    const store = new Store(':memory:');
+    for (const [id, name] of [['u1', 'Ana'], ['u2', 'Bob'], ['u3', 'Cleo']]) { store.createUser({ id, username: name, passHash: 'x', recoveryHash: 'y' }); store.cfPlayer(id, 1); }
+    store.cfPlayerSet('u1', { discovered: 1, boosters: 0 }); // a tout ouvert
+    store.cfPlayerSet('u2', { discovered: 1, boosters: 2 }); // en a encore : il les ouvrira avec les nouvelles cartes
+    store.cfPlayerSet('u3', { discovered: 0, boosters: 0 }); // n'a pas encore découvert le mode
+    store.setMeta('cf:gift:v40', '');
+    expect(store.cfGiftBoosterV40()).toBe(1);
+    expect(store.cfPlayerFind('u1')!.boosters).toBe(1);
+    expect(store.cfPlayerFind('u2')!.boosters).toBe(2);
+    expect(store.cfPlayerFind('u3')!.boosters).toBe(0);
+    expect(store.cfGiftBoosterV40()).toBe(0);
+    expect(store.cfPlayerFind('u1')!.boosters).toBe(1);
+  });
 });

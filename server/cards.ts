@@ -141,6 +141,9 @@ export function createCards(c: CardsCtx) {
   // Refonte des cartes (0.39) : collections remises à zéro une seule fois, avec sauvegarde.
   const reset = store.cfResetCollectionsV2();
   if (reset) console.log(`[cartes] refonte : ${reset} collection(s) remise(s) à zéro (3 boosters à la prochaine visite)`);
+  // 0.40 : un booster offert à ceux qui avaient déjà tout ouvert (une seule fois).
+  const gift = store.cfGiftBoosterV40();
+  if (gift) console.log(`[cartes] 0.40 : un booster offert à ${gift} joueur(s)`);
   const rng = c.rng ?? cryptoRng;
   const day = () => brusselsDay(c.now());
   const season = () => cfSeasonOf(day());

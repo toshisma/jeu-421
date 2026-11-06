@@ -13,6 +13,7 @@ import { CardArt } from './art';
 import { CapsuleIcon, CardView } from './components';
 import { FAMILY_STYLE, splitEmphasis } from './meta';
 import { activeEffects, CARD_GIST, type ActiveEffect } from './effects';
+import { GlossText } from './Gloss';
 
 /** Étiquettes qui ne disent pas ce que fait la carte : on écrit plutôt son effet. */
 const GENERIC_LABEL = new Set(['Installer', 'Poser face cachée', 'Jouer', 'Jouable']);
@@ -71,15 +72,15 @@ export function BigCard({ id, width = 250, extra, className }: { id: string; wid
   const d = cardDef(id);
   if (!d) return null;
   const fs = FAMILY_STYLE[d.family];
-  const [b, bold, a] = splitEmphasis(id, d.text);
+  const [, bold] = splitEmphasis(id, d.text);
   const m = TYPE_META[d.type];
   return (
     <div className={`cfn-big${d.rarity === 'legendaire' ? ' leg' : ''}${className ? ` ${className}` : ''}`} style={{ width, background: `linear-gradient(160deg, ${fs.c1}, ${fs.c2})`, ['--e' as string]: fs.edge }}
-      role="img" aria-label={`${d.name}, ${m.label}, coût ${d.cost} : ${d.text}`}>
+      role="group" aria-label={`${d.name}, ${m.label}, coût ${d.cost}`}>
       <div className="cfn-big-hd"><span className="cfn-coin">{d.cost}</span><h3>{d.name}</h3></div>
       <span className="cfn-big-art"><CardArt id={id} /></span>
       <span className="cfn-big-tl" style={{ color: m.color }}><TypeIcon type={d.type} size={13} />{m.label} · {m.moment}</span>
-      <div className="cfn-big-tx">{b}{bold && <b>{bold}</b>}{a}{extra && <span className="cfn-big-here">{extra}</span>}</div>
+      <div className="cfn-big-tx"><GlossText text={d.text} bold={bold || undefined} />{extra && <span className="cfn-big-here">{extra}</span>}</div>
     </div>
   );
 }
@@ -595,7 +596,7 @@ export function HelpSheet({ v, onClose, onRules, onTour }: { v: CfView; onClose:
             <dt>En haut</dt><dd>Une case par adversaire. Le gros chiffre : ses <b>jetons</b> (le premier à 0 gagne). Puis 🍺 ses <b>Tournées</b> (elles paient les cartes), <i className="cfn-bk mini" /> ses <b>cartes en main</b>, <TypeIcon type="piege" size={12} /> ses <b>pièges posés</b>, <TypeIcon type="habitue" size={12} /> ses <b>Habitués</b>. Celui qui joue est encadré en doré. <b>Touchez une case</b> pour tout voir en clair.</dd>
             <dt>Le bandeau</dt><dd>À qui de jouer et quoi faire ; à plusieurs, la petite ligne dit le dernier coup joué.</dd>
             <dt>Le bac</dt><dd>Les dés de celui qui joue. À votre tour, touchez un dé pour le garder avant de relancer.</dd>
-            <dt>Vos cartes</dt><dd>Sous chaque nom, ce que fait la carte ; le chiffre doré est son coût en Tournées. Les cartes <b className="cfn-gold">dorées</b> sont jouables maintenant. Touchez une carte pour la lire en grand.</dd>
+            <dt>Vos cartes</dt><dd>Sous chaque nom, ce que fait la carte ; le chiffre dans le petit verre est son coût en Tournées (pas en jetons). Les cartes <b className="cfn-gold">dorées</b> sont jouables maintenant. Touchez une carte pour la lire en grand.</dd>
             <dt>« Vous »</dt><dd>Vos jetons, vos Tournées, vos Habitués (le chiffre : manches restantes) et vos pièges posés. Touchez « Vous » pour votre fiche.</dd>
             <dt>Journal</dt><dd>Tout ce qui s’est passé, coup par coup.</dd>
             <dt>À côté de la manche</dt><dd>La <b>commande du comptoir</b> : une règle bonus tirée à chaque manche, la même pour tous (touchez-la pour la relire).</dd>

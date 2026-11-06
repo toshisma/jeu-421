@@ -132,7 +132,7 @@ const LEXICON: { w: string; d: string }[] = [
   { w: 'Meneur', d: 'Celui qui joue en premier dans la manche (le perdant de la précédente). Son nombre de lancers fixe le maximum des autres.' },
   { w: 'Piège', d: `Posé face cachée (on paie à la pose), il se déclenche tout seul quand sa condition arrive. ${CF_RULES.maxTraps} posés au plus ; il revient en main après ${CF_RULES.trapReturnRounds} manches sans se déclencher.` },
   { w: 'Riposte', d: 'Carte jouée à tout moment en réponse à une carte adverse. En chaîne, la dernière posée s’applique la première.' },
-  { w: 'Tournée', d: `Ce que coûtent les cartes (la pastille dorée). ${CF_RULES.tourneesPerRound} par manche, +${CF_RULES.tourneesLoserBonus} pour le perdant de la précédente, ${CF_RULES.tourneesMax} en réserve au plus.` },
+  { w: 'Tournée', d: `Ce que coûtent les cartes (le chiffre dans le petit verre, en haut à gauche ; ce ne sont pas des jetons). ${CF_RULES.tourneesPerRound} par manche, +${CF_RULES.tourneesLoserBonus} pour le perdant de la précédente, ${CF_RULES.tourneesMax} en réserve au plus.` },
 ];
 
 export function LexiconScreen({ onBack }: { onBack: () => void }) {

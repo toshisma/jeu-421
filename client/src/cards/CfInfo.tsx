@@ -179,7 +179,7 @@ export function RulesContent({ short }: { short?: boolean }) {
           <li><b className="cfn-typetag" style={{ color: TYPE_META['dernier-mot'].color }}><TypeIcon type="dernier-mot" size={14} />{TYPE_LABEL['dernier-mot']}</b> : seulement pendant l’étape Dernier mot.</li>
           <li><b className="cfn-typetag" style={{ color: TYPE_META['habitue'].color }}><TypeIcon type="habitue" size={14} />{TYPE_LABEL.habitue}</b> : s’installe devant vous pour {R.habitueRounds} manches (celle où il arrive comprise), puis rentre chez lui. {R.maxHabitues} au plus, jamais deux fois le même.</li>
         </ul>
-        <p>Chaque carte coûte des <b>Tournées</b> (la pastille dorée). On voit les Tournées de l’adversaire, son nombre de cartes en main, ses pièges posés et les familles de son deck… mais pas lesquels.</p>
+        <p>Chaque carte coûte des <b>Tournées</b> (le chiffre dans le petit verre, en haut à gauche ; rien à voir avec les jetons). On voit les Tournées de l’adversaire, son nombre de cartes en main, ses pièges posés et les familles de son deck… mais pas lesquels.</p>
       </section>
       {!short && (
         <section>

@@ -420,8 +420,11 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
         const owner = e.player!;
         let conseq: string | undefined;
         let victim: string | undefined;
+        // Conséquence qui bouge des dés (Croche-patte) : on la montre aussi dans le bac, après l'annonce.
+        let diceAfter: PlanStep | null = null;
         if (nx && TRAP_CONSEQ.has(nx.kind) && (nx.kind !== 'annule' || /Ardoise|Main dans le sac/.test(nx.text))) {
           conseq = nx.text; victim = nx.kind === 'piege' ? undefined : nx.player; skip.add(i + 1);
+          if (nx.dice && nx.rolled?.length) diceAfter = { kind: 'dice', ev: nx, strip: strip(noDot(nx.player === me ? nx.text.replace(/^Croche-patte : /, 'Croche-patte : ') : nx.text), 'piege', 1300) };
         }
         if (!victim) {
           const posed = prev?.traps.find((t) => t.owner === owner && (t.id === e.card || t.id === null));
@@ -441,6 +444,7 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
             text: conseq ?? def(e.card)?.text,
           } });
         }
+        if (diceAfter) out.push(diceAfter);
         continue;
       }
       case 'annule': {
