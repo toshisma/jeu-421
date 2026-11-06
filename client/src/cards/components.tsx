@@ -3,6 +3,7 @@
  * face cachée, booster, capsule, pastilles). Fidèles aux prototypes validés par Sam
  * (CFCartes, CFPlateau, CFBooster). Styles : bloc « Coups Fourrés : cartes » de styles.css.
  */
+import { GlossText } from './Gloss';
 import { useId, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
 import { cardDef, FAMILY_LABEL, RARITY_LABEL, TYPE_LABEL, type CardDef, type CardFamily, type CardRarity } from '../../../shared/cards/catalog';
 import { CardArt } from './art';
@@ -108,8 +109,8 @@ export interface CardViewProps {
 }
 
 /** Corps de la carte à sa taille de référence (230×322). */
-function CardFace({ def, shiny, isNew, count }: { def: CardDef; shiny?: boolean; isNew?: boolean; count?: number }) {
-  const [before, bold, after] = splitEmphasis(def.id, def.text);
+function CardFace({ def, shiny, isNew, count, gloss }: { def: CardDef; shiny?: boolean; isNew?: boolean; count?: number; gloss?: boolean }) {
+  const [, bold] = splitEmphasis(def.id, def.text);
   const long = def.text.length + def.flavor.length > 150;
   return (
     <>
@@ -122,7 +123,7 @@ function CardFace({ def, shiny, isNew, count }: { def: CardDef; shiny?: boolean;
       <div className="cf-art"><CardArt id={def.id} /></div>
       <div className="cf-type"><span className="cfn-typetag"><TypeIcon type={def.type} size={13} color={TYPE_META[def.type].color} />{TYPE_LABEL[def.type]}</span><RarityGem rarity={def.rarity} label /></div>
       <div className={cx('cf-txt', long && 'cf-txt-long')}>
-        <p>{before}{bold && <b>{bold}</b>}{after}</p>
+        <p><GlossText text={def.text} bold={bold || undefined} plain={!gloss} /></p>
         <em>{def.flavor}</em>
       </div>
       <div className="cf-foot">{FAMILY_LABEL[def.family]}</div>
@@ -151,7 +152,7 @@ export function CardView({ id, width, shiny, isNew, dimmed, selected, count, onC
       {...clickable(onClick)}
     >
       <article className={classes} style={scale === 1 ? undefined : { transform: `scale(${scale})` }} aria-label={onClick ? undefined : label}>
-        <CardFace def={def} shiny={shiny} isNew={isNew} count={count} />
+        <CardFace def={def} shiny={shiny} isNew={isNew} count={count} gloss={w >= 170 && !onClick} />
       </article>
     </div>
   );

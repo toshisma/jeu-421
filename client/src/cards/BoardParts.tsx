@@ -13,6 +13,7 @@ import { CardArt } from './art';
 import { CapsuleIcon, CardView } from './components';
 import { FAMILY_STYLE, splitEmphasis } from './meta';
 import { activeEffects, CARD_GIST, type ActiveEffect } from './effects';
+import { GlossText } from './Gloss';
 
 /** Étiquettes qui ne disent pas ce que fait la carte : on écrit plutôt son effet. */
 const GENERIC_LABEL = new Set(['Installer', 'Poser face cachée', 'Jouer', 'Jouable']);
@@ -71,15 +72,15 @@ export function BigCard({ id, width = 250, extra, className }: { id: string; wid
   const d = cardDef(id);
   if (!d) return null;
   const fs = FAMILY_STYLE[d.family];
-  const [b, bold, a] = splitEmphasis(id, d.text);
+  const [, bold] = splitEmphasis(id, d.text);
   const m = TYPE_META[d.type];
   return (
     <div className={`cfn-big${d.rarity === 'legendaire' ? ' leg' : ''}${className ? ` ${className}` : ''}`} style={{ width, background: `linear-gradient(160deg, ${fs.c1}, ${fs.c2})`, ['--e' as string]: fs.edge }}
-      role="img" aria-label={`${d.name}, ${m.label}, coût ${d.cost} : ${d.text}`}>
+      role="group" aria-label={`${d.name}, ${m.label}, coût ${d.cost}`}>
       <div className="cfn-big-hd"><span className="cfn-coin">{d.cost}</span><h3>{d.name}</h3></div>
       <span className="cfn-big-art"><CardArt id={id} /></span>
       <span className="cfn-big-tl" style={{ color: m.color }}><TypeIcon type={d.type} size={13} />{m.label} · {m.moment}</span>
-      <div className="cfn-big-tx">{b}{bold && <b>{bold}</b>}{a}{extra && <span className="cfn-big-here">{extra}</span>}</div>
+      <div className="cfn-big-tx"><GlossText text={d.text} bold={bold || undefined} />{extra && <span className="cfn-big-here">{extra}</span>}</div>
     </div>
   );
 }
