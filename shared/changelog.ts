@@ -7,6 +7,9 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.42', date: '2026-11-06T18:55:00+01:00', title: 'Correction : Le dé sous la table', items: [
+    'Coups Fourrés : en duel, « Le dé sous la table » montrait vos propres dés au moment de choisir lequel relancer, alors que c’est bien un dé de l’adversaire qui est relancé. Ce sont maintenant ses dés qui s’affichent, avec la question « Quel dé de … relancer ? ».',
+  ] },
   { version: '0.41', date: '2026-11-06T17:15:00+01:00', title: 'Coups Fourrés : chaque Tournée compte', items: [
     'Les Tournées deviennent précieuses : 1 par manche (2 pour le perdant de la manche d’avant), 6 au plus en réserve. Jouer une carte est un vrai choix ; pour en jouer plusieurs, économisez.',
     'Les coûts des cartes sont refaits : beaucoup moins de cartes gratuites, la plupart coûtent maintenant 1 à 3 Tournées.',

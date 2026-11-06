@@ -21,7 +21,7 @@ import { Pip } from './cfui';
 import { TYPE_META, TypeIcon, TypeLegend } from './cardTypes';
 import type { CfSeat, CfSnapshot } from './controller';
 import {
-  comboOf, costNow, describeNow, meOf, nameIn, nextParam, paramQuestion, playOptions, plural, resolveOption, valuesFor, whyNot, type ParamKey,
+  comboOf, costNow, describeNow, meOf, nameIn, filterOptions, nextParam, paramQuestion, playOptions, plural, resolveOption, valuesFor, whyNot, type ParamKey,
 } from './describe';
 import { cardName, familiesLabel, shortCombo, threatLine, trapPossibilities, type Announce, type CardHint, type FriseStep } from './board';
 import './fonts';
@@ -471,13 +471,19 @@ export function Fiche({ t, v, legal, snapLegal, pending, discard, onAct, onClose
 function ParamChooser({ k, v, cardId, opts, chosen, onPick }: { k: ParamKey; v: CfView; cardId: string; opts: PlayParams[]; chosen: PlayParams; onPick: (k: ParamKey, x: string | number) => void }) {
   const vals = valuesFor(opts, chosen, k);
   const me = meOf(v);
-  const target = chosen.target ? v.players.find((p) => p.id === chosen.target) : undefined;
+  // Cible choisie, ou seule cible possible (en duel, elle n'est pas demandée) : c'est SES dés qu'on montre.
+  const targetIds = [...new Set(filterOptions(opts, chosen).map((o) => o.target).filter(Boolean))];
+  const targetId = chosen.target ?? (targetIds.length === 1 ? targetIds[0] : undefined);
+  const target = targetId ? v.players.find((p) => p.id === targetId) : undefined;
   const diceOf = cardId === 'de-sous-table' && target ? target.r.dice : me.r.dice;
+  const question = k === 'die' && cardId === 'de-sous-table' && target
+    ? (target.id === me.id ? 'Quel de vos dés relancer ?' : `Quel dé de ${target.name} relancer ?`)
+    : paramQuestion(k, cardId);
   const off = (_x: string | number) => false;
   const on = (_x: string | number) => vals.length === 1;
   return (
     <div className="cfn-param">
-      <b>{paramQuestion(k, cardId)}</b>
+      <b>{question}</b>
       <div className="cfn-param-row">
         {vals.map((x) => {
           const cls = `${on(x) ? 'cfn-focus' : ''}`;
