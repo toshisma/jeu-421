@@ -3,8 +3,11 @@
  * Catalogue officiel du premier set : identifiants, textes et réglages de départ.
  * Les identifiants ne changent JAMAIS (ils sont stockés dans les collections et les decks des joueurs).
  * Les chiffres (coûts, réglages) peuvent être ajustés par l'équilibrage.
- * 0.41 (demande de Sam : trop de cartes gratuites) : coûts refaits, 9 cartes à 0 (petites cartes de pioche
- * et faux pièges), la plupart à 1-2, les cartes fortes à 3 et plus ; chaque famille a sa courbe.
+ * 0.41 (demande de Sam : trop de cartes gratuites, puis « encore trop ») : économie serrée. 1 Tournée par manche
+ * (+1 pour le perdant), réserve de 6 ; coûts : 6 cartes à 0, 12 à 1, 20 à 2, 9 à 3, 2 à 4, 1 à 5. Jouer une carte
+ * est un choix ; en jouer deux demande d'avoir économisé ou d'avoir joué une carte qui rapporte des Tournées
+ * (Tournée du patron, Fermeture !, Tant qu’on y est, Vide-poches, Leurre, Mouchard, Complice, Le Patron)
+ * ou qui baisse les coûts (Mise en bouche, Le Beau-frère).
  */
 
 export type CardFamily = 'habitues' | 'ivresse' | 'pieges' | 'chaines';
@@ -69,7 +72,7 @@ export const CARDS: CardDef[] = [
   c('faux-421', 'Faux 4-2-1', 'pieges', 'piege', 2, 'rare', 'Quand l’adversaire termine avec un 4-2-1, il ne vaut que 2 cette manche.', '« Regarde mieux : c’est un 4 ou un 3 ? »'),
   c('coup-nenette', 'Le coup de la nénette', 'pieges', 'piege', 1, 'epique', 'Quand l’adversaire devrait gagner la manche avec une combinaison qui vaut 1 ou 2, elle devient une nénette.', '« Deux, deux, un. Et bonne nuit. »'),
   c('retournement-veste', 'Retournement de veste', 'pieges', 'piege', 4, 'legendaire', 'Quand l’adversaire devrait vous donner 8 jetons ou plus, c’est lui qui les reçoit à votre place.', '« Je n’ai jamais dit que j’étais de ton côté. »'),
-  c('vide-poches', 'Le Vide-poches', 'pieges', 'coup', 2, 'commune', 'Prenez 1 Tournée à l’adversaire (s’il en a) ; il défausse aussi une carte de sa main au hasard.', '« Tiens, c’est à qui, ça ? »'),
+  c('vide-poches', 'Le Vide-poches', 'pieges', 'coup', 1, 'commune', 'Prenez 1 Tournée à l’adversaire (s’il en a) ; il défausse aussi une carte de sa main au hasard.', '« Tiens, c’est à qui, ça ? »'),
   c('mouchard', 'Le Mouchard', 'pieges', 'piege', 1, 'commune', 'Quand l’adversaire joue un Coup, gagnez 1 Tournée et piochez 1 carte.', '« Il n’a rien dit… à part à vous. »'),
   c('courant-air', 'Le Courant d’air', 'pieges', 'piege', 1, 'rare', 'Quand l’adversaire installe un Habitué ou joue une Riposte, la carte s’envole : elle est défaussée sans effet.', '« Fermez la porte, on gèle ! »'),
   c('pot-aux-roses', 'Le Pot aux roses', 'pieges', 'riposte', 2, 'rare', 'Annulez un Coup ou un Dernier mot adverse qui coûte 2 ou plus.', '« Ah, on a découvert le pot aux roses ! »'),
@@ -86,7 +89,7 @@ export const CARDS: CardDef[] = [
   c('grand-enchainement', 'Le grand enchaînement', 'chaines', 'coup', 2, 'legendaire', 'Rejouez gratuitement le dernier Coup que vous avez joué dans cette manche. Si vous n’en avez joué aucun, piochez 2 cartes.', '« Et on remet ça, dans le même ordre. »'),
   c('tant-qu-on-y-est', 'Tant qu’on y est', 'chaines', 'coup', 3, 'commune', 'Gagnez 2 Tournées, plus 1 par autre carte jouée dans cette manche.', '« Une de plus, une de moins… »'),
   c('petite-soeur', 'La petite sœur', 'chaines', 'coup', 0, 'rare', 'Reprenez en main le dernier Coup de votre défausse (sauf une petite sœur).', '« Remettez-moi la petite sœur, patron. »'),
-  c('engrenage', 'L’Engrenage', 'chaines', 'piege', 0, 'rare', 'Quand l’adversaire joue sa 2e carte de la manche, elle est annulée.', '« Une fois qu’on a mis le doigt dedans… »'),
+  c('engrenage', 'L’Engrenage', 'chaines', 'piege', 1, 'rare', 'Quand l’adversaire joue sa 2e carte de la manche, elle est annulée.', '« Une fois qu’on a mis le doigt dedans… »'),
 ];
 
 export const CARD_BY_ID: Record<string, CardDef> = Object.fromEntries(CARDS.map((x) => [x.id, x]));
@@ -132,13 +135,14 @@ export const CF_RULES = {
  * Decks de départ offerts à la découverte du mode (20 cartes chacun, 2 familles, sans légendaire) ; aussi
  * utilisés par les invités et les ordinateurs. 0.40 : ajustés pour un duel Zinc / Bringue à 50/50, avec
  * des cartes nouvelles (Pourboire, Engrenage, Complice, Coup de l’étrier, Pot aux roses). 0.41 : réajustés
- * après la refonte des coûts (Fermeture, Videur et Domino pour le Zinc ; Cul sec, Vide-poches, Mouchard, Verre de trop pour la Bringue).
+ * après la refonte des coûts (Fermeture, Videur et Domino pour le Zinc ; Cul sec, Vide-poches, Mouchard, Verre de trop pour la Bringue) ; puis économie serrée (1 Tournée par manche) :
+ * Mise en bouche remplace L’Engrenage dans le Zinc, pour enchaîner avec ses Tournées du patron.
  * Les joueurs qui ont déjà reçu leurs decks gardent leur version (seuls les nouveaux venus ont celle-ci).
  */
 export const STARTER_DECKS: { id: string; name: string; cards: Record<string, number> }[] = [
   { id: 'le-zinc', name: 'Le Zinc', cards: {
     josiane: 1, 'vieux-marcel': 1, pilier: 1, 'beau-frere': 1, 'tournee-patron': 2, 'ticket-caisse': 1, pourboire: 1, 'note-salee': 2, 'coup-coude': 2,
-    'coup-pouce': 1, 'calcul-mental': 1, recompter: 1, 'reaction-chaine': 1, engrenage: 1, fermeture: 1, domino: 1, videur: 1,
+    'coup-pouce': 1, 'calcul-mental': 1, recompter: 1, 'reaction-chaine': 1, 'mise-bouche': 1, fermeture: 1, domino: 1, videur: 1,
   } },
   { id: 'la-bringue', name: 'La Bringue', cards: {
     'tete-tourne': 2, 'pari-comptoir': 1, complice: 1, 'de-sous-table': 1, 'cul-sec': 1, 'gueule-bois': 1, 'double-tournee': 1, 'coup-etrier': 1,

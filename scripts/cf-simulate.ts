@@ -44,14 +44,14 @@ function fits(deck: string[], id: string, curve = false): boolean {
  * PREF_FILE (variable d'environnement) : fichier JSON { carte: valeur } pour le recalculer.
  */
 let PREF = [
-  'mouchard', 'tournee-generale', 'grand-enchainement', 'tournee-patron', 'note-salee', 'bon-numero',
-  'tant-qu-on-y-est', 'fanfaron', 'leurre', 'courant-air', 'trinquer', 'mise-bouche', 'coup-coude',
-  'main-sac', 'efface-tout', 'vieux-marcel', 'ticket-caisse', 'cul-sec', 'yeux-piquent', 'tete-tourne',
-  'beau-frere', 'recompter', 'petite-soeur', 'verre-de-trop', 'de-sous-table', 'vide-poches', 'fermeture',
-  'coup-pouce', 'pot-aux-roses', 'calcul-mental', 'retournement-veste', 'josiane', 'pilier', 'coup-etrier',
-  'ardoise-piegee', 'domino', 'pari-comptoir', 'videur', 'double-tournee', 'fouine', 'faux-421',
-  'reaction-chaine', 'gueule-bois', 'croche-patte', 'pourboire', 'complice', 'coup-nenette', 'patron',
-  'verre-offert', 'engrenage',
+  'tant-qu-on-y-est', 'vide-poches', 'josiane', 'mise-bouche', 'recompter', 'trinquer', 'pot-aux-roses',
+  'tournee-generale', 'double-tournee', 'coup-etrier', 'petite-soeur', 'efface-tout', 'leurre', 'fermeture',
+  'verre-offert', 'main-sac', 'pari-comptoir', 'ardoise-piegee', 'tournee-patron', 'tete-tourne',
+  'verre-de-trop', 'vieux-marcel', 'domino', 'cul-sec', 'coup-pouce', 'calcul-mental', 'ticket-caisse',
+  'fouine', 'videur', 'patron', 'courant-air', 'retournement-veste', 'beau-frere', 'coup-coude',
+  'bon-numero', 'gueule-bois', 'note-salee', 'reaction-chaine', 'fanfaron', 'faux-421', 'complice', 'pilier',
+  'croche-patte', 'de-sous-table', 'mouchard', 'pourboire', 'coup-nenette', 'engrenage',
+  'grand-enchainement', 'yeux-piquent',
 ];
 if (process.env.PREF_FILE) {
   const mg = JSON.parse(readFileSync(process.env.PREF_FILE, 'utf8')) as Record<string, number>;
