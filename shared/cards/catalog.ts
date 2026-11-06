@@ -3,6 +3,8 @@
  * Catalogue officiel du premier set : identifiants, textes et réglages de départ.
  * Les identifiants ne changent JAMAIS (ils sont stockés dans les collections et les decks des joueurs).
  * Les chiffres (coûts, réglages) peuvent être ajustés par l'équilibrage.
+ * 0.41 (demande de Sam : trop de cartes gratuites) : coûts refaits, 9 cartes à 0 (petites cartes de pioche
+ * et faux pièges), la plupart à 1-2, les cartes fortes à 3 et plus ; chaque famille a sa courbe.
  */
 
 export type CardFamily = 'habitues' | 'ivresse' | 'pieges' | 'chaines';
@@ -129,7 +131,9 @@ export const CF_RULES = {
 /**
  * Decks de départ offerts à la découverte du mode (20 cartes chacun, 2 familles, sans légendaire) ; aussi
  * utilisés par les invités et les ordinateurs. 0.40 : ajustés pour un duel Zinc / Bringue à 50/50, avec
- * des cartes nouvelles (Pourboire, Engrenage, Complice, Coup de l’étrier, Pot aux roses).
+ * des cartes nouvelles (Pourboire, Engrenage, Complice, Coup de l’étrier, Pot aux roses). 0.41 : réajustés
+ * après la refonte des coûts (Fermeture et la petite sœur pour le Zinc ; Cul sec, Vide-poches, Mouchard pour la Bringue).
+ * Les joueurs qui ont déjà reçu leurs decks gardent leur version (seuls les nouveaux venus ont celle-ci).
  */
 export const STARTER_DECKS: { id: string; name: string; cards: Record<string, number> }[] = [
   { id: 'le-zinc', name: 'Le Zinc', cards: {
