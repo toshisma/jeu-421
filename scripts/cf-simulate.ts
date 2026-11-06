@@ -36,17 +36,18 @@ function fits(deck: string[], id: string, curve = false): boolean {
 
 /**
  * Ordre de préférence pour construire des decks « optimisés » : les cartes les mieux notées par les
- * dernières simulations d'abord (valeur marginale moyenne, 0.40), pour chercher les decks les plus forts possibles.
+ * dernières simulations d'abord (valeur marginale moyenne de 5 séries de 20 000 à 30 000 parties, 0.41 : nouveaux coûts),
+ * pour chercher les decks les plus forts possibles.
  * PREF_FILE (variable d'environnement) : fichier JSON { carte: valeur } pour le recalculer.
  */
 let PREF = [
-  'bon-numero', 'fouine', 'verre-offert', 'tete-tourne', 'efface-tout', 'fermeture', 'note-salee', 'tournee-generale',
-  'cul-sec', 'patron', 'coup-nenette', 'recompter', 'mouchard', 'domino', 'complice', 'de-sous-table',
-  'retournement-veste', 'coup-etrier', 'calcul-mental', 'trinquer', 'tournee-patron', 'pilier', 'ardoise-piegee',
-  'videur', 'reaction-chaine', 'leurre', 'coup-pouce', 'grand-enchainement', 'croche-patte', 'faux-421',
-  'yeux-piquent', 'beau-frere', 'fanfaron', 'gueule-bois', 'vide-poches', 'pot-aux-roses', 'ticket-caisse',
-  'courant-air', 'vieux-marcel', 'mise-bouche', 'coup-coude', 'tant-qu-on-y-est', 'petite-soeur', 'main-sac',
-  'engrenage', 'pari-comptoir', 'double-tournee', 'verre-de-trop', 'josiane', 'pourboire',
+  'tournee-patron', 'josiane', 'tete-tourne', 'tant-qu-on-y-est', 'beau-frere', 'retournement-veste',
+  'pari-comptoir', 'vide-poches', 'coup-pouce', 'trinquer', 'pot-aux-roses', 'cul-sec', 'efface-tout', 'faux-421',
+  'pilier', 'recompter', 'fouine', 'videur', 'note-salee', 'leurre', 'de-sous-table', 'mouchard', 'domino',
+  'reaction-chaine', 'ardoise-piegee', 'gueule-bois', 'ticket-caisse', 'verre-offert', 'coup-coude', 'coup-etrier',
+  'croche-patte', 'main-sac', 'grand-enchainement', 'tournee-generale', 'mise-bouche', 'yeux-piquent',
+  'double-tournee', 'bon-numero', 'vieux-marcel', 'verre-de-trop', 'coup-nenette', 'calcul-mental', 'complice',
+  'patron', 'petite-soeur', 'fanfaron', 'courant-air', 'pourboire', 'engrenage', 'fermeture',
 ];
 if (process.env.PREF_FILE) {
   const mg = JSON.parse(readFileSync(process.env.PREF_FILE, 'utf8')) as Record<string, number>;
