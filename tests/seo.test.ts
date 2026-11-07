@@ -9,6 +9,7 @@ import { request } from 'node:http';
 import { canonicalHostRedirect, canonicalPath, isAppPath, serveClient } from '../server/static';
 import { cfModeParam } from '../client/src/cfLink';
 import { CARDS } from '../shared/cards/catalog';
+import { DM_TARGETS, kindValue } from '../shared/dixmille/engine';
 
 describe('adresses canoniques', () => {
   const exists = (n: string) => n === 'regles-du-421.html';
@@ -175,5 +176,48 @@ describe('pages Coups Fourrés', () => {
     }
     expect([...h.matchAll(/<img /g)]).toHaveLength(CARDS.length);
     expect([...h.matchAll(/loading="lazy"/g)].length).toBeGreaterThanOrEqual(CARDS.length - 2);
+  });
+});
+
+describe('pages Le Courtisan (Dix mille)', () => {
+  const pub = join(process.cwd(), 'client', 'public');
+  const read = (slug: string) => readFileSync(join(pub, `${slug}.html`), 'utf8');
+  const ld = (h: string) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => JSON.parse(m[1])['@graph']);
+  const slugs = ['dix-mille-en-ligne', 'regles-du-dix-mille', 'strategie-dix-mille', 'jeu-de-des-kingdom-come-deliverance-2'];
+
+  it('valeurs recopiées dans les pages identiques au moteur', async () => {
+    // @ts-expect-error script Node sans déclaration de types
+    const page: { DM_TARGETS: number[]; kindValue: (f: number, n: number) => number } = await import('../scripts/seo-courtisan-pages.mjs');
+    expect(page.DM_TARGETS).toEqual([...DM_TARGETS]);
+    for (let f = 1; f <= 6; f++) for (let n = 1; n <= 6; n++) expect(page.kindValue(f, n)).toBe(kindValue(f, n));
+  });
+
+  it('plan du site, boutons « Jouer » vers le mode, image de partage, fil d’Ariane, titres courts', () => {
+    const sitemap = readFileSync(join(pub, 'sitemap.xml'), 'utf8');
+    for (const slug of slugs) {
+      const h = read(slug);
+      expect(sitemap).toContain(`<loc>https://421online.com/${slug}</loc>`);
+      expect(h).toContain('<a class="cta small" href="/?mode=courtisan" data-play>Jouer</a>');
+      expect(h).toMatch(/class="cta" href="\/\?mode=courtisan" data-play>/);
+      expect(h).toContain('<meta property="og:image" content="https://421online.com/og-courtisan.jpg">');
+      expect(h.match(/<title>([^<]+)<\/title>/)![1].length).toBeLessThanOrEqual(62);
+      const crumbs = ld(h).find((x) => x['@type'] === 'BreadcrumbList').itemListElement;
+      if (slug !== 'dix-mille-en-ligne') expect(crumbs[1].item).toBe('https://421online.com/dix-mille-en-ligne');
+      expect(ld(h).find((x) => x['@type'] === 'Article').about['@id']).toBe('https://421online.com/dix-mille-en-ligne#jeu');
+      for (const q of ld(h).find((x) => x['@type'] === 'FAQPage').mainEntity) expect(h).toContain(`<summary>${q.name}</summary>`);
+      for (const m of h.matchAll(/(?:src|content)="(?:https:\/\/421online\.com)?(\/(?:img|og-)[^"]+\.(?:webp|jpg|png))"/g)) expect(existsSync(join(pub, m[1]))).toBe(true);
+    }
+    for (const slug of ['jeux-de-des', 'jeux-entre-amis-a-distance', 'jouer-au-421-en-ligne']) expect(read(slug)).toContain('href="/dix-mille-en-ligne"');
+    const game = ld(read('dix-mille-en-ligne')).find((x) => x['@type'] === 'VideoGame');
+    expect(game).toMatchObject({ name: 'Le Courtisan', isAccessibleForFree: true, offers: { price: '0' } });
+    expect(game.aggregateRating).toBeUndefined();
+  });
+
+  it('page Kingdom Come: mention d’indépendance visible, aucune image, pas de dernier tour', () => {
+    const h = read('jeu-de-des-kingdom-come-deliverance-2');
+    expect(h).toContain('421online.com est un site indépendant, sans lien avec Warhorse Studios, Deep Silver ou Plaion ; Kingdom Come: Deliverance est une marque de ses propriétaires.');
+    expect(h.indexOf('class="disclaimer"')).toBeLessThan(h.indexOf('<h2'));
+    expect(h).not.toMatch(/<img /);
+    for (const slug of slugs) expect(read(slug)).not.toMatch(/chacun des autres joue/);
   });
 });

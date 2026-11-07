@@ -10,6 +10,9 @@
  *
  * Pages « Coups Fourrés » (mode cartes) : scripts/seo-cf-pages.mjs ; leurs boutons « Jouer » ouvrent
  * directement le mode (/?mode=cartes). Images : scripts/shots-cf-seo.mjs.
+ * Pages « Le Courtisan » (le Dix mille, ou Farkle, et la page sur le jeu de dés de Kingdom Come: Deliverance 2) :
+ * scripts/seo-courtisan-pages.mjs ; boutons « Jouer » vers /?mode=courtisan ; chiffres calculés par
+ * scripts/courtisan-probas.ts ; images : scripts/shots-courtisan-seo.mjs.
  * Le catalogue des cartes (.ts) est lu directement : Node 22.18 ou plus récent (sinon : node --import tsx).
  *
  * Mesure : chaque page note la visite (même suivi anonyme que le jeu, /api/visit, avec la vraie provenance,
@@ -18,7 +21,8 @@
  */
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { cfPages, CF_PLAY } from './seo-cf-pages.mjs';
+import { cfPages } from './seo-cf-pages.mjs';
+import { courtisanPages, CT_OG } from './seo-courtisan-pages.mjs';
 
 const SITE = 'https://421online.com';
 const OUT = join(process.cwd(), 'client', 'public');
@@ -26,7 +30,7 @@ const OUT = join(process.cwd(), 'client', 'public');
 const HOME_UPDATED = '2026-11-05';
 
 // Petits éléments réutilisables -------------------------------------------------------------------
-const dice = (s) => `<span class="dice" aria-label="${s.split('').join('-')}">${s.split('').map((d) => `<i class="d d${d}"></i>`).join('')}</span>`;
+const dice = (s) => `<span class="dice" role="img" aria-label="${s.split('').join('-')}">${s.split('').map((d) => `<i class="d d${d}"></i>`).join('')}</span>`;
 const play = (label, sub) => `<p class="play-box"><a class="cta" href="/" data-play>${label}</a>${sub ? `<small>${sub}</small>` : ''}</p>`;
 const toc = (items) => `<nav class="toc" aria-label="Sommaire"><b>Sommaire</b><ol>${items.map(([id, t]) => `<li><a href="#${id}">${t}</a></li>`).join('')}</ol></nav>`;
 
@@ -35,7 +39,7 @@ const pages = [
   {
     slug: 'jouer-au-421-en-ligne', nav: 'Jouer en ligne', short: 'Jouer au 421 en ligne',
     blurb: 'Tous les modes de jeu : contre l’ordinateur, partie rapide, tables privées, tournois.',
-    published: '2026-11-03', updated: '2026-11-05',
+    published: '2026-11-03', updated: '2026-11-07',
     title: 'Jouer au 421 en ligne gratuitement : solo, multijoueur, tournois',
     description: 'Jouez au 421 en ligne, gratuit et sans téléchargement : contre l’ordinateur, en partie rapide, en table privée avec vos amis ou en tournoi. Sur mobile et PC.',
     h1: 'Jouer au 421 en ligne, gratuitement',
@@ -61,6 +65,7 @@ ${toc([['commencer', 'Commencer en trente secondes'], ['modes', 'Les façons de 
 <section class="card"><h3>Défi du jour</h3><p>Les mêmes dés pour tout le monde, cinq coups, un seul essai qui compte, et un classement chaque jour.</p></section>
 <section class="card"><h3>Regarder une partie</h3><p>Le mode spectateur permet de suivre une table publique en cours (ou celle d’un ami), sans jouer, et de partir quand vous voulez.</p></section>
 <section class="card"><h3>Coups Fourrés, le 421 aux cartes</h3><p>Le même jeu de dés, en duel, avec un deck de 20 cartes à collectionner : pièges, relances, bluff. Contre l’ordinateur, entre amis, en ligue ou au tournoi du samedi. <a href="/coups-fourres">Découvrir Coups Fourrés</a>.</p></section>
+<section class="card"><h3>Le Courtisan, le Dix mille</h3><p>Un autre jeu de dés de comptoir, à six dés : mettre de côté ce qui rapporte, relancer ou encaisser. Contre l’ordinateur ou en ligne de 2 à 6. <a href="/dix-mille-en-ligne">Découvrir le Courtisan</a>.</p></section>
 </div>
 
 <h2 id="compte">Avec ou sans compte</h2>
@@ -95,7 +100,7 @@ ${play('Jouer au 421 maintenant', 'Gratuit, sans téléchargement')}
       ['Peut-on jouer au 421 contre l’ordinateur ?', 'Oui, contre 1 à 5 adversaires, en niveau facile, normal ou difficile. Le solo marche même sans connexion une fois le jeu ouvert.'],
       ['Combien de joueurs par partie en ligne ?', 'De 2 à 6 joueurs par table. L’hôte peut ajouter des joueurs ordinateur pour compléter.'],
     ],
-    related: ['421-entre-amis', 'regles-du-421', 'coups-fourres'],
+    related: ['421-entre-amis', 'regles-du-421', 'dix-mille-en-ligne'],
   },
   // ---------------------------------------------------------------------------------------------
   {
@@ -428,7 +433,7 @@ ${play('Lancer une partie maintenant', 'Le lien à envoyer à vos amis apparaît
   {
     slug: 'jeux-entre-amis-a-distance', nav: 'À distance', short: 'Jeux entre amis à distance',
     blurb: 'Organiser une partie rapide à distance : selon le nombre de joueurs et le temps.',
-    published: '2026-11-05', updated: '2026-11-05',
+    published: '2026-11-05', updated: '2026-11-07',
     title: 'Jeux entre amis à distance : organiser une partie rapide en ligne',
     description: 'Jouer entre amis à distance : quel format selon le nombre de joueurs et le temps disponible, avec ou sans appel vidéo, et en différé si besoin.',
     h1: 'Jouer entre amis à distance : le guide pratique',
@@ -452,7 +457,7 @@ ${toc([['bon-jeu', 'Ce qui fait un bon jeu à distance'], ['nombre', 'Selon le n
 <tbody>
 <tr><td>2</td><td>Les duels courts, avec revanche immédiate.</td><td>Table privée à deux, défi entre amis (mêmes dés pour les deux), ou un duel de <a href="/coups-fourres">Coups Fourrés</a>, le 421 aux cartes.</td></tr>
 <tr><td>3 ou 4</td><td>Le format idéal : tout le monde joue souvent et les alliances changent.</td><td>Table privée ; complétez avec un joueur ordinateur si quelqu’un manque.</td></tr>
-<tr><td>5 ou 6</td><td>Des tours rapides, sinon l’attente devient longue.</td><td>Table de 6 avec un temps de jeu court (10 à 20 secondes).</td></tr>
+<tr><td>5 ou 6</td><td>Des tours rapides, sinon l’attente devient longue.</td><td>Table de 6 avec un temps de jeu court (10 à 20 secondes), ou une table du <a href="/dix-mille-en-ligne">Courtisan</a> (le Dix mille), jusqu’à 6 joueurs.</td></tr>
 <tr><td>Plus de 6</td><td>Plusieurs tables, puis une finale.</td><td>Créez un tournoi : tables de 3 à 6, les meilleurs passent au tour suivant.</td></tr>
 </tbody></table></div>
 
@@ -485,19 +490,19 @@ ${play('Inviter mes amis à une partie', 'Un lien suffit, sans compte et sans t�
       ['Comment jouer à distance si on n’est pas disponibles en même temps ?', 'Avec un jeu en différé : dans 421online, les défis entre amis donnent les mêmes dés à chacun, qui joue quand il veut dans les 72 heures.'],
       ['Quel jeu en ligne pour 4 joueurs ?', 'Une table de 421 à 4 est le format idéal : tout le monde joue à chaque manche et les parties s’enchaînent vite.'],
     ],
-    related: ['421-entre-amis', 'jeu-multijoueur-navigateur', 'coups-fourres'],
+    related: ['421-entre-amis', 'jeu-multijoueur-navigateur', 'dix-mille-en-ligne'],
   },
   // ---------------------------------------------------------------------------------------------
   {
     slug: 'jeux-de-des', nav: 'Jeux de dés', short: 'Les jeux de dés classiques',
     blurb: '421, Zanzibar, Yams, Perudo, 5000 : les grands jeux de dés et leurs différences.',
-    published: '2026-11-05', updated: '2026-11-05',
+    published: '2026-11-05', updated: '2026-11-07',
     title: 'Jeux de dés classiques : 421, Zanzibar, Yams, Perudo, 5000',
     description: 'Les grands jeux de dés à jouer entre amis, comparés : 421, Zanzibar, Yams, Perudo et 5000. Nombre de dés et de joueurs, but du jeu, ambiance.',
     h1: 'Les jeux de dés classiques, comparés',
     lead: 'Quelques dés, un gobelet, et la soirée est lancée. Les jeux de dés sont parmi les plus anciens jeux de société, et ils se jouent toujours aussi bien entre amis. Voici les grands classiques francophones, ce qui les distingue, et lequel choisir.',
     body: `
-${toc([['comparatif', 'Le comparatif'], ['421', 'Le 421'], ['zanzibar', 'Le Zanzibar'], ['yams', 'Le Yams'], ['perudo', 'Le Perudo'], ['5000', 'Le 5000'], ['cartes', 'Dés et cartes : Coups Fourrés'], ['choisir', 'Lequel choisir ?']])}
+${toc([['comparatif', 'Le comparatif'], ['421', 'Le 421'], ['zanzibar', 'Le Zanzibar'], ['yams', 'Le Yams'], ['perudo', 'Le Perudo'], ['5000', 'Le 5000 et le Dix mille'], ['cartes', 'Dés et cartes : Coups Fourrés'], ['choisir', 'Lequel choisir ?']])}
 
 <h2 id="comparatif">Le comparatif</h2>
 <div class="table-wrap"><table>
@@ -507,7 +512,7 @@ ${toc([['comparatif', 'Le comparatif'], ['421', 'Le 421'], ['zanzibar', 'Le Zanz
 <tr><td>Zanzibar</td><td>3</td><td>2 et plus</td><td>Proche du 421, avec ses propres combinaisons</td><td>Comptoir</td></tr>
 <tr><td>Yams</td><td>5</td><td>1 et plus</td><td>Remplir une grille de combinaisons pour le meilleur total</td><td>Familial, calme</td></tr>
 <tr><td>Perudo</td><td>5 par joueur</td><td>3 et plus</td><td>Enchères et bluff sur des dés cachés</td><td>Bluff, éclats de rire</td></tr>
-<tr><td>5000</td><td>5 (ou 6)</td><td>2 et plus</td><td>Accumuler des points en prenant des risques</td><td>Stop ou encore</td></tr>
+<tr><td>5000 / Dix mille</td><td>5 ou 6</td><td>2 et plus</td><td>Accumuler des points en prenant des risques</td><td>Stop ou encore</td></tr>
 </tbody></table></div>
 
 <h2 id="421">Le 421</h2>
@@ -522,8 +527,9 @@ ${toc([['comparatif', 'Le comparatif'], ['421', 'Le 421'], ['zanzibar', 'Le Zanz
 <h2 id="perudo">Le Perudo</h2>
 <p>Jeu de bluff d’origine sud-américaine : chacun cache ses cinq dés sous un gobelet, puis on fait des enchères sur le nombre total de dés d’une valeur sur toute la table (« huit 4 ! »). Le joueur suivant surenchérit ou conteste ; celui qui a tort perd un dé. Idéal à partir de quatre ou cinq joueurs autour d’une vraie table.</p>
 
-<h2 id="5000">Le 5000</h2>
-<p>Un jeu de « stop ou encore » : on lance les dés, on met de côté ceux qui rapportent des points (les 1, les 5, les brelans), puis on décide de s’arrêter pour encaisser ou de relancer le reste, au risque de tout perdre si plus rien ne rapporte. Le premier à 5 000 points gagne. On le connaît aussi sous les noms de 10 000 ou Farkle, avec des variantes de comptage.</p>
+<h2 id="5000">Le 5000 et le Dix mille</h2>
+<p>Un jeu de « stop ou encore » : on lance les dés, on met de côté ceux qui rapportent des points (les 1, les 5, les brelans), puis on décide de s’arrêter pour encaisser ou de relancer le reste, au risque de tout perdre si plus rien ne rapporte. Le premier à 5 000 points gagne. On le connaît aussi sous les noms de <b>Dix mille</b> (10 000 points, avec six dés) ou <b>Farkle</b>, avec des variantes de comptage. C’est aussi la base du jeu de dés des tavernes de <a href="/jeu-de-des-kingdom-come-deliverance-2">Kingdom Come: Deliverance 2</a>.</p>
+<p>Sur 421online, il se joue dans le mode <a href="/dix-mille-en-ligne">Le Courtisan</a> : six dés, en 2 000, 4 000 ou 10 000 points, contre l’ordinateur ou en ligne. Les <a href="/regles-du-dix-mille">règles du Dix mille</a> et la <a href="/strategie-dix-mille">stratégie</a> (quand s’arrêter) ont leurs pages.</p>
 
 <h2 id="cartes">Dés et cartes : Coups Fourrés</h2>
 <p>Et si on ajoutait des cartes au 421 ? C’est le principe de <a href="/coups-fourres">Coups Fourrés</a> : les dés et les combinaisons du 421, plus un deck de 20 cartes par joueur pour relancer un dé, poser un piège ou bluffer. Un jeu de stratégie qui garde la tension des dés, à essayer gratuitement contre l’ordinateur.</p>
@@ -533,7 +539,7 @@ ${toc([['comparatif', 'Le comparatif'], ['421', 'Le 421'], ['zanzibar', 'Le Zanz
 <li><b>Pour une partie rapide à plusieurs</b>, à table ou à distance : le 421.</li>
 <li><b>Pour une soirée en famille, sans pression</b> : le Yams.</li>
 <li><b>Pour une grande tablée qui aime bluffer</b> : le Perudo.</li>
-<li><b>Pour ceux qui aiment prendre des risques</b> : le 5000.</li>
+<li><b>Pour ceux qui aiment prendre des risques</b> : le 5000 ou le Dix mille, à essayer dans <a href="/dix-mille-en-ligne">le Courtisan</a>.</li>
 <li><b>Pour un duel de stratégie et de bluff</b> : Coups Fourrés, le 421 aux cartes.</li>
 </ul>
 <p>Tous ces jeux se jouent avec de vrais dés. Pour le 421 sans matériel, à distance ou contre l’ordinateur, <a href="/" data-play>421online</a> fait le travail : bac en 3D, jetons comptés, règles appliquées. Et si vous jouez avec vos propres dés, le mode « arbitre » tient les comptes à votre place (voir <a href="/421-entre-amis">jouer au 421 entre amis</a>).</p>
@@ -542,18 +548,20 @@ ${play('Jouer au 421 en ligne', 'Le jeu de dés du comptoir, gratuit')}
     faq: [
       ['Quel est le jeu de dés de comptoir le plus connu ?', 'Le 421 est sans doute le plus célèbre en France et en Belgique, avec le Zanzibar et le 5000.'],
       ['Quelle différence entre le 421 et le Yams ?', 'Le 421 se joue avec 3 dés et des jetons, en manches rapides où la plus faible combinaison perd ; le Yams se joue avec 5 dés et une feuille de marque à remplir.'],
-      ['Peut-on jouer à un jeu de dés en ligne avec des amis ?', 'Oui : sur 421online, une table privée de 421 s’ouvre avec un lien, de 2 à 6 joueurs, sans téléchargement.'],
+      ['Peut-on jouer à un jeu de dés en ligne avec des amis ?', 'Oui : sur 421online, une table privée de 421 s’ouvre avec un lien, de 2 à 6 joueurs, sans téléchargement. Le Dix mille (mode Le Courtisan) se joue aussi en ligne, de 2 à 6.'],
+      ['Le 5000, le Dix mille et le Farkle, c’est le même jeu ?', 'Oui, avec des variantes : même principe de dés mis de côté et de « stop ou encore », mais un score à atteindre et quelques valeurs différentes.'],
     ],
-    related: ['regles-du-421', 'coups-fourres', 'jeux-entre-amis-a-distance'],
+    related: ['regles-du-421', 'dix-mille-en-ligne', 'coups-fourres'],
   },
   ...cfPages,
+  ...courtisanPages,
 ];
 
 // Gabarit -----------------------------------------------------------------------------------------
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const strip = (s) => s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 const bySlug = Object.fromEntries(pages.map((p) => [p.slug, p]));
-const HEADER_NAV = ['jouer-au-421-en-ligne', 'regles-du-421', 'strategie-421', '421-entre-amis', 'jeux-de-des', 'coups-fourres'];
+const HEADER_NAV = ['jouer-au-421-en-ligne', 'regles-du-421', 'strategie-421', '421-entre-amis', 'jeux-de-des', 'coups-fourres', 'dix-mille-en-ligne'];
 const ORG = { '@type': 'Organization', '@id': `${SITE}/#organisation`, name: '421online', url: `${SITE}/`, logo: `${SITE}/icons/icon-512.png` };
 
 // Mesure (même suivi anonyme que le jeu : identifiant d'appareil aléatoire, haché par le serveur, sans cookie).
@@ -572,6 +580,20 @@ const CF_GAME = {
   publisher: { '@id': `${SITE}/#organisation` }, isPartOf: { '@id': `${SITE}/#jeu` },
 };
 
+/** Le Courtisan, le mode Dix mille : décrit une fois (page principale du mode). Aucune note ni avis. */
+const CT_ID = `${SITE}/dix-mille-en-ligne#jeu`;
+const CT_GAME = {
+  '@type': 'VideoGame', '@id': CT_ID, name: 'Le Courtisan', alternateName: ['Dix mille', '10 000', 'Farkle'], url: `${SITE}/dix-mille-en-ligne`,
+  description: 'Le jeu de dés traditionnel du Dix mille (Farkle), gratuit dans le navigateur : six dés, mettre de côté ce qui rapporte, relancer ou encaisser. Contre l’ordinateur (1 à 3 adversaires) ou en ligne de 2 à 6 joueurs.',
+  inLanguage: 'fr', genre: ['Jeu de dés', 'Jeu de société'],
+  gamePlatform: ['Navigateur web'], applicationCategory: 'GameApplication', operatingSystem: 'Tout appareil avec un navigateur récent (Android, iOS, Windows, macOS, Linux)',
+  playMode: ['SinglePlayer', 'MultiPlayer'], numberOfPlayers: { '@type': 'QuantitativeValue', minValue: 1, maxValue: 6 },
+  isAccessibleForFree: true, offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+  image: `${SITE}${CT_OG}`, screenshot: `${SITE}/img/partie-courtisan.webp`,
+  publisher: { '@id': `${SITE}/#organisation` }, isPartOf: { '@id': `${SITE}/#jeu` },
+};
+const ABOUT = { cf: CF_ID, courtisan: CT_ID };
+
 for (const p of pages) {
   const url = `${SITE}/${p.slug}`;
   const playHref = p.play ?? '/';
@@ -584,9 +606,10 @@ for (const p of pages) {
       {
         '@type': 'Article', '@id': `${url}#article`, headline: p.h1, description: p.description, inLanguage: 'fr', mainEntityOfPage: url,
         datePublished: p.published, dateModified: p.updated, author: ORG, publisher: ORG, image: `${SITE}${p.image?.src ?? og}`,
-        about: { '@id': p.about === 'cf' ? CF_ID : `${SITE}/#jeu` },
+        about: { '@id': ABOUT[p.about] ?? `${SITE}/#jeu` },
       },
       ...(p.slug === 'coups-fourres' ? [CF_GAME] : []),
+      ...(p.slug === 'dix-mille-en-ligne' ? [CT_GAME] : []),
       { '@type': 'FAQPage', '@id': `${url}#faq`, mainEntity: p.faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) },
       { '@type': 'BreadcrumbList', itemListElement: crumbs.map(([name, item], i) => ({ '@type': 'ListItem', position: i + 1, name, item })) },
     ],
@@ -644,7 +667,7 @@ ${p.faq.map(([q, a]) => `<details><summary>${q}</summary><p>${a}</p></details>`)
 <aside class="related" aria-label="À lire aussi"><h2>À lire aussi</h2><div>${related}</div></aside>
 </main>
 <footer>
-<p><a href="/" data-play>421online.com</a> : le 421, jeu de dés de comptoir, gratuit en ligne, seul ou entre amis, et <a href="/coups-fourres">Coups Fourrés</a>, le 421 aux cartes. Les pièces et les capsules du jeu se gagnent en jouant et ne s’achètent pas.</p>
+<p><a href="/" data-play>421online.com</a> : le 421, jeu de dés de comptoir, gratuit en ligne, seul ou entre amis, <a href="/coups-fourres">Coups Fourrés</a>, le 421 aux cartes, et <a href="/dix-mille-en-ligne">Le Courtisan</a>, le Dix mille à six dés. Les pièces, les capsules et les Groschen du jeu sont des monnaies virtuelles, sans argent réel : elles ne s’achètent pas.</p>
 <nav class="links" aria-label="Toutes les pages d’aide">${pages.map((x) => `<a href="/${x.slug}">${x.short}</a>`).join('')}<a href="/confidentialite">Confidentialité et mentions légales</a></nav>
 </footer>
 ${TRACK}
@@ -656,7 +679,7 @@ ${TRACK}
   for (const m of html.matchAll(/href="\/([a-z0-9-]+)(?:#[^"]*)?"/g)) if (!bySlug[m[1]] && m[1] !== 'confidentialite') throw new Error(`Lien inconnu /${m[1]} dans ${p.slug}`);
   for (const m of html.matchAll(/(?:src|content)="(?:https:\/\/421online\.com)?\/((?:img|og-|icons)[^"]*\.(?:webp|png|jpg))"/g)) if (!existsSync(join(OUT, m[1]))) throw new Error(`Image absente /${m[1]} dans ${p.slug}`);
   for (const m of html.matchAll(/href="#([^"]+)"/g)) if (!html.includes(`id="${m[1]}"`)) throw new Error(`Ancre absente #${m[1]} dans ${p.slug}`);
-  if (p.play && !html.includes(`href="${CF_PLAY}" data-play`)) throw new Error(`Bouton Jouer absent dans ${p.slug}`);
+  if (p.play && !html.includes(`class="cta" href="${p.play}" data-play`)) throw new Error(`Bouton Jouer absent dans ${p.slug}`);
   writeFileSync(join(OUT, `${p.slug}.html`), html);
 }
 
