@@ -238,6 +238,7 @@ describe('Le Courtisan : les Groschen', () => {
     const cr = await emit(cs[0], 'table:create', { name: accs[0].username, stake, auth: accs[0].token, target: 2000 });
     expect(cr.ok).toBe(true);
     cs[0].id = cr.playerId;
+    cs[0].token = cr.token;
     for (let i = 1; i < humans; i++) {
       const r = await emit(cs[i], 'table:join', { code: cr.code, name: accs[i].username, auth: accs[i].token });
       expect(r.ok).toBe(true);
@@ -284,11 +285,16 @@ describe('Le Courtisan : les Groschen', () => {
     await emit(cs[0], 'table:start');
     await until(() => cs.every((c) => !!c.state));
     await emit(cs[0], 'table:leave');
-    const end = await playOut([cs[1]], 40_000);
+    // Il revient : il retrouve sa place, mais la partie reste un abandon (ni pot ni récompense).
+    const back = await client();
+    expect((await emit(back, 'table:join', { code: (cs[1].table as DmPublicTable).code, token: cs[0].token, auth: accs[0].token })).ok).toBe(true);
+    back.id = cs[0].id;
+    await until(() => !!back.state);
+    const end = await playOut([back, cs[1]], 40_000);
     await wait(50);
     expect(await bal(accs[0].token)).toBe(16);
     expect(await bal(accs[1].token)).toBe(end.winner === cs[1].id ? 16 + 8 : 20);
-    for (const c of cs) c.s.close();
+    for (const c of [...cs, back]) c.s.close();
   }, 60_000);
 
   it('contre l’ordinateur avec mise : partie jouée par le serveur, pot au gagnant', async () => {

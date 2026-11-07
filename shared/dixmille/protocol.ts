@@ -12,7 +12,7 @@ export const DM_DECISION_SECONDS = 30;
 
 export interface DmPublicMember {
   id: string; name: string; avatar: string; ready: boolean; connected: boolean; left: boolean; isHost: boolean;
-  bot?: DmLevel; filler?: boolean; account?: string; photo?: string | null; accessory?: string; dice?: string; trail?: string;
+  bot?: DmLevel; filler?: boolean; /** A quitté la partie en cours (abandon). */ quit?: boolean; account?: string; photo?: string | null; accessory?: string; dice?: string; trail?: string;
 }
 export interface DmPublicTable {
   code: string; title: string; hostId: string; status: 'lobby' | 'playing';

@@ -73,6 +73,11 @@ interface Member {
   bot?: DmLevel;
   filler?: boolean;
   dice?: string;
+  /**
+   * A quitté la partie en cours (abandon) : même s'il revient, il ne touche ni le pot ni la
+   * récompense de cette partie. Remis à zéro à la partie suivante.
+   */
+  quit?: boolean;
 }
 interface Table {
   code: string;
@@ -184,7 +189,7 @@ export function createDixMilleOnline(c: Ctx) {
         const info = m.userId ? c.publicInfo(m.userId) : null;
         return {
           id: m.id, name: m.name, avatar: m.avatar, ready: m.ready, connected: m.socketId != null || !!m.bot, left: m.left, isHost: m.id === t.hostId,
-          ...(m.bot ? { bot: m.bot } : {}), ...(m.filler ? { filler: true } : {}),
+          ...(m.bot ? { bot: m.bot } : {}), ...(m.filler ? { filler: true } : {}), ...(m.quit ? { quit: true } : {}),
           ...(info ? { account: info.account, photo: info.photo ?? null, ...(info.accessory ? { accessory: info.accessory } : {}), ...(info.trail ? { trail: info.trail } : {}) } : {}),
           dice: info?.dice ?? m.dice,
         };
@@ -266,6 +271,7 @@ export function createDixMilleOnline(c: Ctx) {
   /** Lancement : mises prélevées et bloquées ; renvoie une erreur si un joueur ne peut plus payer. */
   function startGame(t: Table): string | null {
     const players = t.members.filter((m) => !m.left);
+    for (const m of t.members) m.quit = false;
     if (t.stake > 0) {
       for (const m of players.filter((x) => !x.bot)) {
         const problem = stakeProblem(m.userId, t.stake);
@@ -377,11 +383,11 @@ export function createDixMilleOnline(c: Ctx) {
     // rien : les joueurs restés récupèrent leur mise, les mises des partants sont perdues.
     if (t.pot > 0) {
       const w = memberOf(t, g.winner!)!;
-      if (!w.bot && !w.left && w.userId) {
+      if (!w.bot && !w.quit && w.userId) {
         c.groschen.payWinner(t.ref, w.userId, t.pot);
         notice(t, `${w.name} emporte le pot : ${t.pot} Groschen !`);
       } else if (!w.bot) {
-        c.groschen.refund(t.ref, inGame.filter((m) => !m.bot && !m.left && m.userId).map((m) => m.userId!));
+        c.groschen.refund(t.ref, inGame.filter((m) => !m.bot && !m.quit && m.userId).map((m) => m.userId!));
         notice(t, `${w.name} a quitté la table avant la fin : les joueurs restés récupèrent leur mise.`);
       } else {
         c.groschen.payWinner(t.ref, null, 0);
@@ -392,7 +398,7 @@ export function createDixMilleOnline(c: Ctx) {
     for (const m of inGame) {
       if (!m.userId) continue;
       const out = c.reward(m.userId, {
-        won: g.winner === m.id, place: placeOf(g, m.id), players: g.players.length, humans, botLevels, minutes, day: c.groschen.today(), abandoned: m.left,
+        won: g.winner === m.id, place: placeOf(g, m.id), players: g.players.length, humans, botLevels, minutes, day: c.groschen.today(), abandoned: !!m.quit,
       });
       if (out && m.socketId) sock(m.socketId)?.emit('profile:reward', { reward: out.reward, levelBefore: out.applied.levelBefore, levelAfter: out.applied.levelAfter, profile: out.applied.profile });
     }
@@ -442,7 +448,7 @@ export function createDixMilleOnline(c: Ctx) {
     // Table rangée avant la fin de sa partie : les joueurs qui n'ont pas quitté récupèrent leur mise
     // (les partants l'ont perdue). Jamais de mise laissée bloquée.
     if (t.ref && t.game && t.game.phase !== 'fini' && !t.rewarded) {
-      c.groschen.refund(t.ref, t.members.filter((m) => !m.bot && !m.left && m.userId && t.players.includes(m.id)).map((m) => m.userId!));
+      c.groschen.refund(t.ref, t.members.filter((m) => !m.bot && !m.quit && m.userId && t.players.includes(m.id)).map((m) => m.userId!));
       t.rewarded = true;
     }
     if (t.timer) clearTimeout(t.timer);
@@ -821,6 +827,7 @@ export function createDixMilleOnline(c: Ctx) {
       if (t.status === 'lobby') t.members = t.members.filter((y) => y !== m);
       else if (running) {
         m.left = true;
+        m.quit = true;
         notice(t, `${m.name} a quitté la partie : le serveur joue à sa place (il peut revenir).`, 'warning');
         if (currentPlayer(t.game!).id === m.id) schedule(t, 0);
         else if (!t.members.some((y) => humanHere(y) && t.players.includes(y.id))) schedule(t, 0);

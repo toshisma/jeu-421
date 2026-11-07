@@ -42,6 +42,8 @@ const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const SETUP_KEY = '421.dixmille';
 const COLORS = ['#f1cc7d', '#e2694f', '#4f9fd1', '#a477d6', '#57b07a', '#e0609a'];
 export const MODE_NAME = 'Le Courtisan';
+/** Version sans serveur (fichier unique) : pas de jeu en ligne ni de Groschen. */
+const NO_SERVER = typeof __STANDALONE__ !== 'undefined' && __STANDALONE__;
 
 export interface DmSetup { opponents: number; level: DmLevel; target: number; stake: number }
 function loadSetup(): DmSetup {
@@ -172,7 +174,7 @@ export function DmRules({ target }: { target?: number }) {
 // ---------------------------------------------------------------------------------------------
 // Joueur d'animations : rejoue chaque action dans le bac (lancer, dés mis de côté, raté, main pleine)
 
-interface Seat { id: string; name: string; avatar: string; color: string; photo?: string | null; persona?: Persona; isMe: boolean; bot?: boolean; away?: boolean; left?: boolean; dice?: string; trail?: string }
+interface Seat { id: string; name: string; avatar: string; color: string; photo?: string | null; persona?: Persona; isMe: boolean; bot?: boolean; away?: boolean; left?: boolean; quit?: boolean; dice?: string; trail?: string }
 type Flash = { kind: 'rate'; lost: number; name: string; id: number } | { kind: 'pleine'; id: number } | { kind: 'gain'; points: number; seat: string; id: number };
 interface Step { state: DmState; events: DmEvent[]; action: DmAction | null; by: string; animSeed: number; gesture?: ThrowGesture }
 
@@ -616,7 +618,7 @@ function seatsOf(session: DmSession, state: DmState | null, personas?: Persona[]
     return {
       id, name: m?.name ?? state?.players.find((p) => p.id === id)?.name ?? '?', avatar: m?.avatar ?? '🎲', color: persona?.color ?? COLORS[i % COLORS.length],
       photo: m?.photo ?? null, isMe: id === session.playerId, bot: !!m?.bot, persona, dice: m?.dice, trail: m?.trail,
-      away: !!m && !m.bot && !m.connected && !m.left, left: !!m?.left,
+      away: !!m && !m.bot && !m.connected && !m.left, left: !!m?.left, quit: !!m?.quit,
     };
   });
 }
@@ -678,7 +680,7 @@ function DmOnlineGame({ session, pa, settings, onSettings, appearance, onExit, o
   const stake = t?.stake ?? 0;
   const pot = t?.pot ?? 0;
   const won = !!meSeat && s.winner === meSeat.id;
-  const grDelta = pot > 0 && meSeat ? (won && !meSeat.left ? pot - stake : -stake) : 0;
+  const grDelta = pot > 0 && meSeat ? (won && !meSeat.quit ? pot - stake : -stake) : 0;
   const isHost = session.isHost && !t?.solo;
   return (
     <>
@@ -900,7 +902,7 @@ export function DixMilleSetup({ onBack, onStart, onClassic, onCards, onRules, on
 }) {
   const [setup, setSetup] = useState<DmSetup>(loadSetup);
   const [roster, setRoster] = useState(() => [...PERSONAS].sort(() => Math.random() - 0.5));
-  const [tab, setTab] = useState<'solo' | 'ligne'>(() => (loadDmSession() ? 'ligne' : 'solo'));
+  const [tab, setTab] = useState<'solo' | 'ligne'>(() => (loadDmSession() && !NO_SERVER ? 'ligne' : 'solo'));
   const [code, setCode] = useState('');
   const [table, setTable] = useState<{ target: number; stake: number; visibility: 'private' | 'public' }>({ target: 4000, stake: 0, visibility: 'private' });
   const chosen = roster.slice(0, setup.opponents);
@@ -929,11 +931,11 @@ export function DixMilleSetup({ onBack, onStart, onClassic, onCards, onRules, on
         <span className="dm-intro-dice" aria-hidden>{[1, 5, 5, 1].map((v, i) => <MiniDie key={i} value={v} size={18} />)}</span>
         <p>Mettez de côté les dés qui rapportent, relancez les autres… ou encaissez avant de tout perdre. <button className="link" onClick={onRules}>Lire les règles</button></p>
       </div>
-      {!pa.isAccount && onAccount && <button className="dm-gr-cta" onClick={onAccount}><GroschenIcon size={22} /><span><b>Les Groschen, monnaie du Courtisan</b><small>Avec un compte gratuit : +{GROSCHEN_DAILY} chaque jour, et des mises</small></span></button>}
-      <div className="seg dm-tabs" role="tablist">
+      {!pa.isAccount && onAccount && !NO_SERVER && <button className="dm-gr-cta" onClick={onAccount}><GroschenIcon size={22} /><span><b>Les Groschen, monnaie du Courtisan</b><small>Avec un compte gratuit : +{GROSCHEN_DAILY} chaque jour, et des mises</small></span></button>}
+      {!NO_SERVER && <div className="seg dm-tabs" role="tablist">
         <button role="tab" aria-selected={tab === 'solo'} className={tab === 'solo' ? 'on' : ''} onClick={() => setTab('solo')}>Contre l’ordinateur</button>
         <button role="tab" aria-selected={tab === 'ligne'} className={tab === 'ligne' ? 'on' : ''} onClick={() => setTab('ligne')}>En ligne (2 à 6)</button>
-      </div>
+      </div>}
       {tab === 'solo' ? (
         <>
           <Section title="Adversaires" aside={<button className="btn ghost small" onClick={() => setRoster([...PERSONAS].sort(() => Math.random() - 0.5))}><Icon name="resume" size={18} /> Changer</button>}>
