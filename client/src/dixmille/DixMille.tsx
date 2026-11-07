@@ -185,7 +185,7 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
         setFlash({ kind: 'pleine', id: Date.now() });
         tray.current?.setKept(Array(6).fill(false));
         tray.current?.setHidden(Array(6).fill(false));
-        await wait(900);
+        await wait(1100);
       } else if (e.kind === 'lancer') {
         const seat = seats.find((x) => x.id === e.playerId)!;
         tray.current?.setDiceSkin(seat.isMe ? null : PERSONA_DICE[seat.id] ?? null);
