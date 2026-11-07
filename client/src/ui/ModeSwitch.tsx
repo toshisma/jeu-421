@@ -1,12 +1,12 @@
 /**
  * Sélecteur de mode, au même endroit sur l'accueil du 421 classique, dans le menu de Coups Fourrés
- * et dans celui du Dix mille (juste sous la barre du haut) : seul l'onglet allumé change.
+ * et dans celui du Courtisan (juste sous la barre du haut) : seul l'onglet allumé change.
  */
 export type GameMode = 'classique' | 'cartes' | 'dixmille';
 
 export function ModeSwitch({ active, onClassic, onCards, onDixMille }: {
   active: GameMode; onClassic: () => void; onCards: () => void;
-  /** Le Dix mille (troisième onglet, s'il est disponible). */
+  /** Le Courtisan (troisième onglet, s'il est disponible). */
   onDixMille?: () => void;
 }) {
   const three = !!onDixMille;
@@ -21,7 +21,7 @@ export function ModeSwitch({ active, onClassic, onCards, onDixMille }: {
       </button>
       {onDixMille && (
         <button role="tab" aria-selected={active === 'dixmille'} className={`ms-tab dixmille${active === 'dixmille' ? ' on' : ''}`} onClick={active === 'dixmille' ? undefined : onDixMille}>
-          <span className="ms-dice" aria-hidden><i /><i /></span>Dix mille
+          <span className="ms-dice" aria-hidden><i /><i /></span>Courtisan
           {active !== 'dixmille' && <em className="ms-new">Nouveau</em>}
         </button>
       )}

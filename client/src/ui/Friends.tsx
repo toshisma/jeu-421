@@ -8,7 +8,7 @@ import { Icon } from './Icon';
 
 interface Friend {
   username: string; level: number; me?: boolean; lastSeen: number; online: boolean;
-  room: { code: string; status: 'salon' | 'partie'; joinable: boolean; watchable?: boolean } | null;
+  room: { code: string; status: 'salon' | 'partie'; joinable: boolean; watchable?: boolean; game?: 'courtisan' } | null;
   /** Présence dans Coups Fourrés (menu du mode, ou partie qu'on peut regarder). */
   cf?: { status: 'menu' | 'partie'; code?: string; watchable?: boolean } | null;
 }
@@ -25,7 +25,7 @@ export function seenAgo(t: number, now = Date.now()): string {
 }
 
 /** Écran Amis : qui est en ligne, qui joue, rejoindre son salon d'un clic, voir son profil. */
-export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessage, onWatch, onCfChallenge, onCfWatch }: { pa: ProfileApi; onBack: () => void; onAccount: () => void; onJoin: (code: string) => void; onInvite: (username: string) => void; onMessage?: (username: string) => void; onWatch?: (code: string) => void;
+export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessage, onWatch, onCfChallenge, onCfWatch }: { pa: ProfileApi; onBack: () => void; onAccount: () => void; onJoin: (code: string, game?: string) => void; onInvite: (username: string) => void; onMessage?: (username: string) => void; onWatch?: (code: string, game?: string) => void;
   /** Ouvert depuis Coups Fourrés : « Défier » lance un duel du mode cartes, « Regarder » sa partie. */
   onCfChallenge?: (username: string) => void; onCfWatch?: (code: string) => void }) {
   const [list, setList] = useState<Friend[] | null>(null);
@@ -59,14 +59,15 @@ export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessa
         <Initial name={f.username} dot={f.room || f.cf?.status === 'partie' ? 'play' : f.online ? 'on' : 'off'} />
         <span className="fr-name"><b>{f.username}</b><small>
           {f.cf ? (f.cf.status === 'partie' ? 'En partie de Coups Fourrés' : 'Dans Coups Fourrés')
+            : f.room?.game === 'courtisan' ? (f.room.status === 'salon' ? 'À une table du Courtisan' : 'Joue au Courtisan')
             : f.room ? (f.room.status === 'salon' ? 'Dans un salon, en attente' : 'En pleine partie') : f.online ? 'En ligne' : seenAgo(f.lastSeen)}
           {' · '}niv. {f.level}</small></span>
       </button>
       {onCfChallenge ? (f.cf?.status === 'partie' && f.cf.watchable && f.cf.code && onCfWatch
         ? <button className="btn small" onClick={() => onCfWatch(f.cf!.code!)}><Icon name="eye" size={16} /> Regarder</button>
         : <button className="btn small primary" onClick={() => onCfChallenge(f.username)}>Défier</button>)
-        : f.room?.joinable ? <button className="btn small primary" onClick={() => onJoin(f.room!.code)}>Rejoindre</button>
-        : f.room?.watchable && onWatch ? <button className="btn small" onClick={() => onWatch(f.room!.code)}><Icon name="eye" size={16} /> Regarder</button>
+        : f.room?.joinable ? <button className="btn small primary" onClick={() => onJoin(f.room!.code, f.room!.game)}>Rejoindre</button>
+        : f.room?.watchable && onWatch ? <button className="btn small" onClick={() => onWatch(f.room!.code, f.room!.game)}><Icon name="eye" size={16} /> Regarder</button>
         : f.online && !f.room ? <button className="btn small primary" onClick={() => onInvite(f.username)}>Inviter</button>
         : onMessage ? <button className="icon-btn" onClick={() => onMessage(f.username)} aria-label={`Écrire à ${f.username}`}><Icon name="chat" size={20} /></button> : null}
     </li>
@@ -126,11 +127,11 @@ export function FriendsButton({ pa, onOpen }: { pa: ProfileApi; onOpen: () => vo
 }
 
 /** Bandeau d'invitation reçue : accepter (rejoindre la table) ou refuser. */
-export function InviteBanner({ pa, onJoin }: { pa: ProfileApi; onJoin: (code: string) => void }) {
-  const [list, setList] = useState<{ from: string; code: string }[]>([]);
+export function InviteBanner({ pa, onJoin }: { pa: ProfileApi; onJoin: (code: string, game?: string) => void }) {
+  const [list, setList] = useState<{ from: string; code: string; game?: string }[]>([]);
   useEffect(() => {
     if (!pa.token) { setList([]); return; }
-    const load = () => { if (document.visibilityState === 'visible') api<{ invites: { from: string; code: string }[] }>('/invites', { token: pa.token! }).then((r) => setList(r.invites)).catch(() => {}); };
+    const load = () => { if (document.visibilityState === 'visible') api<{ invites: { from: string; code: string; game?: string }[] }>('/invites', { token: pa.token! }).then((r) => setList(r.invites)).catch(() => {}); };
     load(); const t = setInterval(load, 10_000); return () => clearInterval(t);
   }, [pa.token]);
   const inv = list[list.length - 1];
@@ -139,8 +140,8 @@ export function InviteBanner({ pa, onJoin }: { pa: ProfileApi; onJoin: (code: st
   return (
     <div className="invite-banner" role="alert">
       <span aria-hidden>🎲</span>
-      <span className="ib-text"><b>{inv.from}</b> vous invite à sa table</span>
-      <button className="btn primary small" onClick={() => { drop(); onJoin(inv.code); }}>Accepter</button>
+      <span className="ib-text"><b>{inv.from}</b> vous invite à sa table{inv.game === 'courtisan' ? ' du Courtisan' : ''}</span>
+      <button className="btn primary small" onClick={() => { drop(); onJoin(inv.code, inv.game); }}>Accepter</button>
       <button className="btn ghost small" onClick={drop}>Refuser</button>
     </div>
   );

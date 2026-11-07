@@ -9,7 +9,7 @@ import { mulberry32, type Rng } from '../rng';
 import { DM_DICE, currentPlayer, diceAfter, inPlay, validSelections, type DmAction, type DmLevel, type DmState } from './engine';
 
 /** Probabilité de rater (aucun dé qui rapporte) selon le nombre de dés lancés. */
-export const MISS_CHANCE = [1, 2 / 3, 4 / 9, 0.2778, 0.1574, 0.0772, 0.0231];
+export const MISS_CHANCE = [1, 2 / 3, 4 / 9, 60 / 216, 204 / 1296, 600 / 7776, 1440 / 46656];
 
 // ---------------------------------------------------------------------------------------------
 // Espérance d'un tour (programmation dynamique, calculée une fois, à la demande)

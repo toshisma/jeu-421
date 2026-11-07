@@ -118,3 +118,29 @@ export function useTurnAlert(controller: GameController, enabled: boolean, vibra
     };
   }, [controller, enabled]);
 }
+
+/**
+ * Variante simple (Le Courtisan en ligne) : `mine` dit si c'est mon tour d'après l'état du serveur
+ * (et non l'écran, dont les animations sont suspendues quand l'onglet est caché).
+ */
+export function useMyTurnAlert(mine: boolean, enabled: boolean, vibrate: boolean) {
+  const alerter = useRef<Alerter | null>(null);
+  const was = useRef(false);
+  useEffect(() => {
+    if (!enabled || typeof document === 'undefined') return;
+    const a = (alerter.current ??= new Alerter());
+    if (mine && !was.current && document.visibilityState === 'visible' && vibrate) { try { navigator.vibrate?.([60, 80, 60]); } catch { /* refusé */ } }
+    was.current = mine;
+    const update = () => { if (mine && away()) a.start({ notify: true }); else a.stop(); };
+    update();
+    document.addEventListener('visibilitychange', update);
+    window.addEventListener('focus', update);
+    window.addEventListener('blur', update);
+    return () => {
+      document.removeEventListener('visibilitychange', update);
+      window.removeEventListener('focus', update);
+      window.removeEventListener('blur', update);
+      a.stop();
+    };
+  }, [mine, enabled, vibrate]);
+}

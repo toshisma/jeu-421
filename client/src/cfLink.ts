@@ -4,3 +4,7 @@
  */
 export const cfModeParam = (search: string): boolean =>
   /^(cartes|coups-fourres)$/i.test(new URLSearchParams(search).get('mode') ?? '');
+
+/** Lien d'entrée direct dans Le Courtisan : `/?mode=courtisan` (aussi `dix-mille` et `farkle`). */
+export const courtisanModeParam = (search: string): boolean =>
+  /^(courtisan|dix-mille|dixmille|farkle)$/i.test(new URLSearchParams(search).get('mode') ?? '');

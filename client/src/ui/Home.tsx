@@ -46,13 +46,13 @@ export interface HomeProps {
   onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
   /** Coups Fourrés, le mode cartes. */
   onCards?: () => void;
-  /** Le Dix mille (6 dés, contre l'ordinateur). */
+  /** Le Courtisan (le Dix mille : 6 dés, contre l'ordinateur ou en ligne de 2 à 6). */
   onDixMille?: () => void;
   /** Panel de modération (le menu ne le montre qu'aux modérateurs). */
   onModeration?: () => void;
   /** Tableau de bord d'administration (le menu ne le montre qu'aux admins). */
   onAdmin?: () => void;
-  resume: { code: string; tournament?: boolean } | null; onResume: () => void;
+  resume: { code: string; tournament?: boolean; courtisan?: boolean } | null; onResume: () => void;
   /** Tournois programmés de 11 h et 21 h : rejoindre le salon (pay = s'inscrire en entrant). */
   onJoinScheduled?: (code: string, pay: boolean) => void;
   /** Messages privés (bulle à côté des amis). */
@@ -151,7 +151,7 @@ function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void; o
     ] },
     { title: 'Mes dés et mes parties', items: [
       { label: 'Coups Fourrés', icon: 'cards', go: () => p.onCards?.(), show: !!p.onCards, keys: 'cartes mode cartes deck booster capsules' },
-      { label: 'Le Dix mille', icon: 'dice', go: () => p.onDixMille?.(), show: !!p.onDixMille, keys: '10000 dix mille farkle six des' },
+      { label: 'Le Courtisan', icon: 'dice', go: () => p.onDixMille?.(), show: !!p.onDixMille, keys: '10000 dix mille farkle six des courtisan groschen' },
       { label: 'Collection', icon: 'dice', go: p.onCollection, show: !STANDALONE, keys: 'sacs des rares' },
       { label: 'Boutique', icon: 'shop', go: p.onShop, keys: 'tapis decor rebord' },
       { label: 'Album', icon: 'album', go: p.onAlbum, keys: 'combinaisons' },
@@ -343,7 +343,7 @@ export function Home(props: HomeProps) {
   // --- Bannière : une seule à la fois, la plus utile ----------------------------------------------
   const ev = activeEvent(day) || coinBoost(day);
   const banner = (() => {
-    if (props.resume && !STANDALONE) return <button className="home-banner resume" onClick={props.onResume}><Icon name="resume" size={20} /><span><b>{props.resume.tournament ? 'Reprendre le tournoi' : 'Reprendre la partie'}</b><small>Table {props.resume.code}</small></span></button>;
+    if (props.resume && !STANDALONE) return <button className="home-banner resume" onClick={props.onResume}><Icon name="resume" size={20} /><span><b>{props.resume.tournament ? 'Reprendre le tournoi' : props.resume.courtisan ? 'Reprendre la partie du Courtisan' : 'Reprendre la partie'}</b><small>Table {props.resume.code}</small></span></button>;
     const salon = prog?.slots.find((x) => x.status === 'salon' && x.registered && x.code);
     if (salon && props.onJoinScheduled) return <button className="home-banner resume" onClick={() => props.onJoinScheduled!(salon.code!, false)}><Icon name="trophy" size={20} /><span><b>Votre tournoi de {salon.hour} h commence !</b><small>Le salon est ouvert : rejoignez-le avant le départ</small></span><em>Rejoindre</em></button>;
     if (pa.welcomeBack) return <button className="home-banner gift" onClick={() => { pa.dismissWelcome(); props.onCollection(); }}><Icon name="gift" size={20} /><span><b>Content de vous revoir !</b><small>Un sac de dés vous attend dans la Collection.</small></span></button>;

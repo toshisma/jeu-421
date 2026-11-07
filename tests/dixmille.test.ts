@@ -126,7 +126,7 @@ describe('Dix mille : déroulé', () => {
 describe('Dix mille : ordinateurs', () => {
   it('probabilités de rater cohérentes', () => {
     expect(MISS_CHANCE[1]).toBeCloseTo(2 / 3);
-    expect(MISS_CHANCE[6]).toBeLessThan(0.03);
+    expect(MISS_CHANCE[6]).toBeCloseTo(0.0309, 4); // 1 fois sur 32 (trois paires ne rapportent pas)
     // Avec 6 dés et peu de points, relancer vaut toujours mieux.
     expect(continueValue(300, 6)).toBeGreaterThan(300);
     expect(continueValue(1000, 1)).toBeLessThan(1000);

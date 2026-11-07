@@ -54,7 +54,7 @@ export interface CfModeProps {
   displayName: string;
   /** Retour au 421 classique (accueil). */
   onHome: () => void;
-  /** Le Dix mille (troisième mode). */
+  /** Le Courtisan (troisième mode). */
   onDixMille?: () => void;
   onMessages: () => void;
   onFriends: () => void;

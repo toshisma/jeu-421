@@ -32,7 +32,9 @@ import type { DuelPlay } from './ui/ChallengeScreen';
 import { restartPresence, setPresence, startPresence } from './presence';
 import { MessagesScreen } from './ui/Messages';
 import { connectMessages } from './messages';
-import { cfModeParam } from './cfLink';
+import { cfModeParam, courtisanModeParam } from './cfLink';
+import { loadDmSession } from './dixmille/online';
+import type { DmPending } from './dixmille/DixMille';
 import { linkVisitor, trackVisit } from './visit';
 import { askConfirm } from './ui/confirm';
 import { CfChallengeBanner } from './cards/ChallengeBanner';
@@ -69,7 +71,7 @@ type Screen =
   | { name: 'hub'; tab: HubTab }
   | { name: 'friends'; from?: 'cf' }
   | { name: 'messages'; with?: string; from?: 'cf' }
-  | { name: 'dixmille' }
+  | { name: 'dixmille'; pending?: DmPending }
   | { name: 'cf'; pending?: { challenge?: string; watch?: string; tournoi?: boolean } }
   | { name: 'changelog' }
   | { name: 'online'; mode: OnlineMode }
@@ -123,6 +125,9 @@ export function App() {
   // Lien « Jouer gratuitement » des pages Coups Fourrés (/?mode=cartes) : le mode s'ouvre directement.
   const openCf = useMemo(() => { const q = new URLSearchParams(location.search); const v = q.has('cf-defi') ? 'defi' : q.has('cf-tournoi') ? 'tournoi' : cfModeParam(location.search) ? 'menu' : null; if (v) cleanUrl(); return v; }, []);
   // Lien partagé du défi du jour (« 421online.com/?defi ») : le défi s'ouvre directement.
+  // Le Courtisan : invitation à une table (/?courtisan=CODE), lien direct des pages d'aide (/?mode=courtisan).
+  const courtInvite = useMemo(() => { const v = new URLSearchParams(location.search).get('courtisan'); return v && /^[A-Za-z0-9]{5}$/.test(v) ? v.toUpperCase() : null; }, []);
+  const openCourt = useMemo(() => { const v = courtisanModeParam(location.search); if (v) cleanUrl(); return v; }, []);
   const openDefi = useMemo(() => { const v = new URLSearchParams(location.search).has('defi'); if (v) cleanUrl(); return v; }, []);
   const openNotifs = useMemo(() => { const v = new URLSearchParams(location.search).has('notifs'); if (v) cleanUrl(); return v; }, []);
   // Lien de parrainage : le pseudo du parrain est retenu pour la création du compte.
@@ -133,11 +138,16 @@ export function App() {
   const [screen, setScreen] = useState<Screen>(() =>
     location.pathname.startsWith('/confidentialite') ? { name: 'legal', back: { name: 'home' } }
     : STANDALONE ? { name: 'home' }
+      : courtInvite ? { name: 'dixmille', pending: { join: courtInvite } }
+      : openCourt ? { name: 'dixmille' }
       : watchLink ? { name: 'watch', code: watchLink.toUpperCase(), back: { name: 'home' } }
       : invite ? { name: 'online', mode: { kind: 'join', code: invite.toUpperCase() } }
         : tInvite && settings.name ? { name: 'tournament', mode: { kind: 'join', code: tInvite.toUpperCase() } }
           : tInvite || tSched ? { name: 'hub', tab: 'tournois' } : openCf ? { name: 'cf', ...(openCf === 'tournoi' ? { pending: { tournoi: true } } : {}) } : openDefi ? { name: 'challenge' } : openPm ? { name: 'messages', with: openPm } : { name: 'home' });
   const [resume, setResume] = useState(loadSession);
+  const [courtResume, setCourtResume] = useState(loadDmSession);
+  /** Rejoindre une table : du 421, ou du Courtisan (`game`). */
+  const joinTable = (code: string, game?: string) => setScreen(game === 'courtisan' ? { name: 'dixmille', pending: { join: code } } : { name: 'online', mode: { kind: 'join', code, auto: true } });
   // Profil : invité (sur l'appareil) ou compte (sur le serveur). Pas de comptes sans serveur.
   const pa = useProfile(!STANDALONE);
   // Signe de vie : un compte avec le jeu ouvert apparaît « en ligne » chez ses amis.
@@ -186,8 +196,9 @@ export function App() {
   }, []);
 
   const home = () => {
-    if (invite || tInvite || watchLink || location.pathname.startsWith('/confidentialite')) cleanUrl();
+    if (invite || tInvite || watchLink || courtInvite || location.pathname.startsWith('/confidentialite')) cleanUrl();
     setResume(loadSession());
+    setCourtResume(loadDmSession());
     setScreen({ name: 'home' });
   };
 
@@ -246,7 +257,8 @@ export function App() {
         onJoinScheduled={(code, pay) => setScreen({ name: 'tournament', mode: { kind: 'join', code, pay } })}
         onDuelPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }}
         openNotifs={openNotifs}
-        resume={resume} onResume={() => setScreen(resume?.tournament ? { name: 'tournament', mode: { kind: 'resume' } } : { name: 'online', mode: { kind: 'resume' } })} />;
+        resume={resume ?? (courtResume ? { code: courtResume.code, courtisan: true } : null)}
+        onResume={() => setScreen(resume?.tournament ? { name: 'tournament', mode: { kind: 'resume' } } : resume ? { name: 'online', mode: { kind: 'resume' } } : { name: 'dixmille', pending: { resume: true } })} />;
     case 'hub':
       return <OnlineHub tab={screen.tab} settings={settings} onSettings={setSettings} pa={pa} onBack={home}
         onJoinRoom={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
@@ -312,7 +324,7 @@ export function App() {
     case 'changelog':
       return <ChangelogScreen onBack={home} />;
     case 'dixmille':
-      return <DixMilleMode pa={pa} settings={settings} onSettings={setSettings} onHome={home} onCards={() => setScreen({ name: 'cf' })}
+      return <DixMilleMode key={JSON.stringify(screen.pending ?? null)} pending={screen.pending} onAccount={() => setScreen({ name: 'account' })} pa={pa} settings={settings} onSettings={setSettings} onHome={home} onCards={() => setScreen({ name: 'cf' })}
         displayName={settings.name} avatar={settings.avatar} />;
     case 'cf':
       return <CfMode onDixMille={() => setScreen({ name: 'dixmille' })} key={JSON.stringify(screen.pending ?? null)} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
@@ -323,10 +335,10 @@ export function App() {
     case 'friends':
       return <FriendsScreen pa={pa} onBack={screen.from === 'cf' ? () => setScreen({ name: 'cf' }) : home}
         onCfChallenge={screen.from === 'cf' ? (u) => setScreen({ name: 'cf', pending: { challenge: u } }) : undefined}
-        onCfWatch={screen.from === 'cf' ? (c) => setScreen({ name: 'cf', pending: { watch: c } }) : undefined} onAccount={() => setScreen({ name: 'account' })} onJoin={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
+        onCfWatch={screen.from === 'cf' ? (c) => setScreen({ name: 'cf', pending: { watch: c } }) : undefined} onAccount={() => setScreen({ name: 'account' })} onJoin={joinTable}
         onInvite={(username) => setScreen({ name: 'online', mode: { kind: 'create', invite: username } })}
         onMessage={(username) => setScreen({ name: 'messages', with: username })}
-        onWatch={(code) => setScreen({ name: 'watch', code, back: { name: 'friends' } })} />;
+        onWatch={(code, game) => setScreen(game === 'courtisan' ? { name: 'dixmille', pending: { watch: code } } : { name: 'watch', code, back: { name: 'friends' } })} />;
     case 'messages':
       return <MessagesScreen key={screen.with ?? ''} pa={pa} initial={screen.with} onBack={screen.from === 'cf' ? () => setScreen({ name: 'cf' }) : home} onAccount={() => setScreen({ name: 'account' })} />;
     case 'duels':
@@ -347,13 +359,13 @@ export function App() {
       return <LeaderboardScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} />;
   } })();
   // Invitation d'un ami : bandeau partout, sauf quand on est déjà à une table en ligne.
-  const atTable = screen.name === 'online' || screen.name === 'tournament' || screen.name === 'watch';
+  const atTable = screen.name === 'online' || screen.name === 'tournament' || screen.name === 'watch' || screen.name === 'dixmille';
   return (
     <>
       <Suspense fallback={<div className="screen-loading" role="status" aria-label="Chargement…"><span className="spinner" aria-hidden /></div>}>{view}</Suspense>
       {!STANDALONE && <FriendOnlineToast pa={pa} />}
       {!STANDALONE && !atTable && screen.name !== 'cf' && <CfChallengeBanner pa={pa} onOpen={() => setScreen({ name: 'cf' })} />}
-      {!STANDALONE && !atTable && <InviteBanner pa={pa} onJoin={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })} />}
+      {!STANDALONE && !atTable && <InviteBanner pa={pa} onJoin={joinTable} />}
     </>
   );
 }

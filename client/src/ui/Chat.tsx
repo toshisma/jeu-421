@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import type { OnlineSession } from '../game/online';
+import type { ChatMessage } from '../../../shared/protocol';
 import type { ProfileApi } from '../account/useProfile';
 import { Icon } from './Icon';
 import { ReportDialog, ReportMsgButton, type ReportTarget } from './Report';
@@ -7,8 +7,13 @@ import { ReportDialog, ReportMsgButton, type ReportTarget } from './Report';
 const MUTE = '421.tchat-muet';
 const readMute = () => { try { return localStorage.getItem(MUTE) === '1'; } catch { return false; } };
 
+/** Ce dont le tchat a besoin d'une table (421 en ligne, Le Courtisan). */
+export interface ChatSource {
+  subscribe: (cb: () => void) => () => void; chat: ChatMessage[]; chatId: string; spectating: boolean; sendChat: (text: string) => Promise<string | null>;
+}
+
 /** Tchat de table : bouton flottant avec compteur, panneau repliable, tchat coupable. */
-export function Chat({ session, pa }: { session: OnlineSession; pa: ProfileApi }) {
+export function Chat({ session, pa }: { session: ChatSource; pa: ProfileApi }) {
   const chat = useSyncExternalStore((cb) => session.subscribe(cb), () => session.chat);
   const [open, setOpen] = useState(false);
   const [muted, setMuted] = useState(readMute);

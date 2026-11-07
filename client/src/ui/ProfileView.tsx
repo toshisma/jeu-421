@@ -89,7 +89,7 @@ export function ProfileView({ pa, username, displayName, avatar, onClose, onInvi
   /** Ouvre la conversation privée avec ce joueur (amis seulement). */
   onMessage?: (username: string) => void;
   /** Regarder la partie en cours de cet ami (mode spectateur). */
-  onWatch?: (code: string) => void;
+  onWatch?: (code: string, game?: string) => void;
 }) {
   const other = !!username && username !== pa.session?.username;
   const [pub, setPub] = useState<PublicPlayer | null>(null);
@@ -98,17 +98,19 @@ export function ProfileView({ pa, username, displayName, avatar, onClose, onInvi
   const file = useRef<HTMLInputElement>(null);
   const [isFriend, setIsFriend] = useState(false);
   const [watchCode, setWatchCode] = useState<string | null>(null);
+  const [watchGame, setWatchGame] = useState<string | undefined>(undefined);
   const [tab, setTab] = useState<PvTab>('stats');
   const [reporting, setReporting] = useState(false);
   const [toast, showToast] = useToast();
   useEffect(() => { if (msg) showToast(msg); }, [msg]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!other || !pa.token) return;
-    api<{ friends: { username: string; room?: { code: string; watchable?: boolean } | null }[] }>('/friends', { token: pa.token })
+    api<{ friends: { username: string; room?: { code: string; watchable?: boolean; game?: string } | null }[] }>('/friends', { token: pa.token })
       .then((r) => {
         const f = r.friends.find((x) => x.username.toLowerCase() === username!.toLowerCase());
         setIsFriend(!!f);
         setWatchCode(f?.room?.watchable ? f.room.code : null);
+        setWatchGame(f?.room?.game);
       }).catch(() => {});
   }, [other, username, pa.token]);
 
@@ -141,7 +143,7 @@ export function ProfileView({ pa, username, displayName, avatar, onClose, onInvi
           : pub.rivalry.mine < pub.rivalry.theirs ? `${pub.username} mène ${pub.rivalry.theirs} à ${pub.rivalry.mine}` : `Égalité ${pub.rivalry.mine} partout`} contre ce joueur</div>}
         <div className="pv-friend">
           {!pa.isAccount ? <p className="k-hint">Créez un compte pour ajouter {pub.username} en ami.</p>
-            : isFriend ? <>{onWatch && watchCode && <button className="btn primary" onClick={() => onWatch(watchCode)}><Icon name="eye" size={18} /> Regarder sa partie</button>}
+            : isFriend ? <>{onWatch && watchCode && <button className="btn primary" onClick={() => onWatch(watchCode, watchGame)}><Icon name="eye" size={18} /> Regarder sa partie</button>}
               {onInvite && !watchCode && <button className="btn primary" onClick={() => onInvite(pub.username)}><Icon name="dice" size={18} /> Inviter à jouer</button>}
               {onMessage && <button className="btn" onClick={() => onMessage(pub.username)}><Icon name="chat" size={18} /> Message</button>}
               <span className="pv-chip ok"><Icon name="check" size={14} /> Amis</span></>
