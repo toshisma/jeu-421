@@ -4004,8 +4004,8 @@ b .cf-term { font-weight: inherit; }
 .dm-lobby-code .btn { flex: 1; }
 .dm-lobby-seats { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: 1fr; gap: 6px; }
 @media (min-width: 640px) { .dm-lobby-seats { grid-template-columns: 1fr 1fr; } }
-.dm-lobby-seats li { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 6px 10px; border-radius: 12px; background: rgba(30,36,40,.9); box-shadow: inset 0 0 0 1px var(--ardoise-3); }
-.dm-lobby-seats li.me { box-shadow: inset 0 0 0 1.5px #f3cf7a; }
+.dm-lobby-seats li.dm-ls { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 6px 10px; border-radius: 12px; background: rgba(30,36,40,.9); box-shadow: inset 0 0 0 1px var(--ardoise-3); }
+.dm-lobby-seats li.dm-ls-me { box-shadow: inset 0 0 0 1.5px #f3cf7a; }
 .dm-lobby-seats li.ready > svg { color: #6fd18f; flex: none; }
 .dm-lobby-seats li.empty { padding: 0; background: none; box-shadow: none; }
 .dm-lobby-seats li.empty button { width: 100%; min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 12px; cursor: pointer;
@@ -4021,3 +4021,21 @@ b .cf-term { font-weight: inherit; }
 .dm-invite li { display: flex; align-items: center; gap: 8px; }
 .dm-invite b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .dm-tabs { display: flex; flex-wrap: nowrap; } .dm-tabs button { padding: 0 8px; min-width: 0; white-space: nowrap; font-size: 14.5px; }
+
+.dm-lobby-seats li.dm-ls { width: 100%; margin: 0; }
+.dm-phase { flex: 1 1 auto; min-width: 0; justify-content: center; }
+.dm-emote-fab { position: absolute; left: 12px; z-index: 6; width: 46px; height: 46px; border: 0; border-radius: 50%; cursor: pointer; font-size: 22px;
+  background: rgba(20,24,28,.88); box-shadow: 0 4px 14px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.12); }
+.dm-game .dm-emotes { position: absolute; left: 10px; right: 10px; z-index: 7; margin: 0 auto; }
+
+.dm-game ~ .chat-fab { bottom: calc(var(--dm-bottom, 84px) + 10px); }
+.dm-game ~ .chat-peek { bottom: calc(var(--dm-bottom, 84px) + 16px); }
+.dm-game ~ .chat-panel { bottom: calc(var(--dm-bottom, 84px) + 64px); }
+.dm-game ~ .notices { bottom: calc(var(--dm-bottom, 140px) + 70px); }
+.dm-game ~ .notices .notice { max-width: min(300px, calc(100vw - 32px)); font-size: 13.5px; padding: 6px 12px; }
+
+.dm-end.many h2 { font-size: 32px; margin-bottom: 8px; }
+.dm-end.many .dm-rank { gap: 4px; }
+.dm-end.many .dm-rank li { padding: 4px 10px; }
+.dm-end.many .dm-rank small { display: none; }
+.dm-end.many .dm-rank .avatar { width: 24px !important; height: 24px !important; font-size: 13px !important; }

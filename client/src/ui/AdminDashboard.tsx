@@ -472,6 +472,32 @@ function EconomyTab({ token, coins }: { token: string | null; coins: number | nu
         )}
       </section>
       <TopList title="Comptes les plus riches" rows={e.richest.map((r) => ({ k: r.username, n: r.coins }))} />
+      <GroschenAdmin token={token} days={range} />
+    </>
+  );
+}
+
+/** Le Courtisan : les Groschen (monnaie du mode), en circulation, bloqués en partie, mouvements. */
+const GR_LABELS: Record<string, string> = { cadeau: 'Cadeau du jour', mise: 'Mises', gain: 'Pots gagnés', remboursement: 'Remboursements' };
+function GroschenAdmin({ token, days }: { token: string | null; days: number }) {
+  const { data: g } = useAdmin<{ circulation: number; escrow: number; byReason: { reason: string; earned: number; spent: number; moves: number }[]; richest: { username: string; balance: number }[] }>(`/admin/groschen?days=${days}`, token);
+  if (!g) return null;
+  return (
+    <>
+      <h3 style={{ marginTop: 18 }}>Le Courtisan : les Groschen</h3>
+      <div className="stat-row">
+        <Kpi value={nf(g.circulation)} label="Groschen en circulation" hint="Somme des soldes de tous les comptes" />
+        <Kpi value={nf(g.escrow)} label="mises bloquées" hint="Parties en cours avec mise" />
+      </div>
+      <section className="adm-card">
+        <h3>Mouvements ({days} jours)</h3>
+        {!g.byReason.length ? <p className="empty">Aucun mouvement.</p> : (
+          <ul className="adm-eco">{g.byReason.map((r) => (
+            <li key={r.reason}><span className="adm-eco-k">{GR_LABELS[r.reason] ?? r.reason}</span><span className="adm-eco-bars"><em>+{nf(r.earned)}</em><em>−{nf(r.spent)}</em><em>{nf(r.moves)} mouv.</em></span></li>
+          ))}</ul>
+        )}
+      </section>
+      <TopList title="Plus gros soldes de Groschen" rows={g.richest.map((r) => ({ k: r.username, n: r.balance }))} />
     </>
   );
 }

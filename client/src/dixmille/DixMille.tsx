@@ -312,16 +312,17 @@ function DmBoard({ tray, anim, seats, canAct, settings, onSettings, appearance, 
   const bottomRef = useRef<HTMLDivElement>(null);
   const [insets, setInsets] = useState<Insets>({ top: 0, right: 0, bottom: 0, left: 0 });
   useLayoutEffect(() => {
-    const measure = () => setInsets({
-      top: (topRef.current?.getBoundingClientRect().bottom ?? 0) + 2,
-      bottom: window.innerHeight - (bottomRef.current?.getBoundingClientRect().top ?? window.innerHeight) + 2,
-      left: 0, right: 0,
-    });
+    const measure = () => {
+      const bottom = window.innerHeight - (bottomRef.current?.getBoundingClientRect().top ?? window.innerHeight) + 2;
+      setInsets({ top: (topRef.current?.getBoundingClientRect().bottom ?? 0) + 2, bottom, left: 0, right: 0 });
+      // Tchat et messages de la table : juste au-dessus du panneau du bas.
+      document.documentElement.style.setProperty('--dm-bottom', `${Math.round(bottom)}px`);
+    };
     measure();
     const ro = new ResizeObserver(measure);
     [topRef, bottomRef].forEach((r) => r.current && ro.observe(r.current));
     window.addEventListener('resize', measure);
-    return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
+    return () => { ro.disconnect(); window.removeEventListener('resize', measure); document.documentElement.style.removeProperty('--dm-bottom'); };
   }, []);
 
   useEffect(() => { tray.current?.setInteractive(myTurn && s.phase === 'choisir'); tray.current?.setSwipeEnabled(myTurn); }, [myTurn, s.phase, tray]);
@@ -385,22 +386,15 @@ function DmBoard({ tray, anim, seats, canAct, settings, onSettings, appearance, 
         <div className="topbar">
           <button className="icon-btn" onClick={onLeave} aria-label={spectator ? 'Arrêter de regarder' : 'Quitter la partie'}><Icon name="back" /></button>
           <div className="phase dm-phase">
-            <span className="dm-goal">Objectif</span><span className="dm-logo">{fmt(s.target)}</span>
+            <span className="dm-logo" title="Score à atteindre" aria-label={`Objectif : ${fmt(s.target)} points`}>{fmt(s.target)}</span>
             {pot ? <span className="dm-pot" title="Pot de la partie : le gagnant emporte tout"><Groschen n={pot} size={14} /></span> : null}
           </div>
           <div className="top-actions">
-            {onEmote && !spectator && <button className="icon-btn dm-emote-btn" onClick={() => setEmotes((x) => !x)} aria-label="Réactions rapides"><span aria-hidden>😀</span></button>}
             <button className="icon-btn dm-values-btn" onClick={() => setSheet('valeurs')} aria-label="Valeurs des dés"><span>Valeurs</span></button>
             <button className="icon-btn" onClick={() => setSheet('regles')} aria-label="Règles du Courtisan"><Icon name="rules" /></button>
             <VolumeControl settings={settings} onSettings={onSettings} />
           </div>
         </div>
-        {emotes && onEmote && (
-          <div className="dm-emotes" role="menu">
-            <div>{EMOTES.map((e) => <button key={e} onClick={() => { onEmote(e); setEmotes(false); }}>{e}</button>)}</div>
-            <div className="dm-phrases">{PHRASES.filter((p) => !p.includes('4-2-1')).map((p) => <button key={p} onClick={() => { onEmote(p); setEmotes(false); }}>{p}</button>)}</div>
-          </div>
-        )}
         {spectator && <div className="dm-banner">Vous regardez la partie</div>}
         {offline && <div className="dm-banner warn">Connexion perdue, reconnexion…</div>}
         <div className={`dm-players n${n}`}>
@@ -477,6 +471,13 @@ function DmBoard({ tray, anim, seats, canAct, settings, onSettings, appearance, 
         )}
       </div>
 
+      {onEmote && !spectator && <button className="dm-emote-fab" style={{ bottom: `${insets.bottom + 10}px` }} onClick={() => setEmotes((x) => !x)} aria-label="Réactions rapides"><span aria-hidden>😀</span></button>}
+      {emotes && onEmote && (
+        <div className="dm-emotes" role="menu" style={{ bottom: `${insets.bottom + 64}px` }}>
+          <div>{EMOTES.map((e) => <button key={e} onClick={() => { onEmote(e); setEmotes(false); }}>{e}</button>)}</div>
+          <div className="dm-phrases">{PHRASES.filter((p) => !p.includes('4-2-1')).map((p) => <button key={p} onClick={() => { onEmote(p); setEmotes(false); }}>{p}</button>)}</div>
+        </div>
+      )}
       {sheet && (
         <Sheet title={sheet === 'regles' ? 'Règles du Courtisan' : 'Valeurs des dés'} onClose={() => setSheet(null)}>
           {sheet === 'regles' ? <DmRules target={s.target} /> : <DmValues />}
@@ -495,7 +496,7 @@ function EndDialog({ s, seats, reward, groschen, buttons, waiting }: {
   const w = seats.find((x) => x.id === s.winner);
   return (
     <div className="dm-end-back">
-      <div className="dm-end" role="dialog" aria-label="Fin de partie">
+      <div className={`dm-end${s.players.length > 4 ? ' many' : ''}`} role="dialog" aria-label="Fin de partie">
         <h2>{me && s.winner === me.id ? 'Gagné !' : `${w?.name ?? '?'} gagne`}</h2>
         <ol className="dm-rank">
           {ranking(s).map((p, k) => {
@@ -602,7 +603,7 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
 // Partie en ligne (et contre l'ordinateur avec mise : jouée par le serveur)
 
 function useDm(session: DmSession) {
-  return useSyncExternalStore((cb) => session.subscribe(cb), () => session.version * 1e6 + (session.table ? JSON.stringify(session.table).length : 0) + session.chat.length * 7 + session.notices.length * 13 + (session.reward ? 1 : 0) + (session.connected ? 2 : 0));
+  return useSyncExternalStore((cb) => session.subscribe(cb), () => session.tick);
 }
 
 function seatsOf(session: DmSession, state: DmState | null, personas?: Persona[]): Seat[] {
@@ -702,15 +703,11 @@ function DmOnlineGame({ session, pa, settings, onSettings, appearance, onExit, o
 
 function DmNotices({ session }: { session: DmSession }) {
   useDm(session);
-  const [hidden, setHidden] = useState<Set<number>>(new Set());
-  const n = session.notices;
-  useEffect(() => {
-    const last = n[n.length - 1];
-    if (!last) return;
-    const t = setTimeout(() => setHidden((h) => new Set(h).add(last.id)), 5000);
-    return () => clearTimeout(t);
-  }, [n]);
-  return <div className="notices">{n.filter((x) => !hidden.has(x.id)).map((x) => <div key={x.id} className={`notice ${x.kind}`}>{x.text}</div>)}</div>;
+  const [now, setNow] = useState(Date.now());
+  const live = session.notices.filter((x) => now - x.at < 5000);
+  useEffect(() => { if (!live.length) return; const t = setInterval(() => setNow(Date.now()), 500); return () => clearInterval(t); }, [live.length]);
+  useEffect(() => { setNow(Date.now()); }, [session.notices]);
+  return <div className="notices">{live.slice(-2).map((x) => <div key={x.id} className={`notice ${x.kind}`}>{x.text}</div>)}</div>;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -748,12 +745,10 @@ function DmLobby({ session, pa, onExit, groschen }: { session: DmSession; pa: Pr
       </div>
       {t.quick && <QuickInfo quick={t.quick} />}
       <ul className="dm-lobby-seats">
-        {Array.from({ length: DM_TABLE_MAX }, (_, i) => {
-          const m: DmPublicMember | undefined = t.members[i];
-          if (!m) return <li key={`v${i}`} className="empty"><button onClick={() => (canShare ? void share() : void copy(link, 'lien'))}><Icon name="plus" size={18} />Place libre : inviter</button></li>;
+        {t.members.map((m: DmPublicMember, i) => {
           const mine = m.id === session.playerId;
           return (
-            <li key={m.id} className={`${mine ? 'me' : ''}${m.ready || m.bot ? ' ready' : ''}`} style={{ ['--pc' as string]: COLORS[i % COLORS.length] }}>
+            <li key={m.id} className={`dm-ls${mine ? ' dm-ls-me' : ''}${m.ready || m.bot ? ' ready' : ''}`} style={{ ['--pc' as string]: COLORS[i % COLORS.length] }}>
               <Avatar photo={m.photo ?? null} emoji={m.avatar} size={34} accessory={m.accessory} />
               <span className="dm-ls-text"><b>{m.name}{mine ? ' (vous)' : ''}{m.isHost && <i className="dm-host" title="Hôte"> ★</i>}</b>
                 <small>{m.filler ? 'Ordinateur · cède sa place' : m.bot ? `Ordinateur · ${DM_LEVELS.find((l) => l.v === m.bot)?.label}` : !m.connected ? 'hors ligne' : m.ready ? 'prêt' : 'pas prêt'}</small></span>
@@ -762,6 +757,8 @@ function DmLobby({ session, pa, onExit, groschen }: { session: DmSession; pa: Pr
             </li>
           );
         })}
+        {count < DM_TABLE_MAX && <li className="dm-ls empty"><button onClick={() => (canShare ? void share() : void copy(link, 'lien'))}><Icon name="plus" size={18} />
+          {DM_TABLE_MAX - count} place{DM_TABLE_MAX - count > 1 ? 's' : ''} libre{DM_TABLE_MAX - count > 1 ? 's' : ''} : inviter</button></li>}
       </ul>
       {isHost && count < DM_TABLE_MAX && (
         <Section title="Ordinateurs">
@@ -892,7 +889,7 @@ function DmOnlineFlow({ mode, pa, settings, onSettings, me, onExit, onReplay, gr
   if (session.spectating) return <Shell title={MODE_NAME} onBack={() => { session.leave(); onExit(); }} icon="eye"><div className="k-wait"><p>La partie n’a pas encore commencé.</p></div></Shell>;
   return <><DmLobby session={session} pa={pa} onExit={onExit} groschen={groschen} /><DmNotices session={session} /><Chat session={session} pa={pa} /></>;
 }
-const DUMMY = { subscribe: () => () => {}, version: 0, table: null, chat: [], notices: [], reward: null, connected: false } as unknown as DmSession;
+const DUMMY = { subscribe: () => () => {}, tick: 0, version: 0, table: null, chat: [], notices: [], reward: null, connected: false } as unknown as DmSession;
 
 // ---------------------------------------------------------------------------------------------
 // Accueil du mode : contre l'ordinateur, en ligne, Groschen
@@ -921,7 +918,7 @@ export function DixMilleSetup({ onBack, onStart, onClassic, onCards, onRules, on
     </>
   );
   return (
-    <Shell title={MODE_NAME} onBack={onBack} icon="dice" wide sub="Le jeu de dés du Dix mille, de 2 à 6" right={right}
+    <Shell title={MODE_NAME} onBack={onBack} icon="dice" wide sub="Dix mille · 2 à 6 joueurs" right={right}
       foot={tab === 'solo'
         ? <BigAction icon="dice" label={stake > 0 ? `Miser ${fmt(stake)} et jouer` : 'S’asseoir à la table'}
           sub={`${setup.opponents} adversaire${setup.opponents > 1 ? 's' : ''} · ${level.label} · ${fmt(setup.target)} points${stake > 0 ? ` · pot ${fmt(pot)}` : ' · gratuit'}`}

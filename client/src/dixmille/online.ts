@@ -29,7 +29,7 @@ export class DmSession {
   state: DmState | null = null;
   version = 0;
   connected = false;
-  notices: (Notice & { id: number })[] = [];
+  notices: (Notice & { id: number; at: number })[] = [];
   chat: ChatMessage[] = [];
   spectating = false;
   watchClosed: string | null = null;
@@ -75,7 +75,7 @@ export class DmSession {
     this.socket.on('groschen:balance', (b: { balance: number }) => { this.balance = b.balance; this.emit(); });
     this.socket.on('game:emote', (m: { playerId: string; emote: string }) => { for (const cb of this.emoteL) cb(m.playerId, m.emote); });
     this.socket.on('table:chat', (m: ChatMessage) => { this.chat = [...this.chat.slice(-49), m]; this.emit(); });
-    this.socket.on('table:notice', (n: Notice) => { this.notices = [...this.notices.slice(-4), { ...n, id: ++this.noticeId }]; this.emit(); });
+    this.socket.on('table:notice', (n: Notice) => { this.notices = [...this.notices.slice(-4), { ...n, id: ++this.noticeId, at: Date.now() }]; this.emit(); });
     this.socket.on('table:kicked', ({ text }: { text: string }) => { this.kicked = text; this.code = ''; saveDmSession(null); this.emit(); });
     this.socket.on('spectate:closed', ({ text }: { text: string }) => { this.watchClosed = text; this.emit(); });
   }
@@ -152,5 +152,7 @@ export class DmSession {
 
   subscribe(cb: () => void) { this.metaL.add(cb); return () => { this.metaL.delete(cb); }; }
   subscribeUpdates(cb: (u: DmUpdate | { snapshot: true; version: number; state: DmState }) => void) { this.upL.add(cb); return () => { this.upL.delete(cb); }; }
-  private emit() { for (const cb of this.metaL) cb(); }
+  /** Compteur de changements (abonnements React). */
+  tick = 0;
+  private emit() { this.tick++; for (const cb of this.metaL) cb(); }
 }

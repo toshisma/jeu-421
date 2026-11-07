@@ -1,5 +1,5 @@
 /**
- * Simulation du Dix mille entre ordinateurs : aucune partie bloquée, niveaux ordonnés, durée.
+ * Simulation du Courtisan (Dix mille) entre ordinateurs : aucune partie bloquée, niveaux ordonnés, durée.
  * npx tsx scripts/dixmille-simulate.ts --games 4000
  */
 import { act, newGame, DM_TARGETS, type DmLevel, type DmState } from '../shared/dixmille/engine';
@@ -64,6 +64,13 @@ for (let g = 0; g < GAMES; g++) {
 }
 console.log(`Avantage du premier (4 000, Habitués) : ${((100 * firstWins) / GAMES).toFixed(1)} % de victoires pour celui qui commence`);
 console.log(`Tours ratés : ${((100 * misses) / turns).toFixed(1)} %`);
+// Avantage du premier joueur à plusieurs (en ligne : l'ordre est tiré au sort à chaque partie).
+for (const n of [3, 4, 6]) {
+  let w = 0;
+  const games = Math.floor(GAMES / 2);
+  for (let g = 0; g < games; g++) { const r = playOut(Array(n).fill('habitue'), 4000, seed++); if (r.blocked) blocked++; if (r.s.winner === 'p0') w++; }
+  console.log(`Premier joueur à ${n} (4 000) : ${((100 * w) / games).toFixed(1)} % (part juste ${(100 / n).toFixed(1)} %)`);
+}
 let four = 0;
 for (let g = 0; g < GAMES / 4; g++) { const r = playOut(['fouine', 'habitue', 'debutant', 'habitue'], 4000, seed++); if (r.blocked) blocked++; four += r.s.turns / 4; }
 console.log(`4 joueurs en 4 000 : ${(four / (GAMES / 4)).toFixed(1)} tours chacun en moyenne`);
