@@ -33,7 +33,7 @@ import { DIVISIONS, SEASON_DIE_FROM, SEASON_TITLE_FROM, divisionIndex, divisionO
 import { today } from '../shared/progress/quests';
 import type { ComboKind } from '../shared/combos';
 import type { Difficulty } from '../shared/ai';
-import { applyDixMille, dixMilleReward } from '../shared/dixmille/reward';
+import { applyDixMille, dixMilleOnlineReward, dixMilleReward } from '../shared/dixmille/reward';
 import type { DmLevel } from '../shared/dixmille/engine';
 
 export interface AccountsOptions {
@@ -404,8 +404,24 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     res.json({ ok: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
   });
 
-  /** Où se trouve un compte en ce moment (fourni par le serveur de jeu). */
-  let presence: (userId: string) => { code: string; status: 'salon' | 'partie'; joinable: boolean; watchable?: boolean } | null = () => null;
+  /**
+   * Fin d'une partie du Courtisan en ligne (appelée par le serveur de jeu) : récompense calculée ici.
+   * Un joueur parti ne touche rien. Avec des ordinateurs : plafond quotidien des parties contre l'ordinateur.
+   */
+  function dixMilleOnlineEnd(userId: string, o: { won: boolean; place: number; players: number; humans: number; botLevels: DmLevel[]; minutes: number; day: string; abandoned: boolean }) {
+    const u = store.userById(userId);
+    if (!u || o.abandoned) return null;
+    if (o.botLevels.length && store.bumpSolo(userId, o.day) > SOLO_CAP) return null;
+    const reward = dixMilleOnlineReward({ ...o, now: Date.now() });
+    const applied = applyDixMille(store.profileOf(u), reward, o.day);
+    store.saveProfile(userId, applied.profile);
+    leagueGain(userId, reward.xp);
+    if (o.won && o.humans >= 2) news(`🎲 ${u.username} a remporté une partie du Courtisan`);
+    return { reward, applied: { ...applied, profile: store.profileOf(store.userById(userId)!) } };
+  }
+
+  /** Où se trouve un compte en ce moment (fourni par le serveur de jeu ; `game` : le Courtisan). */
+  let presence: (userId: string) => { code: string; status: 'salon' | 'partie'; joinable: boolean; watchable?: boolean; game?: 'courtisan' } | null = () => null;
   const setPresence = (f: typeof presence) => { presence = f; };
   /** Présence dans « Coups Fourrés » (menu du mode, ou partie qu'on peut regarder). */
   let cfPresence: (userId: string) => { status: 'menu' | 'partie'; code?: string; watchable?: boolean } | null = () => null;
@@ -603,7 +619,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   });
 
   // --- Invitations en partie : un ami invite un autre à rejoindre sa table, d'un clic. ---------------
-  const invites = new Map<string, { from: string; code: string; at: number }[]>();
+  const invites = new Map<string, { from: string; code: string; at: number; game?: 'courtisan' }[]>();
   const INVITE_MS = 10 * 60_000;
   const invitesOf = (userId: string) => {
     const t = Date.now();
@@ -618,13 +634,14 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const room = presence(me.id);
     if (!room?.joinable) return fail(res, 409, 'Ouvrez d’abord une table pour y inviter vos amis.');
     const list = invitesOf(to.id).filter((i) => i.from !== me.username);
-    list.push({ from: me.username, code: room.code, at: Date.now() });
+    list.push({ from: me.username, code: room.code, at: Date.now(), ...(room.game ? { game: room.game } : {}) });
     invites.set(to.id, list.slice(-5));
-    void social.push(to.id, `${me.username} vous invite à jouer`, 'Une table vous attend : touchez pour la rejoindre.', `/?rejoindre=${room.code}`);
+    if (room.game === 'courtisan') void social.push(to.id, `${me.username} vous invite au Courtisan`, 'Une table de dés vous attend : touchez pour la rejoindre.', `/?courtisan=${room.code}`);
+    else void social.push(to.id, `${me.username} vous invite à jouer`, 'Une table vous attend : touchez pour la rejoindre.', `/?rejoindre=${room.code}`);
     res.json({ ok: true });
   });
   router.get('/invites', auth, (req, res) => {
-    res.json({ ok: true, invites: invitesOf(userOf(req).id).map((i) => ({ from: i.from, code: i.code })) });
+    res.json({ ok: true, invites: invitesOf(userOf(req).id).map((i) => ({ from: i.from, code: i.code, ...(i.game ? { game: i.game } : {}) })) });
   });
   router.post('/invites/decline', auth, (req, res) => {
     const me = userOf(req);
@@ -903,5 +920,5 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   // Coups Fourrés : l'énigme du jour (score recalculé ici, une validation par jour).
   const enigme = createCfEnigme({ router, store, auth, userOf, fail, now: () => opts.now?.() ?? Date.now() });
 
-  return { social, messages, cards, enigme, router, setPresence, setCfPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
+  return { social, messages, cards, enigme, router, dixMilleOnlineEnd, setPresence, setCfPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
 }

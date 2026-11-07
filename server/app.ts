@@ -36,6 +36,8 @@ import { createDiscordHooks } from './discord-hooks';
 import { createCfOnline, type CfOnlineOptions } from './cards-online';
 import { createCfStats } from './cf-stats';
 import { createCfTournament, type CfTourOptions } from './cf-tournament';
+import { cleanDmCode, createDixMilleOnline, type DmOnlineOptions } from './dixmille-online';
+import { createGroschen } from './groschen';
 
 interface Member {
   id: string;
@@ -184,6 +186,8 @@ export interface ServerOptions {
   quickStartMs?: number;
   /** Tournoi Coups Fourrés du samedi (tests : horloge manuelle, pauses courtes, duels courts). */
   cfTour?: CfTourOptions;
+  /** Le Courtisan en ligne (délais réduits dans les tests). */
+  dm?: DmOnlineOptions;
   /** Tests seulement : dés imposés (selon le joueur et la partie) au lieu du tirage officiel. */
   testDie?: (playerId: string, state: GameState) => number;
 }
@@ -303,7 +307,12 @@ export async function startServer(opts: ServerOptions) {
   });
   app.use('/api', moderation.router);
 
+  // Le Courtisan en ligne (créé plus bas) : sa présence s'ajoute à celle des tables du 421.
+  let dmPresence: (userId: string) => ReturnType<Parameters<typeof accounts.setPresence>[0]> = () => null;
+  let dmHas: (code: string) => boolean = () => false;
   accounts.setPresence((userId) => {
+    const dm = dmPresence(userId);
+    if (dm) return dm;
     for (const r of rooms.values()) {
       const m = r.members.find((x) => x.userId === userId && x.socketId != null);
       if (!m) continue;
@@ -363,6 +372,7 @@ export async function startServer(opts: ServerOptions) {
   // Un code saisi : table ou tournoi ?
   app.get('/api/code/:code', (req, res) => {
     const code = cleanCode(req.params.code);
+    if (code && dmHas(code)) { res.setHeader('Cache-Control', 'no-store'); return res.json({ ok: true, kind: 'courtisan' }); }
     const kind = code && rooms.has(code) && !rooms.get(code)!.tournament ? 'room' : code && tournaments.has(code) ? 'tournament' : null;
     res.setHeader('Cache-Control', 'no-store');
     if (!kind) return res.status(404).json({ ok: false, error: 'Aucune table ni aucun tournoi avec ce code. Vérifiez-le.' });
@@ -425,6 +435,17 @@ export async function startServer(opts: ServerOptions) {
   });
   cfMount.use(cfTour.router);
   accounts.setCfPresence(cfOnline.presence);
+  // Le Courtisan : Groschen (monnaie du mode) et tables en ligne, espace Socket.IO « /dixmille ».
+  const groschen = createGroschen({ store, userFromToken: accounts.userFromToken, isAdmin: stats.isAdmin, now: opts.accounts?.now });
+  cfMount.use(groschen.router);
+  const dmOnline = createDixMilleOnline({
+    io, store, userFromToken: accounts.userFromToken, banOf: admin.banOf, muteOf: moderation.muteOf, publicInfo: accounts.publicInfo,
+    isBlocked: accounts.isBlocked, reward: accounts.dixMilleOnlineEnd, groschen,
+    recordChat: (e) => { tableChat.push(e); if (tableChat.length > TABLE_CHAT_KEEP) tableChat.splice(0, tableChat.length - TABLE_CHAT_KEEP); },
+    taken: (code) => rooms.has(code) || tournaments.has(code), opts: opts.dm,
+  });
+  dmPresence = dmOnline.presence;
+  dmHas = (code) => !!cleanDmCode(code) && dmOnline.has(code);
 
   app.get('/health', (_req, res) => res.json({ ok: true, rooms: rooms.size, tournaments: tournaments.size }));
   const here = dirname(fileURLToPath(import.meta.url));
@@ -451,7 +472,7 @@ export async function startServer(opts: ServerOptions) {
   const newCode = () => {
     let code: string;
     do code = Array.from({ length: 5 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('');
-    while (rooms.has(code) || tournaments.has(code));
+    while (rooms.has(code) || tournaments.has(code) || dmHas(code));
     return code;
   };
 
@@ -1806,6 +1827,7 @@ export async function startServer(opts: ServerOptions) {
   return {
     port,
     rooms,
+    closeDmTable: (code: string) => dmOnline.closeTable(code),
     tournaments,
     accounts,
     store,
@@ -1817,6 +1839,7 @@ export async function startServer(opts: ServerOptions) {
       accounts.social.close();
       cfTour.close();
       cfOnline.close();
+      dmOnline.close();
       clearInterval(sweeper);
       if (schedTimer) clearInterval(schedTimer);
       if (newsTimer) clearTimeout(newsTimer);

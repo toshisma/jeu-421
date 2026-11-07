@@ -1070,6 +1070,89 @@ export class Store {
     return this.db.prepare('SELECT day, score, best FROM cf_enigme WHERE user_id = ? ORDER BY day DESC LIMIT ?').all(userId, limit) as unknown as { day: string; score: number; best: number }[];
   }
 
+
+  // --- Le Courtisan : les Groschen (monnaie du mode, séparée des pièces du 421) -------------------
+  private dmReady = false;
+  private dmInit() {
+    if (this.dmReady) return;
+    this.dmReady = true;
+    this.db.exec(`
+      -- Solde de Groschen d'un compte et jour (Bruxelles, horloge du serveur) du dernier cadeau quotidien.
+      CREATE TABLE IF NOT EXISTS dm_wallet (
+        user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        balance INTEGER NOT NULL DEFAULT 0, gift_day TEXT NOT NULL DEFAULT ''
+      );
+      -- Journal de tous les mouvements (administration).
+      CREATE TABLE IF NOT EXISTS dm_ledger (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, delta INTEGER NOT NULL, balance INTEGER NOT NULL,
+        reason TEXT NOT NULL, ref TEXT, at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_dm_ledger_at ON dm_ledger(at);
+      CREATE INDEX IF NOT EXISTS idx_dm_ledger_user ON dm_ledger(user_id, at);
+      -- Mises bloquées pendant une partie (remboursées si le serveur redémarre avant la fin).
+      CREATE TABLE IF NOT EXISTS dm_escrow (
+        user_id TEXT NOT NULL, ref TEXT NOT NULL, amount INTEGER NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (user_id, ref)
+      );
+    `);
+  }
+  dmBalance(userId: string): number {
+    this.dmInit();
+    return (this.db.prepare('SELECT balance FROM dm_wallet WHERE user_id = ?').get(userId) as { balance: number } | undefined)?.balance ?? 0;
+  }
+  /**
+   * Mouvement de Groschen (positif ou négatif). Refusé (null) s'il rendrait le solde négatif.
+   * Synchrone, donc indivisible (un seul fil d'exécution).
+   */
+  dmMove(userId: string, delta: number, reason: string, ref: string | null = null, at = Date.now()): number | null {
+    this.dmInit();
+    if (!Number.isInteger(delta)) return null;
+    const bal = this.dmBalance(userId);
+    if (bal + delta < 0) return null;
+    this.db.prepare('INSERT INTO dm_wallet (user_id, balance) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET balance = excluded.balance').run(userId, bal + delta);
+    if (delta !== 0) this.db.prepare('INSERT INTO dm_ledger (user_id, delta, balance, reason, ref, at) VALUES (?, ?, ?, ?, ?, ?)').run(userId, delta, bal + delta, reason, ref, at);
+    return bal + delta;
+  }
+  /** Cadeau quotidien : versé une seule fois par jour (jour donné par le serveur). Renvoie le montant versé. */
+  dmDailyGift(userId: string, day: string, amount: number, at = Date.now()): number {
+    this.dmInit();
+    const row = this.db.prepare('SELECT gift_day FROM dm_wallet WHERE user_id = ?').get(userId) as { gift_day: string } | undefined;
+    if (row?.gift_day === day) return 0;
+    this.dmMove(userId, amount, 'cadeau', day, at);
+    this.db.prepare('UPDATE dm_wallet SET gift_day = ? WHERE user_id = ?').run(day, userId);
+    return amount;
+  }
+  dmEscrowAdd(userId: string, ref: string, amount: number) {
+    this.dmInit();
+    this.db.prepare('INSERT OR REPLACE INTO dm_escrow (user_id, ref, amount, at) VALUES (?, ?, ?, ?)').run(userId, ref, amount, Date.now());
+  }
+  /** Lève le blocage d'une mise (une partie, ou un seul joueur) ; renvoie ce qui était bloqué. */
+  dmEscrowRelease(ref: string, userId?: string): { user_id: string; amount: number }[] {
+    this.dmInit();
+    const rows = (userId
+      ? this.db.prepare('SELECT user_id, amount FROM dm_escrow WHERE ref = ? AND user_id = ?').all(ref, userId)
+      : this.db.prepare('SELECT user_id, amount FROM dm_escrow WHERE ref = ?').all(ref)) as unknown as { user_id: string; amount: number }[];
+    if (userId) this.db.prepare('DELETE FROM dm_escrow WHERE ref = ? AND user_id = ?').run(ref, userId);
+    else this.db.prepare('DELETE FROM dm_escrow WHERE ref = ?').run(ref);
+    return rows;
+  }
+  dmEscrowAll(): { user_id: string; ref: string; amount: number }[] {
+    this.dmInit();
+    return this.db.prepare('SELECT user_id, ref, amount FROM dm_escrow').all() as unknown as { user_id: string; ref: string; amount: number }[];
+  }
+  /** Administration : Groschen en circulation, bloqués, mouvements par motif depuis `since`, plus gros soldes. */
+  dmEconomy(since: number) {
+    this.dmInit();
+    const circulation = (this.db.prepare('SELECT COALESCE(SUM(balance), 0) AS n FROM dm_wallet').get() as { n: number }).n;
+    const escrow = (this.db.prepare('SELECT COALESCE(SUM(amount), 0) AS n FROM dm_escrow').get() as { n: number }).n;
+    const byReason = this.db.prepare('SELECT reason, SUM(CASE WHEN delta > 0 THEN delta ELSE 0 END) AS earned, SUM(CASE WHEN delta < 0 THEN -delta ELSE 0 END) AS spent, COUNT(*) AS moves FROM dm_ledger WHERE at >= ? GROUP BY reason ORDER BY earned + spent DESC').all(since) as unknown as { reason: string; earned: number; spent: number; moves: number }[];
+    const richest = this.db.prepare('SELECT u.username, w.balance FROM dm_wallet w JOIN users u ON u.id = w.user_id ORDER BY w.balance DESC LIMIT 10').all() as unknown as { username: string; balance: number }[];
+    return { circulation, escrow, byReason, richest };
+  }
+  dmLedgerOf(userId: string, limit = 50) {
+    this.dmInit();
+    return this.db.prepare('SELECT delta, balance, reason, ref, at FROM dm_ledger WHERE user_id = ? ORDER BY id DESC LIMIT ?').all(userId, limit) as unknown as { delta: number; balance: number; reason: string; ref: string | null; at: number }[];
+  }
+
   close() { this.db.close(); }
 }
 

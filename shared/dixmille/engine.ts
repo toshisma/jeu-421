@@ -1,5 +1,5 @@
 /**
- * Le Dix mille (jeu de dés traditionnel, aussi appelé Farkle) : moteur de règles pur, partagé,
+ * Le Courtisan : le jeu de dés traditionnel du Dix mille (aussi appelé Farkle). Moteur de règles pur, partagé,
  * déterministe (graine). Aucune dépendance au rendu ni au réseau.
  *
  * Règles retenues :
@@ -16,6 +16,9 @@
 import { mulberry32 } from '../rng';
 
 export const DM_DICE = 6;
+/** Nombre de joueurs à une table (solo : 2 à 4 ; en ligne : 2 à 6). */
+export const DM_MIN_PLAYERS = 2;
+export const DM_MAX_PLAYERS = 6;
 export const DM_TARGETS = [2000, 4000, 10000] as const;
 export type DmTarget = (typeof DM_TARGETS)[number];
 export type DmLevel = 'debutant' | 'habitue' | 'fouine';
@@ -156,7 +159,7 @@ export interface DmState {
 }
 
 export function newGame(players: { id: string; name: string; bot?: DmLevel }[], target: number, seed: number): DmState {
-  if (players.length < 2 || players.length > 4) throw new Error('2 à 4 joueurs');
+  if (players.length < DM_MIN_PLAYERS || players.length > DM_MAX_PLAYERS) throw new Error(`${DM_MIN_PLAYERS} à ${DM_MAX_PLAYERS} joueurs`);
   return {
     target, players: players.map((p) => ({ ...p, score: 0, misses: 0, best: 0 })), current: 0, phase: 'debut',
     dice: [1, 2, 3, 4, 5, 6], out: Array(DM_DICE).fill(false), rolled: Array(DM_DICE).fill(false),
@@ -255,6 +258,11 @@ export function act(prev: DmState, a: DmAction): { state: DmState } | { error: s
   }
   throwDice(s);
   return { state: s };
+}
+
+/** Place d'un joueur en fin de partie (1 = le gagnant, puis selon le score). */
+export function placeOf(s: DmState, id: string): number {
+  return ranking(s).findIndex((p) => p.id === id) + 1 || s.players.length;
 }
 
 /** Classement final (score décroissant ; le gagnant d'abord). */
