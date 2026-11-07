@@ -91,6 +91,10 @@ tbody tr:nth-child(odd) { background: rgba(255,255,255,0.03); }
 .lexique dd { margin: 0; color: var(--texte2); }
 @media (max-width: 480px) { .lexique { grid-template-columns: 1fr; gap: 0; } .lexique dd { margin-bottom: 8px; } }
 
+/* Mention d'indépendance (page sur le jeu de dés de Kingdom Come: Deliverance 2) : bien visible. */
+.disclaimer { margin: 16px 0; padding: 12px 14px; border-radius: 12px; border: 2px solid var(--laiton); background: rgba(212,173,47,0.10); font-size: 0.95rem; color: var(--texte2); }
+.disclaimer b { color: var(--blanc); }
+
 .faq details { margin: 8px 0; padding: 10px 14px; border-radius: 10px; background: var(--ardoise2); }
 .faq summary { cursor: pointer; font-weight: 700; }
 .faq p { margin: 8px 0 0; color: var(--texte2); }

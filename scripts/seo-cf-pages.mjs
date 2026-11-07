@@ -40,7 +40,7 @@ const cardFig = (id, { eager = false, full = true, caption = '' } = {}) => {
     ? `<h3>${c.name}</h3><p class="cfc-meta">${meta}</p><p>${c.text}</p><p class="cfc-flavor">${c.flavor}</p>`
     : `<b>${FAMILY_LABEL[c.family]}</b><span>${caption}</span>`}</figcaption></figure>`;
 };
-const dice = (s) => `<span class="dice" aria-label="${s.split('').join('-')}">${s.split('').map((d) => `<i class="d d${d}"></i>`).join('')}</span>`;
+const dice = (s) => `<span class="dice" role="img" aria-label="${s.split('').join('-')}">${s.split('').map((d) => `<i class="d d${d}"></i>`).join('')}</span>`;
 const play = (label, sub) => `<p class="play-box"><a class="cta" href="${CF_PLAY}" data-play>${label}</a>${sub ? `<small>${sub}</small>` : ''}</p>`;
 const toc = (items) => `<nav class="toc" aria-label="Sommaire"><b>Sommaire</b><ol>${items.map(([id, t]) => `<li><a href="#${id}">${t}</a></li>`).join('')}</ol></nav>`;
 const typesTable = () => `<div class="table-wrap"><table>
