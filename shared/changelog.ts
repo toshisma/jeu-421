@@ -7,6 +7,9 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.45', date: '2026-11-07T23:05:00+01:00', title: 'Correction : Le Courtisan', items: [
+    'Le Courtisan : avec une traînée de lancer équipée (collection), le bac se figeait au lancer et les dés disparaissaient. C’est corrigé : les traînées suivent maintenant les 6 dés.',
+  ] },
   { version: '0.44', date: '2026-11-07T19:30:00+01:00', title: 'Nouveau mode : Le Courtisan', items: [
     'Nouveau jeu : Le Courtisan, le jeu de dés traditionnel du Dix mille (Farkle) à 6 dés. Mettez de côté les dés qui rapportent, puis relancez ou encaissez… mais si rien ne rapporte, c’est « Raté ! » et les points du tour s’envolent. Le premier qui atteint l’objectif (2 000, 4 000 ou 10 000) gagne.',
     'Contre l’ordinateur (1 à 3 adversaires) ou en ligne de 2 à 6 joueurs : partie rapide, table privée avec code ou lien, invitation d’amis, ordinateurs pour compléter la table, tchat et spectateurs.',

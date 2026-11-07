@@ -47,6 +47,8 @@ const STYLES: Record<string, Partial<TrailStyle>> = {
 
 const MAXP = 900;
 const HIST = 34;
+/** Nombre maximal de dés suivis (3 au 421, 6 au Courtisan). */
+const MAXD = 8;
 
 const VERT_P = `
 attribute float aSize; attribute vec4 aColor; attribute float aShape; attribute float aRot;
@@ -100,15 +102,15 @@ export class Trails {
   private spin = new Float32Array(MAXP);
   private rgb = new Float32Array(MAXP * 3);
   private next = 0;
-  private acc = [0, 0, 0];
+  private acc: number[] = Array(MAXD).fill(0);
   // Rubans : un historique de positions par dé.
-  private hist: { p: THREE.Vector3; t: number }[][] = [[], [], []];
+  private hist: { p: THREE.Vector3; t: number }[][] = Array.from({ length: MAXD }, () => []);
   private rGeo = new THREE.BufferGeometry();
   private rMat: THREE.ShaderMaterial;
-  private rPos = new Float32Array(3 * HIST * 2 * 3);
-  private rCol = new Float32Array(3 * HIST * 2 * 4);
-  private rSide = new Float32Array(3 * HIST * 2);
-  private last: THREE.Vector3[] = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+  private rPos = new Float32Array(MAXD * HIST * 2 * 3);
+  private rCol = new Float32Array(MAXD * HIST * 2 * 4);
+  private rSide = new Float32Array(MAXD * HIST * 2);
+  private last: THREE.Vector3[] = Array.from({ length: MAXD }, () => new THREE.Vector3());
   private clock = 0;
   private tmp = new THREE.Vector3();
 
@@ -130,7 +132,7 @@ export class Trails {
     this.rGeo.setAttribute('aColor', a(this.rCol, 4));
     this.rGeo.setAttribute('aSide', new THREE.BufferAttribute(this.rSide, 1));
     const idx: number[] = [];
-    for (let d = 0; d < 3; d++) for (let k = 0; k < HIST - 1; k++) {
+    for (let d = 0; d < MAXD; d++) for (let k = 0; k < HIST - 1; k++) {
       const o = (d * HIST + k) * 2;
       idx.push(o, o + 1, o + 2, o + 1, o + 3, o + 2);
     }
@@ -177,6 +179,7 @@ export class Trails {
     let alive = false;
     // --- Émission ---
     dice.forEach((p, i) => {
+      if (i >= MAXD) return;
       const v = this.tmp.copy(p).sub(this.last[i]).divideScalar(Math.max(dt, 1e-3));
       const speed = v.length();
       this.last[i].copy(p);
@@ -227,7 +230,7 @@ export class Trails {
     // --- Rubans ---
     let rib = false;
     const life = st?.ribbonLife ?? 0.3;
-    for (let d = 0; d < 3; d++) {
+    for (let d = 0; d < MAXD; d++) {
       const h = this.hist[d];
       while (h.length && this.clock - h[h.length - 1].t > life) h.pop();
       if (!emit && h.length) h.splice(0, 0); // la tête cesse d'avancer : la queue rattrape et disparaît
