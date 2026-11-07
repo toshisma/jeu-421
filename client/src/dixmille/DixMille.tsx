@@ -3,9 +3,10 @@
  * l'ordinateur dans le bac 3D (6 dés). Le moteur est dans shared/dixmille.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { act, currentPlayer, diceAfter, inPlay, newGame, pickPoints, ranking, scoreParts, DM_LEVELS, DM_TARGETS, DM_VALUES, type DmAction, type DmEvent, type DmLevel, type DmState } from '../../../shared/dixmille/engine';
+import { act, currentPlayer, diceAfter, inPlay, newGame, pickPoints, ranking, validSelections, DM_LEVELS, DM_TARGETS, DM_VALUES, type DmAction, type DmEvent, type DmLevel, type DmState } from '../../../shared/dixmille/engine';
 import { decide } from '../../../shared/dixmille/ai';
 import type { Appearance } from '../../../shared/progress/catalog';
+import { fxDef } from '../../../shared/progress/dice-collection';
 import type { Reward } from '../../../shared/progress/profile';
 import type { ProfileApi } from '../account/useProfile';
 import type { Settings } from '../settings';
@@ -94,9 +95,8 @@ export function DixMilleSetup({ onBack, onStart, onClassic, onCards, onRules }: 
         onClick={() => onStart(setup, chosen)} />}>
       {onCards && <ModeSwitch active="dixmille" onClassic={onClassic} onCards={onCards} onDixMille={() => {}} />}
       <div className="dm-intro">
-        <span className="dm-intro-dice" aria-hidden>{[1, 5, 5, 1, 1, 1].map((v, i) => <MiniDie key={i} value={v} size={22} />)}</span>
-        <p>Mettez de côté les dés qui rapportent, relancez les autres… ou encaissez avant de tout perdre.</p>
-        <button className="btn ghost small" onClick={onRules}><Icon name="rules" size={18} /> Règles</button>
+        <span className="dm-intro-dice" aria-hidden>{[1, 5, 5, 1].map((v, i) => <MiniDie key={i} value={v} size={18} />)}</span>
+        <p>Mettez de côté les dés qui rapportent, relancez les autres… ou encaissez avant de tout perdre. <button className="link" onClick={onRules}>Lire les règles</button></p>
       </div>
       <Section title="Adversaires" aside={<button className="btn ghost small" onClick={() => setRoster([...PERSONAS].sort(() => Math.random() - 0.5))}><Icon name="resume" size={18} /> Changer</button>}>
         <div className="k-pills big" role="radiogroup" aria-label="Nombre d'adversaires">
@@ -183,13 +183,16 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
       if (e.kind === 'main-pleine') {
         sound.chips(6); sound.validate();
         setFlash({ kind: 'pleine', id: Date.now() });
+        tray.current?.setKept(Array(6).fill(false));
         tray.current?.setHidden(Array(6).fill(false));
         await wait(900);
       } else if (e.kind === 'lancer') {
         const seat = seats.find((x) => x.id === e.playerId)!;
         tray.current?.setDiceSkin(seat.isMe ? null : PERSONA_DICE[seat.id] ?? null);
-        tray.current?.setKept(Array(6).fill(false));
+        // Mes effets de collection (traînée de lancer) ; les ordinateurs n'en ont pas.
+        tray.current?.setTrail(seat.isMe ? pa.profile.fx?.trainee ?? null : null);
         tray.current?.setHidden(e.rolled.map((r) => !r));
+        tray.current?.setKept(Array(6).fill(false));
         // Les dés mis de côté quittent le bac : l'affichage passe à l'état « en cours » pendant le lancer.
         setS((p) => ({ ...p, out: e.rolled.map((r) => !r), phase: p.phase === 'fini' ? p.phase : 'choisir', rolled: Array(6).fill(false) }));
         const seed = (next.seed ^ (next.draws * 2654435761)) >>> 0;
@@ -207,7 +210,8 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
         await wait(700);
       } else if (e.kind === 'gagne') {
         const seat = seats.find((x) => x.id === e.playerId)!;
-        if (seat.isMe) { sound.win(); tray.current?.celebrate(null); } else sound.lose();
+        const fete = pa.profile.fx?.fete;
+        if (seat.isMe) { sound.win(); tray.current?.celebrate(fete && fxDef(fete)?.kind === 'fete' ? fete : null); } else sound.lose();
       }
     }
     if (!alive.current) return;
@@ -215,7 +219,7 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
     setSel([]);
     setBotPick([]);
     tray.current?.setKept(Array(6).fill(false));
-  }, [seats]);
+  }, [seats, pa.profile.fx]);
 
   const run = useCallback(async (a: DmAction, gesture?: ThrowGesture) => {
     const r = act(sRef.current, a);
@@ -266,6 +270,7 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
   useEffect(() => {
     if (s.phase !== 'fini' || end) return;
     setEnd({ reward: null, done: false });
+    tray.current?.setInteractive(false);
     const place = ranking(s).findIndex((p) => p.id === 'moi') + 1;
     void (async () => {
       const [r] = await Promise.all([pa.onDixMilleEnd({ won: s.winner === 'moi', place, opponents: opponents.length, level: setup.level }), wait(1400)]);
@@ -284,13 +289,10 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
   };
   /** Sélectionne tous les dés qui rapportent (raccourci). */
   const pickAll = () => {
-    const vals = live.map((i) => s.dice[i]);
-    // Meilleure lecture du lancer : on retrouve les indices des dés utilisés.
-    const best = scoreParts(vals);
+    // La sélection qui rapporte le plus (à points égaux, celle qui garde le plus de dés à relancer).
+    const best = validSelections(live.map((i) => s.dice[i]))[0];
     if (!best) return;
-    const used: number[] = [];
-    const pool = [...live];
-    for (const part of best.parts) for (const v of part.dice) { const k = pool.findIndex((i) => s.dice[i] === v); used.push(pool[k]); pool.splice(k, 1); }
+    const used = best.idx.map((k) => live[k]);
     sound.click();
     setSel(used);
     tray.current?.setKept(s.dice.map((_, k) => used.includes(k)));
@@ -326,14 +328,14 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
   })();
 
   return (
-    <div className="game dm-game" data-phase={s.phase} data-live={live.join(",")} data-rolled={s.rolled.map(Number).join("")} data-out={s.out.map(Number).join("")} data-busy={String(busy)} onPointerDown={() => sound.unlock()}>
+    <div className="game dm-game" onPointerDown={() => sound.unlock()}>
       <DiceTray ref={tray} diceCount={6} appearance={appearance} quality={settings.quality} insets={insets} onDieClick={toggle} onSwipe={(g) => doRoll(g)} cup={settings.cup} />
       <div className="vignette" />
 
       <div className="dm-top" ref={topRef}>
         <div className="topbar">
           <button className="icon-btn" onClick={leave} aria-label="Quitter la partie"><Icon name="back" /></button>
-          <div className="phase dm-phase"><span className="dm-logo">{fmt(s.target)}</span><span className="dm-goal">points à atteindre</span></div>
+          <div className="phase dm-phase"><span className="dm-goal">Objectif</span><span className="dm-logo">{fmt(s.target)}</span></div>
           <div className="top-actions">
             <button className="icon-btn dm-values-btn" onClick={() => setSheet('valeurs')} aria-label="Valeurs des dés"><span>Valeurs</span></button>
             <button className="icon-btn" onClick={() => setSheet('regles')} aria-label="Règles du Dix mille"><Icon name="rules" /></button>
@@ -417,7 +419,7 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
         </Sheet>
       )}
 
-      {end && (
+      {end?.done && (
         <div className="dm-end-back">
           <div className="dm-end" role="dialog" aria-label="Fin de partie">
             <h2>{s.winner === 'moi' ? 'Gagné !' : `${seats.find((x) => x.id === s.winner)?.name} gagne`}</h2>

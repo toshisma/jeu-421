@@ -25,7 +25,7 @@ console.log('accueil : défilement interne', homeScroll, 'débordement', await o
 await p.screenshot({ path: `${OUT}/1-accueil-${tag}.png` });
 console.log('onglet', await click('Dix mille', '.ms-tab'));
 await w(1200);
-await click('1', '.k-pills button');
+await click(process.env.OPP || '1', '.k-pills button');
 await click(TARGET, '.k-choices button');
 await click('Débutant', '.k-choices button');
 await w(300);
@@ -36,9 +36,11 @@ await w(3500);
 await p.screenshot({ path: `${OUT}/3-debut-${tag}.png` });
 let shotSel = false, shotRate = false, shotPleine = false, actions = 0;
 const t0 = Date.now();
-while (Date.now() - t0 < 240000) {
+while (Date.now() - t0 < Number(process.env.DUR || 240000)) {
   if (await p.$('.dm-end')) break;
-  if (!shotRate && await p.$('.dm-flash.rate')) { await w(450); await p.screenshot({ path: `${OUT}/5-rate-${tag}.png` }); shotRate = true; console.log('raté capturé'); }
+  if (process.env.DBG) { const d = await p.evaluate(() => { const g = document.querySelector('.dm-game'); return g ? JSON.stringify(g.dataset) + ' ' + (document.querySelector('.dm-bottom')?.innerText || '').replace(/\n/g, ' / ') : 'none'; });
+  if (d !== globalThis.lastD) { console.log(Math.round((Date.now() - t0) / 100) / 10, d); globalThis.lastD = d; } }
+  if (!shotRate && await p.$('.dm-flash.rate')) { await w(150); await p.screenshot({ path: `${OUT}/5-rate-${tag}.png` }); shotRate = true; console.log('raté capturé'); }
   if (!shotPleine && await p.$('.dm-flash.pleine')) { await w(350); await p.screenshot({ path: `${OUT}/6-pleine-${tag}.png` }); shotPleine = true; console.log('main pleine capturée'); }
   if (await click('Lancer les 6 dés')) { actions++; await w(300); continue; }
   if (await p.$('.dm-pickall')) {

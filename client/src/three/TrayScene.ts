@@ -791,6 +791,13 @@ export class TrayScene {
    * sa place de repos ; il sera relancé au prochain lancer.
    */
   setHidden(mask: boolean[]) {
+    // Un dé qui apparaît ou disparaît n'emporte pas son anneau de dé gardé.
+    // Un dé qui revient repart de là où il était posé.
+    this.dice.forEach((d, i) => {
+      if (this.hidden[i] === !!mask[i]) return;
+      (d.ring.material as THREE.MeshBasicMaterial).opacity = 0;
+      if (!mask[i] && this.home[i]) { this.home = [...this.home]; this.home[i] = d.pose; }
+    });
     this.hidden = this.dice.map((_, i) => !!mask[i]);
     this.dice.forEach((d, i) => { d.mesh.visible = !this.hidden[i]; d.contact.visible = !this.hidden[i]; if (this.hidden[i]) d.ring.visible = false; });
     this.invalidate();
