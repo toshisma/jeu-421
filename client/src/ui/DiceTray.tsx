@@ -17,6 +17,8 @@ export interface DiceTrayHandle {
   setTrail(id: string | null): void;
   /** Célébration du 4-2-1 / trois as dans le bac (effet équipé, ou célébration par défaut). */
   celebrate(id: string | null): void;
+  /** Retire des dés du bac (Dix mille : dés mis de côté) ou les y remet. */
+  setHidden(mask: boolean[]): void;
 }
 
 interface Props {
@@ -27,6 +29,8 @@ interface Props {
   onSwipe?: (g: ThrowGesture) => void;
   /** Lancer au gobelet (réglages). */
   cup?: boolean;
+  /** Nombre de dés (3 par défaut ; 6 pour le Dix mille). Fixé à la création du bac. */
+  diceCount?: number;
 }
 
 /**
@@ -46,10 +50,10 @@ const afterPaint = async () => {
   if (w.requestIdleCallback) await new Promise<void>((r) => w.requestIdleCallback!(() => r(), { timeout: 400 }));
 };
 
-type Pending = Partial<{ swipe: boolean; values: number[]; kept: boolean[]; interactive: boolean; skin: string | null; trail: string | null }>;
+type Pending = Partial<{ swipe: boolean; values: number[]; kept: boolean[]; hidden: boolean[]; interactive: boolean; skin: string | null; trail: string | null }>;
 
 /** Composant React qui héberge la scène Three.js du bac. */
-export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ appearance, quality, insets, onDieClick, onSwipe, cup = false }, ref) {
+export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ appearance, quality, insets, onDieClick, onSwipe, cup = false, diceCount = 3 }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<TrayScene | null>(null);
   const [ready, setReady] = useState(false);
@@ -60,8 +64,8 @@ export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ ap
   clickRef.current = onDieClick;
   const swipeRef = useRef(onSwipe);
   swipeRef.current = onSwipe;
-  const latest = useRef({ appearance, quality, cup, insets });
-  latest.current = { appearance, quality, cup, insets };
+  const latest = useRef({ appearance, quality, cup, insets, diceCount });
+  latest.current = { appearance, quality, cup, insets, diceCount };
 
   useEffect(() => {
     let alive = true;
@@ -79,6 +83,7 @@ export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ ap
         onSwipe: (g) => swipeRef.current?.(g),
         onDieClick: (i) => clickRef.current?.(i),
         cup: l.cup,
+        diceCount: l.diceCount,
         onShake: () => sound.rattle(),
         onFx: (k, st) => sound.party(k, st),
       });
@@ -88,6 +93,7 @@ export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ ap
       pending.current = {};
       if (p.skin !== undefined) s.setDiceSkin(p.skin);
       if (p.trail !== undefined) s.setTrail(p.trail);
+      if (p.hidden) s.setHidden(p.hidden);
       if (p.values) s.showValues(p.values);
       if (p.kept) s.setKept(p.kept);
       if (p.interactive !== undefined) s.setInteractive(p.interactive);
@@ -121,6 +127,7 @@ export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ ap
     setDiceSkin: (id) => { if (scene.current) scene.current.setDiceSkin(id); else pending.current.skin = id; },
     setTrail: (id) => { if (scene.current) scene.current.setTrail(id); else pending.current.trail = id; },
     celebrate: (id) => scene.current?.celebrate(id),
+    setHidden: (m) => { if (scene.current) scene.current.setHidden(m); else pending.current.hidden = m; },
   }), []);
 
   return <div ref={host} className={`tray-host${ready ? '' : ' tray-loading'}`} />;

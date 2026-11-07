@@ -39,6 +39,8 @@ export interface TraySceneOptions {
    * de couleur d'accent ; on rend à la demande avec `capture()`.
    */
   thumbnail?: boolean;
+  /** Nombre de dés dans le bac (3 pour le 421, 6 pour le Dix mille). */
+  diceCount?: number;
 }
 
 interface DieObj {
@@ -109,7 +111,9 @@ export class TrayScene {
   private perf = { frames: 0, time: 0 };
   private tmpP = new THREE.Vector3();
   private tmpQ = new THREE.Quaternion();
-  private kept = [false, false, false];
+  private kept: boolean[] = [];
+  /** Dés retirés du bac (mis de côté au Dix mille) : invisibles et hors de la physique. */
+  private hidden: boolean[] = [];
   private interactive = false;
   private hover = -1;
   private raycaster = new THREE.Raycaster();
@@ -168,10 +172,10 @@ export class TrayScene {
     this.setQuality(opts.quality);
     this.setAppearance(opts.appearance);
 
-    const layout = restingLayout();
+    const layout = restingLayout(7, this.dice.length);
     layout.forEach((p, i) => (this.dice[i].pose = p));
     this.home = layout;
-    this.showValues([4, 2, 1], true);
+    this.showValues(this.dice.length === 3 ? [4, 2, 1] : [1, 2, 3, 4, 5, 6, 1, 5].slice(0, this.dice.length), true);
 
     if (opts.thumbnail) {
       this.renderer.domElement.className = 'tray-thumb-canvas';
@@ -213,7 +217,10 @@ export class TrayScene {
     const contactGeo = new THREE.PlaneGeometry(2.0, 2.0);
     contactGeo.rotateX(-Math.PI / 2);
     this.disposables.push(contactTex, contactGeo);
-    for (let i = 0; i < 3; i++) {
+    const count = Math.max(1, Math.min(8, this.opts.diceCount ?? 3));
+    this.kept = Array(count).fill(false);
+    this.hidden = Array(count).fill(false);
+    for (let i = 0; i < count; i++) {
       const mats = FACE_VALUES.map(() => new THREE.MeshPhysicalMaterial({
         roughness: 0.32, metalness: 0, normalScale: new THREE.Vector2(1, 1),
         clearcoat: 0.55, clearcoatRoughness: 0.2, envMapIntensity: 0.55, sheen: 0,
@@ -308,8 +315,9 @@ export class TrayScene {
       });
     }
     const c = new THREE.Vector3();
-    for (const d of this.dice) c.add(d.mesh.position);
-    c.divideScalar(3).setY(0);
+    const shown = this.dice.filter((_, i) => !this.hidden[i]);
+    for (const d of shown) c.add(d.mesh.position);
+    c.divideScalar(Math.max(1, shown.length)).setY(0);
     // Le tapis peut changer de forme : on recale les limites.
     this.party.ctx.half = [this.shape.halfX - 0.3, this.shape.halfZ - 0.3];
     this.party.start(id, c);
@@ -636,9 +644,13 @@ export class TrayScene {
     this.party?.stop();
     this.flash(0, new THREE.Color());
     // Les dés gardés partent du bord du bac : position calculée pareil chez tous les joueurs.
-    const start = parkPoses(this.home, keep, this.shape.id);
+    // Dés retirés : immobiles, loin sous le bac (ils ne gênent pas le lancer).
+    const hid = this.hidden;
+    const home = this.home.map((p, i) => (hid[i] ? { p: [0, -40 - i * 2, 0] as DiePose['p'], q: p.q } : p));
+    const start = parkPoses(home, keep.map((k, i) => k && !hid[i]), this.shape.id).map((p, i) => (hid[i] ? home[i] : p));
+    keep = keep.map((k, i) => k || hid[i]);
     this.kept = [...keep];
-    const wait = this.moveTo(start);
+    const wait = this.moveTo(start.map((p, i) => (hid[i] ? this.dice[i].pose : p)));
     if (wait > 0) await new Promise((r) => setTimeout(r, wait));
     this.finishMoves();
     const sim = simulateThrow(start, keep, values, seed, this.shape.id, gesture);
@@ -692,7 +704,7 @@ export class TrayScene {
     if (!this.cup) this.buildCup();
     const center = new THREE.Vector3(), next = new THREE.Vector3(), q = new THREE.Quaternion(), p = new THREE.Vector3();
     let n = 0;
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < this.dice.length; i++) {
       if (keep[i]) continue;
       samplePose(sim, PRELUDE_FRAMES, i, p, q); center.add(p);
       samplePose(sim, PRELUDE_FRAMES + 3, i, p, q); next.add(p);
@@ -743,7 +755,7 @@ export class TrayScene {
   private stopCup() {
     if (this.cup) this.cup.visible = false;
     this.cupAnim = null;
-    for (const d of this.dice) { d.mesh.visible = true; d.contact.visible = true; }
+    this.dice.forEach((d, i) => { d.mesh.visible = !this.hidden[i]; d.contact.visible = !this.hidden[i]; });
   }
 
   private finishPlayback() {
@@ -754,8 +766,10 @@ export class TrayScene {
       if (this.zoomTimer) clearTimeout(this.zoomTimer);
       this.zoomTimer = setTimeout(() => { this.zoomTarget = 0; this.invalidate(); }, 1600);
     }
-    pb.sim.finalPoses.forEach((p, i) => (this.dice[i].pose = p));
-    this.home = pb.sim.finalPoses;
+    // Les dés retirés gardent leur dernière place (ils y reviennent à la main pleine).
+    const fin = pb.sim.finalPoses.map((p, i) => (this.hidden[i] ? this.dice[i].pose : p));
+    fin.forEach((p, i) => (this.dice[i].pose = p));
+    this.home = fin;
     this.syncFromPoses();
     this.playback = null;
     this.invalidate();
@@ -765,7 +779,20 @@ export class TrayScene {
   setKept(mask: boolean[]) {
     this.kept = [...mask];
     // Un dé gardé glisse au bord du bac ; s'il n'est plus gardé, il revient à sa place.
-    if (!this.playback) this.moveTo(parkPoses(this.home, mask, this.shape.id));
+    if (!this.playback) {
+      const parked = parkPoses(this.home, mask.map((k, i) => k && !this.hidden[i]), this.shape.id);
+      this.moveTo(parked.map((p, i) => (this.hidden[i] ? this.dice[i].pose : p)));
+    }
+    this.invalidate();
+  }
+
+  /**
+   * Retire des dés du bac (Dix mille : dés mis de côté) ou les y remet. Un dé remis reprend
+   * sa place de repos ; il sera relancé au prochain lancer.
+   */
+  setHidden(mask: boolean[]) {
+    this.hidden = this.dice.map((_, i) => !!mask[i]);
+    this.dice.forEach((d, i) => { d.mesh.visible = !this.hidden[i]; d.contact.visible = !this.hidden[i]; if (this.hidden[i]) d.ring.visible = false; });
     this.invalidate();
   }
 
@@ -817,9 +844,9 @@ export class TrayScene {
     if (this.playback?.hold) {
       // Dans le gobelet : les dés lancés sont cachés, les dés gardés restent au bord.
       animating = true;
-      this.dice.forEach((d, i) => { d.mesh.visible = this.kept[i]; d.contact.visible = this.kept[i]; });
+      this.dice.forEach((d, i) => { d.mesh.visible = this.kept[i] && !this.hidden[i]; d.contact.visible = this.kept[i] && !this.hidden[i]; });
     } else if (this.playback) {
-      this.dice.forEach((d) => { d.mesh.visible = true; d.contact.visible = true; });
+      this.dice.forEach((d, i) => { d.mesh.visible = !this.hidden[i]; d.contact.visible = !this.hidden[i]; });
       animating = true;
       const pb = this.playback;
       if (pb.t0 === null) pb.t0 = now;
@@ -830,12 +857,14 @@ export class TrayScene {
         this.zoomTarget = 1;
         // Gros plan sur le centre des dés à leur position finale.
         this.zoomFocus.set(0, 0.5, 0);
-        for (const p of pb.sim.finalPoses) this.zoomFocus.add(new THREE.Vector3(p.p[0] / 3, 0, p.p[2] / 3));
+        const n = pb.sim.finalPoses.length;
+        for (const p of pb.sim.finalPoses) this.zoomFocus.add(new THREE.Vector3(p.p[0] / n, 0, p.p[2] / n));
       }
       // Temps réel écoulé (plafonné à 1 s) : si l'appareil ralentit, le lancer rattrape son retard.
       pb.frame += Math.min(1, Math.max(0, rawDt)) * FPS * scale;
       const frame = pb.frame;
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < this.dice.length; i++) {
+        if (this.hidden[i]) continue;
         samplePose(pb.sim, frame, i, this.tmpP, this.tmpQ);
         this.applyPose(i, this.tmpP, this.tmpQ);
       }
@@ -849,7 +878,7 @@ export class TrayScene {
 
     this.fxTime.value += dt;
     if (this.trails) {
-      if (this.diePos.length !== 3) this.diePos = this.dice.map((d) => d.mesh.position);
+      if (this.diePos.length !== this.dice.length) this.diePos = this.dice.map((d) => d.mesh.position);
       if (this.trails.step(dt, this.diePos, !!this.playback && !this.playback.hold)) animating = true;
     }
     if (this.party?.step(dt)) animating = true;
@@ -862,7 +891,7 @@ export class TrayScene {
       const diff = target - ringMat.opacity;
       if (Math.abs(diff) > 0.005) { ringMat.opacity += diff * Math.min(1, dt * 10); animating = true; }
       else ringMat.opacity = target;
-      d.ring.visible = ringMat.opacity > 0.01;
+      d.ring.visible = ringMat.opacity > 0.01 && !this.hidden[i];
       const glow = this.kept[i] ? 0.18 : i === this.hover ? 0.1 : 0;
       const b = this.glowBase; // dés aux points lumineux : la carte lumineuse reste allumée
       for (const m of d.mats) m.emissive.setRGB(b + glow, b + glow * 0.75, b + glow * 0.25);
@@ -920,7 +949,7 @@ export class TrayScene {
     const rect = this.renderer.domElement.getBoundingClientRect();
     this.pointer.set(((ev.clientX - rect.left) / rect.width) * 2 - 1, -((ev.clientY - rect.top) / rect.height) * 2 + 1);
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    const hit = this.raycaster.intersectObjects(this.dice.map((d) => d.mesh))[0];
+    const hit = this.raycaster.intersectObjects(this.dice.filter((_, i) => !this.hidden[i]).map((d) => d.mesh))[0];
     return hit ? (hit.object.userData.die as number) : -1;
   }
 

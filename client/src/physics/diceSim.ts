@@ -45,9 +45,11 @@ export type { ThrowGesture };
 export interface SimEvent { frame: number; kind: ImpactKind; strength: number; die: number; x: number }
 
 export interface ThrowResult {
-  /** frameCount * 3 dés * 7 flottants (px,py,pz,qx,qy,qz,qw) — poses des CORPS physiques. */
+  /** frameCount * n dés * 7 flottants (px,py,pz,qx,qy,qz,qw) — poses des CORPS physiques. */
   frames: Float32Array;
   frameCount: number;
+  /** Nombre de dés de la trajectoire. */
+  dice: number;
   events: SimEvent[];
   finalPoses: DiePose[];
   /** Rotation à appliquer au maillage de chaque dé relancé (null = dé conservé, inchangé). */
@@ -91,10 +93,11 @@ export function offsetForTop(bodyQ: Quaternion, value: number): Quaternion {
 }
 
 /** Disposition de repos initiale (dés à plat au centre du bac). */
-export function restingLayout(seed = 7): DiePose[] {
+export function restingLayout(seed = 7, count = 3): DiePose[] {
   const rng = mulberry32(seed);
-  const xs = [-1.8, 0.1, 1.9];
-  const zs = [0.4, -0.5, 0.6];
+  // 3 dés : disposition historique. Plus de dés : deux rangées.
+  const xs = count === 3 ? [-1.8, 0.1, 1.9] : Array.from({ length: count }, (_, i) => (Math.floor(i / 2) - (Math.ceil(count / 2) - 1) / 2) * 1.9 + (i % 2) * 0.35);
+  const zs = count === 3 ? [0.4, -0.5, 0.6] : Array.from({ length: count }, (_, i) => (i % 2 ? 0.9 : -0.9) + ((i * 37) % 5 - 2) * 0.08);
   return xs.map((x, i) => {
     const q = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), (rng() - 0.5) * 1.2);
     return { p: [x, 0.5, zs[i]] as Vec3T, q: [q.x, q.y, q.z, q.w] as QuatT };
@@ -173,7 +176,8 @@ function runAttempt(poses: DiePose[], keep: boolean[], seed: number, shape: Tray
   // Moins de place dans la direction du lancer (petit côté) : élan proportionnellement réduit.
   const span = back + Math.max(...shape.verts.map(([x, z]) => x * ux + z * uz));
   const room = Math.min(1, Math.max(0.6, span / 15));
-  const rolled = [0, 1, 2].filter((i) => !keep[i]);
+  const N = poses.length;
+  const rolled = poses.map((_, i) => i).filter((i) => !keep[i]);
   const slots: number[] = [];
   for (const _ of rolled) {
     let o = 0;
@@ -186,11 +190,11 @@ function runAttempt(poses: DiePose[], keep: boolean[], seed: number, shape: Tray
 
   const bodies: CANNON.Body[] = [];
   const starts: DiePose[] = poses.map((p) => ({ p: [...p.p] as Vec3T, q: [...p.q] as QuatT }));
-  const launch: Attempt['launch'] = [null, null, null];
+  const launch: Attempt['launch'] = poses.map(() => null);
   const events: SimEvent[] = [];
   let frame = 0;
 
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < N; i++) {
     const box = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
     let body: CANNON.Body;
     if (keep[i]) {
@@ -286,7 +290,7 @@ function buildPrelude(poses: DiePose[], keep: boolean[], att: Attempt): number[]
   for (let f = 0; f < PRELUDE_FRAMES; f++) {
     const t = f / PRELUDE_FRAMES;
     const e = t * t * (3 - 2 * t); // vitesse nulle au départ et à l'arrivée
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < poses.length; i++) {
       const from = poses[i];
       const L = keep[i] ? null : att.launch[i];
       if (!L) { prelude.push(...from.p, ...from.q); continue; }
@@ -340,16 +344,17 @@ export function simulateThrow(poses: DiePose[], keep: boolean[], values: number[
     if (!best || att.score > best.score) best = att;
   }
   const att = best!;
-  const simFrames = att.frames.length / 21;
+  const N = poses.length, W = N * 7;
+  const simFrames = att.frames.length / W;
   let corrected = false;
 
   // Correction de dernier recours : on repose doucement à plat les dés mal posés.
   const tail: number[] = [];
   if (!att.ok) {
     corrected = true;
-    const last = att.frames.slice((simFrames - 1) * 21);
+    const last = att.frames.slice((simFrames - 1) * W);
     const target = [...last];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < N; i++) {
       if (keep[i]) continue;
       const o = i * 7;
       const q = new Quaternion(last[o + 3], last[o + 4], last[o + 5], last[o + 6]);
@@ -366,11 +371,11 @@ export function simulateThrow(poses: DiePose[], keep: boolean[], values: number[
       target[o + 1] = 0.5;
       [target[o + 3], target[o + 4], target[o + 5], target[o + 6]] = [flat.x, flat.y, flat.z, flat.w];
     }
-    const N = 14;
-    for (let f = 1; f <= N; f++) {
-      const t = f / N;
+    const STEPS = 14;
+    for (let f = 1; f <= STEPS; f++) {
+      const t = f / STEPS;
       const e = t * t * (3 - 2 * t);
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < N; i++) {
         const o = i * 7;
         tail.push(
           last[o] + (target[o] - last[o]) * e,
@@ -388,10 +393,10 @@ export function simulateThrow(poses: DiePose[], keep: boolean[], values: number[
   all.set(prelude, 0);
   all.set(att.frames, prelude.length);
   all.set(tail, prelude.length + att.frames.length);
-  const frameCount = all.length / 21;
+  const frameCount = all.length / W;
 
-  const lastOff = (frameCount - 1) * 21;
-  const finalPoses: DiePose[] = [0, 1, 2].map((i) => {
+  const lastOff = (frameCount - 1) * W;
+  const finalPoses: DiePose[] = poses.map((_, i) => {
     const o = lastOff + i * 7;
     return { p: [all[o], all[o + 1], all[o + 2]], q: [all[o + 3], all[o + 4], all[o + 5], all[o + 6]] };
   });
@@ -404,6 +409,7 @@ export function simulateThrow(poses: DiePose[], keep: boolean[], values: number[
   return {
     frames: all,
     frameCount,
+    dice: N,
     events: att.events.map((e) => ({ ...e, frame: e.frame + PRELUDE_FRAMES })),
     finalPoses,
     offsets,
@@ -418,8 +424,9 @@ export function samplePose(r: ThrowResult, frame: number, die: number, outP: Vec
   const i0 = Math.floor(f);
   const i1 = Math.min(r.frameCount - 1, i0 + 1);
   const t = f - i0;
-  const a = i0 * 21 + die * 7;
-  const b = i1 * 21 + die * 7;
+  const W = r.dice * 7;
+  const a = i0 * W + die * 7;
+  const b = i1 * W + die * 7;
   const F = r.frames;
   outP.set(F[a] + (F[b] - F[a]) * t, F[a + 1] + (F[b + 1] - F[a + 1]) * t, F[a + 2] + (F[b + 2] - F[a + 2]) * t);
   outQ.set(F[a + 3], F[a + 4], F[a + 5], F[a + 6]);
@@ -434,10 +441,11 @@ export function samplePose(r: ThrowResult, frame: number, die: number, outP: Vec
  */
 export function parkPoses(home: DiePose[], keep: boolean[], shapeId: TrayShapeId = 'rectangle'): DiePose[] {
   const shape = getShape(shapeId);
-  const kept = [0, 1, 2].filter((i) => keep[i]);
+  const all = home.map((_, i) => i);
+  const kept = all.filter((i) => keep[i]);
   const out = home.map((p) => ({ p: [...p.p] as Vec3T, q: [...p.q] as QuatT }));
   if (!kept.length) return out;
-  const others = [0, 1, 2].filter((i) => !keep[i]).map((i) => home[i].p);
+  const others = all.filter((i) => !keep[i]).map((i) => home[i].p);
   const GAP = 1.3;
   const MARGIN = 0.62; // le dé touche presque la paroi
   const slotZ = (x: number) => {
