@@ -331,7 +331,8 @@ export function createDixMilleOnline(c: Ctx) {
     if (m.left) { delay = grace + AUTOPLAY; mode = 'absent'; }
     else if (m.socketId == null) { delay = grace + (t.autoOf === pid ? AUTOPLAY : AWAY); mode = 'absent'; }
     else if (t.autoOf === pid) { delay = grace + AUTOPLAY; mode = 'temps'; }
-    else { delay = grace + DECISION; mode = 'temps'; }
+    // Contre l'ordinateur (avec mise) : plus de temps pour réfléchir, personne n'attend.
+    else { delay = grace + (t.solo ? DECISION * 4 : DECISION); mode = 'temps'; }
     t.deadline = Date.now() + delay;
     t.timer = setTimeout(() => autoPlay(t, pid, mode), delay);
   }

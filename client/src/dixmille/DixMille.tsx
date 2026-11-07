@@ -431,7 +431,7 @@ function DmBoard({ tray, anim, seats, canAct, settings, onSettings, appearance, 
         <div key={flash.id} className="dm-flash pleine" role="status"><b>Main pleine !</b><small>Les 6 dés repartent</small></div>
       )}
 
-      <div className={`dm-bottom${curSeat.isMe && canAct ? ' mine' : ' other'}`} ref={bottomRef} style={{ ['--pc' as string]: curSeat.color }}>
+      <div className={`dm-bottom${curSeat.isMe && canAct ? ' mine' : ' other'}`} ref={bottomRef} style={{ ['--pc' as string]: curSeat.color, ...(end ? { visibility: 'hidden' } : {}) }}>
         <div className="dm-turn">
           <span className="dm-who"><Avatar photo={curSeat.photo ?? null} emoji={curSeat.avatar} size={22} />{curSeat.isMe ? 'Votre tour' : curSeat.name}</span>
           <span className="dm-aside" aria-label="Dés mis de côté ce tour">

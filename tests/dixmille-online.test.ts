@@ -189,6 +189,27 @@ describe('Le Courtisan en ligne', () => {
     } finally { url = prev; await quick.close(); }
   });
 
+  it('spectateur : table publique ouverte à tous, table privée réservée aux amis, aucune action', async () => {
+    const a = await client(), b = await client(), w = await client();
+    const pub = await emit(a, 'table:create', { name: 'Pub', target: 10000, visibility: 'public' });
+    a.id = pub.playerId;
+    expect((await emit(w, 'spectate:join', { code: pub.code })).error).toMatch(/Aucune partie/);
+    await emit(a, 'table:addBot', { level: 'habitue' });
+    await emit(a, 'table:start');
+    await until(() => !!a.state);
+    const sj = await emit(w, 'spectate:join', { code: pub.code, name: 'Curieux' });
+    expect(sj.ok).toBe(true);
+    await until(() => !!w.state);
+    expect((await emit(w, 'game:act', { version: w.version, action: { type: 'lancer' } })).ok).toBe(false);
+    expect((await emit(w, 'table:chat', { text: 'Bonjour' })).ok).toBe(true);
+    const priv = await emit(b, 'table:create', { name: 'Priv', target: 10000 });
+    await emit(b, 'table:addBot', {});
+    await emit(b, 'table:start');
+    const w2 = await client();
+    expect((await emit(w2, 'spectate:join', { code: priv.code })).error).toMatch(/privée/);
+    for (const c of [a, b, w, w2]) c.s.close();
+  });
+
   it('partie rapide : rejoint une table publique gratuite, sinon en crée une', async () => {
     const a = await client(), b = await client();
     const r1 = await emit(a, 'table:quick', { name: 'Rapide' });
