@@ -7,6 +7,12 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.44', date: '2026-11-07T19:30:00+01:00', title: 'Nouveau mode : Le Courtisan', items: [
+    'Nouveau jeu : Le Courtisan, le jeu de dés traditionnel du Dix mille (Farkle) à 6 dés. Mettez de côté les dés qui rapportent, puis relancez ou encaissez… mais si rien ne rapporte, c’est « Raté ! » et les points du tour s’envolent. Le premier qui atteint l’objectif (2 000, 4 000 ou 10 000) gagne.',
+    'Contre l’ordinateur (1 à 3 adversaires) ou en ligne de 2 à 6 joueurs : partie rapide, table privée avec code ou lien, invitation d’amis, ordinateurs pour compléter la table, tchat et spectateurs.',
+    'Les Groschen, la monnaie du Courtisan : 20 offerts chaque jour de connexion (compte nécessaire). Misez la somme de votre choix, contre l’ordinateur comme en ligne, ou jouez gratuitement : le gagnant emporte le pot.',
+    'Nouvelles pages d’aide : règles et valeurs des combinaisons, stratégie (quand encaisser, quand relancer).',
+  ] },
   { version: '0.43', date: '2026-11-07T00:50:00+01:00', title: 'Revenir à sa table', items: [
     'Vous avez quitté une partie en ligne en cours ? Elle vous attend : « Reprendre la partie » sur l’accueil vous ramène à votre place, tant que la partie n’est pas finie. Seul contre l’ordinateur, la table reste en pause 10 minutes.',
     'Coups Fourrés à 3 ou 4 : quitter ne vous élimine plus pour de bon. Le serveur joue pour vous et « Reprendre » dans le menu vous ramène à la table. En duel, quitter compte toujours comme une défaite (c’est maintenant écrit avant de confirmer).',
