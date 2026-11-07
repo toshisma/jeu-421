@@ -58,6 +58,7 @@ const AdminDashboard = lazyScreen(() => import('./ui/AdminDashboard'), 'AdminDas
 const ModerationScreen = lazyScreen(() => import('./ui/Moderation'), 'ModerationScreen');
 /** Coups Fourrés, le mode cartes : tout le mode est chargé à part, seulement quand on l'ouvre. */
 const CfMode = lazyScreen(() => import('./cards/CfMode'), 'CfMode');
+const DixMilleMode = lazyScreen(() => import('./dixmille/DixMille'), 'DixMilleMode');
 /** Préchargés en arrière-plan une fois l'accueil affiché (les plus utilisés d'abord). */
 const LIKELY = [GameScreen, OnlineHub, OnlineFlow, TournamentFlow, ShopScreen, SpectateFlow, TutorialScreen, PartySetup, ClubScreen, AlbumScreen];
 
@@ -68,6 +69,7 @@ type Screen =
   | { name: 'hub'; tab: HubTab }
   | { name: 'friends'; from?: 'cf' }
   | { name: 'messages'; with?: string; from?: 'cf' }
+  | { name: 'dixmille' }
   | { name: 'cf'; pending?: { challenge?: string; watch?: string; tournoi?: boolean } }
   | { name: 'changelog' }
   | { name: 'online'; mode: OnlineMode }
@@ -171,7 +173,7 @@ export function App() {
     return () => window.removeEventListener('421:banned', onBan);
   }, [pa.logout]);
   useEffect(() => {
-    setPresence(screen.name === 'solo' || screen.name === 'boss' ? 'solo' : screen.name === 'online' || screen.name === 'tournament' ? 'online' : 'menu');
+    setPresence(screen.name === 'solo' || screen.name === 'boss' || screen.name === 'dixmille' ? 'solo' : screen.name === 'online' || screen.name === 'tournament' ? 'online' : 'menu');
   }, [screen.name]);
 
   // Une fois l'accueil affiché : la 3D puis les écrans les plus probables se chargent en arrière-plan.
@@ -236,6 +238,7 @@ export function App() {
         onMessages={() => setScreen({ name: 'messages' })}
         onChangelog={() => setScreen({ name: 'changelog' })}
         onCards={() => setScreen({ name: 'cf' })}
+        onDixMille={() => setScreen({ name: 'dixmille' })}
         onAdmin={() => setScreen({ name: 'admin' })}
         onModeration={() => setScreen({ name: 'moderation' })}
         settings={settings} onChangeSettings={setSettings}
@@ -308,8 +311,11 @@ export function App() {
       return <PassScreen pa={pa} onBack={home} />;
     case 'changelog':
       return <ChangelogScreen onBack={home} />;
+    case 'dixmille':
+      return <DixMilleMode pa={pa} settings={settings} onSettings={setSettings} onHome={home} onCards={() => setScreen({ name: 'cf' })}
+        displayName={settings.name} avatar={settings.avatar} />;
     case 'cf':
-      return <CfMode key={JSON.stringify(screen.pending ?? null)} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
+      return <CfMode onDixMille={() => setScreen({ name: 'dixmille' })} key={JSON.stringify(screen.pending ?? null)} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
         onHome={home} onMessages={() => setScreen({ name: 'messages', from: 'cf' })} onFriends={() => setScreen({ name: 'friends', from: 'cf' })}
         onAccount={() => setScreen({ name: 'account' })} onLogin={() => setScreen({ name: 'account', tab: 'login' })}
         onDuelPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }} onDuels={() => setScreen({ name: 'duels' })}

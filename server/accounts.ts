@@ -33,6 +33,8 @@ import { DIVISIONS, SEASON_DIE_FROM, SEASON_TITLE_FROM, divisionIndex, divisionO
 import { today } from '../shared/progress/quests';
 import type { ComboKind } from '../shared/combos';
 import type { Difficulty } from '../shared/ai';
+import { applyDixMille, dixMilleReward } from '../shared/dixmille/reward';
+import type { DmLevel } from '../shared/dixmille/engine';
 
 export interface AccountsOptions {
   /** Pour les tests : configuration et appel Discord simulés. */
@@ -370,6 +372,35 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     store.saveProfile(u.id, applied.profile);
     if (!ctx.suddenDeath) { leagueGain(u.id, reward.xp); checkReferral(u.id); if (b.won) clubWin(u.id); }
     gameNews(u.username, !!b.won, 'solo', ctx.count421 ?? 0, ctx.boss);
+    res.json({ ok: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
+  });
+
+  // --- Le Dix mille contre l'ordinateur (joué sur l'appareil) : même principe que le solo du 421 --
+  // (jeton de début, durée minimale, plafond quotidien partagé avec le solo), barème du solo.
+  router.post('/dixmille/start', auth, (req, res) => {
+    const token = randomBytes(18).toString('base64url');
+    soloGames.set(token, { userId: userOf(req).id, startedAt: Date.now() });
+    soloGames.prune(Date.now() - 12 * 3600_000);
+    res.json({ ok: true, gameToken: token });
+  });
+  router.post('/dixmille/end', auth, (req, res) => {
+    const u = userOf(req);
+    const b = req.body ?? {};
+    const g = typeof b.gameToken === 'string' ? soloGames.get(b.gameToken) : undefined;
+    if (!g || g.userId !== u.id) return fail(res, 400, 'Partie inconnue.');
+    if (Date.now() - g.startedAt < MIN_SOLO) return fail(res, 400, 'Partie trop courte pour être récompensée.');
+    soloGames.delete(b.gameToken);
+    const day = clientDay(req.headers['x-day']);
+    if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.');
+    const levels: DmLevel[] = ['debutant', 'habitue', 'fouine'];
+    const opponents = Math.min(3, Math.max(1, Math.floor(Number(b.opponents) || 1)));
+    const reward = dixMilleReward({
+      won: !!b.won, place: Math.floor(Number(b.place) || opponents + 1), opponents,
+      level: levels.includes(b.level) ? b.level : 'habitue', minutes: (Date.now() - g.startedAt) / 60000, day, now: Date.now(),
+    });
+    const applied = applyDixMille(store.profileOf(u), reward, day);
+    store.saveProfile(u.id, applied.profile);
+    leagueGain(u.id, reward.xp);
     res.json({ ok: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
   });
 

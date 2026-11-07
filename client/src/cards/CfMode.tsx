@@ -54,6 +54,8 @@ export interface CfModeProps {
   displayName: string;
   /** Retour au 421 classique (accueil). */
   onHome: () => void;
+  /** Le Dix mille (troisième mode). */
+  onDixMille?: () => void;
   onMessages: () => void;
   onFriends: () => void;
   onAccount: () => void;
@@ -416,7 +418,7 @@ function CfMenu(p: CfModeProps & {
           <Icon name="settings" size={22} />{(role.admin || role.moderator) && role.pending > 0 && <i className="cf-more-dot" aria-hidden />}
         </button>
       </header>
-      <ModeSwitch active="cartes" onClassic={p.onHome} onCards={() => {}} />
+      <ModeSwitch active="cartes" onClassic={p.onHome} onCards={() => {}} onDixMille={p.onDixMille} />
 
       <main className="cf-menu-main">
         {p.top}

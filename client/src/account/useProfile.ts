@@ -15,6 +15,8 @@ import { loadGuestPhoto, photoToDataUrl, saveGuestPhoto } from './photo';
 import { deviceId, setPresence } from '../presence';
 import { trackEvent } from '../visit';
 import type { FxKind } from '../../../shared/progress/dice-collection';
+import { applyDixMille, dixMilleReward } from '../../../shared/dixmille/reward';
+import type { DmLevel } from '../../../shared/dixmille/engine';
 
 export interface EndReward { reward: Reward; applied: Applied }
 
@@ -309,6 +311,41 @@ export function useProfile(enabled: boolean) {
     }
   }, [setProfile]);
 
+  // --- Le Dix mille contre l'ordinateur ---------------------------------------------------------
+  const dmGame = useRef<{ token: string | null; startedAt: number } | null>(null);
+  const onDixMilleStart = useCallback(() => {
+    dmGame.current = { token: null, startedAt: Date.now() };
+    if (!enabled) return;
+    setPresence('solo');
+    const s = ref.current.session;
+    const g = dmGame.current;
+    if (s) api<{ gameToken: string }>('/dixmille/start', { body: {}, token: s.token }).then((r) => { g.token = r.gameToken; }).catch(() => {});
+  }, [enabled]);
+  /** Fin d'une partie de Dix mille : récompense du serveur (compte) ou calculée ici (invité). */
+  const onDixMilleEnd = useCallback(async (r: { won: boolean; place: number; opponents: number; level: DmLevel }): Promise<{ reward: Reward; levelAfter: number; levelBefore: number } | null> => {
+    const g = dmGame.current;
+    dmGame.current = null;
+    if (!g) return null;
+    const s = ref.current.session;
+    if (!s) {
+      // Invité : même durée minimale que le solo (20 s), pour ne pas compter une partie vide.
+      if (Date.now() - g.startedAt < 20_000) return null;
+      const day = today();
+      const reward = dixMilleReward({ ...r, minutes: (Date.now() - g.startedAt) / 60000, day, now: Date.now() });
+      const applied = applyDixMille(ref.current.profile, reward, day);
+      setProfile(applied.profile);
+      return { reward, levelBefore: applied.levelBefore, levelAfter: applied.levelAfter };
+    }
+    if (!g.token) return null;
+    try {
+      const res = await api<{ reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number } }>('/dixmille/end', { token: s.token, body: { gameToken: g.token, ...r } });
+      setProfile(sanitizeProfile(res.applied.profile));
+      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter };
+    } catch {
+      return null; // partie trop courte, plafond atteint ou hors connexion : pas de récompense
+    }
+  }, [setProfile]);
+
   /** Photo de profil : envoyée au serveur (compte) ou gardée sur l'appareil (invité). */
   const setPhoto = useCallback(async (file: File): Promise<string | null> => {
     try {
@@ -333,7 +370,7 @@ export function useProfile(enabled: boolean) {
     register, login, recover, logout, deleteAccount,
     submitChallenge,
     buyItem, equipItem, claim, blocked, block, isBlocked, claimDailyReward, openEveningChest, claimPass, chooseTitle, finishTutorial, prestige,
-    onSoloStart, onGameEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
+    onSoloStart, onGameEnd, onDixMilleStart, onDixMilleEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
     token: session?.token ?? null,
   };
 }

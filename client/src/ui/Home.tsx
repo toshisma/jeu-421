@@ -46,6 +46,8 @@ export interface HomeProps {
   onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
   /** Coups Fourrés, le mode cartes. */
   onCards?: () => void;
+  /** Le Dix mille (6 dés, contre l'ordinateur). */
+  onDixMille?: () => void;
   /** Panel de modération (le menu ne le montre qu'aux modérateurs). */
   onModeration?: () => void;
   /** Tableau de bord d'administration (le menu ne le montre qu'aux admins). */
@@ -149,6 +151,7 @@ function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void; o
     ] },
     { title: 'Mes dés et mes parties', items: [
       { label: 'Coups Fourrés', icon: 'cards', go: () => p.onCards?.(), show: !!p.onCards, keys: 'cartes mode cartes deck booster capsules' },
+      { label: 'Le Dix mille', icon: 'dice', go: () => p.onDixMille?.(), show: !!p.onDixMille, keys: '10000 dix mille farkle six des' },
       { label: 'Collection', icon: 'dice', go: p.onCollection, show: !STANDALONE, keys: 'sacs des rares' },
       { label: 'Boutique', icon: 'shop', go: p.onShop, keys: 'tapis decor rebord' },
       { label: 'Album', icon: 'album', go: p.onAlbum, keys: 'combinaisons' },
@@ -402,7 +405,7 @@ export function Home(props: HomeProps) {
         {acc && <FriendsButton pa={pa} onOpen={props.onFriends} />}
         {acc && <NotifBell count={notifs?.count ?? 0} onOpen={() => { setShowNotifs(true); reload(); }} />}
       </header>
-      {props.onCards && <ModeSwitch active="classique" onClassic={() => {}} onCards={props.onCards} />}
+      {props.onCards && <ModeSwitch active="classique" onClassic={() => {}} onCards={props.onCards} onDixMille={props.onDixMille} />}
 
       <main className="h2-main">
         {/* 1. Vitrine 3D et partie contre l'ordinateur */}
