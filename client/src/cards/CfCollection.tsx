@@ -4,6 +4,7 @@
  * Le serveur fait foi : chaque action renvoie l'état complet du joueur, affiché tel quel.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { appHeight } from '../ui/navGuard';
 import { CARDS, FAMILY_LABEL, RARITY_LABEL, SHARDS, TYPE_LABEL, cardDef, type CardFamily, type CardRarity, type CardType } from '../../../shared/cards/catalog';
 import { cfMaxUseful, type CfOpenedCard } from '../../../shared/cards/progress';
 import { ApiError } from '../account/api';
@@ -76,7 +77,7 @@ export function BoosterOpening({ token, state, onState, onDone, onCollection, on
   const hidden = cards ? cards.map((c, i) => (!shown[i] ? c.rarity : null)) : [];
   const hint = hidden.includes('legendaire') ? 'Une carte brille d’or : une légendaire vous attend !' : hidden.includes('epique') ? 'Une carte brille en violet : une épique vous attend.' : null;
   const count = cards ? shown.filter(Boolean).length : 0;
-  const bigW = Math.min(210, Math.round((typeof window !== 'undefined' ? window.innerHeight : 740) * 0.32));
+  const bigW = Math.min(210, Math.round(appHeight() * 0.32));
 
   return (
     <div className="cf-booster">
@@ -258,7 +259,7 @@ function CardDetail({ id, token, state, onState, onClose, show, onNav }: { id: s
     finally { setBusy(false); }
   };
 
-  const w = Math.min(250, (typeof window !== 'undefined' ? window.innerWidth : 360) - 96, Math.round((typeof window !== 'undefined' ? window.innerHeight : 740) * 0.42));
+  const w = Math.min(250, (typeof window !== 'undefined' ? window.innerWidth : 360) - 96, Math.round(appHeight() * 0.42));
   return (
     <div className="cf-detail" role="dialog" aria-modal="true" aria-label={d.name} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <button className="cf-ib cf-detail-x" onClick={onClose} aria-label="Fermer"><Icon name="close" size={20} /></button>

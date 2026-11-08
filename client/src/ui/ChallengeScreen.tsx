@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavGuard } from './navGuard';
 import { CHALLENGE_THROWS, CHALLENGE_TURNS, challengeShareText, nextDice } from '../../../shared/challenge';
 import { evaluate } from '../../../shared/combos';
 import { DEFAULT_CONFIG } from '../../../shared/config';
@@ -24,6 +25,8 @@ export function ChallengeScreen({ pa, settings, appearance, onBack, duel }: { pa
   const day = duel ? `duel-${duel.id}` : today();
   const [outcome, setOutcome] = useState<DuelOutcome | null>(null);
   const already = loadChallengeDone()?.day === day;
+  // Plateau : barre du bas compacte (pas de confirmation, comme la flèche retour).
+  useNavGuard({ game: true });
   const tray = useRef<DiceTrayHandle>(null);
   const [turn, setTurn] = useState(0);
   const [throwIdx, setThrowIdx] = useState(0); // lancers faits dans le coup

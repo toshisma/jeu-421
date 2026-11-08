@@ -33,6 +33,7 @@ import { ModeBar, ModeChip } from '../ui/ModeBar';
 import { VolumeControl } from '../ui/VolumeControl';
 import { Chat } from '../ui/Chat';
 import { askConfirm } from '../ui/confirm';
+import { appBottom, appView, useNavGuard } from '../ui/navGuard';
 import { sound } from '../audio/sound';
 import { publicUrl } from '../platform';
 import { trackEvent } from '../visit';
@@ -325,7 +326,7 @@ function DmBoard({ tray, anim, seats, canAct, settings, onSettings, appearance, 
   const [insets, setInsets] = useState<Insets>({ top: 0, right: 0, bottom: 0, left: 0 });
   useLayoutEffect(() => {
     const measure = () => {
-      const bottom = window.innerHeight - (bottomRef.current?.getBoundingClientRect().top ?? window.innerHeight) + 2;
+      const bottom = appBottom() - (bottomRef.current?.getBoundingClientRect().top ?? appBottom()) + 2;
       setInsets({ top: (topRef.current?.getBoundingClientRect().bottom ?? 0) + 2, bottom, left: 0, right: 0 });
       // Tchat et messages de la table : juste au-dessus du panneau du bas.
       document.documentElement.style.setProperty('--dm-bottom', `${Math.round(bottom)}px`);
@@ -333,6 +334,7 @@ function DmBoard({ tray, anim, seats, canAct, settings, onSettings, appearance, 
     measure();
     const ro = new ResizeObserver(measure);
     [topRef, bottomRef].forEach((r) => r.current && ro.observe(r.current));
+    const view = appView(); if (view) ro.observe(view);
     window.addEventListener('resize', measure);
     return () => { ro.disconnect(); window.removeEventListener('resize', measure); document.documentElement.style.removeProperty('--dm-bottom'); };
   }, []);
@@ -609,10 +611,13 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
     })();
   }, [s, anim.busy, pa, opponents.length, setup.level]);
 
+  const okToLeave = async () => s.phase === 'fini' || askConfirm('Quitter la partie du Courtisan en cours ?', 'Quitter');
   const leave = async () => {
-    if (s.phase !== 'fini' && !(await askConfirm('Quitter la partie du Courtisan en cours ?', 'Quitter'))) return;
+    if (!(await okToLeave())) return;
     onExit();
   };
+  // Barre du bas : compacte pendant la partie, même confirmation que « Quitter ».
+  useNavGuard({ game: true, ask: okToLeave });
 
   return (
     <DmBoard tray={tray} anim={anim} seats={seats} canAct settings={settings} onSettings={onSettings} appearance={appearance}
@@ -691,17 +696,20 @@ function DmOnlineGame({ session, pa, settings, onSettings, appearance, onExit, o
   const [endShown, setEndShown] = useState(false);
   useEffect(() => { if (!finished) { setEndShown(false); return; } const x = setTimeout(() => setEndShown(true), 1400); return () => clearTimeout(x); }, [finished]);
 
+  /** Confirmation avant de quitter (bouton Quitter, ou barre du bas) : rappel de la mise perdue. */
+  const okToLeave = async () => {
+    if (session.spectating || session.state?.phase === 'fini') return true;
+    const stake = session.table?.stake ?? 0;
+    return askConfirm(stake > 0
+      ? `Quitter la partie ? Le serveur jouera à votre place et vous perdez votre mise (${stake} Groschen) : vous ne pourrez rien gagner, même en revenant.`
+      : 'Quitter la partie ? Le serveur jouera à votre place ; vous pourrez revenir depuis l’accueil tant qu’elle n’est pas finie.', 'Quitter');
+  };
   const leave = async () => {
-    if (!session.spectating && official.phase !== 'fini') {
-      const stake = t?.stake ?? 0;
-      const ok = await askConfirm(stake > 0
-        ? `Quitter la partie ? Le serveur jouera à votre place et vous perdez votre mise (${stake} Groschen) : vous ne pourrez rien gagner, même en revenant.`
-        : 'Quitter la partie ? Le serveur jouera à votre place ; vous pourrez revenir depuis l’accueil tant qu’elle n’est pas finie.', 'Quitter');
-      if (!ok) return;
-    }
+    if (!(await okToLeave())) return;
     session.leave();
     onExit();
   };
+  useNavGuard({ game: true, ask: okToLeave, leave: () => session.leave() });
   const meSeat = seats.find((x) => x.isMe);
   const stake = t?.stake ?? 0;
   const pot = t?.pot ?? 0;
@@ -904,6 +912,8 @@ function DmOnlineFlow({ mode, pa, settings, onSettings, me, onExit, onReplay, gr
   useDm(session ?? DUMMY);
   // Fermer l'onglet ou changer d'écran sans « Quitter » : la place est gardée (reprise).
   useEffect(() => () => { if (session && !session.closed) { session.closed = true; session.socket.disconnect(); } }, [session]);
+  // Partir par la barre du bas (salon, attente) : comme la flèche retour ; en partie, l'écran de jeu confirme d'abord.
+  useNavGuard(session ? { leave: () => session.leave() } : null);
 
   if (error || session?.kicked || session?.watchClosed) {
     return <Shell title={MODE_NAME} onBack={onExit} icon="dice"><div className="k-wait"><p className="error">{error ?? session?.kicked ?? session?.watchClosed}</p><button className="btn" onClick={onExit}>Retour</button></div></Shell>;

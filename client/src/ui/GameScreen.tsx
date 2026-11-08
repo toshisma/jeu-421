@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { FloatingPop } from './FloatingPop';
 import { askConfirm } from './confirm';
+import { appBottom, appView, useNavGuard } from './navGuard';
 import { Icon } from './Icon';
 import { flyTokens } from './flyTokens';
 import { isSuddenDeath } from '../../../shared/config';
@@ -418,7 +419,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
       const sideVisible = !!side && getComputedStyle(side).position !== 'fixed';
       setInsets({
         top: (topRef.current?.getBoundingClientRect().bottom ?? 0) + 4,
-        bottom: window.innerHeight - (bottomRef.current?.getBoundingClientRect().top ?? window.innerHeight) + 4,
+        bottom: appBottom() - (bottomRef.current?.getBoundingClientRect().top ?? appBottom()) + 4,
         right: sideVisible ? side!.getBoundingClientRect().width + 12 : 0,
         left: 0,
       });
@@ -426,6 +427,8 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
     measure();
     const ro = new ResizeObserver(measure);
     [topRef, bottomRef, sideRef].forEach((r) => r.current && ro.observe(r.current));
+    // La barre du bas change de hauteur (compacte en partie) : la zone d'affichage aussi.
+    const view = appView(); if (view) ro.observe(view);
     window.addEventListener('resize', measure);
     return () => { ro.disconnect(); window.removeEventListener('resize', measure); };
   }, [shown != null]);
@@ -456,11 +459,15 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   const watchers = controller.spectatorCount?.() ?? 0;
   // Sorti avant la fin : sa place est acquise, partir n'est pas un abandon (pas de confirmation).
   const myPlace = s && earlyOk ? settledPlace(s, controller.meId) : null;
+  /** Confirmation avant de quitter (bouton Quitter, ou barre du bas). */
+  const okToLeave = async () => !(s && s.phase !== 'fini' && !tableExit && myPlace == null && !(await askConfirm(controller.mode === 'online' ? 'Quitter la partie en cours ? Le serveur jouera à votre place, et vous pourrez revenir à la table depuis l’accueil (« Reprendre la partie »).' : 'Quitter la partie en cours ?', 'Quitter')));
   const leave = async () => {
-    if (s && s.phase !== 'fini' && !tableExit && myPlace == null && !(await askConfirm(controller.mode === 'online' ? 'Quitter la partie en cours ? Le serveur jouera à votre place, et vous pourrez revenir à la table depuis l’accueil (« Reprendre la partie »).' : 'Quitter la partie en cours ?', 'Quitter'))) return;
+    if (!(await okToLeave())) return;
     controller.leave();
     onExit();
   };
+  // Barre du bas : compacte pendant la partie ; la quitter par la barre = même règle que « Quitter ».
+  useNavGuard({ game: true, ask: okToLeave, leave: () => controller.leave() });
 
   const phaseLabel = !s ? '' : s.isRolloff ? 'Barrage'
     : s.phase === 'charge' ? `Charge, ${s.pot} jeton${s.pot > 1 ? 's' : ''} au pot`

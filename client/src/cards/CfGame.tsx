@@ -25,6 +25,7 @@ import type { Settings } from '../settings';
 import { sound } from '../audio/sound';
 import { setPresence } from '../presence';
 import { askConfirm } from '../ui/confirm';
+import { useNavGuard } from '../ui/navGuard';
 import { Icon } from '../ui/Icon';
 import { VolumeControl } from '../ui/VolumeControl';
 import { DiceTray, type DiceTrayHandle } from '../ui/DiceTray';
@@ -422,11 +423,16 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   useEffect(() => { if (clock && tickSec <= 5 && tickSec > 0 && lastTick.current !== tickSec) { lastTick.current = tickSec; sound.tick(); } }, [clock, tickSec]);
 
   const close = () => { const c = controller as { close?: () => void }; if (c.close) c.close(); else controller.leave(); onExit(); };
+  const isOver = () => !!snap?.finished || v?.phase === 'over';
+  /** Confirmation avant de quitter (bouton ✕, ou barre du bas). */
+  const okToLeave = async () => isOver() || askConfirm(isTuto ? 'Quitter la partie guidée ? Vous pourrez la relancer depuis le menu.' : controller.ranked ? 'Quitter ? La partie classée compte comme une défaite.' : v && v.players.length > 2 ? 'Quitter la partie ? Le serveur jouera à votre place, et vous pourrez revenir depuis le menu (« Reprendre »).' : 'Abandonner la partie en cours ? En duel, quitter compte comme une défaite.', 'Quitter');
   const leave = async () => {
-    const over = !!snap?.finished || v?.phase === 'over';
-    if (!over && !(await askConfirm(isTuto ? 'Quitter la partie guidée ? Vous pourrez la relancer depuis le menu.' : controller.ranked ? 'Quitter ? La partie classée compte comme une défaite.' : v && v.players.length > 2 ? 'Quitter la partie ? Le serveur jouera à votre place, et vous pourrez revenir depuis le menu (« Reprendre »).' : 'Abandonner la partie en cours ? En duel, quitter compte comme une défaite.', 'Quitter'))) return;
+    const over = isOver();
+    if (!(await okToLeave())) return;
     if (over) close(); else { controller.leave(); onExit(); }
   };
+  // Barre du bas : compacte pendant la partie ; partir par la barre = même règle que ✕.
+  useNavGuard({ game: true, ask: okToLeave, leave: () => { const c = controller as { close?: () => void }; if (isOver() && c.close) c.close(); else controller.leave(); } });
 
   if (!snap || !v || !meP) {
     return <div className="cfn-board"><div className="cfn-loading" role="status"><span className="cf-wait-spin" aria-hidden><i /><i /><i /></span>Préparation de la table…</div></div>;

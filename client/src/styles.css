@@ -4374,3 +4374,27 @@ button.mode-chip { cursor: pointer; }
   .mm-shelf .v2-medal .art { transform: scale(0.8); }
 }
 @media (prefers-reduced-motion: reduce) { .mm-bags.on .mm-bags-art, .mm-bags-n, .mm-bags.on::after { animation: none; } }
+
+/* =============================================================================================
+ * Barre du bas commune (BottomNav.tsx) : sous la zone des écrans, sur tous les écrans.
+ * `.app-view` est le cadre de tout ce qui s'affiche (écrans « plein écran » en position fixe,
+ * fenêtres, feuilles du bas) : rien ne passe sous la barre, sans toucher à chaque écran.
+ * Pendant une partie, la barre est compacte (icônes seules, 40 px) pour garder le plateau entier.
+ * ============================================================================================= */
+.app-shell { height: 100%; display: flex; flex-direction: column; background: var(--fond); }
+.app-view { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; transform: translateZ(0); }
+.app-tabs { --or: #e0b155; position: relative; z-index: 5; background: #08140f; }
+.app-tabs.compact button { padding: 10px 0; gap: 0; }
+.app-tabs.compact .tab-dot { top: 2px; left: calc(50% + 4px); }
+.app-tabs.compact .tab-dot.small { top: 6px; }
+.app-tabs button[aria-expanded="true"] { color: var(--or, #e0b155); }
+/* Les hauteurs « en % de l'écran » des fenêtres : jamais plus que la zone au-dessus de la barre. */
+.app-view .sheet { max-height: min(88vh, calc(100% - 8px)); }
+@media (min-width: 720px) { .app-view .sheet { max-height: min(80vh, calc(100% - 32px)); } }
+.app-view .sheet.profile-sheet { max-height: min(92vh, calc(100% - 8px)); }
+.app-view .sheet.notif-sheet { max-height: min(86vh, 760px, 100%); }
+.app-view .modal-card { max-height: min(88vh, 900px, 100%); }
+.app-view .cf-wait-card.cf-table, .app-view .cf-calc { max-height: 100%; }
+.app-view .challenge .end-card { max-height: calc(100% - 32px); }
+.app-view .pm-thread { max-height: 100%; }
+.app-view .h2-toast { bottom: 16px; }

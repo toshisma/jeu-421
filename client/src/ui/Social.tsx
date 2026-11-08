@@ -12,7 +12,7 @@ export interface DuelView {
   mine: { points: number; throws: number } | null; theirsPlayed: boolean; theirs: { points: number; throws: number } | null;
   winner: string | null; pot: number; seen: boolean;
 }
-interface Notifs { requests: { username: string; at: number }[]; toPlay: DuelView[]; results: DuelView[]; notices?: { id: number; kind: string; text: string; at: number }[]; count: number }
+export interface Notifs { requests: { username: string; at: number }[]; toPlay: DuelView[]; results: DuelView[]; notices?: { id: number; kind: string; text: string; at: number }[]; count: number }
 
 /** Notifications dans le jeu : relues toutes les 30 s, au retour sur l'onglet, et à la demande. */
 export function useNotifications(pa: ProfileApi) {
@@ -23,7 +23,7 @@ export function useNotifications(pa: ProfileApi) {
   }, [pa.token]);
   useEffect(() => {
     load();
-    const t = setInterval(load, 30_000);
+    const t = setInterval(() => { if (document.visibilityState === 'visible') load(); }, 30_000);
     const vis = () => { if (document.visibilityState === 'visible') load(); };
     document.addEventListener('visibilitychange', vis);
     return () => { clearInterval(t); document.removeEventListener('visibilitychange', vis); };

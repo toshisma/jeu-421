@@ -9,6 +9,7 @@
  * - `<CardZoomHost />` : l'affichage, monté une fois par le mode (CfMode).
  */
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
+import { appHeight } from '../ui/navGuard';
 import { cardDef, FAMILY_LABEL, RARITY_LABEL } from '../../../shared/cards/catalog';
 import { Icon } from '../ui/Icon';
 import { BigCard } from './BoardParts';
@@ -88,7 +89,7 @@ export function CardZoomHost() {
   if (!id) return null;
   const d = cardDef(id);
   if (!d) return null;
-  const w = typeof window !== 'undefined' ? Math.min(330, window.innerWidth - 32, Math.round((window.innerHeight - 150) * 0.66)) : 300;
+  const w = typeof window !== 'undefined' ? Math.min(330, window.innerWidth - 32, Math.round((appHeight() - 150) * 0.66)) : 300;
   return (
     <div className="cf-bigzoom" role="dialog" aria-modal="true" aria-label={`${d.name} en grand`} onClick={() => setId(null)}>
       <div className="cf-bigzoom-in" onClick={(e) => e.stopPropagation()}>

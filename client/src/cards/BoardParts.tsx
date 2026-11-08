@@ -4,6 +4,7 @@
  * Styles : bloc « Coups Fourrés : nouveau plateau » à la fin de styles.css (classes cfn-*).
  */
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { appHeight } from '../ui/navGuard';
 import { CARD_BY_ID, cardDef, type CardType } from '../../../shared/cards/catalog';
 import { commandeOf, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView, type PlayParams } from '../../../shared/cards/engine';
 import { Avatar } from '../ui/Avatar';
@@ -135,7 +136,7 @@ export const Hand = memo(function Hand({ cards, hints, onPick, sel, focus, quiet
 }) {
   const [small, setSmall] = useState(false);
   useIsoLayout(() => {
-    const m = () => setSmall(window.innerHeight < 700);
+    const m = () => setSmall(appHeight() < 700);
     m(); window.addEventListener('resize', m); return () => window.removeEventListener('resize', m);
   }, []);
   // Jouables d'abord (ordre stable sinon) : elles restent visibles même quand la main défile.

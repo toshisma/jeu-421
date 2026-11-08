@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { askConfirm } from './confirm';
+import { useNavGuard } from './navGuard';
 import { DEFAULT_CONFIG, type GameConfig } from '../../../shared/config';
 import { evaluate } from '../../../shared/combos';
 import { createGame, currentPlayerId, type GameState } from '../../../shared/engine';
@@ -116,6 +117,8 @@ export function RefereeScreen({ names, config, onExit }: { names: string[]; conf
     setHistory([...history, next]);
   };
   const ranked = useMemo(() => [...s.players].sort((a, b) => (points ? b.score - a.score : a.tokens - b.tokens)), [s, points]);
+  // Barre du bas : même confirmation que la flèche retour.
+  useNavGuard({ ask: () => s.phase === 'fini' || askConfirm('Quitter la soirée ?', 'Quitter') });
 
   return (
     <Shell title="Soirée : l'arbitre" icon="rules" onBack={async () => { if (s.phase === 'fini' || await askConfirm('Quitter la soirée ?', 'Quitter')) onExit(); }} wide>

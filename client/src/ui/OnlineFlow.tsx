@@ -1,6 +1,7 @@
 import { api } from '../account/api';
 import { Chat } from './Chat';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { useNavGuard } from './navGuard';
 import { DEFAULT_CONFIG, describeConfig, type GameConfig } from '../../../shared/config';
 import { AVATARS } from '../../../shared/protocol';
 import { OnlineController, OnlineSession } from '../game/online';
@@ -46,6 +47,9 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
   useSession(session);
 
   const exit = () => { session?.leave(); onExit(); };
+  // Partir par la barre du bas (salon ou partie) : on quitte la table comme avec la flèche retour ;
+  // en pleine partie, l'écran de jeu demande d'abord confirmation (le serveur joue à votre place).
+  useNavGuard(session ? { leave: () => session.leave() } : null);
   const cancel = () => { session?.leave(); (onCancel ?? onExit)(); };
 
   const connect = async (kind: 'create' | 'join' | 'resume' | 'quick') => {

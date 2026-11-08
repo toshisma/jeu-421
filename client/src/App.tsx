@@ -1,4 +1,3 @@
-import { api } from './account/api';
 import { ChangelogScreen } from './ui/Changelog';
 import { FriendOnlineToast, FriendsScreen, InviteBanner } from './ui/Friends';
 import { Suspense, useEffect, useRef, useMemo, useState } from 'react';
@@ -40,6 +39,11 @@ import { linkVisitor, trackVisit } from './visit';
 import { askConfirm } from './ui/confirm';
 import { CfChallengeBanner } from './cards/ChallengeBanner';
 import { lazyScreen, saveData, whenIdle } from './lazy';
+import { BottomNav, NavSheets, discordPending, type NavActions, type NavTab, type PlusSheet } from './ui/BottomNav';
+import { confirmLeave, useInGame } from './ui/navGuard';
+import { useNotifications } from './ui/Social';
+import { useDiscord } from './ui/Discord';
+import { changelogUnseen } from './ui/Changelog';
 import { loadTrayScene } from './ui/DiceTray';
 
 // Écrans secondaires : chargés à la demande (voir lazy.ts). L'accueil n'attend aucun d'eux.
@@ -67,6 +71,8 @@ const LIKELY = [GameScreen, OnlineHub, OnlineFlow, TournamentFlow, ShopScreen, S
 
 /** D'où l'on vient (pour revenir au bon menu) : menu principal, ou le menu d'un des trois jeux. */
 type Back = 'home' | 'classic' | 'cf' | 'dixmille';
+/** Écrans du 421 classique (la barre y ramène au menu du 421 en retour). */
+const CLASSIC_SCREENS = new Set(['classic', 'solo-setup', 'solo', 'hub', 'online', 'watch', 'tournament', 'rules', 'tutorial', 'boss', 'party-setup', 'party', 'referee', 'album', 'challenge']);
 
 type Screen =
   | { name: 'home' }
@@ -158,11 +164,10 @@ export function App() {
   // Signe de vie : un compte avec le jeu ouvert apparaît « en ligne » chez ses amis.
   const firstToken = useRef(true);
   useEffect(() => { if (firstToken.current) { firstToken.current = false; return; } restartPresence(); }, [pa.token]);
-  useEffect(() => {
-    if (!pa.token) return;
-    const ping = () => { if (document.visibilityState === 'visible') api('/notifications', { token: pa.token! }).catch(() => {}); };
-    ping(); const t = setInterval(ping, 45_000); return () => clearInterval(t);
-  }, [pa.token]);
+  // Notifications (demandes d'amis, défis…) : chargées régulièrement, pour l'accueil et la barre du bas.
+  // (Ce chargement sert aussi de signe de vie du compte.)
+  const notif = useNotifications(pa);
+  const discord = useDiscord(pa);
   const { profile } = pa;
   // Messages privés : réception en direct tant que le compte a le jeu ouvert.
   useEffect(() => { if (!STANDALONE) connectMessages(pa.token ?? null); }, [pa.token]);
@@ -233,6 +238,52 @@ export function App() {
   const resumeGame = () => setScreen(resume?.tournament ? { name: 'tournament', mode: { kind: 'resume' } } : resume ? { name: 'online', mode: { kind: 'resume' } } : { name: 'dixmille', pending: { resume: true } });
   const onJoinScheduled = (code: string, pay: boolean) => setScreen({ name: 'tournament', mode: { kind: 'join', code, pay } });
 
+  // --- Barre du bas (tous les écrans) -------------------------------------------------------------
+  const inGame = useInGame();
+  const [plus, setPlus] = useState<PlusSheet | null>(null);
+  /** Le menu de jeu d'où l'on vient (retour des écrans communs ouverts par la barre). */
+  const ctx: Back = 'from' in screen && screen.from && screen.from !== 'stats' ? screen.from
+    : screen.name === 'cf' ? 'cf' : screen.name === 'dixmille' ? 'dixmille'
+      : CLASSIC_SCREENS.has(screen.name) ? 'classic' : 'home';
+  /** Changer d'écran par la barre : d'abord la règle de départ de l'écran affiché (partie en cours…). */
+  const go = (f: () => void) => () => { void confirmLeave().then((ok) => { if (!ok) return; setPlus(null); refreshResume(); f(); }); };
+  const nav: NavActions = {
+    onHome: go(() => setScreen({ name: 'home' })),
+    onFriends: go(() => setScreen({ name: 'friends', from: ctx })),
+    onCollection: (open) => go(() => setScreen({ name: 'collection', from: ctx, open }))(),
+    onShop: go(() => setScreen({ name: 'shop', from: ctx })),
+    onMessages: go(() => setScreen({ name: 'messages', from: ctx })),
+    onClassic: go(() => setScreen({ name: 'classic' })),
+    onCards: go(() => setScreen({ name: 'cf' })),
+    onDixMille: go(() => setScreen({ name: 'dixmille' })),
+    onAccount: go(() => setScreen({ name: 'account' })),
+    onLogin: go(() => setScreen({ name: 'account', tab: 'login' })),
+    onSettings: go(() => setScreen({ name: 'settings', from: ctx })),
+    onSandbox: go(() => setScreen({ name: 'sandbox', from: ctx })),
+    onLegal: go(() => setScreen({ name: 'legal', back: { name: 'home' } })),
+    onPass: go(() => setScreen({ name: 'pass' })),
+    onStats: go(() => setScreen({ name: 'stats', from: ctx })),
+    onClub: go(() => setScreen({ name: 'club' })),
+    onDuels: go(() => setScreen({ name: 'duels' })),
+    onRecap: go(() => setScreen({ name: 'recap' })),
+    onChangelog: go(() => setScreen({ name: 'changelog' })),
+    onAdmin: go(() => setScreen({ name: 'admin' })),
+    onModeration: go(() => setScreen({ name: 'moderation' })),
+    onLeaderboard: go(() => setScreen({ name: 'leaderboard', from: ctx })),
+    onRules: go(() => setScreen({ name: 'rules' })),
+    onTutorial: go(startTutorial),
+    onTournaments: go(() => setScreen({ name: 'hub', tab: 'tournois' })),
+    onAlbum: go(() => setScreen({ name: 'album' })),
+    onParty: go(() => setScreen({ name: 'party-setup' })),
+    onOnline: go(() => setScreen({ name: 'hub', tab: 'tables' })),
+    onChallenge: go(() => { sound.unlock(); setScreen({ name: 'challenge' }); }),
+  };
+  const activeTab: NavTab = screen.name === 'home' ? 'home' : screen.name === 'friends' || screen.name === 'messages' ? 'friends'
+    : screen.name === 'collection' ? 'collection' : screen.name === 'shop' ? 'shop' : null;
+  // Les compteurs de la barre (demandes d'amis…) suivent chaque changement d'écran.
+  const firstScreen = useRef(true);
+  useEffect(() => { if (firstScreen.current) { firstScreen.current = false; return; } notif.reload(); setPlus(null); }, [screen]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const view = (() => { switch (screen.name) {
     case 'home':
       return <Home
@@ -248,7 +299,7 @@ export function App() {
         onLeaderboard={() => setScreen({ name: 'leaderboard' })} onRules={() => setScreen({ name: 'rules' })} onTutorial={startTutorial}
         onTournaments={() => setScreen({ name: 'hub', tab: 'tournois' })} onAlbum={() => setScreen({ name: 'album' })} onParty={() => setScreen({ name: 'party-setup' })}
         onOnline={() => setScreen({ name: 'hub', tab: 'tables' })} onChallenge={() => { sound.unlock(); setScreen({ name: 'challenge' }); }}
-        onJoinScheduled={onJoinScheduled}
+        onJoinScheduled={onJoinScheduled} notif={notif} discord={discord}
         resume={resume ?? (courtResume ? { code: courtResume.code, courtisan: true } : null)} onResume={resumeGame} />;
     case 'classic':
       return <ClassicMenu profile={profile} pa={pa} settings={settings} onBack={home}
@@ -371,11 +422,20 @@ export function App() {
   // Invitation d'un ami : bandeau partout, sauf quand on est déjà à une table en ligne.
   const atTable = screen.name === 'online' || screen.name === 'tournament' || screen.name === 'watch' || screen.name === 'dixmille';
   return (
-    <>
-      <Suspense fallback={<div className="screen-loading" role="status" aria-label="Chargement…"><span className="spinner" aria-hidden /></div>}>{view}</Suspense>
-      {!STANDALONE && <FriendOnlineToast pa={pa} />}
-      {!STANDALONE && !atTable && screen.name !== 'cf' && <CfChallengeBanner pa={pa} onOpen={() => setScreen({ name: 'cf' })} />}
-      {!STANDALONE && !atTable && <InviteBanner pa={pa} onJoin={joinTable} />}
-    </>
+    <div className={`app-shell${inGame ? ' in-game' : ''}`}>
+      {/* Zone des écrans : tout ce qui s'y affiche (y compris les fenêtres) reste au-dessus de la barre. */}
+      <div className="app-view">
+        <Suspense fallback={<div className="screen-loading" role="status" aria-label="Chargement…"><span className="spinner" aria-hidden /></div>}>{view}</Suspense>
+        {!STANDALONE && <FriendOnlineToast pa={pa} />}
+        {!STANDALONE && !atTable && screen.name !== 'cf' && <CfChallengeBanner pa={pa} onOpen={go(() => setScreen({ name: 'cf' }))} />}
+        {!STANDALONE && !atTable && <InviteBanner pa={pa} onJoin={(code, game) => go(() => joinTable(code, game))()} />}
+        <NavSheets sheet={plus} setSheet={setPlus} a={nav} pa={pa} settings={settings} onChangeSettings={setSettings} discord={discord.discord}
+          displayName={settings.name} avatar={settings.avatar} />
+      </div>
+      <BottomNav active={plus === 'menu' ? null : activeTab} compact={inGame} plusOpen={plus === 'menu'} pa={pa} a={nav}
+        requests={notif.notifs?.requests?.length ?? 0} bags={profile.bags ?? 0}
+        plusDot={changelogUnseen() || discordPending(pa, discord.discord)}
+        onPlus={() => setPlus((p) => (p === 'menu' ? null : 'menu'))} />
+    </div>
   );
 }

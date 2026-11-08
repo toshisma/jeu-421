@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { askConfirm } from './confirm';
+import { useNavGuard } from './navGuard';
 import { describeConfig } from '../../../shared/config';
 import type { GameState } from '../../../shared/engine';
 import type { Appearance } from '../../../shared/progress/catalog';
@@ -84,6 +85,9 @@ export function TournamentFlow({ mode, settings, onSettings, onExit, onCancel, a
   const controller = useMemo(() => (session ? new OnlineController(session) : null), [session]);
   const t = session?.tournament ?? null;
   const room = session?.room ?? null;
+  // Partir par la barre du bas : comme la flèche retour du tableau (désinscription d'un tournoi pas encore
+  // lancé, sinon on se détache : le tournoi reste reprenable depuis l'accueil).
+  useNavGuard(session ? { leave: () => { if (session.closed) return; if (t?.status === 'inscriptions' && !t.sched) session.tLeave(); else session.detach(); } } : null);
   // Nouvelle table (tour suivant) : on y retourne automatiquement.
   useEffect(() => { setWatchBracket(false); }, [room?.code]);
 
