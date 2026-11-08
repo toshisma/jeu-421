@@ -4453,7 +4453,7 @@ button.mode-chip { cursor: pointer; }
  * Fenêtre de comptoir : ardoise chaude, liseré laiton, illustration des cadeaux (sacs de dés + boosters).
  * Ne se ferme jamais toute seule : croix, « Plus tard », Échap ou toucher à côté. */
 .gi-veil { position: fixed; inset: 0; z-index: 150; display: grid; place-items: center; padding: 12px 16px; background: rgba(8, 10, 12, 0.72); animation: fade 0.25s; overflow-y: auto; }
-.gi-card { position: relative; width: min(400px, 100%); max-height: 100%; overflow: hidden auto; padding: 16px 18px 12px; border-radius: 20px; text-align: center;
+.gi-card { position: relative; width: min(420px, 100%); outline: none; max-height: 100%; overflow: hidden auto; padding: 16px 18px 12px; border-radius: 20px; text-align: center;
   background: radial-gradient(120% 70% at 50% 0%, #3b2f1c 0%, #2a2620 38%, var(--ardoise) 70%);
   border: 1px solid rgba(241, 204, 125, 0.55); box-shadow: 0 0 0 4px rgba(0,0,0,0.25), 0 30px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.08);
   animation: gi-in 0.35s cubic-bezier(.2,1.3,.4,1) both; }
