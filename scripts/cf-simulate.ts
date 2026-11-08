@@ -52,6 +52,11 @@ let PREF = [
   'bon-numero', 'gueule-bois', 'note-salee', 'reaction-chaine', 'fanfaron', 'faux-421', 'complice', 'pilier',
   'croche-patte', 'de-sous-table', 'mouchard', 'pourboire', 'coup-nenette', 'engrenage',
   'grand-enchainement', 'yeux-piquent',
+  // 0.46
+  'cafe-serre', 'plat-du-jour', 'addition', 'table-reservee', 'joueur-belote', 'garde-champetre', 'doyen', 'pique-assiette', 'debauchage', 'retrouvailles',
+  'petit-dernier', 'hoquet', 'der-des-ders', 'sante', 'calva', 'miroir', 'pochtron', 'a-la-votre', 'verres-echanges', 'fee-verte',
+  'mot-de-trop', 'peau-banane', 'guetteur', 'denonciation', 'passe-passe', 'attrape-nigaud', 'lot-consolation', 'flagrant-delit', 'souriciere', 'embuscade',
+  'boule-de-neige', 'ricochet', 'noeud-coulant', 'compte-rond', 'retour-envoyeur', 'comptable', 'derniere-maille', 'echo', 'boucle', 'effet-papillon',
 ];
 if (process.env.PREF_FILE) {
   const mg = JSON.parse(readFileSync(process.env.PREF_FILE, 'utf8')) as Record<string, number>;
@@ -143,7 +148,8 @@ export interface Eco { pr: number; paid: number; paid2: number; paid0: number; p
 
 const STEP_CAP = 30000;
 /** Cartes qui rapportent des Tournées ou font baisser les coûts (moteurs de combo). */
-const ENGINES = new Set(['tournee-patron', 'tant-qu-on-y-est', 'fermeture', 'vide-poches', 'mise-bouche', 'beau-frere', 'patron', 'grand-enchainement', 'petite-soeur', 'leurre', 'mouchard', 'complice']);
+const ENGINES = new Set(['tournee-patron', 'tant-qu-on-y-est', 'fermeture', 'vide-poches', 'mise-bouche', 'beau-frere', 'patron', 'grand-enchainement', 'petite-soeur', 'leurre', 'mouchard', 'complice',
+  'cafe-serre', 'compte-rond', 'passe-passe', 'lot-consolation', 'comptable', 'effet-papillon', 'boucle', 'echo', 'pique-assiette']);
 
 export function playGame(seats: Seat[], seed: number, config: CfConfig, set: string): GameRecord {
   let s = newGame({ commandes: true, ...config }, seats.map((x, i) => ({ id: `p${i}`, name: `J${i + 1}`, deck: x.deck.cards })), seed);
@@ -208,7 +214,7 @@ export function playGame(seats: Seat[], seed: number, config: CfConfig, set: str
       if (roundNow >= 1) {
         closeRound(tBefore);
         startT = s.players.map((p) => p.tournees);
-        engineOn = s.players.map((p) => p.habitues.some((h) => h.id === 'beau-frere' || h.id === 'patron' || h.id === 'complice'));
+        engineOn = s.players.map((p) => p.habitues.some((h) => h.id === 'beau-frere' || h.id === 'patron' || h.id === 'complice' || h.id === 'comptable'));
         if (s.phase !== 'over') s.players.forEach((p, k) => {
           if (p.out) return;
           const inc = s.rules.tourneesPerRound + (s.prevLoser === p.id ? s.rules.tourneesLoserBonus : 0) + (s.commande === 'tournees' ? 1 : 0);
