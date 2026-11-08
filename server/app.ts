@@ -38,6 +38,7 @@ import { createCfStats } from './cf-stats';
 import { createCfTournament, type CfTourOptions } from './cf-tournament';
 import { cleanDmCode, createDixMilleOnline, type DmOnlineOptions } from './dixmille-online';
 import { createGroschen } from './groschen';
+import type { SeatInfo } from './live';
 
 interface Member {
   id: string;
@@ -282,7 +283,20 @@ export async function startServer(opts: ServerOptions) {
     },
   });
   // Administration (avant les autres routes : elle filtre aussi les comptes suspendus).
-  const admin = createAdmin(store, { ...opts.admin, isAdmin: stats.isAdmin, userFromToken: accounts.userFromToken });
+  // « En ligne maintenant » : table où le serveur voit un compte assis (421, Courtisan, Coups Fourrés).
+  const seatOf = (userId: string): SeatInfo | null => {
+    const dm = dmPresence(userId);
+    if (dm) return { game: 'courtisan', code: dm.code, status: dm.status };
+    for (const r of rooms.values()) {
+      if (r.members.some((x) => x.userId === userId && x.socketId != null)) return { game: '421', code: r.code, status: r.status === 'lobby' ? 'salon' : 'partie' };
+    }
+    return cfSeat(userId);
+  };
+  const admin = createAdmin(store, {
+    ...opts.admin, isAdmin: stats.isAdmin, userFromToken: accounts.userFromToken,
+    presence: () => stats.presenceEntries(), seatOf,
+    codeKnown: (code) => rooms.has(code) || tournaments.has(code) || dmHas(code) || cfCode(code),
+  });
   app.use('/api', admin.router);
   app.use('/api', stats.router);
   // Coups Fourrés : statistiques réelles des cartes (onglet d'administration).
@@ -310,6 +324,8 @@ export async function startServer(opts: ServerOptions) {
   // Le Courtisan en ligne (créé plus bas) : sa présence s'ajoute à celle des tables du 421.
   let dmPresence: (userId: string) => ReturnType<Parameters<typeof accounts.setPresence>[0]> = () => null;
   let dmHas: (code: string) => boolean = () => false;
+  let cfSeat: (userId: string) => SeatInfo | null = () => null;
+  let cfCode: (code: string) => boolean = () => false;
   accounts.setPresence((userId) => {
     const dm = dmPresence(userId);
     if (dm) return dm;
@@ -435,6 +451,8 @@ export async function startServer(opts: ServerOptions) {
   });
   cfMount.use(cfTour.router);
   accounts.setCfPresence(cfOnline.presence);
+  cfSeat = (userId) => { const p = cfOnline.presence(userId); return p?.status === 'partie' && p.code ? { game: 'cf', code: p.code, status: 'partie' } : null; };
+  cfCode = (code) => cfOnline.games.has(code) || cfOnline.tables.has(code);
   // Le Courtisan : Groschen (monnaie du mode) et tables en ligne, espace Socket.IO « /dixmille ».
   const groschen = createGroschen({ store, userFromToken: accounts.userFromToken, isAdmin: stats.isAdmin, now: opts.accounts?.now });
   cfMount.use(groschen.router);

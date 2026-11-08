@@ -21,6 +21,7 @@ import { Seg, StakePicker } from './OnlineHub';
 import { BigAction, Choices, Section, Shell } from './kit';
 import { ScheduledLobby, ScheduledResults } from './Scheduled';
 import { schedRounds } from '../../../shared/scheduled';
+import { usePresenceLayer } from '../presence';
 
 export type TournamentMode = { kind: 'create' } | { kind: 'join'; code: string; pay?: boolean } | { kind: 'resume' };
 /** Nombre de tours prévus (tournoi programmé : format propre, finale de 4 à 6 joueurs). */
@@ -86,6 +87,8 @@ export function TournamentFlow({ mode, settings, onSettings, onExit, onCancel, a
   const room = session?.room ?? null;
   // Nouvelle table (tour suivant) : on y retourne automatiquement.
   useEffect(() => { setWatchBracket(false); }, [room?.code]);
+  // Présence (administration) : salon du tournoi ou table en cours.
+  usePresenceLayer(t ? { view: room?.status === 'playing' && session?.game ? 'partie' : 'salon', code: room?.status === 'playing' && room.code ? room.code : t.code } : null);
 
   if (session && t && controller) {
     const myTable = currentTableOf(t, session.playerId);

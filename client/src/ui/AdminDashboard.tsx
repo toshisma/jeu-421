@@ -9,6 +9,7 @@ import type { ProfileApi } from '../account/useProfile';
 import { askConfirm } from './confirm';
 import { Shell } from './Screens';
 import { ModerationPanel, useModeration } from './Moderation';
+import { LiveTab } from './AdminLive';
 
 /** Statistiques des cartes de Coups Fourrés : chargées à la demande (illustrations des cartes). */
 const CfAdminStats = lazyScreen(() => import('../cards/CfAdminStats'), 'CfAdminStats');
@@ -19,9 +20,9 @@ const dayShort = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('f
 const dayLong = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 const dateTime = (t: number | null) => (t ? new Date(t).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–');
 
-type Tab = 'apercu' | 'signalements' | 'personnes' | 'joueurs' | 'visiteurs' | 'retention' | 'activite' | 'economie' | 'cf' | 'journal';
+type Tab = 'enligne' | 'apercu' | 'signalements' | 'personnes' | 'joueurs' | 'visiteurs' | 'retention' | 'activite' | 'economie' | 'cf' | 'journal';
 const TABS: [Tab, string][] = [
-  ['apercu', 'Vue d’ensemble'], ['signalements', 'Signalements'], ['personnes', 'Personnes'], ['joueurs', 'Joueurs'], ['visiteurs', 'Visiteurs'], ['retention', 'Rétention'],
+  ['enligne', 'En ligne'], ['apercu', 'Vue d’ensemble'], ['signalements', 'Signalements'], ['personnes', 'Personnes'], ['joueurs', 'Joueurs'], ['visiteurs', 'Visiteurs'], ['retention', 'Rétention'],
   ['activite', 'Activité'], ['economie', 'Économie'], ['cf', 'Coups Fourrés'], ['journal', 'Journal admin'],
 ];
 
@@ -132,7 +133,7 @@ interface Overview {
 }
 interface Live { live: { online: number; gamesInProgress: number; inRooms: number }; connected?: { name: string | null; state: string; since: number }[] }
 
-function OverviewTab({ o, live }: { o: Overview; live: Live | null }) {
+function OverviewTab({ o, live, onLive }: { o: Overview; live: Live | null; onLive: () => void }) {
   const sum = (k: 'signups' | 'solo' | 'online' | 'tournaments') => o.days.reduce((a, d) => a + d[k], 0);
   return (
     <>
@@ -156,7 +157,7 @@ function OverviewTab({ o, live }: { o: Overview; live: Live | null }) {
       </div>
       {live?.connected && (
         <section className="adm-card">
-          <h3>Connectés en ce moment ({live.connected.length})</h3>
+          <h3>Connectés en ce moment ({live.connected.length}) <button className="linkish" onClick={onLive}>Voir le détail (onglet En ligne)</button></h3>
           {!live.connected.length ? <p className="empty">Personne pour l’instant.</p> : (
             <ul className="list compact">
               {live.connected.map((c, i) => (
@@ -302,13 +303,13 @@ function Dots({ back }: { back: PersonRow['back'] }) {
     </span>
   );
 }
-function PeopleTab({ token, onOpen }: { token: string | null; onOpen: (userId: string) => void }) {
+function PeopleTab({ token, onOpen, initialSearch = '' }: { token: string | null; onOpen: (userId: string) => void; initialSearch?: string }) {
   const [sort, setSort] = useState('last');
   const [kind, setKind] = useState('');
   const [country, setCountry] = useState('');
   const [device, setDevice] = useState('');
-  const [q, setQ] = useState('');
-  const [search, setSearch] = useState('');
+  const [q, setQ] = useState(initialSearch);
+  const [search, setSearch] = useState(initialSearch);
   const [page, setPage] = useState(0);
   useEffect(() => setPage(0), [sort, kind, country, device, search]);
   const size = 20;
@@ -669,7 +670,8 @@ function PlayerCardAdmin({ token, id, onClose, onActivity, onChanged }: { token:
 
 export function AdminDashboard({ pa, onBack }: { pa: ProfileApi; onBack: () => void }) {
   const token = pa.token;
-  const [tab, setTab] = useState<Tab>(() => { try { return (sessionStorage.getItem('421.admin.tab') as Tab) || 'apercu'; } catch { return 'apercu'; } });
+  const [tab, setTab] = useState<Tab>(() => { try { return (sessionStorage.getItem('421.admin.tab') as Tab) || 'enligne'; } catch { return 'enligne'; } });
+  const [peopleSearch, setPeopleSearch] = useState({ q: '', n: 0 });
   useEffect(() => { try { sessionStorage.setItem('421.admin.tab', tab); } catch { /* */ } }, [tab]);
   const [activityUser, setActivityUser] = useState('');
   const [openPlayer, setOpenPlayer] = useState<string | null>(null);
@@ -687,15 +689,17 @@ export function AdminDashboard({ pa, onBack }: { pa: ProfileApi; onBack: () => v
           <div className="stat-row big adm-kpis">
             <Kpi value={nf(o.users)} label="joueurs inscrits" />
             <Kpi value={nf(o.active.today)} label="actifs aujourd’hui" />
-            <Kpi value={live ? nf(live.live.online) : '…'} label="en ligne maintenant" />
+            <button className="stat-counter adm-kpi-link" onClick={() => setTab('enligne')} title="Voir qui est en ligne"><b>{live ? nf(live.live.online) : '…'}</b><span>en ligne maintenant</span></button>
             <Kpi value={nf(o.coins)} label="pièces en circulation" />
           </div>
           <nav className="tabs adm-tabs" role="tablist">
             {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{k === 'signalements' && toTreat > 0 && <i className="tab-badge" aria-label={`${toTreat} à traiter`}>{toTreat > 99 ? '99+' : toTreat}</i>}</button>)}
           </nav>
-          {tab === 'apercu' && <OverviewTab o={o} live={live} />}
+          {tab === 'enligne' && <LiveTab token={token} onOpenPlayer={(id) => { setOpenPlayer(id); setTab('joueurs'); }}
+            onOpenVisitor={(label) => { setPeopleSearch((p) => ({ q: label.replace(/^Visiteur /, ''), n: p.n + 1 })); setTab('personnes'); }} />}
+          {tab === 'apercu' && <OverviewTab o={o} live={live} onLive={() => setTab('enligne')} />}
           {tab === 'signalements' && <ModerationPanel token={token} admin onPending={setPending} />}
-          {tab === 'personnes' && <PeopleTab token={token} onOpen={(id) => { setOpenPlayer(id); setTab('joueurs'); }} />}
+          {tab === 'personnes' && <PeopleTab key={peopleSearch.n} initialSearch={peopleSearch.q} token={token} onOpen={(id) => { setOpenPlayer(id); setTab('joueurs'); }} />}
           {tab === 'joueurs' && <PlayersTab token={token} open={openPlayer} onActivity={(u) => { setActivityUser(u); setTab('activite'); }} onChanged={reload} />}
           {tab === 'visiteurs' && <VisitorsTab token={token} />}
           {tab === 'retention' && <RetentionTab token={token} />}

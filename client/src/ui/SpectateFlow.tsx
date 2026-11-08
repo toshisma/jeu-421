@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { usePresenceLayer } from '../presence';
 import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
 import { OnlineController, OnlineSession } from '../game/online';
@@ -19,6 +20,7 @@ export function SpectateFlow({ code, settings, onSettings, onExit, pa }: {
   const [session, setSession] = useState<OnlineSession | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, force] = useState(0);
+  usePresenceLayer({ view: 'spectateur', code });
   useEffect(() => {
     const s = new OnlineSession(pa.token);
     let alive = true;

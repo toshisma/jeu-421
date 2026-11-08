@@ -188,7 +188,7 @@ export function App() {
     return () => window.removeEventListener('421:banned', onBan);
   }, [pa.logout]);
   useEffect(() => {
-    setPresence(screen.name === 'solo' || screen.name === 'boss' || screen.name === 'dixmille' ? 'solo' : screen.name === 'online' || screen.name === 'tournament' ? 'online' : 'menu');
+    setPresence(screen.name === 'solo' || screen.name === 'boss' || screen.name === 'dixmille' ? 'solo' : screen.name === 'online' || screen.name === 'tournament' ? 'online' : 'menu', screen.name);
   }, [screen.name]);
 
   // Une fois l'accueil affiché : la 3D puis les écrans les plus probables se chargent en arrière-plan.

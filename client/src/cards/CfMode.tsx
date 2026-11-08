@@ -41,6 +41,7 @@ import { EnigmeEntry, EnigmeScreen } from './CfEnigme';
 import './fonts';
 import { trackEvent } from '../visit';
 import { CardZoomHost } from './zoom';
+import { usePresenceLayer } from '../presence';
 import { DeckBadge, DeckChoiceSheet, DeckPicker, type DeckOption } from './DeckPicker';
 
 export interface CfModeProps {
@@ -76,6 +77,12 @@ type Route =
   | { r: 'tournoi' }
   | { r: 'enigme' }
   | { r: 'game'; ctrl: CfController; mode: string; again?: () => void; online?: boolean };
+
+/** Pages du mode → vue de présence (voir server/live.ts). */
+const CF_VIEWS: Partial<Record<Route['r'], string>> = {
+  discover: 'regles', booster: 'boosters', collection: 'collection', decks: 'decks', deck: 'decks', league: 'ligue',
+  rules: 'regles', cards: 'regles', tips: 'regles', lexicon: 'regles', tournoi: 'tournoi', enigme: 'enigme',
+};
 
 type SheetKind = 'bot' | 'friends' | 'boosters' | 'missions' | 'learn' | null;
 
@@ -125,6 +132,11 @@ function CfModeScreens(props: CfModeProps) {
   const [starting, setStarting] = useState(false);
   const [online, setOnline] = useState<CfOnline | null>(null);
   const [, bump] = useReducer((x: number) => x + 1, 0);
+  // Présence (administration) : page du mode, file d'attente, salon à code ou partie.
+  const cfView = route.r === 'game'
+    ? (!route.online ? 'partie-solo' : (route.ctrl as { spectator?: boolean }).spectator ? 'spectateur' : 'partie')
+    : waiting ? 'attente' : online?.table ? 'salon' : CF_VIEWS[route.r] ?? 'menu';
+  usePresenceLayer({ view: cfView, code: cfView === 'salon' ? online?.table?.code : undefined, depth: 1 });
 
   const reload = useCallback(async () => {
     if (!pa.token) { setSt(null); return null; }

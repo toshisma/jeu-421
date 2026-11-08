@@ -18,6 +18,7 @@ import { Icon } from './Icon';
 import { Avatar } from './Avatar';
 import { Seg, StakePicker } from './OnlineHub';
 import { trackEvent } from '../visit';
+import { usePresenceLayer } from '../presence';
 
 export type OnlineMode = { kind: 'create'; invite?: string } | { kind: 'join'; code?: string; auto?: boolean } | { kind: 'resume' } | { kind: 'quick' };
 type Mode = OnlineMode;
@@ -44,6 +45,8 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
   const [code, setCode] = useState(mode.kind === 'join' ? mode.code ?? '' : '');
   const [table, setTable] = useState<TableSettings>(DEFAULT_TABLE);
   useSession(session);
+  // Présence (administration) : salon ou partie, avec le code de la table.
+  usePresenceLayer(session?.room ? { view: session.room.status === 'playing' ? 'partie' : 'salon', code: session.room.code } : null);
 
   const exit = () => { session?.leave(); onExit(); };
   const cancel = () => { session?.leave(); (onCancel ?? onExit)(); };
