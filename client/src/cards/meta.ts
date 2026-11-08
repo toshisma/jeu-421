@@ -86,7 +86,7 @@ export const CARD_EMPHASIS: Record<string, string> = {
   'garde-champetre': 'ne peuvent pas toucher à vos dés',
   doyen: 'restent 1 manche de plus',
   'cafe-serre': 'gagnez aussi 1 Tournée',
-  'plat-du-jour': 'Gagnez 2 Tournées.',
+  'plat-du-jour': 'recevez 2 Tournées de plus',
   'table-reservee': 'Annulez un piège',
   addition: 'vaut au moins 3',
   'pique-assiette': 'c’est vous qui les gagnez',
@@ -120,7 +120,7 @@ export const CARD_EMPHASIS: Record<string, string> = {
   comptable: 'gagnez 1 Tournée et piochez 1 carte',
   'derniere-maille': 'sur la face de votre choix',
   echo: 'Rejouez gratuitement',
-  boucle: 'les 2 derniers Coups',
+  boucle: 'les 2 dernières cartes',
   'effet-papillon': '1 Tournée de moins',
 };
 

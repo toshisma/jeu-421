@@ -824,7 +824,7 @@ export function costOf(_s: CfState, p: Pick<CfPlayer, 'habitues' | 'r'>, id: str
 /** La petite sœur reprend le dernier Coup de la défausse, sauf une autre petite sœur. */
 export const petiteSoeurOk = (k: { id: string }) => def(k.id)?.type === 'coup' && k.id !== 'petite-soeur';
 /** La Boucle (0.46) reprend des Coups, sauf une autre Boucle et La petite sœur (pas de va-et-vient sans fin). */
-export const boucleOk = (k: { id: string }) => def(k.id)?.type === 'coup' && k.id !== 'boucle' && k.id !== 'petite-soeur';
+export const boucleOk = (k: { id: string }) => !!def(k.id) && k.id !== 'boucle' && k.id !== 'petite-soeur';
 /** Habitués que Les Retrouvailles peut réinstaller (le dernier de la défausse qui peut s'installer). */
 export function retrouvaillesTarget(p: Pick<CfPlayer, 'discard' | 'habitues'>, maxHabitues: number): CardInst | null {
   if (p.habitues.length >= maxHabitues) return null;
@@ -954,7 +954,7 @@ function effectOptions(s: CfState, p: CfPlayer, id: string): PlayParams[] {
     case 'verres-echanges':
       return myTurn && rolled ? opps.filter((o) => o.r.done && !guarded(o)).map((o) => ({ target: o.id })) : [];
     case 'passe-passe':
-      return s.traps.filter((t) => t.owner === p.id && t.id !== 'leurre').map((t) => ({ trap: t.uid }));
+      return s.traps.filter((t) => t.owner === p.id).map((t) => ({ trap: t.uid }));
     case 'denonciation':
       return s.traps.filter((t) => t.target === p.id && t.owner !== p.id).map((t) => ({ trap: t.uid }));
     case 'embuscade': {
@@ -1576,7 +1576,7 @@ function installHabitue(c: Ctx, p: CfPlayer, card: CardInst) {
   for (const h of p.habitues) if (id === 'doyen') h.rounds = (h.rounds ?? s.rules.habitueRounds ?? 3) + 1;
   p.habitues.push({ uid: card.uid, id, rounds: s.rules.habitueRounds ?? 3 });
   guetteurSees(s, p);
-  if (id === 'vieux-marcel' || id === 'guetteur' || id === 'doyen' || id === 'joueur-belote') {
+  if (id === 'vieux-marcel' || id === 'guetteur' || id === 'doyen' || id === 'joueur-belote' || id === 'garde-champetre') {
     const extra = id === 'doyen' && p.habitues.length > 1 ? ' ; vos autres Habitués restent 1 manche de plus' : '';
     const t = id === 'doyen' ? ' gagne 1 Tournée et' : '';
     emit(c, { kind: 'effet', player: p.id, card: id, who: p.id, text: `${cardName(id)} s’installe : ${p.name}${t} pioche 1 carte${extra ? ' ; ses autres Habitués restent 1 manche de plus' : ''}.`, textYou: `${cardName(id)} s’installe : vous ${id === 'doyen' ? 'gagnez 1 Tournée et ' : ''}piochez 1 carte${extra}.` });
@@ -1983,6 +1983,8 @@ export interface CfPlayerView {
   ardoiseSkip: boolean;
   penaltyNext: number;
   penaltyNextCard?: string;
+  /** Le Plat du jour : Tournées en plus à la prochaine manche. */
+  tourneesNext?: number;
   out: boolean;
   place: number | null;
   r: RoundState;
@@ -2034,7 +2036,7 @@ export function viewFor(s: CfState, pid: string): CfView {
       hand: p.id === pid ? p.hand.map((k) => ({ ...k })) : undefined,
       deckCount: p.deck.length, families: [...p.families], discard: p.discard.map((k) => ({ ...k })),
       habitues: p.habitues.map((k) => ({ ...k })), ardoiseUsed: p.ardoiseUsed, ardoiseSkip: p.ardoiseSkip,
-      penaltyNext: p.penaltyNext, ...(p.penaltyNextCard ? { penaltyNextCard: p.penaltyNextCard } : {}), out: p.out, place: p.place, r: structuredClone(p.r),
+      penaltyNext: p.penaltyNext, ...(p.penaltyNextCard ? { penaltyNextCard: p.penaltyNextCard } : {}), ...(p.tourneesNext ? { tourneesNext: p.tourneesNext } : {}), out: p.out, place: p.place, r: structuredClone(p.r),
       throwLimit: s.phase === 'turn' && s.order.includes(p.id) && s.order.indexOf(p.id) <= s.turn ? throwLimit(s, p.id) : null,
     })),
     traps: s.traps.map((t) => ({ uid: t.uid, owner: t.owner, target: t.target, posedRound: t.posedRound, id: t.seenBy.includes(pid) ? t.id : null })),

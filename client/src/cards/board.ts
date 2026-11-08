@@ -84,7 +84,7 @@ function playableLabel(v: CfView, legal: CfAction[], uid: string, id: string): s
     case 'petite-soeur': return 'Reprendre un Coup';
     // 0.46
     case 'cafe-serre': return p.habitues.length ? '1 carte, +1 Tournée' : 'Piocher 1 carte';
-    case 'plat-du-jour': return `+${PLAT_TOURNEES} Tournées`;
+    case 'plat-du-jour': return `+${PLAT_TOURNEES} Tournées ensuite`;
     case 'boule-de-neige': return `Piocher ${plural(Math.min(3, p.r.played), 'carte')}`;
     case 'effet-papillon': return '1 carte, suivantes −1';
     case 'addition': return `Au moins ${ADDITION_MIN} si gagné`;
@@ -99,7 +99,7 @@ function playableLabel(v: CfView, legal: CfAction[], uid: string, id: string): s
     case 'verres-echanges': return 'Échanger vos dés';
     case 'debauchage': return opts.some((o) => o.habitue) ? 'Débaucher un Habitué' : 'Piocher 2 cartes';
     case 'retrouvailles': return 'Rappeler un Habitué';
-    case 'boucle': return 'Reprendre 2 Coups';
+    case 'boucle': return 'Reprendre 2 cartes';
     case 'passe-passe': return 'Reprendre un piège, +1 Tournée';
     case 'denonciation': return 'Défausser son piège';
     case 'embuscade': return 'Poser vos pièges';
@@ -306,7 +306,7 @@ export const TRAP_WHEN: Record<string, string> = {
   'faux-421': 'quand vous finissez sur 4-2-1 : il ne vaut plus que 2',
   'coup-nenette': 'quand vous devriez gagner avec une combinaison qui vaut 1 ou 2 : elle devient une nénette',
   'retournement-veste': `quand vous devriez lui donner ${VESTE_MIN} jetons ou plus : c’est lui qui les reçoit`,
-  mouchard: 'quand vous jouez un Coup : son poseur gagne 1 Tournée et pioche 1 carte',
+  mouchard: 'quand vous jouez un Coup : son poseur gagne 1 Tournée et pioche 2 cartes',
   'pique-assiette': 'quand vous gagnez des Tournées grâce à une carte : c’est son poseur qui les gagne',
   hoquet: 'quand vous relancez en gardant des dés : un des dés gardés est relancé aussi',
   'der-des-ders': 'quand vous perdez une manche : vous recevez 1 jeton de plus',
@@ -684,9 +684,9 @@ export function threatLine(v: CfView): string {
     case 'embuscade': return pr.target === me.id ? 'Ici : il pose devant vous tous les pièges de sa main, gratuitement.' : 'Ici : il pose tous les pièges de sa main, gratuitement.';
     case 'effet-papillon': return 'Ici : il pioche 1 carte et ses cartes coûtent 1 Tournée de moins cette manche.';
     case 'echo': { const src = o ? echoSource(v, o.id) : null; return `Ici : il rejoue gratuitement ${src ? `« ${cardName(src)} »` : 'votre dernier Coup'}.`; }
-    case 'boucle': return 'Ici : il reprend en main les 2 derniers Coups de sa défausse.';
+    case 'boucle': return 'Ici : il reprend en main les 2 dernières cartes de sa défausse.';
     case 'cafe-serre': return `Ici : il pioche 1 carte${o?.habitues.length ? ' et gagne 1 Tournée' : ''}.`;
-    case 'plat-du-jour': return `Ici : il gagne ${PLAT_TOURNEES} Tournées.`;
+    case 'plat-du-jour': return `Ici : il recevra ${PLAT_TOURNEES} Tournées de plus à la prochaine manche.`;
     case 'boule-de-neige': return `Ici : il pioche ${plural(Math.max(1, Math.min(3, (o?.r.played ?? 2) - 1)), 'carte')}.`;
     case 'passe-passe': return 'Ici : il reprend un de ses pièges posés, gagne 1 Tournée et pioche 1 carte.';
     case 'addition': return `Ici : s’il gagne, sa combinaison vaudra au moins ${ADDITION_MIN}.`;

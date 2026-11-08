@@ -39,21 +39,21 @@ function fits(deck: string[], id: string, curve = false): boolean {
 
 /**
  * Ordre de préférence pour construire des decks « optimisés » : les cartes les mieux notées par les
- * dernières simulations d'abord (0.46, 90 cartes : moyenne des valeurs marginales de trois séries de 12 000 parties),
+ * dernières simulations d'abord (0.46, 90 cartes : moyenne des valeurs marginales de deux séries de 10 000 et 12 000 parties),
  * pour chercher les decks les plus forts possibles.
  * PREF_FILE (variable d'environnement) : fichier JSON { carte: valeur } pour le recalculer.
  */
 let PREF = [
-  'josiane', 'plat-du-jour', 'ricochet', 'mise-bouche', 'derniere-maille', 'leurre', 'fouine', 'pochtron', 'coup-pouce',
-  'compte-rond', 'double-tournee', 'tournee-generale', 'peau-banane', 'verre-offert', 'mot-de-trop', 'gueule-bois', 'tete-tourne', 'retour-envoyeur',
-  'retournement-veste', 'verre-de-trop', 'recompter', 'boule-de-neige', 'sante', 'boucle', 'verres-echanges', 'effet-papillon', 'de-sous-table',
-  'domino', 'grand-enchainement', 'ticket-caisse', 'pourboire', 'miroir', 'petit-dernier', 'calva', 'croche-patte', 'efface-tout',
-  'note-salee', 'trinquer', 'tournee-patron', 'a-la-votre', 'comptable', 'cafe-serre', 'tant-qu-on-y-est', 'guetteur', 'reaction-chaine',
-  'hoquet', 'debauchage', 'pot-aux-roses', 'coup-coude', 'coup-etrier', 'complice', 'coup-nenette', 'flagrant-delit', 'pilier',
-  'petite-soeur', 'patron', 'calcul-mental', 'vide-poches', 'der-des-ders', 'fermeture', 'main-sac', 'joueur-belote', 'embuscade',
-  'faux-421', 'yeux-piquent', 'ardoise-piegee', 'denonciation', 'passe-passe', 'beau-frere', 'garde-champetre', 'engrenage', 'bon-numero',
-  'fanfaron', 'attrape-nigaud', 'cul-sec', 'noeud-coulant', 'vieux-marcel', 'addition', 'doyen', 'pari-comptoir', 'souriciere',
-  'lot-consolation', 'table-reservee', 'mouchard', 'echo', 'courant-air', 'pique-assiette', 'retrouvailles', 'videur', 'fee-verte',
+  'ricochet', 'fee-verte', 'domino', 'fermeture', 'pot-aux-roses', 'verre-de-trop', 'double-tournee', 'patron', 'de-sous-table',
+  'tournee-patron', 'recompter', 'verre-offert', 'attrape-nigaud', 'beau-frere', 'croche-patte', 'petite-soeur', 'pari-comptoir', 'ticket-caisse',
+  'coup-pouce', 'tournee-generale', 'trinquer', 'embuscade', 'yeux-piquent', 'reaction-chaine', 'doyen', 'a-la-votre', 'derniere-maille',
+  'josiane', 'joueur-belote', 'efface-tout', 'retour-envoyeur', 'coup-coude', 'calva', 'leurre', 'gueule-bois', 'denonciation',
+  'verres-echanges', 'guetteur', 'miroir', 'peau-banane', 'main-sac', 'tant-qu-on-y-est', 'fouine', 'engrenage', 'note-salee',
+  'tete-tourne', 'sante', 'noeud-coulant', 'addition', 'retournement-veste', 'pochtron', 'bon-numero', 'compte-rond', 'ardoise-piegee',
+  'calcul-mental', 'mouchard', 'comptable', 'plat-du-jour', 'pourboire', 'coup-nenette', 'courant-air', 'videur', 'pilier',
+  'hoquet', 'effet-papillon', 'boule-de-neige', 'complice', 'fanfaron', 'coup-etrier', 'retrouvailles', 'petit-dernier', 'debauchage',
+  'souriciere', 'lot-consolation', 'vieux-marcel', 'flagrant-delit', 'table-reservee', 'cul-sec', 'der-des-ders', 'cafe-serre', 'grand-enchainement',
+  'echo', 'mot-de-trop', 'pique-assiette', 'vide-poches', 'faux-421', 'mise-bouche', 'passe-passe', 'garde-champetre', 'boucle',
 ];
 if (process.env.PREF_FILE) {
   const mg = JSON.parse(readFileSync(process.env.PREF_FILE, 'utf8')) as Record<string, number>;

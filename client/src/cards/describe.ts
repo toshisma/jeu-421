@@ -93,7 +93,7 @@ export function paramQuestion(k: ParamKey, cardId: string): string {
 
 const conditionOf: Record<string, string> = {
   'gueule-bois': 'il perd une manche (il n’aura qu’un lancer à la suivante)',
-  leurre: `il est révélé ou revient dans votre main (vous gagnez ${plural(LEURRE_TOURNEES, 'Tournée')} et piochez ${plural(LEURRE_DRAW, 'carte')}) ; sinon il ne fait rien`,
+  leurre: `une carte adverse le découvre et le défausse (vous gagnez ${plural(LEURRE_TOURNEES, 'Tournée')} et piochez ${plural(LEURRE_DRAW, 'carte')}) ; sinon il ne fait rien`,
   'croche-patte': 'il finit son tour (un de ses dés est relancé au hasard)',
   'main-sac': 'il joue un Coup qui coûte 1 ou plus (ce Coup est annulé)',
   'ardoise-piegee': `il joue un Coup (il paie ${ARDOISE_EXTRA} Tournées de plus, sinon le Coup est annulé)`,
@@ -262,7 +262,7 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
     }
     // ------------------------------------------------------------- 0.46
     case 'cafe-serre': return p.habitues.length ? 'Vous piochez 1 carte et, comme vous avez un Habitué en jeu, gagnez 1 Tournée.' : 'Vous piochez 1 carte (avec un Habitué en jeu, vous gagneriez aussi 1 Tournée).';
-    case 'plat-du-jour': return `Vous gagnez ${PLAT_TOURNEES} Tournées (vous en aurez ${Math.min(v.rules.tourneesMax, p.tournees - costNow(v, cardId) + PLAT_TOURNEES)} sur ${v.rules.tourneesMax}).`;
+    case 'plat-du-jour': return `À la prochaine manche, vous recevrez ${PLAT_TOURNEES} Tournées de plus (${v.rules.tourneesMax} au plus en réserve).`;
     case 'boule-de-neige': { const n = Math.min(3, p.r.played); return n ? `Vous piochez ${plural(n, 'carte')} (une par carte déjà jouée cette manche, 3 au plus).` : 'Jouez d’abord une autre carte : elle pioche 1 carte par carte déjà jouée cette manche.'; }
     case 'effet-papillon': return `Vous piochez ${plural(PAPILLON_DRAW, 'carte')} ; jusqu’à la fin de la manche, vos autres cartes coûtent 1 Tournée de moins.`;
     case 'addition': {
@@ -306,9 +306,9 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
     }
     case 'boucle': {
       const got = [...p.discard].reverse().filter(boucleOk).slice(0, 2);
-      return got.length ? `Vous reprenez en main ${got.map((k) => `« ${def(k.id)?.name} »`).join(' et ')}.` : 'Aucun Coup à reprendre dans votre défausse.';
+      return got.length ? `Vous reprenez en main ${got.map((k) => `« ${def(k.id)?.name} »`).join(' et ')}.` : 'Aucune carte à reprendre dans votre défausse.';
     }
-    case 'passe-passe': return 'Un de vos pièges posés (pas un Leurre) revient dans votre main, prêt à être reposé ; vous gagnez 1 Tournée et piochez 1 carte.';
+    case 'passe-passe': return 'Un de vos pièges posés revient dans votre main, prêt à être reposé ; vous gagnez 1 Tournée et piochez 1 carte.';
     case 'denonciation': return 'Vous défaussez le piège adverse choisi, posé devant vous, avant les comptes (vous découvrez lequel c’était), puis piochez 1 carte et gagnez 1 Tournée.';
     case 'embuscade': {
       const traps = (p.hand ?? []).filter((k) => def(k.id)?.type === 'piege').length;

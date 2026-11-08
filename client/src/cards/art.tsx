@@ -974,8 +974,9 @@ const ART: Record<string, (g: G, u: U) => ReactNode> = {
         <circle cx="64" cy="68" r="2.4" fill="#fbf6e9" /><circle cx="92" cy="68" r="2.4" fill="#fbf6e9" />
       </g>
       <path d="M134 42 Q150 26 170 30" fill="none" stroke="#ffd36b" strokeWidth="2.5" strokeDasharray="3 4" strokeLinecap="round" />
-      <MiniCardShape x={176} y={44} w={26} h={36} rot={12} fill="#5a3b85" edge="#ffd36b">
-        <text x="189" y="67" fontFamily={SLAB} fontSize="12" fill="#ffd36b" textAnchor="middle">+1</text>
+      <MiniCardShape x={164} y={40} w={26} h={36} rot={-6} fill="#5a3b85" edge="#a99ad0" />
+      <MiniCardShape x={180} y={46} w={26} h={36} rot={12} fill="#5a3b85" edge="#ffd36b">
+        <text x="193" y="69" fontFamily={SLAB} fontSize="12" fill="#ffd36b" textAnchor="middle">+2</text>
       </MiniCardShape>
       <Beer x={150} y={84} w={16} h={22} />
       <Spark x={150} y={100} r={6} /><Spark x={20} y={20} r={6} fill="#fffaf0" />
