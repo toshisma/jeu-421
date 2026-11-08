@@ -18,7 +18,7 @@ import { act, currentPlayer, newGame, placeOf, DM_TARGETS, type DmAction, type D
 import { cleanStake } from '../shared/dixmille/groschen';
 import type { GroschenApi } from './groschen';
 import { decide } from '../shared/dixmille/ai';
-import { DM_DECISION_SECONDS, DM_TABLE_MAX, type DmPublicTable, type DmUpdate } from '../shared/dixmille/protocol';
+import { DM_DECISION_SECONDS, DM_TABLE_MAX, type DmPublicTable, type DmRewardMsg, type DmUpdate } from '../shared/dixmille/protocol';
 import { AVATARS, MAX_SPECTATORS, isReaction, type Ack } from '../shared/protocol';
 import { sanitizeGesture, type ThrowGesture } from '../shared/gesture';
 import { muteText } from '../shared/moderation';
@@ -50,8 +50,8 @@ interface Ctx {
   publicInfo: (userId: string) => { account: string; photo?: string | null; accessory?: string; dice?: string; trail?: string } | null;
   isBlocked: (a: string, b: string) => boolean;
   /** Récompense d'un compte en fin de partie (calculée par les comptes). */
-  reward: (userId: string, o: { won: boolean; place: number; players: number; humans: number; botLevels: DmLevel[]; minutes: number; day: string; abandoned: boolean })
-    => { reward: Reward; applied: { profile: unknown; levelBefore: number; levelAfter: number } } | null;
+  reward: (userId: string, o: { won: boolean; place: number; players: number; humans: number; botLevels: DmLevel[]; minutes: number; day: string; abandoned: boolean; bestTurn?: number; potWon?: number })
+    => { reward: Reward; applied: { profile: unknown; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { id: string; text: string }[] } } | null;
   recordChat: (e: TableChatEntry) => void;
   /** Les Groschen (mises). */
   groschen: GroschenApi;
@@ -382,9 +382,11 @@ export function createDixMilleOnline(c: Ctx) {
     const minutes = (Date.now() - t.startedAt) / 60000;
     // Le pot : au gagnant s'il est encore là. S'il a quitté (le serveur jouait pour lui), il ne touche
     // rien : les joueurs restés récupèrent leur mise, les mises des partants sont perdues.
+    let potTo: string | null = null;
     if (t.pot > 0) {
       const w = memberOf(t, g.winner!)!;
       if (!w.bot && !w.quit && w.userId) {
+        potTo = w.userId;
         c.groschen.payWinner(t.ref, w.userId, t.pot);
         notice(t, `${w.name} emporte le pot : ${t.pot} Groschen !`);
       } else if (!w.bot) {
@@ -400,8 +402,10 @@ export function createDixMilleOnline(c: Ctx) {
       if (!m.userId) continue;
       const out = c.reward(m.userId, {
         won: g.winner === m.id, place: placeOf(g, m.id), players: g.players.length, humans, botLevels, minutes, day: c.groschen.today(), abandoned: !!m.quit,
+        bestTurn: g.players.find((p) => p.id === m.id)?.best ?? 0, potWon: potTo === m.userId ? t.pot : 0,
       });
-      if (out && m.socketId) sock(m.socketId)?.emit('profile:reward', { reward: out.reward, levelBefore: out.applied.levelBefore, levelAfter: out.applied.levelAfter, profile: out.applied.profile });
+      if (out && m.socketId) sock(m.socketId)?.emit('profile:reward', { reward: out.reward, levelBefore: out.applied.levelBefore, levelAfter: out.applied.levelAfter, profile: out.applied.profile,
+        bags: out.applied.bagsFound ?? 0, quests: (out.applied.questsDone ?? []).map((q) => q.text) } satisfies DmRewardMsg);
     }
   }
 

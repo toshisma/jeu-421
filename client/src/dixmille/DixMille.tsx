@@ -15,7 +15,8 @@ import { GROSCHEN_DAILY, GROSCHEN_MAX_STAKE } from '../../../shared/dixmille/gro
 import { AVATARS, EMOTES, PHRASES } from '../../../shared/protocol';
 import type { Appearance } from '../../../shared/progress/catalog';
 import { fxDef } from '../../../shared/progress/dice-collection';
-import type { Reward } from '../../../shared/progress/profile';
+import { collectionCount, type Profile, type Reward } from '../../../shared/progress/profile';
+import { BagIcon } from '../ui/BagIcon';
 import type { ProfileApi } from '../account/useProfile';
 import { api } from '../account/api';
 import type { Settings } from '../settings';
@@ -23,7 +24,8 @@ import type { Insets } from '../three/TrayScene';
 import type { ThrowGesture } from '../physics/diceSim';
 import { PERSONAS, PERSONA_DICE, type Persona } from '../game/personas';
 import { DiceTray, type DiceTrayHandle } from '../ui/DiceTray';
-import { BigAction, Choices, Section, Sheet, Shell } from '../ui/kit';
+import { BigAction, Choices, Section, Sheet, Shell, Toggle } from '../ui/kit';
+import { DieCube } from '../ui/DiceCollection';
 import { MiniDie } from '../ui/MiniDie';
 import { Icon } from '../ui/Icon';
 import { Avatar } from '../ui/Avatar';
@@ -75,15 +77,23 @@ export function Groschen({ n, size = 16, sign }: { n: number; size?: number; sig
   return <span className="groschen"><GroschenIcon size={size} /><b>{sign && n > 0 ? '+' : ''}{fmt(n)}</b></span>;
 }
 
+/** Un mouvement de Groschen (journal du serveur). */
+export interface GrMove { delta: number; balance: number; reason: string; ref: string | null; at: number }
 /** Solde de Groschen (comptes) : lu sur le serveur, qui verse le cadeau du jour à la première ouverture. */
 export function useGroschen(pa: ProfileApi) {
-  const [w, setW] = useState<{ balance: number; gift: number } | null>(null);
+  const [w, setW] = useState<{ balance: number; gift: number; history: GrMove[]; giftToday: boolean } | null>(null);
   const reload = useCallback(() => {
     if (!pa.token) { setW(null); return; }
-    api<{ balance: number; gift: number }>('/dixmille/wallet', { token: pa.token }).then((r) => setW((prev) => ({ balance: r.balance, gift: r.gift || prev?.gift || 0 }))).catch(() => {});
+    api<{ balance: number; gift: number; day: string; history: GrMove[] }>('/dixmille/wallet', { token: pa.token })
+      .then((r) => setW((prev) => ({ balance: r.balance, gift: r.gift || prev?.gift || 0, history: r.history ?? [], giftToday: r.gift > 0 || (r.history ?? []).some((m) => m.reason === 'cadeau' && m.ref === r.day) || !!prev?.giftToday })))
+      .catch(() => {});
   }, [pa.token]);
   useEffect(() => { reload(); }, [reload]);
-  return { balance: w?.balance ?? null, gift: w?.gift ?? 0, dismissGift: () => setW((x) => (x ? { ...x, gift: 0 } : x)), reload, setBalance: (b: number) => setW((x) => ({ gift: x?.gift ?? 0, balance: b })) };
+  return {
+    balance: w?.balance ?? null, gift: w?.gift ?? 0, history: w?.history ?? null, giftToday: !!w?.giftToday,
+    dismissGift: () => setW((x) => (x ? { ...x, gift: 0 } : x)), reload,
+    setBalance: (b: number) => setW((x) => ({ gift: x?.gift ?? 0, history: x?.history ?? [], giftToday: !!x?.giftToday, balance: b })),
+  };
 }
 
 function GiftBurst({ amount, onClose }: { amount: number; onClose: () => void }) {
@@ -491,9 +501,12 @@ function DmBoard({ tray, anim, seats, canAct, settings, onSettings, appearance, 
 }
 
 /** Fin de partie : classement, récompenses, Groschen gagnés ou perdus. */
-function EndDialog({ s, seats, reward, groschen, buttons, waiting }: {
+function EndDialog({ s, seats, reward, groschen, buttons, waiting, bags = 0, quests = [], onBags, isAccount }: {
   s: DmState; seats: Seat[]; reward: Reward | null | undefined; groschen?: { delta: number; pot: number } | null; buttons: React.ReactNode; waiting?: string;
+  /** Sacs de dés trouvés (tirés par le serveur pour un compte), défis du jour accomplis. */
+  bags?: number; quests?: string[]; onBags?: () => void; isAccount?: boolean;
 }) {
+  useEffect(() => { if (bags > 0) sound.chips(3); }, [bags]);
   const me = seats.find((x) => x.isMe);
   const w = seats.find((x) => x.id === s.winner);
   return (
@@ -527,6 +540,15 @@ function EndDialog({ s, seats, reward, groschen, buttons, waiting }: {
               {reward.xp > 0 && <span className="dm-xp">+{reward.xp} XP</span>}
             </> : <span className="muted small">Pas de pièces ni d’XP pour cette partie (trop courte, plafond du jour, invité ou partie quittée).</span>}
         </div>
+        {bags > 0 && (
+          <div className="dm-bag-won" role="status">
+            <span className="dm-bag-ico" aria-hidden><BagIcon size={44} /></span>
+            <span className="dm-bag-text"><b>{bags > 1 ? `${bags} sacs de dés trouvés !` : 'Sac de dés trouvé !'}</b>
+              <small>{isAccount ? 'Un dé ou un effet au hasard, pour le 421 et le Courtisan.' : 'Gardé pour vous : un compte gratuit permet de l’ouvrir.'}</small></span>
+            {onBags && <button className="btn small primary" onClick={onBags}>{isAccount ? 'Ouvrir' : 'Voir'}</button>}
+          </div>
+        )}
+        {quests.length > 0 && <ul className="dm-quests">{quests.map((q) => <li key={q}><Icon name="check" size={14} /> Défi du jour accompli : {q}</li>)}</ul>}
         {waiting && <p className="muted small">{waiting}</p>}
         <div className="dm-end-btns">{buttons}</div>
       </div>
@@ -537,9 +559,9 @@ function EndDialog({ s, seats, reward, groschen, buttons, waiting }: {
 // ---------------------------------------------------------------------------------------------
 // Partie gratuite contre l'ordinateur (jouée sur l'appareil)
 
-export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appearance, me, onExit, onReplay }: {
+export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appearance, me, onExit, onReplay, onBags }: {
   setup: DmSetup; opponents: Persona[]; pa: ProfileApi; settings: Settings; onSettings: (s: Settings) => void; appearance: Appearance;
-  me: { name: string; avatar: string; photo: string | null }; onExit: () => void; onReplay: () => void;
+  me: { name: string; avatar: string; photo: string | null }; onExit: () => void; onReplay: () => void; onBags?: () => void;
 }) {
   const seats = useMemo<Seat[]>(() => [
     { id: 'moi', name: me.name || 'Vous', avatar: me.avatar, color: COLORS[0], photo: me.photo, isMe: true },
@@ -551,7 +573,7 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
   const anim = useDmAnimator(tray, initial, seatsRef, { trail: pa.profile.fx?.trainee, fete: pa.profile.fx?.fete });
   // État officiel (moteur local), en avance sur l'écran pendant les animations.
   const truth = useRef(initial);
-  const [end, setEnd] = useState<{ reward: Reward | null } | null>(null);
+  const [end, setEnd] = useState<{ reward: Reward | null; bags: number; quests: string[] } | null>(null);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; pa.onDixMilleStart(); return () => { alive.current = false; }; }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -581,8 +603,9 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
     tray.current?.setInteractive(false);
     const place = ranking(s).findIndex((p) => p.id === 'moi') + 1;
     void (async () => {
-      const [r] = await Promise.all([pa.onDixMilleEnd({ won: s.winner === 'moi', place, opponents: opponents.length, level: setup.level }), wait(1400)]);
-      if (alive.current) setEnd({ reward: r?.reward ?? null });
+      const bestTurn = s.players.find((p) => p.id === 'moi')?.best ?? 0;
+      const [r] = await Promise.all([pa.onDixMilleEnd({ won: s.winner === 'moi', place, opponents: opponents.length, level: setup.level, bestTurn }), wait(1400)]);
+      if (alive.current) setEnd({ reward: r?.reward ?? null, bags: r?.bags ?? 0, quests: r?.quests ?? [] });
     })();
   }, [s, anim.busy, pa, opponents.length, setup.level]);
 
@@ -594,7 +617,7 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
   return (
     <DmBoard tray={tray} anim={anim} seats={seats} canAct settings={settings} onSettings={onSettings} appearance={appearance}
       onAction={(a, g) => run(a, g)} onLeave={leave}
-      end={end && <EndDialog s={s} seats={seats} reward={end.reward} buttons={<>
+      end={end && <EndDialog s={s} seats={seats} reward={end.reward} bags={end.bags} quests={end.quests} isAccount={pa.isAccount} onBags={onBags} buttons={<>
         <button className="btn secondary" onClick={onExit}>Retour</button>
         <button className="btn primary" onClick={onReplay}><Icon name="resume" size={18} /> Rejouer</button>
       </>} />} />
@@ -623,11 +646,14 @@ function seatsOf(session: DmSession, state: DmState | null, personas?: Persona[]
   });
 }
 
-function DmOnlineGame({ session, pa, settings, onSettings, appearance, onExit, onReplay, personas, groschen }: {
+function DmOnlineGame({ session, pa, settings, onSettings, appearance, onExit, onReplay, personas, groschen, onBags }: {
   session: DmSession; pa: ProfileApi; settings: Settings; onSettings: (s: Settings) => void; appearance: Appearance;
-  onExit: () => void; onReplay?: () => void; personas?: Persona[]; groschen: ReturnType<typeof useGroschen>;
+  onExit: () => void; onReplay?: () => void; personas?: Persona[]; groschen: ReturnType<typeof useGroschen>; onBags?: () => void;
 }) {
   useDm(session);
+  // Récompense du serveur (pièces, XP, sac de dés) : le profil affiché suit aussitôt.
+  const rewardMsg = session.reward;
+  useEffect(() => { if (rewardMsg?.profile) pa.onServerProfile(rewardMsg.profile as Profile); }, [rewardMsg]); // eslint-disable-line react-hooks/exhaustive-deps
   const tray = useRef<DiceTrayHandle>(null);
   const seats = seatsOf(session, session.state, personas);
   const seatsRef = useRef(seats);
@@ -689,6 +715,8 @@ function DmOnlineGame({ session, pa, settings, onSettings, appearance, onExit, o
         onEmote={t?.solo ? undefined : (e) => session.sendEmote(e)}
         waitText={sending ? 'Envoi…' : undefined}
         end={endShown && <EndDialog s={s} seats={seats} reward={session.spectating ? null : session.reward?.reward ?? (pa.isAccount ? undefined : null)}
+          bags={session.spectating ? 0 : session.reward?.bags ?? 0} quests={session.spectating ? [] : session.reward?.quests ?? []} isAccount={pa.isAccount}
+          onBags={onBags && (() => { session.leave(); onBags(); })}
           groschen={!session.spectating && pot > 0 ? { delta: grDelta, pot } : null}
           waiting={!t?.solo && !isHost && !session.spectating ? 'L’hôte peut proposer une revanche : restez à la table.' : undefined}
           buttons={<>
@@ -850,9 +878,9 @@ export type DmOnlineMode =
   | { kind: 'join'; code: string } | { kind: 'quick' } | { kind: 'resume' } | { kind: 'watch'; code: string }
   | { kind: 'solo'; setup: DmSetup; opponents: Persona[] };
 
-function DmOnlineFlow({ mode, pa, settings, onSettings, me, onExit, onReplay, groschen }: {
+function DmOnlineFlow({ mode, pa, settings, onSettings, me, onExit, onReplay, groschen, onBags }: {
   mode: DmOnlineMode; pa: ProfileApi; settings: Settings; onSettings: (s: Settings) => void; me: { name: string; avatar: string };
-  onExit: () => void; onReplay?: () => void; groschen: ReturnType<typeof useGroschen>;
+  onExit: () => void; onReplay?: () => void; groschen: ReturnType<typeof useGroschen>; onBags?: () => void;
 }) {
   const [session, setSession] = useState<DmSession | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -885,7 +913,7 @@ function DmOnlineFlow({ mode, pa, settings, onSettings, me, onExit, onReplay, gr
   }
   if (session.table.status === 'playing' && session.state) {
     return <DmOnlineGame key={`${session.table.code}:${session.state.turns === 0 && session.version <= 1 ? session.version : 'g'}`} session={session} pa={pa} settings={settings} onSettings={onSettings}
-      appearance={pa.profile.equipped} onExit={onExit} onReplay={onReplay} groschen={groschen}
+      appearance={pa.profile.equipped} onExit={onExit} onReplay={onReplay} groschen={groschen} onBags={onBags}
       personas={mode.kind === 'solo' ? mode.opponents : undefined} />;
   }
   if (session.spectating) return <Shell title={MODE_NAME} onBack={() => { session.leave(); onExit(); }} icon="eye"><div className="k-wait"><p>La partie n’a pas encore commencé.</p></div></Shell>;
@@ -896,13 +924,15 @@ const DUMMY = { subscribe: () => () => {}, tick: 0, version: 0, table: null, cha
 // ---------------------------------------------------------------------------------------------
 // Accueil du mode : contre l'ordinateur, en ligne, Groschen
 
-export function DixMilleSetup({ onBack, onStart, onClassic, onCards, onRules, onOnline, pa, groschen, onAccount }: {
-  onBack: () => void; onStart: (s: DmSetup, opponents: Persona[]) => void; onClassic: () => void; onCards?: () => void; onRules: () => void;
+export function DixMilleSetup({ onBack, onStart, onRules, onOnline, pa, groschen, onAccount, initialTab }: {
+  onBack: () => void; onStart: (s: DmSetup, opponents: Persona[]) => void; onRules: () => void;
   onOnline: (m: DmOnlineMode) => void; pa: ProfileApi; groschen: ReturnType<typeof useGroschen>; onAccount?: () => void;
+  /** Onglet ouvert d'abord (choisi dans le menu du mode). */
+  initialTab?: 'solo' | 'ligne';
 }) {
   const [setup, setSetup] = useState<DmSetup>(loadSetup);
   const [roster, setRoster] = useState(() => [...PERSONAS].sort(() => Math.random() - 0.5));
-  const [tab, setTab] = useState<'solo' | 'ligne'>(() => (loadDmSession() && !NO_SERVER ? 'ligne' : 'solo'));
+  const [tab, setTab] = useState<'solo' | 'ligne'>(() => (NO_SERVER ? 'solo' : initialTab ?? (loadDmSession() ? 'ligne' : 'solo')));
   const [code, setCode] = useState('');
   const [table, setTable] = useState<{ target: number; stake: number; visibility: 'private' | 'public' }>({ target: 4000, stake: 0, visibility: 'private' });
   const chosen = roster.slice(0, setup.opponents);
@@ -926,7 +956,6 @@ export function DixMilleSetup({ onBack, onStart, onClassic, onCards, onRules, on
           sub={`${setup.opponents} adversaire${setup.opponents > 1 ? 's' : ''} · ${level.label} · ${fmt(setup.target)} points${stake > 0 ? ` · pot ${fmt(pot)}` : ' · gratuit'}`}
           onClick={() => (stake > 0 ? onOnline({ kind: 'solo', setup: { ...setup, stake }, opponents: chosen }) : onStart({ ...setup, stake: 0 }, chosen))} />
         : <BigAction icon="dice" tone="gold" label="Partie rapide" sub="Rejoindre une table ouverte (gratuite), ou en ouvrir une" onClick={() => onOnline({ kind: 'quick' })} />}>
-      {onCards && <ModeSwitch active="dixmille" onClassic={onClassic} onCards={onCards} onDixMille={() => {}} />}
       <div className="dm-intro">
         <span className="dm-intro-dice" aria-hidden>{[1, 5, 5, 1].map((v, i) => <MiniDie key={i} value={v} size={18} />)}</span>
         <p>Mettez de côté les dés qui rapportent, relancez les autres… ou encaissez avant de tout perdre. <button className="link" onClick={onRules}>Lire les règles</button></p>
@@ -994,36 +1023,207 @@ export function DixMilleSetup({ onBack, onStart, onClassic, onCards, onRules, on
 
 export type DmPending = { join?: string; watch?: string; resume?: boolean };
 
-export function DixMilleMode({ pa, settings, onSettings, onHome, onCards, displayName, avatar, pending, onAccount }: {
+export function DixMilleMode({ pa, settings, onSettings, onHome, onCards, displayName, avatar, pending, onAccount, onCollection, onShop, onAllSettings }: {
   pa: ProfileApi; settings: Settings; onSettings: (s: Settings) => void; onHome: () => void; onCards?: () => void; displayName: string; avatar: string;
   pending?: DmPending; onAccount?: () => void;
+  /** Collection de dés commune au 421 (`open` : ouvrir un sac tout de suite), boutique et équipement, tous les réglages. */
+  onCollection?: (open?: boolean) => void; onShop?: () => void; onAllSettings?: () => void;
 }) {
-  type Route = { r: 'setup' } | { r: 'game'; setup: DmSetup; opponents: Persona[]; key: number } | { r: 'online'; mode: DmOnlineMode; key: number };
-  const [route, setRoute] = useState<Route>(() => pending?.join ? { r: 'online', mode: { kind: 'join', code: pending.join }, key: 1 }
-    : pending?.watch ? { r: 'online', mode: { kind: 'watch', code: pending.watch }, key: 1 }
-      : pending?.resume ? { r: 'online', mode: { kind: 'resume' }, key: 1 } : { r: 'setup' });
+  type Route = { r: 'menu' } | { r: 'setup'; tab: 'solo' | 'ligne' } | { r: 'game'; setup: DmSetup; opponents: Persona[]; key: number } | { r: 'online'; mode: DmOnlineMode; key: number; from: 'menu' | 'setup' };
+  const [route, setRoute] = useState<Route>(() => pending?.join ? { r: 'online', mode: { kind: 'join', code: pending.join }, key: 1, from: 'menu' }
+    : pending?.watch ? { r: 'online', mode: { kind: 'watch', code: pending.watch }, key: 1, from: 'menu' }
+      : pending?.resume ? { r: 'online', mode: { kind: 'resume' }, key: 1, from: 'menu' } : { r: 'menu' });
   const [rules, setRules] = useState(false);
   const groschen = useGroschen(pa);
   const me = { name: pa.session?.username ?? displayName ?? 'Vous', avatar, photo: pa.photo };
-  const back = () => { groschen.reload(); setRoute({ r: 'setup' }); };
+  const toMenu = () => { groschen.reload(); setRoute({ r: 'menu' }); };
+  const back = () => { groschen.reload(); setRoute({ r: 'setup', tab: 'solo' }); };
+  const bags = onCollection && (() => onCollection(true));
   const gift = groschen.gift > 0 && <GiftBurst amount={groschen.gift} onClose={groschen.dismissGift} />;
+  const online = (mode: DmOnlineMode, from: 'menu' | 'setup') => { sound.unlock(); setRoute({ r: 'online', mode, key: Date.now(), from }); };
   if (route.r === 'game') {
     return <>{gift}<DixMilleGame key={route.key} setup={route.setup} opponents={route.opponents} pa={pa} settings={settings} onSettings={onSettings}
-      appearance={pa.profile.equipped} me={me} onExit={back}
+      appearance={pa.profile.equipped} me={me} onExit={back} onBags={bags}
       onReplay={() => setRoute({ ...route, key: route.key + 1 })} /></>;
   }
   if (route.r === 'online') {
+    // Venu d'un lien direct (invitation, reprise, regarder) : retour au menu du mode.
+    const exit = route.from === 'setup' ? () => { groschen.reload(); setRoute({ r: 'setup', tab: route.mode.kind === 'solo' ? 'solo' : 'ligne' }); } : toMenu;
     return <>{gift}<DmOnlineFlow key={route.key} mode={route.mode} pa={pa} settings={settings} onSettings={onSettings} me={{ name: me.name, avatar }} groschen={groschen}
-      onExit={pending && route.key === 1 ? onHome : back} onReplay={route.mode.kind === 'solo' ? back : undefined} /></>;
+      onExit={exit} onReplay={route.mode.kind === 'solo' ? back : undefined} onBags={bags} /></>;
   }
   return (
     <>
-      <DixMilleSetup onBack={onHome} onClassic={onHome} onCards={onCards} onRules={() => setRules(true)} pa={pa} groschen={groschen} onAccount={onAccount}
-        onStart={(setup, opponents) => { sound.unlock(); setRoute({ r: 'game', setup, opponents, key: Date.now() }); }}
-        onOnline={(mode) => { sound.unlock(); setRoute({ r: 'online', mode, key: Date.now() }); }} />
+      {route.r === 'setup'
+        ? <DixMilleSetup key={route.tab} initialTab={route.tab} onBack={toMenu} onRules={() => setRules(true)} pa={pa} groschen={groschen} onAccount={onAccount}
+          onStart={(setup, opponents) => { sound.unlock(); setRoute({ r: 'game', setup, opponents, key: Date.now() }); }}
+          onOnline={(mode) => online(mode, 'setup')} />
+        : <DmMenu pa={pa} groschen={groschen} settings={settings} onSettings={onSettings} onHome={onHome} onCards={onCards} onAccount={onAccount}
+          name={me.name} avatar={avatar} onRules={() => setRules(true)} onSetup={(tab) => setRoute({ r: 'setup', tab })} onOnline={(mode) => online(mode, 'menu')}
+          onCollection={onCollection} onShop={onShop} onAllSettings={onAllSettings} />}
       {rules && <Sheet title="Règles du Courtisan" onClose={() => setRules(false)}><DmRules /></Sheet>}
       {gift}
     </>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Menu du mode : Groschen, jouer, sacs de dés, collection, statistiques, règles, réglages, aide
+
+const HELP_PAGES = [
+  { path: '/dix-mille-en-ligne', label: 'Jouer au Dix mille en ligne' },
+  { path: '/regles-du-dix-mille', label: 'Règles du Dix mille' },
+  { path: '/strategie-dix-mille', label: 'Stratégie' },
+];
+/** Adresse d'une page d'aide : sur le site, ou sur 421online.com (fichier unique, application). */
+const helpUrl = (path: string) => (NO_SERVER || !/^https?:$/.test(location.protocol) ? `https://421online.com${path}` : path);
+
+const GR_REASON: Record<string, string> = { cadeau: 'Cadeau du jour', mise: 'Mise', gain: 'Pot emporté', remboursement: 'Mise rendue', admin: 'Ajustement' };
+const fmtWhen = (t: number) => new Intl.DateTimeFormat('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(t));
+
+function DmMenu({ pa, groschen, settings, onSettings, onHome, onCards, onAccount, name, avatar, onRules, onSetup, onOnline, onCollection, onShop, onAllSettings }: {
+  pa: ProfileApi; groschen: ReturnType<typeof useGroschen>; settings: Settings; onSettings: (s: Settings) => void;
+  onHome: () => void; onCards?: () => void; onAccount?: () => void; name: string; avatar: string;
+  onRules: () => void; onSetup: (tab: 'solo' | 'ligne') => void; onOnline: (m: DmOnlineMode) => void;
+  onCollection?: (open?: boolean) => void; onShop?: () => void; onAllSettings?: () => void;
+}) {
+  const p = pa.profile;
+  const acc = pa.isAccount;
+  const [code, setCode] = useState('');
+  const [sheet, setSheet] = useState<'stats' | 'history' | 'settings' | null>(null);
+  const bal = groschen.balance;
+  const bags = p.bags ?? 0;
+  const count = collectionCount(p);
+  const saved = NO_SERVER ? null : loadDmSession();
+  const st = p.dm;
+  const set = (x: Partial<Settings>) => { sound.unlock(); onSettings({ ...settings, ...x }); };
+  return (
+    <div className="dm-menu">
+      <header className="dm-menu-bar">
+        <button className="scr-back" onClick={onHome} aria-label="Retour à l’accueil"><Icon name="back" size={22} /></button>
+        <span className="dm-me"><Avatar photo={pa.photo} emoji={avatar} size={36} /><span><b>{name}</b><small>{acc ? 'Le Courtisan' : 'Invité · Le Courtisan'}</small></span></span>
+        {acc && bal != null ? <button className="dm-wallet" onClick={() => setSheet('history')} aria-label={`${bal} Groschen : historique`}><GroschenIcon size={18} /><b>{fmt(bal)}</b></button>
+          : !acc && onAccount && !NO_SERVER ? <button className="btn small" onClick={onAccount}>Connexion</button> : null}
+        <button className="icon-btn" onClick={() => setSheet('settings')} aria-label="Réglages"><Icon name="settings" size={22} /></button>
+      </header>
+      {onCards && <ModeSwitch active="dixmille" onClassic={onHome} onCards={onCards} onDixMille={() => {}} />}
+      <main className="dm-menu-main">
+        {saved && <button className="home-banner resume dm-resume" onClick={() => onOnline({ kind: 'resume' })}><Icon name="resume" size={20} /><span><b>Reprendre la partie</b><small>Table {saved.code}</small></span></button>}
+
+        <section className="dm-hero">
+          <span className="dm-hero-dice" aria-hidden>
+            <DieCube id={p.equipped.dice} size={46} />
+            <span className="dm-hero-mini">{[1, 5, 5, 1, 1].map((v, i) => <MiniDie key={i} value={v} size={16} />)}</span>
+          </span>
+          <span className="dm-hero-text">
+            <h1>Le Courtisan</h1>
+            <p>Le Dix mille à 6 dés : gardez les 1, les 5 et les combinaisons, relancez… ou encaissez avant le raté. <button className="link" onClick={onRules}>Règles et valeurs</button></p>
+          </span>
+        </section>
+
+        {!NO_SERVER && (acc ? (
+          <button className="dm-purse" onClick={() => setSheet('history')}>
+            <GroschenIcon size={34} />
+            <span className="dm-purse-text">
+              <b>{bal == null ? '…' : fmt(bal)} Groschen</b>
+              <small>{groschen.giftToday ? `Cadeau du jour reçu : +${GROSCHEN_DAILY}. Le prochain demain.` : `Cadeau du jour : +${GROSCHEN_DAILY} à chaque visite quotidienne.`}</small>
+            </span>
+            <em>Historique</em>
+          </button>
+        ) : onAccount && (
+          <button className="dm-gr-cta" onClick={onAccount}><GroschenIcon size={22} /><span><b>Les Groschen, monnaie du Courtisan</b><small>Avec un compte gratuit : +{GROSCHEN_DAILY} chaque jour, des mises et l’ouverture des sacs de dés</small></span></button>
+        ))}
+
+        <div className="dm-plays">
+          <button className="dm-play solo" onClick={() => onSetup('solo')}>
+            <span className="dm-play-ic" aria-hidden><Icon name="dice" size={26} /></span>
+            <span className="dm-play-text"><b>Contre l’ordinateur</b><small>1 à 3 adversaires · gratuit ou avec mise</small></span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden><path d="M9 6l6 6-6 6" /></svg>
+          </button>
+          {!NO_SERVER && <>
+            <div className="dm-play-row">
+              <button className="dm-play quick" onClick={() => onOnline({ kind: 'quick' })}><span className="dm-play-text"><b>Partie rapide</b><small>Une table ouverte, en ligne</small></span></button>
+              <button className="dm-play table" onClick={() => onSetup('ligne')}><span className="dm-play-text"><b>Ouvrir une table</b><small>Entre amis, 2 à 6</small></span></button>
+            </div>
+            <form className="hub-code dm-code" onSubmit={(e) => { e.preventDefault(); if (code.length === 5) onOnline({ kind: 'join', code }); }}>
+              <Icon name="key" size={20} />
+              <input value={code} maxLength={5} placeholder="CODE" aria-label="Code de la table" onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} />
+              <button className="btn small primary" disabled={code.length !== 5}>Rejoindre</button>
+            </form>
+          </>}
+        </div>
+
+        <div className="dm-tiles">
+          {onCollection && <button className="dm-tile bags" onClick={() => (bags > 0 && acc ? onCollection(true) : onCollection())}>
+            {bags > 0 && <span className="dm-badge">{bags > 9 ? '9+' : bags}</span>}
+            <span className="dm-tile-art" aria-hidden><BagIcon size={34} /></span>
+            <b>Sacs de dés</b><small>{bags > 0 ? (acc ? `${bags} à ouvrir` : `${bags} gardé${bags > 1 ? 's' : ''}`) : 'À gagner en jouant'}</small>
+          </button>}
+          {onCollection && <button className="dm-tile" onClick={() => onCollection()}>
+            <span className="dm-tile-art num" aria-hidden>{count.owned}<small>/{count.total}</small></span>
+            <b>Collection</b><small>Dés et effets</small>
+          </button>}
+          {onShop && <button className="dm-tile" onClick={onShop}>
+            <span className="dm-tile-art" aria-hidden><Icon name="shop" size={28} /></span>
+            <b>Équipement</b><small>Dés et tapis</small>
+          </button>}
+          <button className="dm-tile" onClick={() => setSheet('stats')}>
+            <span className="dm-tile-art" aria-hidden><Icon name="chart" size={28} /></span>
+            <b>Statistiques</b><small>{st?.games ? `${st.games} partie${st.games > 1 ? 's' : ''}` : 'Vos parties'}</small>
+          </button>
+          <button className="dm-tile" onClick={onRules}>
+            <span className="dm-tile-art" aria-hidden><Icon name="rules" size={28} /></span>
+            <b>Règles</b><small>Et valeurs</small>
+          </button>
+          <button className="dm-tile" onClick={() => setSheet('settings')}>
+            <span className="dm-tile-art" aria-hidden><Icon name="settings" size={28} /></span>
+            <b>Réglages</b><small>Son, gobelet</small>
+          </button>
+        </div>
+
+        <nav className="dm-help" aria-label="Pages d’aide">
+          <span>Pages d’aide</span>
+          {HELP_PAGES.map((h) => <a key={h.path} href={helpUrl(h.path)} target="_blank" rel="noopener">{h.label}</a>)}
+        </nav>
+      </main>
+
+      {sheet === 'stats' && (
+        <Sheet title="Vos statistiques du Courtisan" onClose={() => setSheet(null)}>
+          <div className="dm-stats">
+            <div><b>{fmt(st?.games ?? 0)}</b><small>Parties terminées</small></div>
+            <div><b>{fmt(st?.wins ?? 0)}</b><small>Victoires{st?.games ? ` (${Math.round(((st.wins ?? 0) / st.games) * 100)} %)` : ''}</small></div>
+            <div><b>{fmt(st?.bestTurn ?? 0)}</b><small>Meilleur tour</small></div>
+            <div><b>{acc ? fmt(st?.bestPot ?? 0) : '—'}</b><small>Plus gros pot (Groschen)</small></div>
+          </div>
+          <p className="muted small">Comptées depuis cette mise à jour : parties contre l’ordinateur et en ligne{acc ? '' : ' (sur cet appareil ; avec un compte, elles vous suivent partout)'}. Les sacs de dés gagnés au Courtisan s’ouvrent dans la collection, commune avec le 421.</p>
+        </Sheet>
+      )}
+      {sheet === 'history' && (
+        <Sheet title="Mouvements de Groschen" onClose={() => setSheet(null)}>
+          {!groschen.history?.length ? <p className="muted">Aucun mouvement pour l’instant.</p> : (
+            <ul className="dm-ledger">
+              {groschen.history.map((m, i) => (
+                <li key={i}>
+                  <span><b>{GR_REASON[m.reason] ?? m.reason}</b><small>{fmtWhen(m.at)}</small></span>
+                  <em className={m.delta > 0 ? 'up' : 'down'}>{m.delta > 0 ? '+' : '−'}{fmt(Math.abs(m.delta))}</em>
+                  <small className="dm-ledger-bal">solde {fmt(m.balance)}</small>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="muted small">Les 20 derniers mouvements. Monnaie de jeu, sans argent réel.</p>
+        </Sheet>
+      )}
+      {sheet === 'settings' && (
+        <Sheet title="Réglages" onClose={() => setSheet(null)}>
+          <Toggle label="Sons" hint="Dés, jetons et annonces" checked={!settings.muted} onChange={(b) => set({ muted: !b, volume: b && settings.volume === 0 ? 0.8 : settings.volume })} />
+          <Toggle label="Vibrations" hint="Quand les dés frappent (téléphone)" checked={settings.vibrate} onChange={(b) => set({ vibrate: b })} />
+          <Toggle label="Lancer au gobelet" hint="Les dés partent d’un gobelet renversé" checked={settings.cup} onChange={(b) => set({ cup: b })} />
+          <Toggle label="M’alerter quand c’est mon tour" hint="En ligne, quand le jeu est en arrière-plan" checked={settings.turnAlert} onChange={(b) => set({ turnAlert: b })} />
+          {onAllSettings && <button className="btn wide dm-allset" onClick={onAllSettings}><Icon name="settings" size={18} /> Tous les réglages</button>}
+        </Sheet>
+      )}
+    </div>
   );
 }
 

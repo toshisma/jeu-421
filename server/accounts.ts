@@ -33,7 +33,7 @@ import { DIVISIONS, SEASON_DIE_FROM, SEASON_TITLE_FROM, divisionIndex, divisionO
 import { today } from '../shared/progress/quests';
 import type { ComboKind } from '../shared/combos';
 import type { Difficulty } from '../shared/ai';
-import { applyDixMille, dixMilleOnlineReward, dixMilleReward } from '../shared/dixmille/reward';
+import { applyDixMilleGame, dixMilleOnlineReward, dixMilleReward } from '../shared/dixmille/reward';
 import type { DmLevel } from '../shared/dixmille/engine';
 
 export interface AccountsOptions {
@@ -398,7 +398,12 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
       won: !!b.won, place: Math.floor(Number(b.place) || opponents + 1), opponents,
       level: levels.includes(b.level) ? b.level : 'habitue', minutes: (Date.now() - g.startedAt) / 60000, day, now: Date.now(),
     });
-    const applied = applyDixMille(store.profileOf(u), reward, day);
+    // Sac de dés : durée mesurée ici ; le résultat annoncé par le téléphone ne change pas la chance.
+    const level: DmLevel = levels.includes(b.level) ? b.level : 'habitue';
+    const applied = applyDixMilleGame(store.profileOf(u), reward, day, {
+      won: !!b.won, players: opponents + 1, minutes: (Date.now() - g.startedAt) / 60000, mode: 'solo', level,
+      bestTurn: Number(b.bestTurn) || 0, declared: true,
+    });
     store.saveProfile(u.id, applied.profile);
     leagueGain(u.id, reward.xp);
     res.json({ ok: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
@@ -408,12 +413,17 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
    * Fin d'une partie du Courtisan en ligne (appelée par le serveur de jeu) : récompense calculée ici.
    * Un joueur parti ne touche rien. Avec des ordinateurs : plafond quotidien des parties contre l'ordinateur.
    */
-  function dixMilleOnlineEnd(userId: string, o: { won: boolean; place: number; players: number; humans: number; botLevels: DmLevel[]; minutes: number; day: string; abandoned: boolean }) {
+  function dixMilleOnlineEnd(userId: string, o: { won: boolean; place: number; players: number; humans: number; botLevels: DmLevel[]; minutes: number; day: string; abandoned: boolean; bestTurn?: number; potWon?: number }) {
     const u = store.userById(userId);
     if (!u || o.abandoned) return null;
     if (o.botLevels.length && store.bumpSolo(userId, o.day) > SOLO_CAP) return null;
     const reward = dixMilleOnlineReward({ ...o, now: Date.now() });
-    const applied = applyDixMille(store.profileOf(u), reward, o.day);
+    // Partie jouée par le serveur : résultat, durée et pot sont les siens (sac de dés au barème du 421).
+    const easiest = (['debutant', 'habitue', 'fouine'] as DmLevel[]).find((l) => o.botLevels.includes(l));
+    const applied = applyDixMilleGame(store.profileOf(u), reward, o.day, {
+      won: o.won, players: o.players, minutes: o.minutes, mode: o.humans >= 2 ? 'online' : 'solo', level: o.humans >= 2 ? undefined : easiest,
+      bestTurn: o.bestTurn, potWon: o.potWon,
+    });
     store.saveProfile(userId, applied.profile);
     leagueGain(userId, reward.xp);
     if (o.won && o.humans >= 2) news(`🎲 ${u.username} a remporté une partie du Courtisan`);

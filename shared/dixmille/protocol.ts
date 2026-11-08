@@ -34,4 +34,8 @@ export interface DmUpdate {
   auto?: 'bot' | 'temps' | 'absent';
 }
 export interface DmSnapshot { version: number; state: DmState }
-export interface DmRewardMsg { reward: Reward; levelBefore: number; levelAfter: number; profile: unknown }
+export interface DmRewardMsg {
+  reward: Reward; levelBefore: number; levelAfter: number; profile: unknown;
+  /** Sacs de dés trouvés (tirés par le serveur), défis du jour accomplis. */
+  bags?: number; quests?: string[];
+}

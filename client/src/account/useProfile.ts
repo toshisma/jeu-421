@@ -15,10 +15,12 @@ import { loadGuestPhoto, photoToDataUrl, saveGuestPhoto } from './photo';
 import { deviceId, setPresence } from '../presence';
 import { trackEvent } from '../visit';
 import type { FxKind } from '../../../shared/progress/dice-collection';
-import { applyDixMille, dixMilleReward } from '../../../shared/dixmille/reward';
+import { applyDixMilleGame, dixMilleReward } from '../../../shared/dixmille/reward';
 import type { DmLevel } from '../../../shared/dixmille/engine';
 
 export interface EndReward { reward: Reward; applied: Applied }
+/** Fin d'une partie du Courtisan : récompense, sacs de dés trouvés, défis du jour accomplis. */
+export interface DmEndResult { reward: Reward; levelBefore: number; levelAfter: number; bags: number; quests: string[] }
 
 /** Défi du jour déjà joué sur cet appareil (affichage et récompense des invités). */
 const DEFI = '421.defi';
@@ -321,8 +323,8 @@ export function useProfile(enabled: boolean) {
     const g = dmGame.current;
     if (s) api<{ gameToken: string }>('/dixmille/start', { body: {}, token: s.token }).then((r) => { g.token = r.gameToken; }).catch(() => {});
   }, [enabled]);
-  /** Fin d'une partie de Dix mille : récompense du serveur (compte) ou calculée ici (invité). */
-  const onDixMilleEnd = useCallback(async (r: { won: boolean; place: number; opponents: number; level: DmLevel }): Promise<{ reward: Reward; levelAfter: number; levelBefore: number } | null> => {
+  /** Fin d'une partie de Dix mille : récompense du serveur (compte) ou calculée ici (invité), sac de dés éventuel. */
+  const onDixMilleEnd = useCallback(async (r: { won: boolean; place: number; opponents: number; level: DmLevel; bestTurn: number }): Promise<DmEndResult | null> => {
     const g = dmGame.current;
     dmGame.current = null;
     if (!g) return null;
@@ -331,16 +333,17 @@ export function useProfile(enabled: boolean) {
       // Invité : même durée minimale que le solo (20 s), pour ne pas compter une partie vide.
       if (Date.now() - g.startedAt < 20_000) return null;
       const day = today();
-      const reward = dixMilleReward({ ...r, minutes: (Date.now() - g.startedAt) / 60000, day, now: Date.now() });
-      const applied = applyDixMille(ref.current.profile, reward, day);
+      const minutes = (Date.now() - g.startedAt) / 60000;
+      const reward = dixMilleReward({ ...r, minutes, day, now: Date.now() });
+      const applied = applyDixMilleGame(ref.current.profile, reward, day, { won: r.won, players: r.opponents + 1, minutes, mode: 'solo', level: r.level, bestTurn: r.bestTurn, declared: true });
       setProfile(applied.profile);
-      return { reward, levelBefore: applied.levelBefore, levelAfter: applied.levelAfter };
+      return { reward, levelBefore: applied.levelBefore, levelAfter: applied.levelAfter, bags: applied.bagsFound, quests: applied.questsDone.map((q) => q.text) };
     }
     if (!g.token) return null;
     try {
-      const res = await api<{ reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number } }>('/dixmille/end', { token: s.token, body: { gameToken: g.token, ...r } });
+      const res = await api<{ reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { text: string }[] } }>('/dixmille/end', { token: s.token, body: { gameToken: g.token, ...r } });
       setProfile(sanitizeProfile(res.applied.profile));
-      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter };
+      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter, bags: res.applied.bagsFound ?? 0, quests: (res.applied.questsDone ?? []).map((q) => q.text) };
     } catch {
       return null; // partie trop courte, plafond atteint ou hors connexion : pas de récompense
     }

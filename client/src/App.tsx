@@ -78,9 +78,9 @@ type Screen =
   | { name: 'watch'; code: string; back: Screen }
   | { name: 'tournament'; mode: TournamentMode }
   | { name: 'rules' }
-  | { name: 'settings'; from?: 'cf' }
-  | { name: 'sandbox'; tryFx?: string }
-  | { name: 'shop' }
+  | { name: 'settings'; from?: 'cf' | 'dixmille' }
+  | { name: 'sandbox'; tryFx?: string; from?: 'dixmille' }
+  | { name: 'shop'; from?: 'dixmille' }
   | { name: 'account'; tab?: 'login' | 'register' }
   | { name: 'leaderboard' }
   | { name: 'legal'; back: Screen }
@@ -95,7 +95,7 @@ type Screen =
   | { name: 'recap' }
   | { name: 'tutorial'; controller: TutorialController }
   | { name: 'stats' }
-  | { name: 'collection' }
+  | { name: 'collection'; from?: 'dixmille'; open?: boolean }
   | { name: 'duels' }
   | { name: 'duel'; duel: DuelPlay }
   | { name: 'admin'; from?: 'cf' }
@@ -287,12 +287,12 @@ export function App() {
     case 'rules':
       return <RulesScreen onBack={home} />;
     case 'settings':
-      return <SettingsScreen settings={settings} onChange={setSettings} onBack={screen.from === 'cf' ? () => setScreen({ name: 'cf' }) : home} />;
+      return <SettingsScreen settings={settings} onChange={setSettings} onBack={screen.from === 'cf' ? () => setScreen({ name: 'cf' }) : screen.from === 'dixmille' ? () => setScreen({ name: 'dixmille' }) : home} />;
     case 'sandbox':
       return <Sandbox settings={settings} appearance={profile.equipped} trail={profile.fx?.trainee} fete={profile.fx?.fete} tryFx={screen.tryFx}
-        onSettings={setSettings} onBack={screen.tryFx ? () => setScreen({ name: 'collection' }) : home} />;
+        onSettings={setSettings} onBack={screen.tryFx ? () => setScreen({ name: 'collection', from: screen.from }) : home} />;
     case 'shop':
-      return <ShopScreen profile={profile} settings={settings} onBuy={pa.buyItem} onEquip={pa.equipItem} onBack={home} />;
+      return <ShopScreen profile={profile} settings={settings} onBuy={pa.buyItem} onEquip={pa.equipItem} onBack={screen.from === 'dixmille' ? () => setScreen({ name: 'dixmille' }) : home} />;
     case 'account':
       return <AccountScreen key={screen.tab ?? 'register'} initial={screen.tab} pa={pa} onBack={home} onPrivacy={() => setScreen({ name: 'legal', back: { name: 'account' } })} />;
     case 'tutorial':
@@ -325,6 +325,7 @@ export function App() {
       return <ChangelogScreen onBack={home} />;
     case 'dixmille':
       return <DixMilleMode key={JSON.stringify(screen.pending ?? null)} pending={screen.pending} onAccount={() => setScreen({ name: 'account' })} pa={pa} settings={settings} onSettings={setSettings} onHome={home} onCards={() => setScreen({ name: 'cf' })}
+        onCollection={(open) => setScreen({ name: 'collection', from: 'dixmille', open })} onShop={() => setScreen({ name: 'shop', from: 'dixmille' })} onAllSettings={() => setScreen({ name: 'settings', from: 'dixmille' })}
         displayName={settings.name} avatar={settings.avatar} />;
     case 'cf':
       return <CfMode onDixMille={() => setScreen({ name: 'dixmille' })} key={JSON.stringify(screen.pending ?? null)} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
@@ -346,7 +347,8 @@ export function App() {
     case 'duel':
       return <ChallengeScreen key={screen.duel.id} pa={pa} settings={settings} appearance={profile.equipped} duel={screen.duel} onBack={() => setScreen({ name: 'duels' })} />;
     case 'collection':
-      return <CollectionScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} onTry={(fx) => setScreen({ name: 'sandbox', tryFx: fx })} />;
+      return <CollectionScreen key={screen.open ? 'ouvrir' : 'voir'} pa={pa} openNow={screen.open} onBack={screen.from === 'dixmille' ? () => setScreen({ name: 'dixmille' }) : home}
+        onAccount={() => setScreen({ name: 'account' })} onTry={(fx) => setScreen({ name: 'sandbox', tryFx: fx, from: screen.from })} />;
     case 'stats':
       return <StatsScreen pa={pa} onBack={home} onAdmin={() => setScreen({ name: 'admin' })} />;
     case 'admin':

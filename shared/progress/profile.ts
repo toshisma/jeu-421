@@ -22,6 +22,7 @@ import { happyHour } from './events';
 import { DIVISIONS } from '../season';
 import { randomFloat } from '../random';
 import { BOSSES, BOSS_COINS, bossOfWeek, weekKey } from './boss';
+import { cleanDmStats, type DmStats } from '../dixmille/stats';
 
 export interface Profile {
   version: 1;
@@ -69,6 +70,8 @@ export interface Profile {
   chestAt?: number;
   /** Scores contre les habitués de l'ordinateur : nom → victoires / défaites. */
   vsAi?: Record<string, { w: number; l: number }>;
+  /** Le Courtisan : parties, victoires, meilleur tour, plus gros pot emporté. */
+  dm?: DmStats;
 }
 
 export interface MonthRecap {
@@ -226,6 +229,8 @@ export function sanitizeProfile(raw: unknown): Profile {
     for (const [n, x] of Object.entries(r.vsAi).slice(0, 30)) if (n.length <= 20 && x && typeof x === 'object') v[n] = { w: num((x as { w: unknown }).w), l: num((x as { l: unknown }).l) };
     p.vsAi = v;
   }
+  const dm = cleanDmStats(r.dm);
+  if (dm) p.dm = dm;
   if (Array.isArray(r.showcase)) {
     const sc = [...new Set(r.showcase.filter((id): id is string => typeof id === 'string' && !!collectionDie(id) && p.owned.includes(id)))].slice(0, 3);
     if (sc.length) p.showcase = sc;

@@ -202,14 +202,18 @@ function FxSheet({ pa, fx, onClose, onTry }: { pa: ProfileApi; fx: FxDef; onClos
   );
 }
 
-export function CollectionScreen({ pa, onBack, onAccount, onTry }: { pa: ProfileApi; onBack: () => void; onAccount: () => void; onTry?: (fxId: string) => void }) {
+export function CollectionScreen({ pa, onBack, onAccount, onTry, openNow }: {
+  pa: ProfileApi; onBack: () => void; onAccount: () => void; onTry?: (fxId: string) => void;
+  /** Ouvrir un sac dès l'arrivée (bouton « Ouvrir » d'une fin de partie ou du menu du Courtisan). */
+  openNow?: boolean;
+}) {
   const p = pa.profile;
   const [filter, setFilter] = useState<Rarity | 'tous'>('tous');
   const [tab, setTab] = useState<'des' | 'effets' | 'series'>('des');
   const [openFx, setOpenFx] = useState<FxDef | null>(null);
   const seasonDice = p.owned.filter(isSeasonDie);
   const [open, setOpen] = useState<string | null>(null);
-  const [opening, setOpening] = useState(false);
+  const [opening, setOpening] = useState(() => !!openNow && pa.isAccount && (pa.profile.bags ?? 0) > 0);
   const count = collectionCount(p);
   const bags = p.bags ?? 0;
   // Les dés possédés d'abord (du plus rare au plus commun), puis ceux qui restent à trouver.
@@ -225,7 +229,7 @@ export function CollectionScreen({ pa, onBack, onAccount, onTry }: { pa: Profile
           <span className="bag-ico" aria-hidden><BagIcon size="1em" /></span>
           <div>
             <b>{bags} sac{bags > 1 ? 's' : ''} à ouvrir</b>
-            <small>On en trouve en jouant : environ 1 partie gagnée sur 5, et au plus tard toutes les {BAG_PITY} parties. Aussi au 7e jour de la série et contre le patron de la semaine.</small>
+            <small>On en trouve en jouant au 421 et au Courtisan : environ 1 partie gagnée sur 5, et au plus tard toutes les {BAG_PITY} parties. Aussi au 7e jour de la série et contre le patron de la semaine.</small>
           </div>
           {pa.isAccount
             ? <button className="btn primary" disabled={bags < 1} onClick={() => setOpening(true)}>Ouvrir un sac</button>
