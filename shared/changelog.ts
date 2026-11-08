@@ -7,6 +7,11 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.48', date: '2026-11-08T19:15:00+01:00', title: 'La barre du bas, partout', items: [
+    'La barre du bas (Accueil · Amis · Collection · Boutique · Plus) est maintenant sur tous les écrans : menus des 3 jeux, decks, boosters, tournois, classements, boutique, réglages… On navigue d’un clic où que l’on soit.',
+    'Pendant une partie, elle se fait discrète (icônes seules) et le plateau garde toute sa place. Quitter une partie en cours par la barre demande confirmation, comme le bouton Quitter.',
+    'Coups Fourrés : les boutons « Nouveau deck » et « Construire automatiquement » ne sont plus coupés en bas de « Mes decks ».',
+  ] },
   { version: '0.47', date: '2026-11-08T17:30:00+01:00', title: 'Nouveau menu principal', items: [
     'Un menu principal pour tout le jeu : votre profil et vos pièces en haut, les 3 jeux (421, Coups Fourrés, Le Courtisan) en grandes cartes, vos sacs de dés à ouvrir et votre collection bien en vue, et en bas Accueil · Amis · Collection · Boutique · Plus.',
     'Chaque jeu a un menu allégé qui ne garde que ce qui le concerne (jouer, tournois, classement…), avec un bouton « ← Menu » pour revenir. Rien n’a disparu : tout ce qui est commun à tous les jeux est passé dans le menu principal.',

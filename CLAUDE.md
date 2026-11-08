@@ -28,11 +28,11 @@ Tout le texte du jeu est **en français** (vouvoiement côté joueurs). Réponds
 | Statistiques publiques et admin, alertes admin | `server/stats.ts` |
 | Base de données (tables, requêtes) | `server/db.ts` |
 | Navigation entre écrans | `client/src/App.tsx` |
-| Menu principal (0.47 : profil + pièces, vitrine 3D, 3 jeux, sacs de dés et collection en vue, étagère Cadeau/Coffre/Défis/Pass, barre du bas Accueil · Amis · Collection · Boutique · Plus) | `client/src/ui/Home.tsx` ; menu du 421 : `client/src/ui/ClassicMenu.tsx` ; menus de mode réduits à ce qui les concerne, bouton « ← Menu » |
+| Menu principal (0.47 : profil + pièces, vitrine 3D, 3 jeux, sacs de dés et collection en vue, étagère Cadeau/Coffre/Défis/Pass, barre du bas Accueil · Amis · Collection · Boutique · Plus) | `client/src/ui/Home.tsx` ; menu du 421 : `client/src/ui/ClassicMenu.tsx` ; menus de mode réduits à ce qui les concerne, bouton « ← Menu » ; 0.48 : barre du bas commune à TOUS les écrans (compacte pendant les parties, quitter = même confirmation que Quitter, `client/src/ui/navGuard.ts`) |
 | Réglages, bac d'essai, config solo | `client/src/ui/Screens.tsx` |
 | Messages privés entre amis | `server/messages.ts`, `client/src/messages.ts`, `client/src/ui/Messages.tsx` |
 | Mode spectateur | `client/src/ui/SpectateFlow.tsx`, `server/app.ts` (`spectate:*`) |
-| Admin : commandes (suspension, pièces, objets) et tableau de bord (visiteurs, pays, temps passé, rétention) | `server/admin.ts`, `client/src/ui/AdminDashboard.tsx`, `client/src/visit.ts`, `shared/geo.ts` |
+| Admin : commandes (suspension, pièces, objets) et tableau de bord (visiteurs, pays, temps passé, rétention ; onglet « En ligne » en direct, admins seulement : `server/live.ts`, `client/src/ui/AdminLive.tsx`, présence détaillée `client/src/presence.ts`) | `server/admin.ts`, `client/src/ui/AdminDashboard.tsx`, `client/src/visit.ts`, `shared/geo.ts` |
 | Vignettes 3D de la boutique | `client/src/three/shopThumbs.ts` |
 | Écran de partie | `client/src/ui/GameScreen.tsx`, `PlayerCard.tsx`, `EndOverlay.tsx` |
 | Bac 3D | `client/src/three/TrayScene.ts`, `client/src/ui/DiceTray.tsx` |
