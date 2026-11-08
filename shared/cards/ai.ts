@@ -940,3 +940,9 @@ function turnDebutant(view: CfView, legal: CfAction[], rng: Rng, handId: (u: str
   if (keep.every(Boolean)) return stop;
   return rolls.find((a) => a.type === 'roll' && a.keep.every((k, i) => k === keep[i])) ?? rolls[0];
 }
+
+/** Pour les tests : jetons donnés selon les effets en cours (La note est salée compte 2, correctif 0.46). */
+export const aiAmountForTest = (winValue: number, w: Partial<Mods>, l: Partial<Mods>) => {
+  const z: Mods = { doubles: 0, note: 0, pari: 0, marcel: false, faux: false, piliers: 0, fanfaron: false, efface: false, belote: false, addition: 0, sante: 0 };
+  return amount(winValue, { ...z, ...w }, { ...z, ...l }, false);
+};

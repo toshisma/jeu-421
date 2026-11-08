@@ -63,7 +63,7 @@ export const cfPages = [
   {
     slug: 'coups-fourres', nav: 'Coups Fourrés', short: 'Coups Fourrés, le 421 aux cartes',
     blurb: 'Le mode cartes du 421 : dés, deck de 20 cartes, pièges et bluff. Gratuit.',
-    published: '2026-11-05', updated: '2026-11-06', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
+    published: '2026-11-05', updated: '2026-11-08', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
     title: 'Coups Fourrés : jeu de cartes et de dés gratuit en ligne',
     description: `Coups Fourrés, le 421 aux cartes : un duel de dés, de stratégie et de bluff avec ${CARDS.length} cartes à collectionner. Gratuit, dans le navigateur, sans téléchargement.`,
     h1: 'Coups Fourrés, le 421 aux cartes',
@@ -157,7 +157,7 @@ ${play('Jouer gratuitement à Coups Fourrés', 'Dans le navigateur, sans téléc
   {
     slug: 'regles-coups-fourres', nav: 'Règles CF', short: 'Règles de Coups Fourrés', parent: 'coups-fourres',
     blurb: 'Manche, Tournées, types de cartes, pièges, partie à 3 ou 4, lexique.',
-    published: '2026-11-05', updated: '2026-11-06', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
+    published: '2026-11-05', updated: '2026-11-08', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
     title: 'Règles de Coups Fourrés : manche, Tournées, cartes et lexique',
     description: 'Les règles de Coups Fourrés, le 421 aux cartes : déroulé d’une manche, combinaisons, Tournées, types de cartes, pièges, parties à 3 ou 4 et lexique.',
     h1: 'Les règles de Coups Fourrés',
@@ -284,7 +284,7 @@ ${play('Essayer Coups Fourrés', 'La partie guidée applique ces règles pas à 
   {
     slug: 'cartes-coups-fourres', nav: 'Cartes', short: 'Les cartes de Coups Fourrés', parent: 'coups-fourres',
     blurb: `Les ${CARDS.length} cartes illustrées, leur effet, leur coût et leur rareté.`,
-    published: '2026-11-05', updated: '2026-11-06', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
+    published: '2026-11-05', updated: '2026-11-08', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
     title: `Les ${CARDS.length} cartes de Coups Fourrés : familles, effets et raretés`,
     description: `Toutes les cartes de Coups Fourrés, jeu de cartes à collectionner gratuit autour du 421 : ${CARDS.length} cartes illustrées en 4 familles, avec effet, coût et rareté.`,
     h1: `Les ${CARDS.length} cartes de Coups Fourrés`,

@@ -7,7 +7,7 @@ import {
   puzzleState, replayPuzzle,
 } from '../shared/cards/puzzles';
 
-const DICE_FREE = new Set(['tete-tourne', 'coup-pouce', 'bon-numero', 'recompter', 'mise-bouche', 'double-tournee', 'note-salee', 'tant-qu-on-y-est',
+const DICE_FREE = new Set(['miroir', 'calva', 'addition', 'tete-tourne', 'coup-pouce', 'bon-numero', 'recompter', 'mise-bouche', 'double-tournee', 'note-salee', 'tant-qu-on-y-est',
   'pari-comptoir', 'petite-soeur', 'fouine', 'fermeture']);
 const days = (from: string, n: number) => Array.from({ length: n }, (_, i) => new Date(Date.parse(`${from}T12:00:00Z`) + i * 86_400_000).toISOString().slice(0, 10));
 

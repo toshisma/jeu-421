@@ -7,7 +7,7 @@ import {
   type CfAction, type CfEvent, type CfState,
   FERMETURE_TOURNEES, TOURNEE_PATRON_GAIN, BELOTE_BONUS, LOT_DRAW, PLAT_TOURNEES,
 } from '../shared/cards/engine';
-import { cfDecide, type CfLevel } from '../shared/cards/ai';
+import { aiAmountForTest, cfDecide, type CfLevel } from '../shared/cards/ai';
 import { CARDS, CF_RULES, STARTER_DECKS, cardDef } from '../shared/cards/catalog';
 import { mulberry32 } from '../shared/rng';
 
@@ -1067,6 +1067,12 @@ describe('Coups Fourrés 0.46 : limite des pièges et correctifs', () => {
     expect(lastEvents.some((e) => e.kind === 'coup-nenette')).toBe(false);
     expect(s.traps.map((t) => t.id)).toEqual(['coup-nenette']);
     expect(s.lastRound?.winner).toBeNull();
+  });
+
+  it('l’ordinateur compte La note est salée pour 2 jetons (et L’Addition, À votre santé !)', () => {
+    expect(aiAmountForTest(1, { note: 1 }, {})).toBe(3);
+    expect(aiAmountForTest(1, { addition: 1 }, {})).toBe(3);
+    expect(aiAmountForTest(6, {}, { sante: 1 })).toBe(5);
   });
 
   it('Les yeux qui piquent annulent Le grand enchaînement qui rejoue un Coup sur les dés', () => {
