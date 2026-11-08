@@ -138,7 +138,7 @@ function LiveItem({ r, now, onOpenPlayer, onOpenVisitor }: { r: LiveRow; now: nu
         </div>
         <div className="adm-live-what">
           {a.game && <span className={`adm-live-game g-${a.game}`}>{GAME[a.game]}</span>}
-          <span>{a.where}{a.mode && a.mode !== 'spectateur' && a.status !== 'menu' && !a.where.toLowerCase().includes(a.mode) ? ` · ${a.mode}` : ''}</span>
+          <span>{a.where}{a.mode === 'en ligne' && a.status !== 'menu' && !a.where.includes('ligne') ? ' · en ligne' : ''}</span>
           {a.code && <span className="adm-live-code">table <b>{a.code.length > 8 ? a.code.slice(0, 8) : a.code}</b></span>}
           <span className="muted">depuis {ago(now - r.activitySince)}</span>
         </div>
