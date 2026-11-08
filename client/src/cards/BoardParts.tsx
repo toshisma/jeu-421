@@ -375,6 +375,16 @@ export function PlayerSheet({ p, v, seat, me, last, onClose, onCard, onTraps }: 
         {p.r.throwsUsed > 0 && <><dt>Ses dés</dt><dd>{p.r.dice.join('-')} · {plural(p.r.throwsUsed, 'lancer')}</dd></>}
         {last && <><dt>Dernier coup</dt><dd>{last}</dd></>}
         {p.families.length > 0 && <><dt>Son deck</dt><dd>{familiesLabel(p.families)}</dd></>}
+        <dt>Défausse</dt><dd>{p.discard.length ? (
+          <span className="cfn-discard" aria-label={`${plural(p.discard.length, 'carte')} défaussée${p.discard.length > 1 ? 's' : ''}, la plus récente d’abord`}>
+            {[...p.discard].reverse().slice(0, 12).map((k) => (
+              <button key={k.uid} type="button" className="cfn-dc" onClick={() => zoomCard(k.id)} aria-label={`${cardName(k.id)} : lire en grand`}>
+                <span className="art" aria-hidden><CardArt id={k.id} /></span><small>{shortName(k.id)}</small>
+              </button>
+            ))}
+            {p.discard.length > 12 && <em>et {plural(p.discard.length - 12, 'autre')}</em>}
+          </span>
+        ) : 'vide'}</dd>
       </dl>
     </Sheet>
   );

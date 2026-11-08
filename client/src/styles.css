@@ -4131,3 +4131,43 @@ b .cf-term { font-weight: inherit; }
 .cfn-ann-hint { font: 600 12px/1.3 Barlow, sans-serif; color: #d8cbe9; max-width: 300px; }
 @media (max-height: 680px) { .cfn-ann-card .cfn-big-art { height: 74px; } .cfn-ann-big { gap: 6px; } .cfn-ann-big > b { font-size: 17px; } }
 .cfn-banner.skippable { cursor: pointer; }
+/* Défausse d'un joueur (sa fiche) : petites cartes illustrées, toucher = en grand. */
+.cfn-discard { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+.cfn-dc { width: 58px; padding: 3px; border-radius: 7px; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.06); color: #efe6f8; cursor: zoom-in; display: flex; flex-direction: column; gap: 3px; }
+.cfn-dc .art { height: 36px; border-radius: 4px; overflow: hidden; }
+.cfn-dc .art svg { display: block; width: 100%; height: 100%; }
+.cfn-dc small { font: 600 10px/1.1 Barlow, sans-serif; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-align: center; }
+.cfn-discard em { align-self: center; font-size: 12px; color: #a99ad0; }
+
+/* Choix du deck avant chaque partie : tuiles (illustration de la carte vedette, nom, familles, « actif »). */
+.cf-decklist { display: flex; flex-direction: column; gap: 6px; width: 100%; max-height: min(46vh, 330px); overflow-y: auto; padding: 2px; box-sizing: border-box; }
+.cf-decktile { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 54px; padding: 6px 10px 6px 6px; box-sizing: border-box; border-radius: 12px; cursor: pointer; text-align: left;
+  border: 1.5px solid rgba(255,255,255,.16); background: rgba(0,0,0,.28); color: #f5eedf; font-family: var(--font, Barlow), sans-serif; -webkit-tap-highlight-color: transparent; }
+.cf-decktile.on { border-color: var(--cf-gold, #f1cc7d); background: rgba(241,204,125,.13); box-shadow: 0 0 0 1px var(--cf-gold, #f1cc7d); }
+.cf-decktile.bad { opacity: .62; cursor: not-allowed; border-style: dashed; }
+.cf-decktile-art { flex: none; width: 52px; height: 40px; border-radius: 7px; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); }
+.cf-decktile-art svg { display: block; width: 100%; height: 100%; }
+.cf-decktile-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.cf-decktile-tx b { font: 700 14.5px/1.15 var(--font, Barlow), sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cf-decktile-tx small { font: 500 12px/1.25 var(--font, Barlow), sans-serif; color: #cdbfe0; }
+.cf-decktile-act { margin-left: 6px; padding: 1px 6px; border-radius: 6px; background: rgba(241,204,125,.2); color: #f6dfa6; font: 800 10px/1.4 Barlow, sans-serif; font-style: normal; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+.cf-decktile-why { color: #ffb3a8 !important; }
+.cf-decktile-dot { flex: none; width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); box-sizing: border-box; }
+.cf-decktile.on .cf-decktile-dot { border-color: var(--cf-gold, #f1cc7d); background: radial-gradient(circle, var(--cf-gold, #f1cc7d) 0 45%, transparent 50%); }
+.cf-deckchoice { display: flex; flex-direction: column; gap: 10px; }
+.cf-deckchoice .cf-link { align-self: flex-start; }
+.cf-deckchoice .cf-btn.big { white-space: normal; line-height: 1.15; }
+.cf-deckbadge { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-width: 0; padding: 5px 10px 5px 5px; border-radius: 10px; background: rgba(241,204,125,.1); border: 1px solid rgba(241,204,125,.4); text-align: left; box-sizing: border-box; }
+.cf-deckbadge-art { flex: none; width: 40px; height: 30px; border-radius: 5px; overflow: hidden; }
+.cf-deckbadge-art svg { display: block; width: 100%; height: 100%; }
+.cf-deckbadge > span:last-child { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cf-deckbadge small { font: 700 10px/1 Barlow, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #cdbfe0; }
+.cf-deckbadge b { font: 700 14px/1.15 Barlow, sans-serif; color: #fbf6e9; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cf-deckbadge em { font: 500 11px/1.2 Barlow, sans-serif; font-style: normal; color: #d8cbe9; }
+.cf-table-mydeck { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; flex-wrap: wrap; }
+.cf-table-mydeck .cf-deckbadge { flex: 1 1 180px; }
+.cf-table-list li.notready { box-shadow: inset 0 0 0 1px rgba(255,140,120,.55); }
+.cf-table-why { color: #ffb3a8 !important; white-space: normal !important; }
+.cf-tour-deck { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.cf-tour-deck .cf-deckbadge { flex: 1 1 200px; }
+.cf-wait-card .cf-table-mydeck .cf-btn, .cf-wait-card .cf-decktile { width: auto; } .cf-wait-card .cf-decktile { width: 100%; }

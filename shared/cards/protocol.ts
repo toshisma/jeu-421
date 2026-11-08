@@ -59,7 +59,11 @@ export interface CfTableMsg {
   code: string;
   host: string; // pseudo de l'hôte
   max: number;
-  players: { account: string; name: string; photo?: string; host: boolean; deck: string | null }[];
+  /**
+   * `deck` : nom du deck choisi ; `deckId` : son identifiant ; `ready` : ce deck est jouable (sinon `why`
+   * dit pourquoi, et la partie ne peut pas être lancée tant qu'il n'a pas choisi un deck jouable).
+   */
+  players: { account: string; name: string; photo?: string; host: boolean; deck: string | null; deckId?: string | null; ready?: boolean; why?: string }[];
 }
 
 /** `cf:hello` à la connexion : ce que le serveur sait déjà de vous (reprise après rechargement). */
