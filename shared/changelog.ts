@@ -7,6 +7,15 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.46', date: '2026-11-08T07:30:00+01:00', title: 'Coups Fourrés : 90 cartes, et Le Courtisan a son menu', items: [
+    'Coups Fourrés : 40 nouvelles cartes, 10 par famille (Le Garde champêtre, La Fée verte, La Souricière, L’Effet papillon…). Elles arrivent dans vos boosters ; vos collections sont gardées.',
+    'Grand rééquilibrage testé sur des dizaines de milliers de parties : les decks Pièges ne dominent plus, chaque famille gagne entre 47 et 53 %, et on joue de nouveau environ une carte payante par manche (combos possibles en économisant). Quelques cartes connues changent : Leurre, Mise en bouche, Tournée du patron, Mouchard…',
+    'Jamais plus de 3 pièges devant un même joueur.',
+    'Vous choisissez votre deck avant chaque partie, quel que soit le type de partie (y compris entre amis).',
+    'Votre main défile au doigt, avec des flèches ; toute carte s’agrandit pour être lue (y compris les 3 cartes de Calcul mental) ; les annonces de début de manche restent plus longtemps ; les cartes jouées par l’adversaire s’affichent en grand et ses Habitués et pièges sont visibles devant lui.',
+    'Corrections : la Fouine retire le Mouchard ou l’Ardoise sans les déclencher ; Fermeture ! respecte la protection du Patron ; le coup de la nénette ne se déclenche plus sur une égalité en tête.',
+    'Le Courtisan a son propre menu (Groschen, cadeau du jour, sacs de dés, collection, statistiques, règles) et on y gagne des sacs de dés en jouant. Ses parties comptent aussi pour les défis du jour.',
+  ] },
   { version: '0.45', date: '2026-11-07T23:05:00+01:00', title: 'Correction : Le Courtisan', items: [
     'Le Courtisan : avec une traînée de lancer équipée (collection), le bac se figeait au lancer et les dés disparaissaient. C’est corrigé : les traînées suivent maintenant les 6 dés.',
   ] },

@@ -415,7 +415,7 @@ describe('Coups Fourrés en ligne', () => {
   }, 90_000);
 
   it('table entre amis : chacun choisit SON deck avant le lancement ; un deck injouable bloque le départ', async () => {
-    const gil = await reg('Gil'), hana = await reg('Hana');
+    const gil = await reg('Gaspard'), hana = await reg('Hana');
     const decksOf = async (a: Acc) => (await me(a)).decks as { id: string; name: string; valid: boolean; cards: Record<string, number> }[];
     const [gZinc, gBringue] = await decksOf(gil);
     const [hZinc, hBringue] = await decksOf(hana);
@@ -426,11 +426,11 @@ describe('Coups Fourrés en ligne', () => {
     expect(t.ok).toBe(true);
     expect((await emit(H, 'cf:table:join', { code: t.code, deckId: hBringue.id })).ok).toBe(true);
     await until(() => G.table?.players.length === 2, 3000, 'table');
-    expect(G.table!.players.map((p) => [p.name, p.deck, p.ready])).toEqual([['Gil', 'Le Zinc', true], ['Hana', 'La Bringue', true]]);
+    expect(G.table!.players.map((p) => [p.name, p.deck, p.ready])).toEqual([['Gaspard', 'Le Zinc', true], ['Hana', 'La Bringue', true]]);
     expect(G.table!.players.find((p) => p.name === 'Hana')!.deckId).toBe(hBringue.id);
     // Gil change d'avis au salon : « La Bringue ».
     expect((await emit(G, 'cf:table:deck', { deckId: gBringue.id })).ok).toBe(true);
-    await until(() => H.table?.players.find((p) => p.name === 'Gil')?.deck === 'La Bringue', 3000, 'deck de Gil');
+    await until(() => H.table?.players.find((p) => p.name === 'Gaspard')?.deck === 'La Bringue', 3000, 'deck de Gaspard');
     // Un deck qui n'est pas à soi, ou inconnu, est refusé.
     expect((await emit(H, 'cf:table:deck', { deckId: gZinc.id })).error).toMatch(/Choisissez/);
     // Le deck choisi par Hana devient injouable (ici : une carte en moins, comme après un changement des
@@ -450,7 +450,7 @@ describe('Coups Fourrés en ligne', () => {
     await until(() => !!G.last && !!H.last, 3000, 'partie');
     const fams = (c: Record<string, number>) => [...new Set(Object.keys(c).map((id) => CARDS.find((x) => x.id === id)!.family))].sort();
     const v = G.last!.snap.view;
-    const gSeat = v.players.find((p) => p.name === 'Gil')!, hSeat = v.players.find((p) => p.name === 'Hana')!;
+    const gSeat = v.players.find((p) => p.name === 'Gaspard')!, hSeat = v.players.find((p) => p.name === 'Hana')!;
     expect([...gSeat.families].sort()).toEqual(fams(gBringue.cards));
     expect([...hSeat.families].sort()).toEqual(fams(hZinc.cards));
     // Main de départ de Gil : uniquement des cartes de « La Bringue ».
