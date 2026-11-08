@@ -559,7 +559,14 @@ export function createCfOnline(c: Ctx) {
   // --- Tables privées à code -------------------------------------------------------------------------
   const tableMsg = (t: Table): CfTableMsg => ({
     code: t.code, host: t.members.find((m) => m.userId === t.hostId)?.account ?? '', max: MAX_TABLE,
-    players: t.members.map((m) => ({ account: m.account, name: m.name, ...(m.photo ? { photo: m.photo } : {}), host: m.userId === t.hostId, deck: m.deckId ? deckName(m.userId, m.deckId) : null })),
+    players: t.members.map((m) => {
+      // Deck choisi : revérifié à chaque envoi (une carte recyclée peut le rendre injouable).
+      const d = deckFor(m.userId, m.deckId);
+      return {
+        account: m.account, name: m.name, ...(m.photo ? { photo: m.photo } : {}), host: m.userId === t.hostId,
+        deck: m.deckId ? deckName(m.userId, m.deckId) : null, deckId: m.deckId, ready: !('error' in d), ...('error' in d ? { why: d.error } : {}),
+      };
+    }),
   });
   const deckName = (userId: string, deckId: string) => store.cfDecks(userId).find((d) => d.id === deckId)?.name ?? null;
   const broadcastTable = (t: Table) => ns.to(`cft:${t.code}`).emit('cf:table', tableMsg(t));
@@ -752,8 +759,9 @@ export function createCfOnline(c: Ctx) {
       if (t.members.length < 2) return fail(a, 'Il faut au moins 2 joueurs.');
       const players: { userId: string; deck: string[]; socketId: string | null }[] = [];
       for (const m of t.members) {
+        // Chacun joue SON deck choisi au salon : revérifié ici (possédé, jouable selon les règles de construction).
         const d = deckFor(m.userId, m.deckId);
-        if ('error' in d) return fail(a, `${m.name} : ${d.error}`);
+        if ('error' in d) { broadcastTable(t); return fail(a, `${m.name} n’est pas prêt : ${d.error}`); }
         if (liveGameOf(m.userId)) return fail(a, `${m.name} est déjà en partie.`);
         players.push({ userId: m.userId, deck: d.cards, socketId: m.socketId });
       }

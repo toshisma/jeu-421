@@ -5,12 +5,18 @@
  */
 import { useState } from 'react';
 import { CARDS } from '../../../shared/cards/catalog';
+import { StageBoard } from './StageBoard';
 import { BoosterPack, CapsuleIcon, CardBack, CardView, FamilyBadge, HandFan, MiniCard, RarityGem, TrapBack } from './components';
 
 const HAND = ['tournee-patron', 'fouine', 'tete-tourne', 'reaction-chaine', 'bon-numero', 'patron', 'gueule-bois'];
 
 export function CardGallery() {
   const vue = new URLSearchParams(location.search).get('vue');
+  if (vue === 'plateau') return <StageBoard />;
+  return <Gallery vue={vue} />;
+}
+
+function Gallery({ vue }: { vue: string | null }) {
   const [sel, setSel] = useState(2);
   const all = !vue;
   return (

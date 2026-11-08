@@ -3,9 +3,9 @@
  * tour adverse, votre tour, riposte, piège déclenché, fiche de carte).
  * Styles : bloc « Coups Fourrés : nouveau plateau » à la fin de styles.css (classes cfn-*).
  */
-import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { CARD_BY_ID, cardDef, type CardType } from '../../../shared/cards/catalog';
-import { commandeOf, type CfAction, type CfEvent, type CfPlayerView, type CfView, type PlayParams } from '../../../shared/cards/engine';
+import { commandeOf, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView, type PlayParams } from '../../../shared/cards/engine';
 import { Avatar } from '../ui/Avatar';
 import { Icon } from '../ui/Icon';
 import { Sheet } from '../ui/kit';
@@ -14,6 +14,7 @@ import { CapsuleIcon, CardView } from './components';
 import { FAMILY_STYLE, splitEmphasis } from './meta';
 import { activeEffects, CARD_GIST, type ActiveEffect } from './effects';
 import { GlossText } from './Gloss';
+import { useLongPress, zoomCard, ZoomBtn } from './zoom';
 
 /** Étiquettes qui ne disent pas ce que fait la carte : on écrit plutôt son effet. */
 const GENERIC_LABEL = new Set(['Installer', 'Poser face cachée', 'Jouer', 'Jouable']);
@@ -68,7 +69,7 @@ export const TrapCard = ({ big, style }: { big?: boolean; style?: CSSProperties 
 );
 
 /** Grande carte lisible (prototype « big ») : coût, nom, illustration, type et moment, texte. */
-export function BigCard({ id, width = 250, extra, className }: { id: string; width?: number; extra?: ReactNode; className?: string }) {
+export function BigCard({ id, width = 250, extra, className, zoom }: { id: string; width?: number; extra?: ReactNode; className?: string; zoom?: boolean }) {
   const d = cardDef(id);
   if (!d) return null;
   const fs = FAMILY_STYLE[d.family];
@@ -81,6 +82,7 @@ export function BigCard({ id, width = 250, extra, className }: { id: string; wid
       <span className="cfn-big-art"><CardArt id={id} /></span>
       <span className="cfn-big-tl" style={{ color: m.color }}><TypeIcon type={d.type} size={13} />{m.label} · {m.moment}</span>
       <div className="cfn-big-tx"><GlossText text={d.text} bold={bold || undefined} />{extra && <span className="cfn-big-here">{extra}</span>}</div>
+      {zoom && <ZoomBtn id={id} />}
     </div>
   );
 }
@@ -98,13 +100,15 @@ export function cardGist(id: string): string {
 /** Carte en main (prototype « hc ») : coût, illustration, nom, type ; `fx` = ce qu'elle fait (ligne sous le nom). */
 export function HandCard({ id, ok, off, sel, focus, style, onClick, small, fx }: { id: string; ok?: boolean; off?: boolean; sel?: boolean; focus?: boolean; small?: boolean; style?: CSSProperties; onClick?: () => void; fx?: string }) {
   const d = cardDef(id);
+  // Toucher long : la carte en grand, sans l'ouvrir pour la jouer.
+  const press = useLongPress(d ? () => zoomCard(id) : null);
   if (!d) return null;
   const fs = FAMILY_STYLE[d.family];
   const m = TYPE_META[d.type];
   const Tag = onClick ? 'button' : 'div';
   return (
     <Tag className={`cfn-hc${ok ? ' ok' : ''}${off ? ' off' : ''}${sel ? ' sel' : ''}${focus ? ' cfn-focus' : ''}${small ? ' small' : ''}`} style={{ background: `linear-gradient(160deg, ${fs.c1}, ${fs.c2})`, ...style }}
-      onClick={onClick} aria-label={onClick ? `${d.name}, ${m.label}, coût ${d.cost}` : undefined} type={onClick ? 'button' : undefined}>
+      onClick={onClick} aria-label={onClick ? `${d.name}, ${m.label}, coût ${d.cost}` : undefined} type={onClick ? 'button' : undefined} {...press}>
       <span className="c">{d.cost}</span>
       <span className="a"><CardArt id={id} /></span>
       <b>{d.name}</b>
@@ -116,9 +120,13 @@ export function HandCard({ id, ok, off, sel, focus, style, onClick, small, fx }:
 
 /**
  * Main en rangée (0.39, « plus accessible ») : cartes côte à côte sans chevauchement, nom entier et
- * ce que fait la carte écrit dessous ; les jouables d'abord, dorées ; on fait défiler si elles ne
- * tiennent pas. `quiet` (ce n'est pas à vous) : main grisée, l'effet de chaque carte reste écrit.
- * Mémorisée : le minuteur et les animations ne la redessinent pas.
+ * ce que fait la carte écrit dessous ; les jouables d'abord, dorées. `quiet` (ce n'est pas à vous) :
+ * main grisée, l'effet de chaque carte reste écrit. Mémorisée : le minuteur ne la redessine pas.
+ *
+ * Grande main (demande de Sam, novembre : « on ne voit pas toutes les cartes ») : la rangée glisse au
+ * doigt (aimantée carte par carte, avec l'élan du doigt), à la molette sur ordinateur, et des flèches
+ * ‹ › apparaissent de chaque côté dès qu'il y a des cartes cachées, avec leur nombre. Toucher une
+ * flèche fait défiler d'une « page » de cartes. Aucune carte n'est inaccessible, même avec 12+ cartes.
  */
 export const Hand = memo(function Hand({ cards, hints, onPick, sel, focus, quiet }: {
   cards: { uid: string; id: string }[]; hints: Record<string, CardHint>; onPick: (uid: string) => void; sel?: string | null; focus?: boolean; quiet?: boolean;
@@ -130,26 +138,78 @@ export const Hand = memo(function Hand({ cards, hints, onPick, sel, focus, quiet
   }, []);
   // Jouables d'abord (ordre stable sinon) : elles restent visibles même quand la main défile.
   const sorted = quiet ? cards : [...cards].sort((a, b) => Number(!!hints[b.uid]?.playable) - Number(!!hints[a.uid]?.playable));
-  // Quand l'ordre change (nouvelles cartes jouables), on revient au début de la main.
   const ref = useRef<HTMLDivElement>(null);
   const order = sorted.map((k) => k.uid).join(',');
-  useIsoLayout(() => { if (ref.current) ref.current.scrollLeft = 0; }, [order]);
+  // Cartes cachées à gauche / à droite (plus de la moitié hors de la rangée).
+  const [hid, setHid] = useState<[number, number]>([0, 0]);
+  const measure = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    const box = el.getBoundingClientRect();
+    let l = 0, r = 0;
+    for (const c of Array.from(el.children) as HTMLElement[]) {
+      const b = c.getBoundingClientRect();
+      const mid = b.left + b.width / 2;
+      if (mid < box.left + 4) l++;
+      else if (mid > box.right - 4) r++;
+    }
+    setHid((h) => (h[0] === l && h[1] === r ? h : [l, r]));
+  }, []);
+  // Quand l'ordre change (nouvelles cartes jouables), on revient au début de la main.
+  useIsoLayout(() => { if (ref.current) ref.current.scrollLeft = 0; measure(); }, [order, small, measure]);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let raf = 0;
+    const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(measure); };
+    // Molette verticale (souris d'ordinateur) : fait défiler la main de côté.
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth + 2 || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY * (e.deltaMode === 1 ? 32 : 1);
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    el.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('resize', onScroll);
+    return () => { cancelAnimationFrame(raf); el.removeEventListener('scroll', onScroll); el.removeEventListener('wheel', onWheel); window.removeEventListener('resize', onScroll); };
+  }, [measure]);
+  const page = (dir: 1 | -1) => {
+    const el = ref.current;
+    if (!el) return;
+    const card = (el.firstElementChild as HTMLElement | null)?.offsetWidth ?? 90;
+    const step = Math.max(card + 8, el.clientWidth - card - 16);
+    el.scrollBy({ left: dir * step, behavior: reducedMotion() ? 'auto' : 'smooth' });
+  };
   return (
-    <div ref={ref} className={`cfn-hand${small ? ' small' : ''}${focus ? ' cfn-focus-zone' : ''}`} role="list" aria-label={`Votre main : ${plural(cards.length, 'carte')}`}>
-      {sorted.map((k) => {
-        const h = hints[k.uid];
-        const ok = !quiet && !!h?.playable;
-        // Jouable : ce qu'elle ferait ici quand c'est parlant (« 6 → 1 : 4-2-1 ! ») ; sinon ce qu'elle fait.
-        const fx = ok && h?.label && !GENERIC_LABEL.has(h.label) ? h.label : cardGist(k.id);
-        return (
-          <span key={k.uid} role="listitem" className="cfn-hand-slot">
-            <HandCard id={k.id} ok={ok} off={!ok} sel={sel === k.uid} focus={focus && ok} small={small} fx={fx} onClick={() => onPick(k.uid)} />
-          </span>
-        );
-      })}
+    <div className={`cfn-hand-wrap${hid[0] ? ' more-l' : ''}${hid[1] ? ' more-r' : ''}`}>
+      <div ref={ref} className={`cfn-hand${small ? ' small' : ''}${focus ? ' cfn-focus-zone' : ''}`} role="list" aria-label={`Votre main : ${plural(cards.length, 'carte')}`}>
+        {sorted.map((k) => {
+          const h = hints[k.uid];
+          const ok = !quiet && !!h?.playable;
+          // Jouable : ce qu'elle ferait ici quand c'est parlant (« 6 → 1 : 4-2-1 ! ») ; sinon ce qu'elle fait.
+          const fx = ok && h?.label && !GENERIC_LABEL.has(h.label) ? h.label : cardGist(k.id);
+          return (
+            <span key={k.uid} role="listitem" className="cfn-hand-slot">
+              <HandCard id={k.id} ok={ok} off={!ok} sel={sel === k.uid} focus={focus && ok} small={small} fx={fx} onClick={() => onPick(k.uid)} />
+            </span>
+          );
+        })}
+      </div>
+      {hid[0] > 0 && (
+        <button type="button" className="cfn-hand-arrow l" onClick={() => page(-1)} aria-label={`${plural(hid[0], 'carte')} cachée${hid[0] > 1 ? 's' : ''} à gauche : faire défiler`}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden><path d="M15 5l-7 7 7 7" /></svg><b>{hid[0]}</b>
+        </button>
+      )}
+      {hid[1] > 0 && (
+        <button type="button" className="cfn-hand-arrow r" onClick={() => page(1)} aria-label={`${plural(hid[1], 'carte')} cachée${hid[1] > 1 ? 's' : ''} à droite : faire défiler`}>
+          <b>{hid[1]}</b><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden><path d="M9 5l7 7-7 7" /></svg>
+        </button>
+      )}
     </div>
   );
 });
+
+const reducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 /** Frise de la manche (étape en cours en surbrillance dorée). */
 export function Frise({ steps }: { steps: FriseStep[] }) {
@@ -225,37 +285,72 @@ export function OppPanel({ p, v, seat, active, compact, refEl, tokRef, onTrap, o
   );
 }
 /**
- * Case d'un adversaire (écran sobre, 0.39 « version C ») : nom, jetons en gros, puis Tournées, cartes
- * en main, pièges posés et Habitués en petits chiffres. Toucher : sa fiche complète (PlayerSheet).
+ * Mini-carte posée devant un joueur : Habitué (illustration + manches restantes, liseré vert) ou piège
+ * (dos violet rayé avec la mâchoire ; illustration si on le connaît). Toucher : sa fiche.
+ */
+export function FrontCard({ id, trap, rounds, onClick, title }: { id: string | null; trap?: boolean; rounds?: number; onClick: () => void; title: string }) {
+  const press = useLongPress(id ? () => zoomCard(id) : null);
+  return (
+    <button type="button" className={`cfn-mc${trap ? ' trap' : ' hab'}${id ? '' : ' back'}`} onClick={(e) => { e.stopPropagation(); onClick(); }} aria-label={title} title={title} {...press}>
+      {id ? <span className="art"><CardArt id={id} /></span> : <TypeIcon type="piege" size={14} />}
+      {rounds != null && <b className="left" aria-hidden>{rounds}</b>}
+      {trap && id && <i className="tag" aria-hidden><TypeIcon type="piege" size={8} /></i>}
+    </button>
+  );
+}
+
+/** Ce qu'un joueur a devant lui : Habitués puis pièges posés, en mini-cartes (« +N » au-delà de `max`). */
+export function FrontRow({ p, v, max, onCard, onTrap, onMore }: { p: CfPlayerView; v: CfView; max: number; onCard: (id: string) => void; onTrap: () => void; onMore: () => void }) {
+  const traps = v.traps.filter((t) => t.owner === p.id);
+  const items = [
+    ...p.habitues.map((h) => ({ key: h.uid, el: <FrontCard key={h.uid} id={h.id} rounds={h.rounds} onClick={() => onCard(h.id)} title={`Habitué : ${cardName(h.id)}, encore ${plural(h.rounds ?? 1, 'manche')}`} /> })),
+    ...traps.map((t) => ({ key: t.uid, el: <FrontCard key={t.uid} id={t.id} trap onClick={onTrap} title={t.id ? `Piège posé : ${cardName(t.id)}` : 'Piège posé face cachée : touchez pour les possibilités'} /> })),
+  ];
+  if (!items.length) return null;
+  const shown = items.length > max ? items.slice(0, max - 1) : items;
+  return (
+    <span className="cfn-front" role="group" aria-label={`Devant ${p.name} : ${plural(p.habitues.length, 'Habitué')}, ${plural(traps.length, 'piège')}`}>
+      {shown.map((x) => x.el)}
+      {shown.length < items.length && <button type="button" className="cfn-mc plus" onClick={(e) => { e.stopPropagation(); onMore(); }} aria-label="Tout voir">+{items.length - shown.length}</button>}
+    </span>
+  );
+}
+
+/**
+ * Case d'un adversaire (écran sobre, 0.39 « version C ») : nom, jetons en gros, Tournées et cartes en
+ * main en petits chiffres, et devant lui ses Habitués et pièges posés en mini-cartes illustrées
+ * (touchables : fiche de l'Habitué, possibilités du piège). Toucher le reste : sa fiche complète.
  * En duel (`wide`), on écrit aussi ses effets en cours et son dernier coup.
  */
-export function PlayerBox({ p, v, seat, active, wide, tokRef, onOpen, emote, focus, last }: {
+export function PlayerBox({ p, v, seat, active, wide, tokRef, onOpen, onCard, onTrap, emote, focus, last }: {
   p: CfPlayerView; v: CfView; seat?: CfSeat & { away?: boolean; left?: boolean }; active: boolean; wide: boolean; focus?: boolean;
-  tokRef?: (el: HTMLElement | null) => void; onOpen: () => void; emote?: string; last?: string | null;
+  tokRef?: (el: HTMLElement | null) => void; onOpen: () => void; onCard: (id: string) => void; onTrap: () => void; emote?: string; last?: string | null;
 }) {
   const traps = v.traps.filter((t) => t.owner === p.id).length;
   const fx = wide ? activeEffects(v, p, false) : [];
+  const n = v.players.length - 1;
   return (
-    <button className={`cfn-pbox${active ? ' on' : ''}${p.out ? ' out' : ''}${wide ? ' wide' : ''}${focus ? ' cfn-focus-zone' : ''}`} onClick={onOpen}
-      aria-label={`${p.name} : ${plural(p.tokens, 'jeton')}, ${plural(p.tournees, 'Tournée')}, ${plural(p.handCount, 'carte')} en main, ${plural(traps, 'piège')} posé${traps > 1 ? 's' : ''}, ${plural(p.habitues.length, 'Habitué')}. Touchez pour le détail.`}>
-      <span className="nm">
-        {wide && <Avatar photo={seat?.photo} emoji={seat?.avatar ?? '🎲'} size={32} />}
-        <b>{p.name}</b>
-        {emote && <span className="cfn-emote" aria-hidden>{emote}</span>}
-        {seat?.left ? <small className="away">parti</small> : seat?.away ? <small className="away">déconnecté</small> : null}
-      </span>
-      <span className="tk" ref={tokRef}><i className="cfn-tok" aria-hidden />{p.tokens}<small>jeton{p.tokens > 1 ? 's' : ''}</small></span>
-      <span className="mini" aria-hidden>
-        <span title="Tournées">🍺 {p.tournees}</span>
-        <span title="Cartes en main"><i className="cfn-bk mini" />{p.handCount}</span>
-        {traps > 0 && <span title="Pièges posés" className="tr"><TypeIcon type="piege" size={12} />{traps}</span>}
-        {p.habitues.length > 0 && <span title="Habitués" className="hb"><TypeIcon type="habitue" size={12} />{p.habitues.length}</span>}
-        {wide && <em>{plural(p.handCount, 'carte')} · touchez pour le détail</em>}
-      </span>
-      {fx.length > 0 && <span className="cfn-fx-row">{fx.map((e) => <span key={e.card + e.text} className={`cfn-fx ${e.tone}`} style={{ ['--tc' as string]: TYPE_META[e.type].color }}><TypeIcon type={e.type} size={11} />{e.text}</span>)}</span>}
-      {wide && last && <span className="cfn-last"><em>Dernier coup</em> {last}</span>}
-      <i className="more" aria-hidden>›</i>
-    </button>
+    <div className={`cfn-pbox${active ? ' on' : ''}${p.out ? ' out' : ''}${wide ? ' wide' : ''}${focus ? ' cfn-focus-zone' : ''}`}>
+      <button type="button" className="cfn-pbox-main" onClick={onOpen}
+        aria-label={`${p.name} : ${plural(p.tokens, 'jeton')}, ${plural(p.tournees, 'Tournée')}, ${plural(p.handCount, 'carte')} en main, ${plural(traps, 'piège')} posé${traps > 1 ? 's' : ''}, ${plural(p.habitues.length, 'Habitué')}. Touchez pour le détail.`}>
+        <span className="nm">
+          {wide && <Avatar photo={seat?.photo} emoji={seat?.avatar ?? '🎲'} size={32} />}
+          <b>{p.name}</b>
+          {emote && <span className="cfn-emote" aria-hidden>{emote}</span>}
+          {seat?.left ? <small className="away">parti</small> : seat?.away ? <small className="away">déconnecté</small> : null}
+        </span>
+        <span className="tk" ref={tokRef}><i className="cfn-tok" aria-hidden />{p.tokens}<small>jeton{p.tokens > 1 ? 's' : ''}</small></span>
+        <span className="mini" aria-hidden>
+          <span title="Tournées">🍺 {p.tournees}</span>
+          <span title="Cartes en main"><i className="cfn-bk mini" />{p.handCount}</span>
+          {wide && <em>{plural(p.handCount, 'carte')} · touchez pour le détail</em>}
+        </span>
+        {fx.length > 0 && <span className="cfn-fx-row">{fx.map((e) => <span key={e.card + e.text} className={`cfn-fx ${e.tone}`} style={{ ['--tc' as string]: TYPE_META[e.type].color }}><TypeIcon type={e.type} size={11} />{e.text}</span>)}</span>}
+        {wide && last && <span className="cfn-last"><em>Dernier coup</em> {last}</span>}
+        <i className="more" aria-hidden>›</i>
+      </button>
+      <FrontRow p={p} v={v} max={wide ? 6 : n >= 3 ? 3 : 4} onCard={onCard} onTrap={onTrap} onMore={onOpen} />
+    </div>
   );
 }
 
@@ -280,6 +375,16 @@ export function PlayerSheet({ p, v, seat, me, last, onClose, onCard, onTraps }: 
         {p.r.throwsUsed > 0 && <><dt>Ses dés</dt><dd>{p.r.dice.join('-')} · {plural(p.r.throwsUsed, 'lancer')}</dd></>}
         {last && <><dt>Dernier coup</dt><dd>{last}</dd></>}
         {p.families.length > 0 && <><dt>Son deck</dt><dd>{familiesLabel(p.families)}</dd></>}
+        <dt>Défausse</dt><dd>{p.discard.length ? (
+          <span className="cfn-discard" aria-label={`${plural(p.discard.length, 'carte')} défaussée${p.discard.length > 1 ? 's' : ''}, la plus récente d’abord`}>
+            {[...p.discard].reverse().slice(0, 12).map((k) => (
+              <button key={k.uid} type="button" className="cfn-dc" onClick={() => zoomCard(k.id)} aria-label={`${cardName(k.id)} : lire en grand`}>
+                <span className="art" aria-hidden><CardArt id={k.id} /></span><small>{shortName(k.id)}</small>
+              </button>
+            ))}
+            {p.discard.length > 12 && <em>et {plural(p.discard.length - 12, 'autre')}</em>}
+          </span>
+        ) : 'vide'}</dd>
       </dl>
     </Sheet>
   );
@@ -289,7 +394,7 @@ export const shortName = (id: string) => (def(id)?.name ?? id).replace(/^(Le |La
 
 // ------------------------------------------------------------------ annonces au centre
 
-export function AnnounceView({ a, onDone, spectator, me, v }: { a: Announce; onDone: () => void; spectator: boolean; me: string; v: CfView }) {
+export function AnnounceView({ a, onDone, spectator, me, v, leaving }: { a: Announce; onDone: () => void; spectator: boolean; me: string; v: CfView; leaving?: boolean }) {
   const block = a.block && !spectator;
   const bar = !block ? <i className="cfn-ann-bar" style={{ animationDuration: `${a.ms}ms` }} aria-hidden /> : null;
   if (a.style === 'reveal') {
@@ -298,7 +403,7 @@ export function AnnounceView({ a, onDone, spectator, me, v }: { a: Announce; onD
       <div className={`cfn-reveal${blue ? ' blue' : ''}`} role="alertdialog" aria-modal="true" aria-label={a.title} onClick={block ? undefined : onDone}>
         <div className="cfn-reveal-in">
           <small className="cfn-reveal-pill"><TypeIcon type={blue ? 'riposte' : 'piege'} size={14} /> {a.title}</small>
-          {a.card ? <BigCard id={a.card} width={Math.min(250, vw() - 80)} /> : <TrapCard big />}
+          {a.card ? <BigCard id={a.card} width={Math.min(250, vw() - 80)} zoom={block} /> : <TrapCard big />}
           <div className="cfn-reveal-box">
             {a.conseq && <b>{a.conseq}</b>}
             {a.hint && <span>{a.hint}</span>}
@@ -344,15 +449,20 @@ export function AnnounceView({ a, onDone, spectator, me, v }: { a: Announce; onD
       </div>
     );
   }
-  // Carte jouée, Habitué installé, piège révélé chez l'adversaire…
+  // Carte jouée, Habitué installé, piège révélé chez l'adversaire… La carte arrive de la case du joueur,
+  // reste lisible au centre (illustration, nom, en clair ce qu'elle fait), puis part à la défausse.
   const color = a.tone in TYPE_META ? TYPE_META[a.tone as CardType].color : '#f1cc7d';
+  const gist = a.card ? cardGist(a.card) : null;
+  const fromTop = !!a.from && a.from !== me;
   return (
-    <div className="cfn-ann-wrap dim" onClick={onDone} role="status" aria-live="polite">
-      <div className="cfn-ann-big">
+    <div className={`cfn-ann-wrap dim${leaving ? ' out' : ''}`} onClick={onDone} role="status" aria-live="polite">
+      <div className={`cfn-ann-big${a.card ? ' has-card' : ''}${fromTop ? ' from-top' : ''}`}>
         {a.kicker && <small style={{ color }}>{a.tone in TYPE_META && <TypeIcon type={a.tone as CardType} size={14} />} {a.kicker}</small>}
         <b>{a.title}</b>
-        {a.card ? <BigCard id={a.card} width={Math.min(230, vw() - 90)} /> : a.text ? <span className="cfn-ann-text">{a.text}</span> : null}
+        {a.card ? <BigCard id={a.card} width={Math.min(240, vw() - 80)} className="cfn-ann-card" /> : a.text ? <span className="cfn-ann-text">{a.text}</span> : null}
+        {a.card && gist && <span className="cfn-ann-gist" style={{ ['--tc' as string]: color }}>{gist}</span>}
         {a.card && a.text && a.text !== def(a.card)?.text && <span className="cfn-ann-text">{a.text}</span>}
+        {a.hint && <span className="cfn-ann-hint">{a.hint}</span>}
         {bar}
         <em className="cfn-skip">Touchez pour passer</em>
       </div>
@@ -380,7 +490,7 @@ export function RespondPanel({ v, legal, pending, onAct, deadline, focus, tuto }
       <div className="cfn-resp-in">
         {tuto && <p className="cfn-tuto-inline">{tuto}</p>}
         <small className="cfn-resp-kicker">{kicker}</small>
-        {top?.kind === 'card' && top.cardId ? <BigCard id={top.cardId} width={Math.min(250, vw() - 70)} extra={threatLine(v)} />
+        {top?.kind === 'card' && top.cardId ? <BigCard id={top.cardId} width={Math.min(250, vw() - 70)} extra={threatLine(v)} zoom />
           : top?.kind === 'card' ? <div className="cfn-resp-trap"><TrapCard big /><span>{threatLine(v)}</span></div>
             : top?.kind === 'keep' ? <div className="cfn-resp-trap"><span className="cfn-dice">{v.players.find((p) => p.id === top.owner)?.r.dice.map((d, i) => <Pip key={i} v={d} size={30} on={top.keep[i]} />)}</span><span>{threatLine(v)}</span></div> : null}
         {uids.map((uid) => {
@@ -437,12 +547,16 @@ export function Fiche({ t, v, legal, snapLegal, pending, discard, onAct, onClose
   else if (opts.length) now = <><b>Maintenant :</b> {describeNow(v, t.id, ready ?? chosen, opts)}{trapsAgainst > 0 && !choosing ? ` ${opps.length === 1 ? opps[0].name : 'Un adversaire'} a ${plural(trapsAgainst, 'piège')} caché${trapsAgainst > 1 ? 's' : ''}.` : ''}</>;
   else now = <><b>Pas maintenant :</b> {tuto ? 'pas à cette étape de la partie guidée.' : whyNot(v, t.id, snapLegal, t.uid!)}</>;
   const playable = mineInHand && opts.length > 0 && !discard;
+  // Carte liée, lisible elle aussi : le Coup que rejouerait le grand enchaînement, celui que reprendrait la petite sœur.
+  const related = !mineInHand ? null : t.id === 'grand-enchainement' ? (me.r.lastCoup ? { id: me.r.lastCoup, label: 'Rejouerait' } : null)
+    : t.id === 'petite-soeur' ? (() => { const k = [...(me.discard ?? [])].reverse().find(petiteSoeurOk); return k ? { id: k.id, label: 'Reprendrait' } : null; })() : null;
   return (
     <div className="cfn-fiche-back" onClick={onClose}>
       <div className="cfn-fiche" role="dialog" aria-modal="true" aria-label={d.name} onClick={(e) => e.stopPropagation()}>
         <div className="cfn-fiche-top"><i className="cfn-grip" aria-hidden /><button className="cfn-x" onClick={onClose} aria-label="Fermer"><Icon name="close" size={18} /></button></div>
         {tuto && <p className="cfn-tuto-inline">{tuto}</p>}
-        <BigCard id={t.id} width={Math.min(250, vw() - 60)} />
+        <BigCard id={t.id} width={Math.min(250, vw() - 60)} zoom />
+        {related && <RelatedCard id={related.id} label={related.label} />}
         {now && <div className={`cfn-now${playable || discard ? '' : ' no'}`}>{now}</div>}
         {playable && choosing && next && (
           <ParamChooser k={next} v={v} cardId={t.id === 'grand-enchainement' ? me.r.lastCoup ?? t.id : t.id} opts={opts} chosen={chosen}
@@ -465,6 +579,19 @@ export function Fiche({ t, v, legal, snapLegal, pending, discard, onAct, onClose
         <TypeLegend highlight={d.type} />
       </div>
     </div>
+  );
+}
+
+/** Petite ligne « carte liée » (illustration + nom) : toucher la montre en grand. */
+export function RelatedCard({ id, label }: { id: string; label: string }) {
+  const d = def(id);
+  if (!d) return null;
+  return (
+    <button className="cfn-related" onClick={() => zoomCard(id)} aria-label={`${label} : ${d.name}, lire en grand`}>
+      <span className="cfn-related-art" aria-hidden><CardArt id={id} /></span>
+      <span><small>{label}</small><b>{d.name}</b></span>
+      <Icon name="search" size={16} />
+    </button>
   );
 }
 
@@ -499,7 +626,13 @@ function ParamChooser({ k, v, cardId, opts, chosen, onPick }: { k: ParamKey; v: 
             case 'habitue': {
               const owner = v.players.find((p) => p.habitues.some((h) => h.uid === x));
               const h = owner?.habitues.find((y) => y.uid === x);
-              return <button key={x} className={cls} disabled={off(x)} onClick={() => onPick(k, x)}>{def(h?.id)?.name ?? '?'} <small>({owner?.name})</small></button>;
+              return (
+                <button key={x} className={`hab ${cls}`} disabled={off(x)} onClick={() => onPick(k, x)}>
+                  {h && <span className="hab-art" aria-hidden><CardArt id={h.id} /></span>}
+                  <span className="hab-tx">{def(h?.id)?.name ?? '?'} <small>({owner?.id === me.id ? 'vous' : owner?.name}{h?.rounds != null ? ` · encore ${plural(h.rounds, 'manche')}` : ''})</small></span>
+                  {h && <ZoomBtn id={h.id} className="inline" />}
+                </button>
+              );
             }
           }
           return null;
@@ -652,6 +785,32 @@ export function Mulligan({ v, legal, pending, onAct, clock }: { v: CfView; legal
   );
 }
 
+/**
+ * Une carte à choisir parmi plusieurs (Calcul mental…) : la carte en petit (toucher = en grand), son
+ * nom, son type et son texte ENTIER à côté, et le bouton qui la choisit.
+ */
+export function PickRow({ id, label, onPick, disabled, focus, sub }: { id: string; label: string; onPick: () => void; disabled?: boolean; focus?: boolean; sub?: ReactNode }) {
+  const d = cardDef(id);
+  if (!d) return null;
+  const m = TYPE_META[d.type];
+  const [, bold] = splitEmphasis(id, d.text);
+  return (
+    <div className="cf-pick-row">
+      <span className="cf-pick-card" role="button" tabIndex={0} aria-label={`Lire « ${d.name} » en grand`} onClick={() => zoomCard(id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); zoomCard(id); } }}>
+        <HandCard id={id} small />
+        <ZoomBtn id={id} />
+      </span>
+      <span className="cf-pick-tx">
+        <b>{d.name}</b>
+        <small style={{ color: m.color }}><TypeIcon type={d.type} size={11} />{m.label} · coût {d.cost}</small>
+        <span className="cf-pick-text"><GlossText text={d.text} bold={bold || undefined} /></span>
+        {sub}
+        <button className={`cfn-act gold slim${focus ? ' cfn-focus' : ''}`} disabled={disabled} onClick={onPick}>{label}</button>
+      </span>
+    </div>
+  );
+}
+
 export function ChoiceWindow({ v, legal, pending, onAct, focus, tuto }: { v: CfView; legal: CfAction[]; pending: boolean; onAct: (a: CfAction) => void; focus?: boolean; tuto?: string | null }) {
   const ch = v.choice;
   if (!ch) return null;
@@ -659,13 +818,16 @@ export function ChoiceWindow({ v, legal, pending, onAct, focus, tuto }: { v: CfV
   const me = meOf(v);
   const lock = (i: number) => !has(i);
   if (ch.kind === 'calcul' && 'cards' in ch) {
+    // Lisible d'emblée (Sam : « le choix parmi 3 cartes est illisible ») : une ligne par carte, texte
+    // entier ; toucher l'image (ou la loupe) la montre en grand, seul « Garder » choisit.
     return (
       <div className="cf-modal" role="dialog" aria-modal="true" aria-label="Calcul mental">
-        <div className="cf-modal-card">
+        <div className="cf-modal-card cf-calc">
+          {tuto && <p className="cfn-tuto-inline">{tuto}</p>}
           <h3>Calcul mental</h3>
           <p>Gardez une carte ; les autres repartent sous votre deck.</p>
-          <div className="cf-choice-row">
-            {ch.cards.map((k, i) => <button key={k.uid} className="cf-choice-card" disabled={pending || !has(i)} onClick={() => onAct({ type: 'choose', index: i })}><CardView id={k.id} width={Math.min(104, (vw() - 80) / 3)} /><span>Garder</span></button>)}
+          <div className="cf-calc-list">
+            {ch.cards.map((k, i) => <PickRow key={k.uid} id={k.id} label="Garder" disabled={pending || !has(i)} focus={focus && i === 0} onPick={() => onAct({ type: 'choose', index: i })} />)}
           </div>
         </div>
       </div>

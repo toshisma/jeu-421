@@ -414,6 +414,53 @@ describe('Coups Fourrés en ligne', () => {
     expect(F.leaks).toEqual([]);
   }, 90_000);
 
+  it('table entre amis : chacun choisit SON deck avant le lancement ; un deck injouable bloque le départ', async () => {
+    const gil = await reg('Gil'), hana = await reg('Hana');
+    const decksOf = async (a: Acc) => (await me(a)).decks as { id: string; name: string; valid: boolean; cards: Record<string, number> }[];
+    const [gZinc, gBringue] = await decksOf(gil);
+    const [hZinc, hBringue] = await decksOf(hana);
+    expect([gZinc.name, gBringue.name]).toEqual(['Le Zinc', 'La Bringue']);
+    const G = await client(gil), H = await client(hana);
+    // Gil ouvre avec « Le Zinc », Hana rejoint avec « La Bringue » (pas son deck actif).
+    const t = await emit(G, 'cf:table:create', { deckId: gZinc.id });
+    expect(t.ok).toBe(true);
+    expect((await emit(H, 'cf:table:join', { code: t.code, deckId: hBringue.id })).ok).toBe(true);
+    await until(() => G.table?.players.length === 2, 3000, 'table');
+    expect(G.table!.players.map((p) => [p.name, p.deck, p.ready])).toEqual([['Gil', 'Le Zinc', true], ['Hana', 'La Bringue', true]]);
+    expect(G.table!.players.find((p) => p.name === 'Hana')!.deckId).toBe(hBringue.id);
+    // Gil change d'avis au salon : « La Bringue ».
+    expect((await emit(G, 'cf:table:deck', { deckId: gBringue.id })).ok).toBe(true);
+    await until(() => H.table?.players.find((p) => p.name === 'Gil')?.deck === 'La Bringue', 3000, 'deck de Gil');
+    // Un deck qui n'est pas à soi, ou inconnu, est refusé.
+    expect((await emit(H, 'cf:table:deck', { deckId: gZinc.id })).error).toMatch(/Choisissez/);
+    // Le deck choisi par Hana devient injouable (ici : une carte en moins, comme après un changement des
+    // règles de construction) : la partie ne part pas.
+    const broken = { ...hBringue.cards }; delete broken.fouine;
+    srv.store.cfDeckSave({ id: hBringue.id, user_id: hana.id, name: hBringue.name, cards: JSON.stringify(broken), created_at: 1, updated_at: 2 });
+    const refused = await emit(G, 'cf:table:start');
+    expect(refused.ok).toBe(false);
+    expect(refused.error).toMatch(/Hana n’est pas prêt/);
+    await until(() => G.table?.players.find((p) => p.name === 'Hana')?.ready === false, 3000, 'Hana pas prête');
+    expect(G.table!.players.find((p) => p.name === 'Hana')!.why).toMatch(/pas jouable/);
+    expect((await emit(H, 'cf:table:deck', { deckId: hBringue.id })).ok).toBe(false);
+    // Hana prend « Le Zinc » : tout le monde est prêt, la partie se lance avec le deck de CHACUN.
+    expect((await emit(H, 'cf:table:deck', { deckId: hZinc.id })).ok).toBe(true);
+    await until(() => G.table?.players.every((p) => p.ready) ?? false, 3000, 'prêts');
+    expect((await emit(G, 'cf:table:start')).ok).toBe(true);
+    await until(() => !!G.last && !!H.last, 3000, 'partie');
+    const fams = (c: Record<string, number>) => [...new Set(Object.keys(c).map((id) => CARDS.find((x) => x.id === id)!.family))].sort();
+    const v = G.last!.snap.view;
+    const gSeat = v.players.find((p) => p.name === 'Gil')!, hSeat = v.players.find((p) => p.name === 'Hana')!;
+    expect([...gSeat.families].sort()).toEqual(fams(gBringue.cards));
+    expect([...hSeat.families].sort()).toEqual(fams(hZinc.cards));
+    // Main de départ de Gil : uniquement des cartes de « La Bringue ».
+    for (const k of gSeat.hand ?? []) expect(gBringue.cards[k.id]).toBeGreaterThan(0);
+    const hHand = H.last!.snap.view.players.find((p) => p.name === 'Hana')!.hand ?? [];
+    for (const k of hHand) expect(hZinc.cards[k.id]).toBeGreaterThan(0);
+    // On laisse jouer la partie jusqu'au bout pour libérer les joueurs.
+    await until(() => finished(G) && finished(H), 60_000, 'fin');
+  }, 90_000);
+
   it('classée : appariement, points de ligue et capsules ; proposition de l’ordinateur après 60 s', async () => {
     const gil = await reg('Gil'), hugo = await reg('Hugo'), ines = await reg('Ines');
     const I = await client(ines, false);

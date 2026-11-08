@@ -115,7 +115,7 @@ export function BoosterOpening({ token, state, onState, onDone, onCollection, on
                 onClick={() => reveal(i)} aria-label={shown[i] ? `${cardDef(c.id)?.name}${c.isNew ? ', nouvelle' : ''}` : `Carte ${i + 1}, face cachée`}>
                 <span className="cf-flip-in">
                   <span className="cf-flip-back"><CardBack width={58} /></span>
-                  <span className="cf-flip-front"><CardView id={c.id} width={58} shiny={c.shiny} />{c.isNew && <em className="cf-new">Nouveau</em>}</span>
+                  <span className="cf-flip-front"><CardView id={c.id} width={58} shiny={c.shiny} zoom="press" />{c.isNew && <em className="cf-new">Nouveau</em>}</span>
                 </span>
               </button>
             ))}
@@ -205,7 +205,7 @@ export function CollectionScreen({ token, state, onState, onBack, onAccount }: {
         <div className="cf-grid" style={{ ['--w' as string]: `${w}px` }}>
           {list.map((c) => {
             const n = count(c.id);
-            return <CardView key={c.id} id={c.id} width={w} dimmed={!!state && n === 0} count={n} shiny={(col[c.id]?.shiny ?? 0) > 0} onClick={() => setOpen(c.id)} />;
+            return <CardView key={c.id} id={c.id} width={w} zoom="press" dimmed={!!state && n === 0} count={n} shiny={(col[c.id]?.shiny ?? 0) > 0} onClick={() => setOpen(c.id)} />;
           })}
         </div>
       ) : <p className="cf-empty">Aucune carte avec ces filtres.</p>}

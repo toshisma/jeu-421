@@ -276,7 +276,7 @@ export function DeckEditor({ token, state, onState, deckId, initial, initialName
           const n = cards[c.id] ?? 0;
           return (
             <div key={c.id} className={`cf-pool${n ? ' in' : ''}`}>
-              <CardView id={c.id} width={w} selected={n > 0} onClick={() => add(c.id)} />
+              <CardView id={c.id} width={w} selected={n > 0} onClick={() => add(c.id)} zoom="press" />
               <div className="cf-pool-bar">
                 <button onClick={() => remove(c.id)} disabled={!n} aria-label={`Retirer ${c.name}`}>−</button>
                 <span>{n}/{limit(c.id)}</span>

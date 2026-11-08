@@ -11,6 +11,8 @@ import { Icon } from '../ui/Icon';
 import { CF_TOUR_PRIZE_TIERS, cfTourDate, type CfTourMatchView, type CfTourPlayer, type CfTourView } from '../../../shared/cards/tournament';
 import { BoosterPack } from './components';
 import { CfShell } from './cfui';
+import { cfSetActiveDeck, type CfState } from './api';
+import { DeckBadge, DeckChoiceSheet } from './DeckPicker';
 
 type Tok = string | null | undefined;
 type TourRes = { ok: true; tour: CfTourView };
@@ -105,9 +107,13 @@ function MatchCard({ m, now, onWatch }: { m: CfTourMatchView; now: number; onWat
 }
 
 /** Écran du tournoi : inscription, salon, barème, tableau en direct. */
-export function TournamentScreen({ token, acc, onBack, onWatch, onResume, onAccount, onError }: {
+export function TournamentScreen({ token, acc, onBack, onWatch, onResume, onAccount, onError, st, onState }: {
   token: Tok; acc: boolean; onBack: () => void; onWatch: (code: string) => void; onResume: () => void; onAccount: () => void; onError: (t: string) => void;
+  /** État du mode (decks) : on choisit ici le deck joué au tournoi (c'est le deck actif au lancement de chaque match). */
+  st?: CfState | null; onState?: (s: CfState) => void;
 }) {
+  const [deckSheet, setDeckSheet] = useState(false);
+  const tourDeck = st?.decks.find((d) => d.id === st.activeDeck) ?? null;
   const { tour, set, skew } = useCfTour(acc ? token : null, 4000);
   const now = useNow(skew);
   const [busy, setBusy] = useState(false);
@@ -172,6 +178,12 @@ export function TournamentScreen({ token, acc, onBack, onWatch, onResume, onAcco
             </p>
           )}
           {myLive && <button className="cf-btn gold big" onClick={onResume}>Reprendre mon match</button>}
+          {st && (open || (status === 'en-cours' && me && me.state !== 'elimine' && me.state !== 'absent')) && (
+            <div className="cf-tour-deck">
+              {tourDeck ? <DeckBadge deck={tourDeck} label={tourDeck.valid ? 'Deck joué au tournoi' : 'Deck pas jouable'} /> : <small>Aucun deck choisi</small>}
+              <button className="cf-btn small ghost" disabled={busy} onClick={() => setDeckSheet(true)}>Changer</button>
+            </div>
+          )}
           {me && status === 'termine' && me.state !== 'absent' && (
             <p className="cf-tour-me ok">{me.place === 1 ? 'Vous remportez le tournoi !' : me.place ? `Vous terminez ${me.place === 2 ? 'finaliste' : me.place === 3 ? 'demi-finaliste' : `${me.place}e`}.` : 'Tournoi terminé.'}
               {me.boosters > 0 && <> {plural(me.boosters, 'booster')} {me.boosters > 1 ? 'vous attendent' : 'vous attend'} dans Boosters.</>}</p>
@@ -207,6 +219,11 @@ export function TournamentScreen({ token, acc, onBack, onWatch, onResume, onAcco
             <li>Moins de 4 joueurs dans le salon à 20 h 40 : le tournoi est annulé.</li>
           </ul>
         </section>
+      )}
+      {deckSheet && st && (
+        <DeckChoiceSheet st={st} title="Deck du tournoi" intro="Chaque match du tournoi se joue avec ce deck (vous pouvez en changer jusqu’au lancement de chaque match)."
+          confirm="Jouer le tournoi" onClose={() => setDeckSheet(false)}
+          onConfirm={(id) => { setDeckSheet(false); void cfSetActiveDeck(token, id).then((r) => onState?.(r.state)).catch((e) => onError(e instanceof Error ? e.message : 'Action impossible.')); }} />
       )}
     </CfShell>
   );

@@ -45,6 +45,8 @@ import { TournamentCard, TournamentScreen } from './CfTournament';
 import { EnigmeEntry, EnigmeScreen } from './CfEnigme';
 import './fonts';
 import { trackEvent } from '../visit';
+import { CardZoomHost } from './zoom';
+import { DeckBadge, DeckChoiceSheet, DeckPicker, type DeckOption } from './DeckPicker';
 
 export interface CfModeProps {
   pa: ProfileApi;
@@ -115,7 +117,12 @@ const gameKey = (c: object) => { let k = keys.get(c); if (!k) { k = ++keyN; keys
 const FACE_COLORS = ['linear-gradient(135deg,#3fbf8a,#1d7a55)', 'linear-gradient(135deg,#b06ad9,#6a2f99)', 'linear-gradient(135deg,#e8964a,#b8552b)', 'linear-gradient(135deg,#5b8cff,#2c54c2)'];
 const initials = (n: string) => n.replace(/[^\p{L}\p{N}]/gu, '').slice(0, 2).toUpperCase() || '?';
 
+/** Le mode, avec l'affichage « carte en grand » commun à tous ses écrans (toucher long, loupe). */
 export function CfMode(props: CfModeProps) {
+  return <><CfModeScreens {...props} /><CardZoomHost /></>;
+}
+
+function CfModeScreens(props: CfModeProps) {
   const { pa } = props;
   const acc = pa.isAccount;
   const [st, setSt] = useState<CfState | null>(null);
@@ -123,7 +130,9 @@ export function CfMode(props: CfModeProps) {
   const [route, setRoute] = useState<Route>(() => (props.pending?.tournoi ? { r: 'tournoi' } : { r: 'menu' }));
   const [sheet, setSheet] = useState<SheetKind>(null);
   const [toast, showToast] = useCfToast();
-  const [waiting, setWaiting] = useState<{ kind: 'queue' | 'challenge'; title: string } | null>(null);
+  const [waiting, setWaiting] = useState<{ kind: 'queue' | 'challenge'; title: string; deckId?: string } | null>(null);
+  /** Choix du deck avant une partie en ligne (classée, défi envoyé ou accepté, table créée ou rejointe). */
+  const [pick, setPick] = useState<{ title: string; intro?: string; confirm: string; run: (deckId: string) => void } | null>(null);
   const [starting, setStarting] = useState(false);
   const [online, setOnline] = useState<CfOnline | null>(null);
   const [, bump] = useReducer((x: number) => x + 1, 0);
@@ -232,15 +241,38 @@ export function CfMode(props: CfModeProps) {
   }, [online, acc, showToast]);
 
   const needDeck = () => { if (!activeDeck) { showToast('Il vous faut un deck complet de 20 cartes (Mes decks).', 'err'); return true; } return false; };
+  // Chaque partie en ligne commence par « Avec quel deck ? » (deck actif présélectionné) : plus de deck imposé.
   const ranked = () => {
     if (!acc) { showToast('La partie classée demande un compte (gratuit).', 'err'); return; }
     if (needDeck()) return;
     sound.unlock();
-    void offerTutorial().then((t) => { if (!t) void tryOnline((o) => o.queueJoin(activeDeck!.id)).then((ok) => { if (ok) setWaiting({ kind: 'queue', title: 'Partie classée' }); }); });
+    void offerTutorial().then((t) => {
+      if (t) return;
+      setPick({ title: 'Partie classée', intro: 'Duel contre un joueur de votre niveau. Avec quel deck ?', confirm: 'Chercher un adversaire',
+        run: (id) => void tryOnline((o) => o.queueJoin(id)).then((ok) => { if (ok) setWaiting({ kind: 'queue', title: 'Partie classée', deckId: id }); }) });
+    });
   };
   const challenge = (username: string) => {
     if (needDeck()) return;
-    void tryOnline((o) => o.challenge(username, activeDeck!.id)).then((ok) => { if (ok) { setSheet(null); setWaiting({ kind: 'challenge', title: `Défi envoyé à ${username}` }); } });
+    setSheet(null);
+    setPick({ title: `Défier ${username}`, intro: 'Votre ami choisira son deck en acceptant.', confirm: 'Envoyer le défi',
+      run: (id) => void tryOnline((o) => o.challenge(username, id)).then((ok) => { if (ok) setWaiting({ kind: 'challenge', title: `Défi envoyé à ${username}`, deckId: id }); }) });
+  };
+  const acceptChallenge = (c: { id: string; from: string }) => {
+    if (needDeck()) return;
+    setPick({ title: `Défi de ${c.from}`, intro: `${c.from} a déjà choisi son deck. Et vous ?`, confirm: 'Accepter', run: (id) => void tryOnline((o) => o.answerChallenge(c.id, true, id)) });
+  };
+  const tableCreate = () => {
+    if (needDeck()) return;
+    setSheet(null);
+    setPick({ title: 'Ouvrir une table', intro: 'Chacun choisit son deck ; vous pourrez encore en changer au salon.', confirm: 'Ouvrir la table',
+      run: (id) => void tryOnline((o) => o.tableCreate(id)) });
+  };
+  const tableJoin = (code: string) => {
+    if (needDeck()) return;
+    setSheet(null);
+    setPick({ title: `Table ${code}`, intro: 'Avec quel deck rejoignez-vous la table ? Vous pourrez encore en changer au salon.', confirm: 'Rejoindre',
+      run: (id) => void tryOnline((o) => o.tableJoin(code, id)) });
   };
   const watch = (code: string) => void tryOnline((o) => o.watch(code));
 
@@ -281,7 +313,7 @@ export function CfMode(props: CfModeProps) {
   if (route.r === 'enigme') return <EnigmeScreen token={pa.token} acc={acc} onBack={menu} onAccount={props.onAccount} />;
   if (route.r === 'tournoi') {
     return <>
-      <TournamentScreen token={pa.token} acc={acc} onBack={menu} onWatch={watch} onAccount={props.onAccount} onError={(t) => showToast(t, 'err')}
+      <TournamentScreen token={pa.token} acc={acc} onBack={menu} onWatch={watch} onAccount={props.onAccount} onError={(t) => showToast(t, 'err')} st={st} onState={setSt}
         onResume={() => void tryOnline((o) => o.resume())} />
       {toast}
     </>;
@@ -301,16 +333,15 @@ export function CfMode(props: CfModeProps) {
           {resumeGame && <button className="cf-banner gold" onClick={() => void tryOnline((o) => o.resume(resumeGame.id))}><b>Partie en cours</b><span>{resumeGame.ranked ? 'Classée' : 'Entre amis'} : reprenez-la avant d’être compté absent.</span><em>Reprendre</em></button>}
           {online?.challenges.map((c) => (
             <div key={c.id} className="cf-banner duel" role="alert">
-              <span><b>{c.from} vous défie !</b><span>Duel avec votre deck actif{activeDeck ? ` (« ${activeDeck.name} »)` : ''}.</span></span>
+              <span><b>{c.from} vous défie !</b><span>Duel : vous choisissez votre deck en acceptant.</span></span>
               <button className="cf-btn small ghost" onClick={() => void tryOnline((o) => o.answerChallenge(c.id, false))}>Refuser</button>
-              <button className="cf-btn small gold" onClick={() => { if (!needDeck()) void tryOnline((o) => o.answerChallenge(c.id, true, activeDeck!.id)); }}>Accepter</button>
+              <button className="cf-btn small gold" onClick={() => acceptChallenge(c)}>Accepter</button>
             </div>
           ))}
         </>} />
       {sheet === 'bot' && <BotSheet st={st} acc={acc} starting={starting} onClose={() => setSheet(null)} onStart={startBot} onAccount={props.onAccount} />}
       {sheet === 'friends' && <FriendsPlaySheet acc={acc} token={pa.token} onClose={() => setSheet(null)} onAccount={props.onAccount}
-        onCreate={() => { if (!needDeck()) void tryOnline((o) => o.tableCreate(activeDeck!.id)).then((ok) => ok && setSheet(null)); }}
-        onJoin={(code) => { if (!needDeck()) void tryOnline((o) => o.tableJoin(code, activeDeck!.id)).then((ok) => ok && setSheet(null)); }}
+        onCreate={tableCreate} onJoin={tableJoin}
         onChallenge={challenge} onWatch={watch} onFriends={() => { setSheet(null); props.onFriends(); }} />}
       {sheet === 'boosters' && st && <BoostersSheet st={st} onClose={() => setSheet(null)} onOpen={() => { setSheet(null); setRoute({ r: 'booster' }); }}
         onBuy={async () => {
@@ -321,9 +352,16 @@ export function CfMode(props: CfModeProps) {
       {online?.table && <TableLobby online={online} st={st} pa={pa} me={pa.session?.username ?? ''} onError={(t) => showToast(t, 'err')} />}
       {waiting?.kind === 'queue' && <WaitingOverlay title={waiting.title} status={q?.text ?? 'Recherche d’un adversaire de votre niveau…'}
         onCancel={() => { void online?.queueLeave(); setWaiting(null); }}
-        extra={q?.offer ? <button className="cf-btn violet" onClick={() => { void online?.queueLeave(); setWaiting(null); setSheet('bot'); }}>Jouer contre l’ordinateur en attendant</button> : undefined} />}
+        extra={<>
+          <DeckBadge deck={st?.decks.find((d) => d.id === waiting.deckId) ?? null} />
+          {q?.offer && <button className="cf-btn violet" onClick={() => { void online?.queueLeave(); setWaiting(null); setSheet('bot'); }}>Jouer contre l’ordinateur en attendant</button>}
+        </>} />}
       {waiting?.kind === 'challenge' && <WaitingOverlay title={waiting.title} status="En attente de sa réponse…"
+        extra={<DeckBadge deck={st?.decks.find((d) => d.id === waiting.deckId) ?? null} />}
         onCancel={() => { void online?.cancelChallenge(); setWaiting(null); }} />}
+      {pick && <DeckChoiceSheet st={st} title={pick.title} intro={pick.intro} confirm={pick.confirm} onClose={() => setPick(null)}
+        onDecks={() => { setPick(null); setRoute({ r: 'decks' }); }}
+        onConfirm={(id) => { const p = pick; setPick(null); sound.unlock(); p.run(id); }} />}
       {toast}
     </>
   );
@@ -331,12 +369,17 @@ export function CfMode(props: CfModeProps) {
 
 const modeLabel = (c: CfOnlineController) => (c.spectator ? 'spectateur' : c.mode === 'classee' ? 'classée' : c.mode === 'ami' ? 'défi' : c.mode === 'tournoi' ? 'tournoi' : 'entre amis');
 
-/** Table privée à code (avant le départ) : joueurs, decks, code à partager, lancer. */
+/**
+ * Table privée à code (avant le départ) : joueurs et LEUR deck (prêt ou pas, et pourquoi), mon deck
+ * avec « Changer de deck », code à partager, lancer (seulement quand tout le monde a un deck jouable).
+ */
 function TableLobby({ online, st, me, pa, onError }: { online: CfOnline; st: CfState | null; me: string; pa: ProfileApi; onError: (t: string) => void }) {
   const t = online.table!;
   const host = t.host === me;
   const mine = t.players.find((p) => p.account === me);
-  const decks = st?.decks.filter((d) => d.valid) ?? [];
+  const myDeck = st?.decks.find((d) => d.id === mine?.deckId) ?? null;
+  const [choosing, setChoosing] = useState(false);
+  const notReady = t.players.filter((p) => p.ready === false);
   const run = (f: () => Promise<unknown>) => void f().catch((e) => onError(e instanceof Error ? e.message : 'Action impossible.'));
   const share = () => {
     const text = `Rejoignez ma table de Coups Fourrés sur 421online.com : code ${t.code}`;
@@ -350,17 +393,26 @@ function TableLobby({ online, st, me, pa, onError }: { online: CfOnline; st: CfS
         <button className="cf-table-code" onClick={share} aria-label={`Code ${t.code}, partager`}><small>Code</small><b>{t.code}</b><Icon name="share" size={18} /></button>
         <ul className="cf-table-list">
           {t.players.map((p) => (
-            <li key={p.account}>
+            <li key={p.account} className={p.ready === false ? 'notready' : ''}>
               {p.photo ? <Avatar photo={p.photo} size={30} /> : <i>{initials(p.name)}</i>}
-              <span><b>{p.name}{p.host ? ' · hôte' : ''}</b><small>{p.deck ? `Deck « ${p.deck} »` : 'Choisit son deck…'}</small></span>
+              <span><b>{p.name}{p.host ? ' · hôte' : ''}</b>
+                <small>{p.deck ? `Deck « ${p.deck} »` : 'Choisit son deck…'}{p.ready === false ? '' : p.deck ? ' · prêt ✓' : ''}</small>
+                {p.ready === false && <small className="cf-table-why">Pas prêt : {p.why ?? 'deck pas jouable.'}</small>}
+              </span>
               {host && !p.host && <button className="cf-btn small ghost" onClick={() => run(() => online.tableKick(p.account))}>Retirer</button>}
             </li>
           ))}
           {Array.from({ length: Math.max(0, t.max - t.players.length) }, (_, i) => <li key={`v${i}`} className="empty"><i>?</i><span><small>Place libre</small></span></li>)}
         </ul>
-        {decks.length > 1 && <div className="cf-chips">{decks.map((d) => <button key={d.id} className={mine?.deck === d.name ? 'on' : ''} onClick={() => run(() => online.tableDeck(d.id))}>{d.name}</button>)}</div>}
-        <p>{host ? (t.players.length < 2 ? 'Partagez le code : la partie se lance dès 2 joueurs (4 au plus).' : 'Tout le monde est là ? Lancez la partie.') : 'L’hôte lancera la partie dès que tout le monde est prêt.'}</p>
-        {host && <button className="cf-btn gold big" disabled={t.players.length < 2} onClick={() => run(() => online.tableStart())}>Lancer la partie</button>}
+        <div className="cf-table-mydeck">
+          {myDeck ? <DeckBadge deck={myDeck} label={mine?.ready === false ? 'Votre deck : pas jouable' : 'Vous jouez'} /> : <small>Choisissez votre deck</small>}
+          <button className="cf-btn small ghost" onClick={() => setChoosing((c) => !c)} aria-expanded={choosing}>{choosing ? 'Fermer' : 'Changer de deck'}</button>
+        </div>
+        {(choosing || mine?.ready === false) && st && (
+          <DeckPicker decks={st.decks} value={mine?.deckId ?? null} active={st.activeDeck} onChange={(id) => run(async () => { await online.tableDeck(id); setChoosing(false); })} />
+        )}
+        <p>{host ? (t.players.length < 2 ? 'Partagez le code : la partie se lance dès 2 joueurs (4 au plus).' : notReady.length ? `En attente : ${notReady.map((p) => p.name).join(', ')} doi${notReady.length > 1 ? 'vent' : 't'} choisir un deck jouable.` : 'Tout le monde est prêt ? Lancez la partie.') : 'L’hôte lancera la partie dès que tout le monde est prêt.'}</p>
+        {host && <button className="cf-btn gold big" disabled={t.players.length < 2 || notReady.length > 0} onClick={() => run(() => online.tableStart())}>Lancer la partie</button>}
         <CfChatPanel inline pa={pa} src={{ chat: online.tableChat, send: (t) => online.tableSay(t) }} />
         <button className="cf-btn ghost" onClick={() => void online.tableLeave()}>Quitter la table</button>
       </div>
@@ -558,9 +610,10 @@ function parcoursSet(n: number) { try { localStorage.setItem(PARCOURS_KEY, Strin
 function BotSheet({ st, acc, starting, onClose, onStart, onAccount }: { st: CfState | null; acc: boolean; starting: boolean; onClose: () => void; onStart: (l: CfLevel, deckId: string | null, opponents: number) => void; onAccount: () => void }) {
   const [opp, setOpp] = useState(1);
   const [level, setLevel] = useState<CfLevel>(() => { try { return (localStorage.getItem('421.cf.niveau') as CfLevel) || 'debutant'; } catch { return 'debutant'; } });
-  const decks = useMemo(() => (acc && st ? st.decks.filter((d) => d.valid).map((d) => ({ id: d.id, name: d.name, n: 20 })) : STARTER_DECKS.map((d) => ({ id: d.id, name: d.name, n: 20 }))), [acc, st]);
+  // Comptes : tous leurs decks (les injouables grisés, avec la raison) ; invités : les decks de départ.
+  const decks = useMemo<DeckOption[]>(() => (acc && st ? st.decks : STARTER_DECKS.map((d) => ({ id: d.id, name: d.name, cards: d.cards, valid: true, problems: [] }))), [acc, st]);
   const [deckId, setDeckId] = useState<string | null>(() => (acc && st ? st.activeDeck : STARTER_DECKS[0].id));
-  const chosen = decks.find((d) => d.id === deckId) ?? decks[0];
+  const chosen = decks.find((d) => d.id === deckId && d.valid) ?? decks.find((d) => d.valid) ?? null;
   const left = st ? Math.max(0, CAPSULES.vsBotDailyMax - st.botCapsulesToday) : 0;
   return (
     <Sheet title="Contre l’ordinateur" onClose={onClose}>
@@ -586,13 +639,11 @@ function BotSheet({ st, acc, starting, onClose, onStart, onAccount }: { st: CfSt
       </div>
       <div className="cf-deckpick">
         <b>Votre deck</b>
-        {decks.length ? (
-          <div className="cf-chips">{decks.map((d) => <button key={d.id} className={chosen?.id === d.id ? 'on' : ''} onClick={() => setDeckId(d.id)}>{d.name}</button>)}</div>
-        ) : <small>Aucun deck complet : construisez-en un dans « Mes decks ».</small>}
+        <DeckPicker decks={decks} value={chosen?.id ?? null} active={acc && st ? st.activeDeck : null} onChange={setDeckId} />
       </div>
       <p className="cf-sheet-note">{acc ? (left > 0 ? `+${CAPSULES.vsBot} capsules par partie terminée (encore ${left} aujourd’hui).` : 'Plafond de capsules contre l’ordinateur atteint aujourd’hui : la partie reste un bon entraînement.')
         : <>Partie d’essai sans gain. <button className="cf-link" onClick={onAccount}>Créer un compte</button> pour gagner des capsules.</>}</p>
-      <button className="cf-btn gold big" disabled={starting || !chosen} onClick={() => chosen && onStart(level, chosen.id, opp)}>{starting ? 'Préparation…' : 'Jouer'}</button>
+      <button className="cf-btn gold big" disabled={starting || !chosen} onClick={() => chosen && onStart(level, chosen.id, opp)}>{starting ? 'Préparation…' : chosen ? `Jouer avec « ${chosen.name} »` : 'Jouer'}</button>
     </Sheet>
   );
 }
