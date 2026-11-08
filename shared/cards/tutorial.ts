@@ -121,7 +121,7 @@ export const TUTO_STEPS: TutoStep[] = [
   { kind: 'bot', text: `${TUTO_BOT_NAME}, vexé, pose un autre piège sur vous…`, action: botPlay('mouchard', () => ({ target: TUTO_ME })) },
   { kind: 'bot', action: () => ({ type: 'roll', keep: NONE }) },
   { kind: 'bot', action: () => ({ type: 'stop' }) },
-  { kind: 'me', title: 'Parer un piège', text: `Deux as et un 3 pour ${TUTO_BOT_NAME}. Avant de lancer, méfiez-vous de son piège : jouez la « Fouine » (${cost('fouine')}) : elle le défausse, vous montre ce que c’était et vous fait piocher une carte.`, focus: 'hand', expect: isPlay('fouine') },
+  { kind: 'me', title: 'Parer un piège', text: `Deux as et un 3 pour ${TUTO_BOT_NAME}. Avant de lancer, méfiez-vous de son piège : jouez la « Fouine » (${cost('fouine')}). Elle le défausse sans le déclencher (même un piège qui guette vos Coups), vous montre ce que c’était et vous fait piocher une carte.`, focus: 'hand', expect: isPlay('fouine') },
   { kind: 'me', title: 'Bluffer', text: `Posez ce « Leurre » : il ne fait rien… mais ${TUTO_BOT_NAME} ne le sait pas. Retenez qu’il est posé.`, focus: 'hand', expect: isPlay('leurre') },
   { kind: 'me', title: 'Lancer', text: `${TUTO_BOT_NAME} s’est arrêté après 2 lancers : vous en avez 2 au plus. Croisez les doigts et lancez !`, focus: 'roll', expect: isRoll(NONE) },
   { kind: 'me', title: 'S’arrêter', text: `4-2-2 : ça ne bat pas les deux as de ${TUTO_BOT_NAME}… Arrêtez-vous quand même : vous gardez une carte pour la fin.`, focus: 'stop', expect: (a) => a.type === 'stop' },

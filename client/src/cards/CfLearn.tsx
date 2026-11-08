@@ -104,7 +104,7 @@ const TIPS: { t: string; d: string }[] = [
   { t: 'Gardez une Riposte et de quoi la payer', d: `Un « Ticket de caisse » (${plural(cost('ticket-caisse'), 'Tournée')}) ou une « Réaction en chaîne » (${plural(cost('reaction-chaine'), 'Tournée')}) en main, avec les Tournées qui vont avec, fait réfléchir l’adversaire avant chaque gros coup.` },
   { t: 'Lisez les Tournées adverses', d: 'Elles sont visibles. Zéro Tournée : il ne peut presque rien jouer. Quatre ou plus : attention au Retournement de veste, au Bon numéro ou à la Tournée générale.' },
   { t: 'Un piège posé juste avant un gros coup ? Méfiance', d: `Si l’adversaire pose un piège pendant que vous tenez un 4-2-1, pensez au Faux 4-2-1. Une Fouine (${cost('fouine') ? plural(cost('fouine'), 'Tournée') : 'gratuite'}) envoie le piège à la défausse et vous montre ce que c’était.` },
-  { t: 'La Fouine n’est jamais perdue', d: 'Elle pioche toujours une carte. Avec un piège en face, elle le défausse aussi : vous voyez lequel, et le danger disparaît.' },
+  { t: 'La Fouine n’est jamais perdue', d: 'Elle pioche toujours une carte. Avec un piège en face, elle le défausse aussi : vous voyez lequel, et le danger disparaît. Et elle ne déclenche pas les pièges qui guettent vos Coups (Mouchard, Ardoise piégée, Main dans le sac) : elle les retire.' },
   { t: 'Face à un Retournement de veste, visez plus bas', d: `Il ne se déclenche que si vous deviez donner ${VESTE_MIN} jetons ou plus. Arrêtez-vous volontairement sur une combinaison qui vaut moins : vous gagnez la manche sans vous faire retourner.` },
   { t: 'Le meneur fixe la limite', d: `Si vous menez avec une bonne combinaison, arrêtez-vous tôt : un seul lancer et l’autre n’aura qu’un lancer pour faire mieux (${CF_RULES.maxThrows} au plus).` },
   { t: 'Jouer en second a ses avantages', d: 'Vous voyez la combinaison à battre. « Le dé sous la table » et « Tournée générale » frappent les dés de l’adversaire s’il a fini son tour : c’est là qu’elles sont les plus fortes.' },
@@ -138,7 +138,7 @@ const LEXICON: { w: string; d: string }[] = [
   { w: 'Famille', d: `Habitués (vert), Ivresse (rouge), Pièges (violet), Chaînes (bleu et or). Un deck mélange ${DECK_RULES.maxFamilies} familles au plus. Les familles du deck adverse sont visibles.` },
   { w: 'Habitué', d: `Carte qui s’installe devant vous pour ${CF_RULES.habitueRounds} manches, puis rentre chez lui (${CF_RULES.maxHabitues} au plus, jamais deux fois le même).` },
   { w: 'Meneur', d: 'Celui qui joue en premier dans la manche (le perdant de la précédente). Son nombre de lancers fixe le maximum des autres.' },
-  { w: 'Piège', d: `Posé face cachée (on paie à la pose), il se déclenche tout seul quand sa condition arrive. ${CF_RULES.maxTraps} posés au plus ; il revient en main après ${CF_RULES.trapReturnRounds} manches sans se déclencher.` },
+  { w: 'Piège', d: `Posé face cachée (on paie à la pose), il se déclenche tout seul quand sa condition arrive. ${CF_RULES.maxTrapsOn} au plus devant un même joueur (et ${CF_RULES.maxTraps} posés au plus par joueur) ; il revient en main après ${CF_RULES.trapReturnRounds} manches sans se déclencher.` },
   { w: 'Riposte', d: 'Carte jouée à tout moment en réponse à une carte adverse. En chaîne, la dernière posée s’applique la première.' },
   { w: 'Tournée', d: `Ce que coûtent les cartes (le chiffre dans le petit verre, en haut à gauche ; ce ne sont pas des jetons). ${CF_RULES.tourneesPerRound} par manche, +${CF_RULES.tourneesLoserBonus} pour le perdant de la précédente, ${CF_RULES.tourneesMax} en réserve au plus.` },
 ];

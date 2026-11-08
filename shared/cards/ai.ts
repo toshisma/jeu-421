@@ -17,7 +17,7 @@
 import { evaluate, singleThrowCdf } from '../combos';
 import type { Rng } from '../rng';
 import { CARD_BY_ID, type CardDef } from './catalog';
-import { ADDITION_MIN, FEE_TRIES, FERMETURE_TOURNEES, TOURNEE_PATRON_GAIN, actionKey, beauFrere, boucleOk, echoSource, petiteSoeurOk, retrouvaillesTarget, type CfAction, type CfPlayerView, type CfView } from './engine';
+import { ADDITION_MIN, BELOTE_BONUS, FEE_TRIES, PAPILLON_DRAW, PLAT_TOURNEES, FERMETURE_TOURNEES, TOURNEE_PATRON_GAIN, actionKey, beauFrere, boucleOk, echoSource, petiteSoeurOk, retrouvaillesTarget, type CfAction, type CfPlayerView, type CfView } from './engine';
 
 export type CfLevel = 'debutant' | 'habitue' | 'fine-fouine';
 export const CF_LEVEL_LABEL: Record<CfLevel, string> = { debutant: 'Débutant', habitue: 'Habitué', 'fine-fouine': 'Fine fouine' };
@@ -126,7 +126,7 @@ const valueOf = (i: number, m: Mods) => {
   const k = T_KIND[i];
   if (k === 'suite') return m.marcel ? 4 : 2;
   if (k === '421') return m.faux ? 2 : 8;
-  if (k === 'brelan' && m.belote) return evaluate(TRIPLES[i], DV).value + 2;
+  if (k === 'brelan' && m.belote) return evaluate(TRIPLES[i], DV).value + BELOTE_BONUS;
   return evaluate(TRIPLES[i], DV).value;
 };
 const VAL_CACHE = new Map<string, number>();
@@ -290,9 +290,9 @@ const STATIC: Record<string, number> = {
   'faux-421': 1.1, 'coup-nenette': 1.1, 'retournement-veste': 1.6,
   fanfaron: 1.0, complice: 0.6, 'verre-de-trop': 0.7, 'courant-air': 0.8, engrenage: 0.9,
   // 0.46
-  'joueur-belote': 0.8, 'garde-champetre': 0.7, doyen: 0.9, pochtron: 1.5, guetteur: 0.8, comptable: 1.0,
+  'joueur-belote': 0.8, 'garde-champetre': 0.7, doyen: 0.9, pochtron: 2.0, guetteur: 0.8, comptable: 1.0,
   'pique-assiette': 0.8, hoquet: 0.8, 'der-des-ders': 0.9, 'mot-de-trop': 0.6, 'lot-consolation': 0.8,
-  'attrape-nigaud': 0.5, 'peau-banane': 0.7, souriciere: 1.1, 'noeud-coulant': 0.6,
+  'attrape-nigaud': 0.5, 'peau-banane': 1.3, souriciere: 1.1, 'noeud-coulant': 0.6,
 };
 
 /** Valeur « en main » d'une carte (mulligan, défausse, Calcul mental). */
@@ -600,14 +600,15 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
     case 'tournee-patron': return Math.min(TOURNEE_PATRON_GAIN, view.rules.tourneesMax - me.tournees + costNow(me, id)) * TV + (me.tournees <= 1 ? 0.2 : 0) + CV - drawCost(1);
     case 'coup-coude': return CV + 0.1 - drawCost(1);
     case 'cafe-serre': return CV - drawCost(1) + (me.habitues.length > 0 && me.tournees < view.rules.tourneesMax ? TV : 0);
-    case 'plat-du-jour': return 2 * CV - drawCost(2);
-    case 'boule-de-neige': { const n = Math.min(3, 1 + me.r.played); return n * CV - drawCost(n); }
+    case 'plat-du-jour': return Math.min(PLAT_TOURNEES, view.rules.tourneesMax - me.tournees + costNow(me, id)) * TV + (view.order[0] === me.id ? CV - drawCost(1) : 0);
+    case 'boule-de-neige': { const n = Math.min(3, me.r.played); return n * CV - drawCost(n); }
     case 'effet-papillon': {
       // Deux cartes, puis les cartes suivantes de la manche à 1 Tournée de moins.
       const next = me.hand!.filter((k) => k.uid !== a.card && def(k.id).cost >= 1 && def(k.id).type !== 'riposte').length;
-      return 2 * CV - drawCost(2) + Math.min(3, next) * TV * 0.5;
+      return PAPILLON_DRAW * CV - drawCost(PAPILLON_DRAW) + Math.min(3, next) * TV * 0.5;
     }
     case 'debauchage': {
+      if (!a.habitue) return 2 * CV - drawCost(2);
       const h = opps.flatMap((o) => o.habitues).find((x) => x.uid === a.habitue);
       if (!h) return null;
       const r = Math.min(3, h.rounds ?? 3) / 3;
@@ -619,15 +620,14 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
     }
     case 'boucle': {
       const got = [...me.discard].reverse().filter((k) => k.uid !== a.card && boucleOk(k)).slice(0, 2);
-      return got.reduce((acc, k) => acc + CV * keepValue(k.id, me) * 0.8 + def(k.id).cost * TV * 0.3, 0) - 0.2;
+      return got.reduce((acc, k) => acc + CV * keepValue(k.id, me) * 0.8 + def(k.id).cost * TV * 0.3, 0) - 0.2 + (me.tournees < view.rules.tourneesMax ? TV : 0);
     }
     case 'passe-passe': {
       const t = view.traps.find((x) => x.uid === a.trap);
       if (!t) return null;
-      if (t.id === 'leurre') return 2 * TV + CV;
       // Un piège qui va revenir en main de toute façon : autant prendre la Tournée tout de suite.
       const old = view.round - t.posedRound + 1 >= view.rules.trapReturnRounds;
-      return old ? TV + 0.1 : TV - (STATIC[t.id ?? ''] ?? 0.6) * 0.8;
+      return TV + CV - (old ? 0 : (STATIC[t.id ?? ''] ?? 0.6) * 0.8) - drawCost(1);
     }
     case 'embuscade': {
       const room = Math.min(3 - view.traps.filter((t) => t.target === a.target).length, 3 - view.traps.filter((t) => t.owner === me.id).length);
@@ -689,9 +689,10 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
   const d = def(id);
   if (d.type === 'habitue') {
     let v = STATIC[id] ?? 0.5;
-    if (id === 'garde-champetre') v = opps.some((o) => o.families.includes('ivresse')) ? 1.0 : 0.35;
+    if (id === 'garde-champetre') v = opps.some((o) => o.families.includes('ivresse')) ? 1.1 : opps.some((o) => o.families.includes('pieges')) ? 0.7 : 0.3;
     if (id === 'doyen') v = 0.4 + CV + 0.25 * me.habitues.length;
-    if (id === 'guetteur') v = 0.3 + CV + 0.2 * view.traps.filter((t) => t.target === me.id && !t.id).length;
+    if (id === 'guetteur') v = 0.3 + CV + (me.tournees < view.rules.tourneesMax ? TV : 0) + 0.2 * view.traps.filter((t) => t.target === me.id && !t.id).length;
+    if (id === 'joueur-belote') v = 0.5 + CV - drawCost(1);
     if (id === 'beau-frere') v = 0.5 + 0.25 * Math.min(4, me.hand!.filter((k) => k.id !== 'beau-frere' && def(k.id).cost >= 1).length) + (me.tournees < view.rules.tourneesMax ? TV : 0);
     if (id === 'videur') v += opps.some((o) => o.families.includes('pieges')) ? 0.8 : -0.4;
     if (id === 'complice') {
@@ -732,7 +733,8 @@ function threatOf(view: CfView, me: CfPlayerView): number {
   if (!top) return 0;
   const owner = view.players.find((p) => p.id === top.owner)!;
   if (top.kind === 'keep') return 0;
-  if (top.cardId === null) return 0.8; // piège inconnu
+  // Piège inconnu : plus menaçant quand il est posé devant moi (il me coûte et son poseur a payé).
+  if (top.cardId === null) return top.params.target === me.id || view.players.length === 2 ? 1.3 + 0.8 * CV : 0.4;
   const id = top.cardId;
   const d = def(id);
   if (top.owner === me.id) return 0;
@@ -775,7 +777,7 @@ function threatOf(view: CfView, me: CfPlayerView): number {
     case 'echo': return 1.0;
     case 'boucle': return 0.8;
     case 'cafe-serre': return CV * 0.8 + (owner.habitues.length ? TV : 0);
-    case 'plat-du-jour': return CV * 1.6;
+    case 'plat-du-jour': return PLAT_TOURNEES * TV;
     case 'boule-de-neige': return CV * Math.min(3, owner.r.played);
     case 'passe-passe': return 0.3;
     case 'addition': return 0.7;

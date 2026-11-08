@@ -16,7 +16,7 @@ export const TERMS: Term[] = [
   { re: /commande du comptoir/i, title: 'Commande du comptoir', text: 'Une règle bonus tirée au début de chaque manche, la même pour tous, écrite en haut de l’écran.' },
   { re: /tournées?/i, title: 'Tournée', text: `Ce que coûtent les cartes (le chiffre dans le petit verre), à ne pas confondre avec les jetons. ${R.tourneesPerRound} de plus à chaque manche (${R.tourneesPerRound + R.tourneesLoserBonus} pour le perdant de la manche d’avant), ${R.tourneesMax} au plus.` },
   { re: /habitués?/i, title: 'Habitué', text: `Carte qui s’installe devant vous et agit toute seule pendant ${R.habitueRounds} manches, puis rentre chez lui. ${R.maxHabitues} au plus, jamais deux fois le même.` },
-  { re: /pièges?/i, title: 'Piège', text: `Posé face cachée devant un adversaire, il se déclenche tout seul quand sa condition arrive. L’adversaire voit qu’il y a un piège, pas lequel. ${R.maxTraps} posés au plus.` },
+  { re: /pièges?/i, title: 'Piège', text: `Posé face cachée devant un adversaire, il se déclenche tout seul quand sa condition arrive. L’adversaire voit qu’il y a un piège, pas lequel. ${R.maxTrapsOn} au plus devant un même joueur, et ${R.maxTraps} posés au plus par joueur.` },
   { re: /ripostes?/i, title: 'Riposte', text: 'Carte jouée en réponse à une carte adverse, au moment où elle est jouée (vous avez 15 secondes).' },
   { re: /\bCoups?\b/, title: 'Coup', text: 'Carte jouée pendant votre tour, avant ou après un lancer, puis défaussée.' },
   { re: /meneur/i, title: 'Meneur', text: 'Celui qui joue en premier dans la manche. Son nombre de lancers fixe le maximum des autres.' },

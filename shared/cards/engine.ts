@@ -367,7 +367,7 @@ function gainTournees(c: Ctx, p: CfPlayer, n: number, viaCard: boolean): number 
 
 const trapsOn = (s: CfState, target: string, id: string) => s.traps.filter((t) => t.target === target && t.id === id && t.owner !== target);
 /** Pièges posés devant ce joueur (tous poseurs confondus). */
-export const trapsBefore = (s: Pick<CfState, 'traps'>, target: string) => s.traps.filter((t) => t.target === target).length;
+export const trapsBefore = (s: { traps: { target: string }[] }, target: string) => s.traps.filter((t) => t.target === target).length;
 /** 0.46 (demande de Sam) : au plus maxTrapsOn pièges devant un même joueur (anciens états : maxTraps). */
 export const maxTrapsOn = (s: Pick<CfState, 'rules'>) => s.rules.maxTrapsOn ?? s.rules.maxTraps;
 /** Ce joueur peut-il poser un piège devant cette cible (place devant elle, et pas plus de maxTraps posés par lui) ? */
@@ -424,7 +424,7 @@ export function evalPlayer(s: Pick<CfState, 'values'> & { commande?: string | nu
   let value = combo.value;
   if (combo.kind === 'suite' && (p.habitues.some((h) => h.id === 'vieux-marcel') || s.commande === 'suites')) value = Math.max(value, 4);
   if (combo.kind === 'brelan' && s.commande === 'brelans') value += 2;
-  if (combo.kind === 'brelan' && p.habitues.some((h) => h.id === 'joueur-belote')) value += 2;
+  if (combo.kind === 'brelan' && p.habitues.some((h) => h.id === 'joueur-belote')) value += BELOTE_BONUS;
   if (combo.kind === '421' && s.commande === '421') value = 10;
   if (combo.kind === '421' && p.r.faux421) value = 2;
   return { combo, value, rank: combo.rank };
@@ -540,7 +540,7 @@ export function throwLimit(s: CfState, pid: string): number {
 
 function rollDice(c: Ctx, p: CfPlayer, keep: boolean[]) {
   const kept = [0, 1, 2].filter((i) => keep[i]);
-  if (kept.length && p.r.throwsUsed > 0) {
+  if (kept.length && p.r.throwsUsed > 0 && !guarded(p)) {
     // Le Hoquet (0.46) : un des dés gardés est relancé aussi.
     const t = trapsOn(c.s, p.id, 'hoquet')[0];
     if (t && triggerTrap(c, t)) {
@@ -567,7 +567,7 @@ function endTurn(c: Ctx, p: CfPlayer) {
   const s = c.s;
   p.r.done = true;
   // Croche-patte : à la fin du tour, un dé du joueur piégé est relancé au hasard.
-  const cp = trapsOn(s, p.id, 'croche-patte')[0];
+  const cp = guarded(p) ? undefined : trapsOn(s, p.id, 'croche-patte')[0];
   if (cp && triggerTrap(c, cp)) {
     const i = Math.floor(rnd(s) * 3);
     const before = p.r.dice[i];
@@ -575,7 +575,7 @@ function endTurn(c: Ctx, p: CfPlayer) {
     emit(c, { kind: 'croche-patte', player: p.id, who: p.id, dice: [...p.r.dice], rolled: [i], text: `Croche-patte : le ${before} de ${p.name} est relancé (${p.r.dice.join('-')}).`, textYou: `Croche-patte : votre ${before} est relancé (${p.r.dice.join('-')}).` });
   }
   // La Peau de banane (0.46) : sur une combinaison qui vaut 4 ou plus, un dé est relancé au hasard.
-  if (evalPlayer(s, p).value >= 4) {
+  if (evalPlayer(s, p).value >= PEAU_MIN && !guarded(p)) {
     const pb = trapsOn(s, p.id, 'peau-banane')[0];
     if (pb && triggerTrap(c, pb)) {
       const i = Math.floor(rnd(s) * 3);
@@ -713,9 +713,9 @@ function settle(c: Ctx) {
     for (const t of trapsOn(s, W.id, 'lot-consolation')) {
       if (triggerTrap(c, t)) {
         const o = pl(s, t.owner);
-        const g = gainTournees(c, o, 1, true);
-        emit(c, { kind: 'lot-consolation', player: o.id, card: 'lot-consolation', who: o.id, text: `Le Lot de consolation : ${o.name} gagne ${plural(g, 'Tournée')} et pioche 1 carte.`, textYou: `Le Lot de consolation : vous gagnez ${plural(g, 'Tournée')} et piochez 1 carte.` });
-        draw(c, o, 1, false, true);
+        const g = gainTournees(c, o, LOT_TOURNEES, true);
+        emit(c, { kind: 'lot-consolation', player: o.id, card: 'lot-consolation', who: o.id, text: `Le Lot de consolation : ${o.name} gagne ${plural(g, 'Tournée')} et pioche ${plural(LOT_DRAW, 'carte')}.`, textYou: `Le Lot de consolation : vous gagnez ${plural(g, 'Tournée')} et piochez ${plural(LOT_DRAW, 'carte')}.` });
+        draw(c, o, LOT_DRAW, false, true);
       }
       break;
     }
@@ -875,6 +875,15 @@ export const FLAGRANT_MAX = 1;
 export const MAIN_SAC_MIN = 1;
 /** Coups qui changent des dés (Les yeux qui piquent peut les annuler). */
 export const DICE_COUPS = new Set(['tete-tourne', 'coup-pouce', 'bon-numero', 'de-sous-table', 'tournee-generale', 'petit-dernier', 'miroir', 'verres-echanges', 'fee-verte', 'ricochet']);
+/** Le Joueur de belote : ce que valent ses brelans en plus. */
+export const BELOTE_BONUS = 3;
+/** Le Plat du jour : Tournées gagnées. */
+export const PLAT_TOURNEES = 2;
+/** Le Lot de consolation : ce que gagne son poseur quand il se déclenche. */
+export const LOT_TOURNEES = 1;
+export const LOT_DRAW = 2;
+/** L’Effet papillon : cartes piochées. */
+export const PAPILLON_DRAW = 1;
 /** La Fée verte : relances au plus pour tomber sur la face choisie. */
 export const FEE_TRIES = 3;
 /** La Peau de banane : se déclenche sur une combinaison qui vaut au moins ceci. */
@@ -897,8 +906,10 @@ function effectOptions(s: CfState, p: CfPlayer, id: string): PlayParams[] {
   switch (id) {
     case 'tournee-patron': case 'cul-sec': case 'pari-comptoir': case 'double-tournee': case 'coup-coude':
     case 'mise-bouche': case 'calcul-mental': case 'note-salee': case 'efface-tout': case 'tant-qu-on-y-est':
-    case 'cafe-serre': case 'plat-du-jour': case 'addition': case 'sante': case 'boule-de-neige': case 'effet-papillon':
+    case 'cafe-serre': case 'plat-du-jour': case 'addition': case 'sante': case 'effet-papillon':
       return [{}];
+    case 'boule-de-neige':
+      return p.r.played >= 1 ? [{}] : [];
     case 'compte-rond':
       return p.r.played >= 1 ? [{}] : [];
     case 'retrouvailles':
@@ -906,10 +917,11 @@ function effectOptions(s: CfState, p: CfPlayer, id: string): PlayParams[] {
     case 'boucle':
       return p.discard.some(boucleOk) ? [{}] : [];
     case 'debauchage': {
+      // Sans aucun Habitué adverse : on pioche 2 cartes. Le Patron protège ses Habitués (2 Tournées ou moins).
+      const all = opps.flatMap((o) => o.habitues.map((h) => ({ o, h })));
+      if (!all.length) return [{}];
       if (p.habitues.length >= s.rules.maxHabitues) return [];
-      const out: PlayParams[] = [];
-      for (const o of opps) for (const h of o.habitues) if (!p.habitues.some((x) => x.id === h.id)) out.push({ habitue: h.uid });
-      return out;
+      return all.filter((x) => !p.habitues.some((y) => y.id === x.h.id) && !patronProtects(s, x.o.id, def('debauchage'))).map((x) => ({ habitue: x.h.uid }));
     }
     case 'petit-dernier':
       return myTurn && rolled ? diceIdx.map((die) => ({ die })) : [];
@@ -939,7 +951,7 @@ function effectOptions(s: CfState, p: CfPlayer, id: string): PlayParams[] {
     case 'verres-echanges':
       return myTurn && rolled ? opps.filter((o) => o.r.done && !guarded(o)).map((o) => ({ target: o.id })) : [];
     case 'passe-passe':
-      return s.traps.filter((t) => t.owner === p.id).map((t) => ({ trap: t.uid }));
+      return s.traps.filter((t) => t.owner === p.id && t.id !== 'leurre').map((t) => ({ trap: t.uid }));
     case 'denonciation':
       return s.traps.filter((t) => t.target === p.id && t.owner !== p.id).map((t) => ({ trap: t.uid }));
     case 'embuscade': {
@@ -1024,8 +1036,7 @@ function cardOptions(s: CfState, p: CfPlayer, k: CardInst, respond: boolean): Pl
     if (k.id === 'a-la-votre') return top.type === 'riposte' ? [{}] : [];
     if (k.id === 'retour-envoyeur') return top.type === 'coup' ? [{}] : [];
     if (k.id === 'flagrant-delit') {
-      if (top.type === 'habitue' && patronProtects(s, top.owner, d)) return [];
-      return (top.type === 'coup' || top.type === 'habitue') && def(top.card.id).cost <= FLAGRANT_MAX ? [{}] : [];
+      return top.type === 'coup' && def(top.card.id).cost <= FLAGRANT_MAX ? [{}] : [];
     }
     if (k.id === 'ticket-caisse') return top.type === 'coup' && def(top.card.id).cost <= TICKET_MAX ? [{}] : [];
     if (k.id === 'pot-aux-roses') return (top.type === 'coup' || top.type === 'dernier-mot') && def(top.card.id).cost >= POT_MIN ? [{}] : [];
@@ -1326,8 +1337,8 @@ function doPlay(c: Ctx, p: CfPlayer, a: Extract<CfAction, { type: 'play' }>) {
       emit(c, { kind: 'souriciere', player: p.id, who: p.id, text: `La Souricière : ${p.name} ne pourra plus jouer de carte cette manche.`, textYou: 'La Souricière : vous ne pourrez plus jouer de carte cette manche.' });
     }
   }
-  // Le Nœud coulant (0.46) : à la 3e carte, 1 jeton et plus aucune carte cette manche.
-  if (playedBefore === 2) {
+  // Le Nœud coulant (0.46) : à la 2e carte, 1 jeton et plus aucune autre carte cette manche.
+  if (playedBefore === 1) {
     const t = trapsOn(s, p.id, 'noeud-coulant')[0];
     if (t && triggerTrap(c, t)) {
       p.r.locked = 'noeud-coulant';
@@ -1434,7 +1445,7 @@ export function mightRespond(s: CfState, p: CfPlayer, top: StackItem): boolean {
   if (f.includes('chaines') && canPay(p, def('reaction-chaine').cost)) return true;
   if (f.includes('chaines') && top.type === 'coup' && canPay(p, def('retour-envoyeur').cost)) return true;
   if (f.includes('pieges') && (top.type === 'coup' || top.type === 'dernier-mot') && def(top.card.id).cost >= POT_MIN && canPay(p, def('pot-aux-roses').cost)) return true;
-  if (f.includes('pieges') && (top.type === 'coup' || top.type === 'habitue') && def(top.card.id).cost <= FLAGRANT_MAX && canPay(p, def('flagrant-delit').cost)) return true;
+  if (f.includes('pieges') && top.type === 'coup' && def(top.card.id).cost <= FLAGRANT_MAX && canPay(p, def('flagrant-delit').cost)) return true;
   if (f.includes('habitues') && top.type === 'piege' && top.params.target === p.id && canPay(p, def('table-reservee').cost)) return true;
   return f.includes('habitues') && top.type === 'coup' && def(top.card.id).cost <= TICKET_MAX && canPay(p, def('ticket-caisse').cost);
 }
@@ -1561,10 +1572,15 @@ function installHabitue(c: Ctx, p: CfPlayer, card: CardInst) {
   }
   for (const h of p.habitues) if (id === 'doyen') h.rounds = (h.rounds ?? s.rules.habitueRounds ?? 3) + 1;
   p.habitues.push({ uid: card.uid, id, rounds: s.rules.habitueRounds ?? 3 });
-  if (id === 'vieux-marcel' || id === 'guetteur' || id === 'doyen') {
+  guetteurSees(s, p);
+  if (id === 'vieux-marcel' || id === 'guetteur' || id === 'doyen' || id === 'joueur-belote') {
     const extra = id === 'doyen' && p.habitues.length > 1 ? ' ; vos autres Habitués restent 1 manche de plus' : '';
     emit(c, { kind: 'effet', player: p.id, card: id, who: p.id, text: `${cardName(id)} s’installe : ${p.name} pioche 1 carte${extra ? ' ; ses autres Habitués restent 1 manche de plus' : ''}.`, textYou: `${cardName(id)} s’installe : vous piochez 1 carte${extra}.` });
     draw(c, p, 1, false, true);
+  }
+  if (id === 'guetteur') {
+    const g = gainTournees(c, p, 1, true);
+    emit(c, { kind: 'effet', player: p.id, card: id, who: p.id, text: `Le Guetteur s’installe : ${p.name} gagne ${plural(g, 'Tournée')}.`, textYou: `Le Guetteur s’installe : vous gagnez ${plural(g, 'Tournée')} ; vous voyez les pièges posés devant vous.` });
   }
   if (id === 'beau-frere') {
     // 0.40 : le Beau-frère arrive avec une Tournée.
@@ -1591,7 +1607,12 @@ function poseTrap(c: Ctx, p: CfPlayer, card: CardInst, target: string) {
     if (card.id === 'leurre') leurreBonus(c, p);
     return;
   }
-  s.traps.push({ uid: card.uid, id: card.id, owner: p.id, target, posedRound: s.round, seenBy: [p.id] });
+  // Le Guetteur (0.46) : son joueur voit les pièges posés devant lui (et s'en souvient).
+  s.traps.push({ uid: card.uid, id: card.id, owner: p.id, target, posedRound: s.round, seenBy: victim.habitues.some((h) => h.id === 'guetteur') ? [p.id, target] : [p.id] });
+}
+function guetteurSees(s: CfState, p: CfPlayer) {
+  if (!p.habitues.some((h) => h.id === 'guetteur')) return;
+  for (const t of s.traps) if (t.target === p.id && !t.seenBy.includes(p.id)) t.seenBy.push(p.id);
 }
 
 function sameParams(a: PlayParams, b: PlayParams): boolean {
@@ -1634,7 +1655,7 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       break;
     case 'pari-comptoir': p.r.pari++; break;
     case 'double-tournee': p.r.doubles++; break;
-    case 'coup-pouce': case 'recompter':
+    case 'coup-pouce': case 'recompter': case 'ricochet':
       setDice(p, prm.die!, p.r.dice[prm.die!] + prm.delta!);
       you(`${p.name} ${prm.delta! > 0 ? 'ajoute' : 'retire'} 1 à un dé : ${p.r.dice.join('-')}.`, `Vous ${prm.delta! > 0 ? 'ajoutez' : 'retirez'} 1 à un dé : ${p.r.dice.join('-')}.`, { dice: [...p.r.dice] });
       break;
@@ -1775,20 +1796,23 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       draw(c, p, 1, false, true);
       break;
     }
-    case 'plat-du-jour':
-      you(`Le Plat du jour : ${p.name} pioche 2 cartes.`, 'Le Plat du jour : vous piochez 2 cartes.');
-      draw(c, p, 2, false, true);
+    case 'plat-du-jour': {
+      const g = gainTournees(c, p, PLAT_TOURNEES, true);
+      const lead = s.order[0] === p.id;
+      you(`Le Plat du jour : ${p.name} gagne ${plural(g, 'Tournée')}${lead ? ' et pioche 1 carte' : ''}.`, `Le Plat du jour : vous gagnez ${plural(g, 'Tournée')}${lead ? ' et piochez 1 carte' : ''}.`);
+      if (lead) draw(c, p, 1, false, true);
       break;
+    }
     case 'boule-de-neige': {
-      const n = Math.min(3, 1 + playedBefore);
+      const n = Math.min(3, playedBefore);
       you(`La Boule de neige : ${p.name} pioche ${plural(n, 'carte')}.`, `La Boule de neige : vous piochez ${plural(n, 'carte')}.`);
       draw(c, p, n, false, true);
       break;
     }
     case 'effet-papillon':
       p.r.roundDiscount = (p.r.roundDiscount ?? 0) + 1;
-      you(`L’Effet papillon : ${p.name} pioche 2 cartes ; ses cartes coûtent 1 Tournée de moins cette manche.`, 'L’Effet papillon : vous piochez 2 cartes ; vos cartes coûtent 1 Tournée de moins cette manche.');
-      draw(c, p, 2, false, true);
+      you(`L’Effet papillon : ${p.name} pioche ${plural(PAPILLON_DRAW, 'carte')} ; ses cartes coûtent 1 Tournée de moins cette manche.`, `L’Effet papillon : vous piochez ${plural(PAPILLON_DRAW, 'carte')} ; vos cartes coûtent 1 Tournée de moins cette manche.`);
+      draw(c, p, PAPILLON_DRAW, false, true);
       break;
     case 'addition': p.r.addition = (p.r.addition ?? 0) + 1; you(`L’Addition : si ${p.name} gagne, sa combinaison vaudra au moins ${ADDITION_MIN}.`, `L’Addition : si vous gagnez, votre combinaison vaudra au moins ${ADDITION_MIN}.`); break;
     case 'sante': p.r.sante = (p.r.sante ?? 0) + 1; you(`À votre santé ! Si ${p.name} perd, le gagnant recevra aussi 1 jeton.`, 'À votre santé ! Si vous perdez, le gagnant recevra aussi 1 jeton.'); break;
@@ -1829,6 +1853,11 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       break;
     }
     case 'debauchage': {
+      if (!prm.habitue) {
+        you(`Le Débauchage : aucun Habitué à débaucher, ${p.name} pioche 2 cartes.`, 'Le Débauchage : aucun Habitué à débaucher, vous piochez 2 cartes.');
+        draw(c, p, 2, false, true);
+        break;
+      }
       const owner = s.players.find((o) => o.habitues.some((h) => h.uid === prm.habitue));
       if (!owner) break;
       const h = owner.habitues.find((x) => x.uid === prm.habitue)!;
@@ -1837,6 +1866,7 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       const home = h.from ?? owner.id;
       if (home === p.id) delete moved.from; else moved.from = home;
       p.habitues.push(moved);
+      guetteurSees(s, p);
       emit(c, { kind: 'effet', player: owner.id, card: id, who: owner.id, text: `Le Débauchage : ${cardName(h.id)} quitte ${owner.name} pour ${p.name}.`, textYou: `Le Débauchage : votre ${cardName(h.id)} passe chez ${p.name}.` });
       break;
     }
@@ -1858,7 +1888,8 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       }
       p.discard = p.discard.filter((x) => !got.includes(x));
       p.hand.push(...got.map((k) => ({ uid: k.uid, id: k.id })));
-      you(`La Boucle : ${p.name} reprend ${got.map((k) => cardName(k.id)).join(' et ') || 'rien'}.`, `La Boucle : vous reprenez ${got.map((k) => cardName(k.id)).join(' et ') || 'rien'}.`);
+      const g = gainTournees(c, p, 1, true);
+      you(`La Boucle : ${p.name} reprend ${got.map((k) => cardName(k.id)).join(' et ') || 'rien'} et gagne ${plural(g, 'Tournée')}.`, `La Boucle : vous reprenez ${got.map((k) => cardName(k.id)).join(' et ') || 'rien'} et gagnez ${plural(g, 'Tournée')}.`);
       break;
     }
     case 'passe-passe': {
@@ -1867,8 +1898,8 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       s.traps = s.traps.filter((x) => x.uid !== t.uid);
       p.hand.push({ uid: t.uid, id: t.id });
       const g = gainTournees(c, p, 1, true);
-      you(`Le Tour de passe-passe : ${p.name} reprend un piège et gagne ${plural(g, 'Tournée')}.`, `Le Tour de passe-passe : vous reprenez ${cardName(t.id)} et gagnez ${plural(g, 'Tournée')}.`);
-      if (t.id === 'leurre') leurreBonus(c, p);
+      you(`Le Tour de passe-passe : ${p.name} reprend un piège, gagne ${plural(g, 'Tournée')} et pioche 1 carte.`, `Le Tour de passe-passe : vous reprenez ${cardName(t.id)}, gagnez ${plural(g, 'Tournée')} et piochez 1 carte.`);
+      draw(c, p, 1, false, true);
       break;
     }
     case 'denonciation': {
@@ -2002,8 +2033,7 @@ export function viewFor(s: CfState, pid: string): CfView {
       penaltyNext: p.penaltyNext, ...(p.penaltyNextCard ? { penaltyNextCard: p.penaltyNextCard } : {}), out: p.out, place: p.place, r: structuredClone(p.r),
       throwLimit: s.phase === 'turn' && s.order.includes(p.id) && s.order.indexOf(p.id) <= s.turn ? throwLimit(s, p.id) : null,
     })),
-    // Le Guetteur (0.46) : son joueur voit les pièges posés devant lui.
-    traps: s.traps.map((t) => ({ uid: t.uid, owner: t.owner, target: t.target, posedRound: t.posedRound, id: t.seenBy.includes(pid) || (t.target === pid && s.players.some((x) => x.id === pid && x.habitues.some((h) => h.id === 'guetteur'))) ? t.id : null })),
+    traps: s.traps.map((t) => ({ uid: t.uid, owner: t.owner, target: t.target, posedRound: t.posedRound, id: t.seenBy.includes(pid) ? t.id : null })),
     stack: s.stack.map((it) => it.kind === 'keep'
       ? { kind: 'keep' as const, owner: it.owner, keep: [...it.keep] }
       : { kind: 'card' as const, owner: it.owner, cardId: it.type === 'piege' && it.owner !== pid ? null : it.card.id, type: it.type, params: it.type === 'piege' && it.owner !== pid ? { target: it.params.target } : { ...it.params } }),
