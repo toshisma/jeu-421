@@ -59,7 +59,7 @@ export interface CfModeProps {
   /** Sacs de dés gagnés en fin de partie : la collection de dés (commune aux trois jeux) s'ouvre dessus. */
   onBags?: () => void;
   /** À faire dès l'ouverture (venu de la liste d'amis) : défier ce pseudo, ou regarder cette partie. */
-  pending?: { challenge?: string; watch?: string; tournoi?: boolean };
+  pending?: { challenge?: string; watch?: string; tournoi?: boolean; boosters?: boolean };
 }
 
 type Route =
@@ -142,7 +142,18 @@ function CfModeScreens(props: CfModeProps) {
     if (!pa.token) { setSt(null); return null; }
     try { const s = await cfMe(pa.token); setSt(s); setLoadErr(null); return s; } catch (e) { setLoadErr(e instanceof Error ? e.message : 'Serveur injoignable.'); return null; }
   }, [pa.token]);
-  useEffect(() => { void reload().then((s) => { if (s && !s.discovered) setRoute({ r: 'discover' }); }); }, [reload]);
+  useEffect(() => {
+    void reload().then(async (s) => {
+      if (!s) return;
+      // Venu du cadeau de bienvenue (« Ouvrir mes 3 boosters ») : decks de départ reçus et ouverture directe.
+      if (props.pending?.boosters && pa.token) {
+        if (!s.discovered) {
+          try { const r = await cfDiscover(pa.token); setSt(r.state); sound.treasure(); setRoute({ r: 'booster' }); return; } catch { /* écran de découverte */ }
+        } else if (s.boosters > 0) { setRoute({ r: 'booster' }); return; }
+      }
+      if (!s.discovered) setRoute({ r: 'discover' });
+    });
+  }, [reload]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Connexion « Coups Fourrés en ligne » (comptes) : présence, file classée, défis, tables, reprise.
   useEffect(() => {

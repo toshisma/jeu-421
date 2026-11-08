@@ -20,6 +20,7 @@ import type { Insets } from '../three/TrayScene';
 import { DiceTray, type DiceTrayHandle } from './DiceTray';
 import { DiceRow, MiniDie } from './MiniDie';
 import { PlayerCard } from './PlayerCard';
+import { useGuestInviteAtEnd } from './guestInvite';
 import { EndOverlay } from './EndOverlay';
 import { VolumeControl } from './VolumeControl';
 import { RoundTracker, WhatIf } from './RoundTracker';
@@ -60,6 +61,12 @@ interface Props {
    * bandeau (tournoi : qualifié, éliminé, finale).
    */
   early?: false | ((state: GameState, place: number) => EarlyOptions);
+  /**
+   * Invitation à créer un compte à l'écran de fin (invités seulement, voir guestInvite.ts).
+   * `false` : jamais (spectateur, partie entre amis sur un appareil) ; une fonction : selon le résultat
+   * (tournoi : seulement quand le tournoi est fini pour le joueur).
+   */
+  guestInvite?: false | ((state: GameState) => boolean);
 }
 
 export interface EarlyOptions {
@@ -77,7 +84,7 @@ const NO_KEEP = [false, false, false];
 const MEDALS = ['🥇', '🥈', '🥉'];
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export function GameScreen({ controller, settings, onSettings, onExit, personas, appearance, onGameEnd, onGameStart, pa, tableExit, bossId, early }: Props) {
+export function GameScreen({ controller, settings, onSettings, onExit, personas, appearance, onGameEnd, onGameStart, pa, tableExit, bossId, early, guestInvite }: Props) {
   const tray = useRef<DiceTrayHandle>(null);
   const [shown, setShown] = useState<GameState | null>(null);
   const shownRef = useRef<GameState | null>(null);
@@ -468,6 +475,8 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   };
   // Barre du bas : compacte pendant la partie ; la quitter par la barre = même règle que « Quitter ».
   useNavGuard({ game: true, ask: okToLeave, leave: () => controller.leave() });
+  // Écran de fin affiché : invitation à créer un compte (invités ; App décide).
+  useGuestInviteAtEnd('421', !!s && s.phase === 'fini' && !animating && guestInvite !== false && (!guestInvite || guestInvite(s)));
 
   const phaseLabel = !s ? '' : s.isRolloff ? 'Barrage'
     : s.phase === 'charge' ? `Charge, ${s.pot} jeton${s.pot > 1 ? 's' : ''} au pot`

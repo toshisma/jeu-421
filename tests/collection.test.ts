@@ -104,7 +104,7 @@ describe('dés de collection : serveur', () => {
       guestProfile: { owned: ['dc-aurore', 'dc-aurore-brillant', 'dice-noir'], equipped: { dice: 'dc-aurore' }, bags: 500, shards: 9999 } });
     expect(r.profile.owned).not.toContain('dc-aurore');
     expect(r.profile.equipped.dice).toBe('dice-ivoire');
-    expect(r.profile.bags).toBe(10);
+    expect(r.profile.bags).toBe(13); // 10 sacs repris au plus + 3 sacs de bienvenue
     expect(r.profile.shards ?? 0).toBe(0);
   });
 
@@ -114,7 +114,7 @@ describe('dés de collection : serveur', () => {
     let o = await api('/bags/open', {}, r.token);
     expect(o.ok).toBe(true);
     expect(o.profile.owned).toContain(o.result.id);
-    expect(o.profile.bags).toBe(9);
+    expect(o.profile.bags).toBe(12); // 10 repris + 3 de bienvenue - 1
     let fx: string | null = o.result.kind === 'effet' ? o.result.id : null;
     while (o.result.kind !== 'de') { o = await api('/bags/open', {}, r.token); if (o.result.kind === 'effet') fx = o.result.id; }
     expect((await api('/shop/equip', { id: o.result.id }, r.token)).profile.equipped.dice).toBe(o.result.id);

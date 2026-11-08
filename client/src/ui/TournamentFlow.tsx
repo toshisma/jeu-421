@@ -130,7 +130,13 @@ export function TournamentFlow({ mode, settings, onSettings, onExit, onCancel, a
         <>
         <GameScreen key={room!.code} controller={controller} settings={settings} onSettings={onSettings} onExit={() => setWatchBracket(true)}
           appearance={appearance} pa={pa} onGameEnd={(st, ctx) => onGameEnd(st, controller.meId, ctx)}
-          tableExit={{ label: 'Voir le tableau', note }} early={early} />
+          tableExit={{ label: 'Voir le tableau', note }} early={early}
+          guestInvite={(st) => {
+            // Seulement quand le tournoi est fini pour le joueur (finale jouée ou éliminé), pas entre deux tours.
+            const tb = currentTableOf(t, session.playerId);
+            const rank = st.ranking.indexOf(session.playerId);
+            return roundIdx === total - 1 || t.rounds[roundIdx].tables.length === 1 || !(rank >= 0 && tb && rank < tb.qualified);
+          }} />
           {/* Tchat de la table, comme à une table en ligne ordinaire. */}
           <Chat session={session} pa={pa} />
         </>

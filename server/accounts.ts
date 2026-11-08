@@ -18,11 +18,11 @@ import { PHRASES } from '../shared/protocol';
 import {
   adjustCoins, applyGameEnd, applyPot, applyTournament, buy, claimDaily, claimPassTier, completeTutorial, setTitle, titleLabel, addSeasonPoints, REWARDS,
   LEAGUES, LEAGUE_DEMOTE, LEAGUE_PRIZES, ALBUM_KEYS, CLUB_CHEST, CLUB_COST, CLUB_EMBLEMS, CLUB_MAX, doPrestige, PRESTIGE_LEVEL, LEAGUE_PROMOTE, LEAGUE_SIZE, REFERRAL_BONUS, REFERRAL_GAMES, REFERRAL_BAGS_MAX, RETURN_DAYS, openChest, claimQuest, equip, levelInfo, rewardFor, sanitizeProfile, newProfile,
-  applyPlainReward, openBag, craftDie, setShowcase, collectionCount, equipFx, BAGS_MAX,
+  applyPlainReward, openBag, craftDie, setShowcase, collectionCount, equipFx, BAGS_MAX, capGuestImport, WELCOME_BAGS,
   type Profile, type RewardContext,
 } from '../shared/progress/profile';
-import { DEFAULT_APPEARANCE } from '../shared/progress/catalog';
-import { SEASONS, collectionDie } from '../shared/progress/dice-collection';
+import { SEASONS } from '../shared/progress/dice-collection';
+import { CAPSULES } from '../shared/cards/catalog';
 import { createSocial } from './social';
 import { createMessages } from './messages';
 import { muteText } from '../shared/moderation';
@@ -144,15 +144,12 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
 
   // --- Inscription / connexion ---------------------------------------------------------------
   /**
-   * Progression d'invité reprise à l'inscription. Les dés de collection, eux, ne se créent que
-   * sur le serveur (un invité garde ses sacs, il les ouvre avec son compte) : on ne reprend ni
-   * dés de collection ni éclats d'un appareil, et au plus 10 sacs.
+   * Progression d'invité reprise à l'inscription. Elle vient du navigateur, donc elle est plafonnée
+   * (capGuestImport : pièces, niveau, objets, statistiques, sacs…). Les dés de collection, eux, ne se
+   * créent que sur le serveur (un invité garde ses sacs, il les ouvre avec son compte) : on ne reprend
+   * ni dés de collection ni éclats d'un appareil.
    */
-  const importGuest = (p: Profile): Profile => {
-    const owned = p.owned.filter((id) => !collectionDie(id));
-    const equipped = collectionDie(p.equipped.dice) ? { ...p.equipped, dice: DEFAULT_APPEARANCE.dice } : p.equipped;
-    return { ...p, owned, equipped, shards: undefined, showcase: undefined, referralBags: undefined, refBase: undefined, lastVisit: undefined, bags: Math.min(10, p.bags ?? 0) };
-  };
+  const importGuest = (p: Profile): Profile => capGuestImport(p);
   router.post('/register', async (req, res) => {
     if (limited(req)) return fail(res, 429, 'Trop de tentatives, réessayez dans quelques minutes.');
     const { username, password, guestProfile } = req.body ?? {};
@@ -164,7 +161,10 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     if (store.userByName(name)) return fail(res, 409, 'Ce pseudo est déjà pris.');
     const recoveryCode = newRecoveryCode();
     // La progression d'invité de cet appareil est reprise une fois, à la création du compte.
-    const profile = guestProfile ? importGuest(sanitizeProfile(guestProfile)) : newProfile();
+    const imported = guestProfile ? importGuest(sanitizeProfile(guestProfile)) : newProfile();
+    // Cadeau de bienvenue : 3 sacs de dés (en plus des sacs repris, ≤ 10 + 3, loin du plafond de 99).
+    // Les 3 boosters de Coups Fourrés sont donnés à la découverte du mode (server/cards.ts, discover).
+    const profile: Profile = { ...imported, bags: Math.min(BAGS_MAX, (imported.bags ?? 0) + WELCOME_BAGS) };
     const u = store.createUser({ id: randomUUID(), username: name, passHash: await scryptHash(password), recoveryHash: await scryptHash(recoveryCode), profile });
     // Parrainage : pseudo de l'ami qui a invité (facultatif).
     const ref = typeof req.body?.referrer === 'string' ? store.userByName(req.body.referrer.trim()) : undefined;
@@ -173,7 +173,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
       // Seules les parties jouées avec le compte comptent pour le parrainage (pas la progression d'invité reprise).
       store.saveProfile(u.id, { ...profile, refBase: profile.stats.played });
     }
-    res.json({ ok: true, token: startSession(u.id), recoveryCode, ...publicProfile(u, profile) });
+    res.json({ ok: true, token: startSession(u.id), recoveryCode, welcome: { bags: WELCOME_BAGS, boosters: CAPSULES.welcomeBoosters }, ...publicProfile(u, profile) });
   });
 
   router.post('/login', async (req, res) => {

@@ -45,6 +45,7 @@ import { useNotifications } from './ui/Social';
 import { useDiscord } from './ui/Discord';
 import { changelogUnseen } from './ui/Changelog';
 import { loadTrayScene } from './ui/DiceTray';
+import { INVITE_DELAY_MS, inviteDue, lastInviteClosed, loadWelcomeGift, markInviteClosed, onGuestInvite, saveWelcomeGift, type InviteGame, type WelcomeGift } from './ui/guestInvite';
 
 // Écrans secondaires : chargés à la demande (voir lazy.ts). L'accueil n'attend aucun d'eux.
 const GameScreen = lazyScreen(() => import('./ui/GameScreen'), 'GameScreen');
@@ -66,6 +67,9 @@ const ModerationScreen = lazyScreen(() => import('./ui/Moderation'), 'Moderation
 /** Coups Fourrés, le mode cartes : tout le mode est chargé à part, seulement quand on l'ouvre. */
 const CfMode = lazyScreen(() => import('./cards/CfMode'), 'CfMode');
 const DixMilleMode = lazyScreen(() => import('./dixmille/DixMille'), 'DixMilleMode');
+/** Invitation à créer un compte (après une partie) et cadeau de bienvenue : chargés quand ils s'affichent. */
+const GuestInvitePopup = lazyScreen(() => import('./ui/GuestInvite'), 'GuestInvitePopup');
+const WelcomeGiftPopup = lazyScreen(() => import('./ui/GuestInvite'), 'WelcomeGiftPopup');
 /** Préchargés en arrière-plan une fois l'accueil affiché (les plus utilisés d'abord). */
 const LIKELY = [GameScreen, OnlineHub, OnlineFlow, TournamentFlow, ShopScreen, SpectateFlow, TutorialScreen, PartySetup, ClubScreen, AlbumScreen];
 
@@ -83,7 +87,7 @@ type Screen =
   | { name: 'friends'; from?: Back }
   | { name: 'messages'; with?: string; from?: Back }
   | { name: 'dixmille'; pending?: DmPending; reset?: number }
-  | { name: 'cf'; pending?: { challenge?: string; watch?: string; tournoi?: boolean }; reset?: number }
+  | { name: 'cf'; pending?: { challenge?: string; watch?: string; tournoi?: boolean; boosters?: boolean }; reset?: number }
   | { name: 'changelog' }
   | { name: 'online'; mode: OnlineMode }
   | { name: 'watch'; code: string; back: Screen }
@@ -92,7 +96,7 @@ type Screen =
   | { name: 'settings'; from?: Back }
   | { name: 'sandbox'; tryFx?: string; from?: Back }
   | { name: 'shop'; from?: Back }
-  | { name: 'account'; tab?: 'login' | 'register' }
+  | { name: 'account'; tab?: 'login' | 'register'; back?: Back }
   | { name: 'leaderboard'; from?: Back }
   | { name: 'legal'; back: Screen }
   | { name: 'pass' }
@@ -238,6 +242,31 @@ export function App() {
   const resumeGame = () => setScreen(resume?.tournament ? { name: 'tournament', mode: { kind: 'resume' } } : resume ? { name: 'online', mode: { kind: 'resume' } } : { name: 'dixmille', pending: { resume: true } });
   const onJoinScheduled = (code: string, pay: boolean) => setScreen({ name: 'tournament', mode: { kind: 'join', code, pay } });
 
+  // --- Invitation à créer un compte (invités, après une partie) et cadeau de bienvenue -------------
+  const [guestInvite, setGuestInvite] = useState<InviteGame | null>(null);
+  const isAccountRef = useRef(pa.isAccount);
+  isAccountRef.current = pa.isAccount;
+  useEffect(() => {
+    if (STANDALONE) return;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const off = onGuestInvite((game) => {
+      clearTimeout(t);
+      // Un peu après l'écran de fin, le temps de voir le résultat ; revérifié au moment d'afficher.
+      t = setTimeout(() => {
+        if (inviteDue({ isAccount: isAccountRef.current, server: !STANDALONE, lastClosed: lastInviteClosed(), now: Date.now() })) setGuestInvite(game);
+      }, INVITE_DELAY_MS);
+    });
+    return () => { off(); clearTimeout(t); };
+  }, []);
+  useEffect(() => { if (pa.isAccount) setGuestInvite(null); }, [pa.isAccount]);
+  const closeInvite = () => { markInviteClosed(); setGuestInvite(null); };
+  const [gift, setGift] = useState<WelcomeGift | null>(loadWelcomeGift);
+  useEffect(() => {
+    const f = () => setGift(loadWelcomeGift());
+    window.addEventListener('421:cadeau', f);
+    return () => window.removeEventListener('421:cadeau', f);
+  }, []);
+
   // --- Barre du bas (tous les écrans) -------------------------------------------------------------
   const inGame = useInGame();
   const [plus, setPlus] = useState<PlusSheet | null>(null);
@@ -356,7 +385,8 @@ export function App() {
     case 'shop':
       return <ShopScreen profile={profile} settings={settings} onBuy={pa.buyItem} onEquip={pa.equipItem} onBack={backTo(screen.from)} />;
     case 'account':
-      return <AccountScreen key={screen.tab ?? 'register'} initial={screen.tab} pa={pa} onBack={home} onPrivacy={() => setScreen({ name: 'legal', back: { name: 'account' } })} />;
+      return <AccountScreen key={screen.tab ?? 'register'} initial={screen.tab} pa={pa} onBack={screen.back ? backTo(screen.back) : home}
+        onRegistered={screen.back ? backTo(screen.back) : undefined} onPrivacy={() => setScreen({ name: 'legal', back: { name: 'account' } })} />;
     case 'tutorial':
       return <TutorialScreen controller={screen.controller} settings={settings} onSettings={setSettings} onExit={classic} appearance={profile.equipped} pa={pa} />;
     case 'boss': {
@@ -422,6 +452,9 @@ export function App() {
   } })();
   // Invitation d'un ami : bandeau partout, sauf quand on est déjà à une table en ligne.
   const atTable = screen.name === 'online' || screen.name === 'tournament' || screen.name === 'watch' || screen.name === 'dixmille';
+  // Cadeau de bienvenue : seulement pour ce compte, hors partie et hors des écrans où l'on ouvre déjà ses cadeaux.
+  const showGift = !STANDALONE && pa.isAccount && !!gift && gift.user === pa.session?.username && !inGame && !guestInvite
+    && screen.name !== 'account' && screen.name !== 'legal' && screen.name !== 'collection' && !(screen.name === 'cf' && screen.pending?.boosters);
   return (
     <div className={`app-shell${inGame ? ' in-game' : ''}`}>
       {/* Zone des écrans : tout ce qui s'y affiche (y compris les fenêtres) reste au-dessus de la barre. */}
@@ -430,6 +463,19 @@ export function App() {
         {!STANDALONE && <FriendOnlineToast pa={pa} />}
         {!STANDALONE && !atTable && screen.name !== 'cf' && <CfChallengeBanner pa={pa} onOpen={go(() => setScreen({ name: 'cf' }))} />}
         {!STANDALONE && !atTable && <InviteBanner pa={pa} onJoin={(code, game) => go(() => joinTable(code, game))()} />}
+        {guestInvite && !pa.isAccount && (
+          <Suspense fallback={null}>
+            <GuestInvitePopup game={guestInvite} onClose={closeInvite}
+              onCreate={() => { const back: Back = guestInvite === 'cf' ? 'cf' : guestInvite === 'courtisan' ? 'dixmille' : 'classic'; markInviteClosed(); setGuestInvite(null); go(() => setScreen({ name: 'account', tab: 'register', back }))(); }} />
+          </Suspense>
+        )}
+        {showGift && gift && (
+          <Suspense fallback={null}>
+            <WelcomeGiftPopup gift={gift} bags={profile.bags ?? 0} onClose={() => saveWelcomeGift(null)}
+              onBags={() => { saveWelcomeGift({ ...gift, bags: false }); go(() => setScreen({ name: 'collection', from: ctx, open: true }))(); }}
+              onBoosters={() => { saveWelcomeGift({ ...gift, boosters: false }); go(() => setScreen({ name: 'cf', pending: { boosters: true }, reset: Date.now() }))(); }} />
+          </Suspense>
+        )}
         <NavSheets sheet={plus} setSheet={setPlus} a={nav} pa={pa} settings={settings} onChangeSettings={setSettings} discord={discord.discord}
           displayName={settings.name} avatar={settings.avatar} />
       </div>

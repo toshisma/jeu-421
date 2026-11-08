@@ -7,6 +7,7 @@
  * « joueur d'animations » (`useDmAnimator`) rejoue chaque action dans le bac 3D, pour tout le monde
  * de la même façon (graine d'animation partagée en ligne).
  */
+import { useGuestInviteAtEnd } from '../ui/guestInvite';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { act, currentPlayer, diceAfter, inPlay, newGame, pickPoints, ranking, validSelections, DM_LEVELS, DM_TARGETS, DM_VALUES, type DmAction, type DmEvent, type DmLevel, type DmState } from '../../../shared/dixmille/engine';
 import { decide } from '../../../shared/dixmille/ai';
@@ -619,6 +620,8 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
   };
   // Barre du bas : compacte pendant la partie, même confirmation que « Quitter ».
   useNavGuard({ game: true, ask: okToLeave });
+  // Écran de fin affiché : invitation à créer un compte (invités ; App décide).
+  useGuestInviteAtEnd('courtisan', !!end);
 
   return (
     <DmBoard tray={tray} anim={anim} seats={seats} canAct settings={settings} onSettings={onSettings} appearance={appearance}
@@ -711,6 +714,7 @@ function DmOnlineGame({ session, pa, settings, onSettings, appearance, onExit, o
     onExit();
   };
   useNavGuard({ game: true, ask: okToLeave, leave: () => session.leave() });
+  useGuestInviteAtEnd('courtisan', endShown && !session.spectating);
   const meSeat = seats.find((x) => x.isMe);
   const stake = t?.stake ?? 0;
   const pot = t?.pot ?? 0;

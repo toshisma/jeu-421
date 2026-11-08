@@ -57,7 +57,7 @@ export function SpectateFlow({ code, settings, onSettings, onExit, pa }: {
   }
   return (
     <>
-      <GameScreen controller={controller} settings={settings} onSettings={onSettings} onExit={onExit}
+      <GameScreen controller={controller} settings={settings} onSettings={onSettings} onExit={onExit} guestInvite={false}
         appearance={pa.profile.equipped} pa={pa} tableExit={{ label: 'Quitter' }} />
       <Notices session={session} />
       <Chat session={session} pa={pa} />

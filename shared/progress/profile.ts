@@ -245,6 +245,77 @@ export function sanitizeProfile(raw: unknown): Profile {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Reprise d'un profil d'invité à la création d'un compte
+
+/**
+ * Plafonds de la progression d'invité reprise à l'inscription. Le profil d'un invité vit dans son
+ * navigateur : n'importe qui peut le modifier. On reprend donc ce qu'un vrai joueur gagne normalement
+ * en jouant sans compte, mais jamais plus.
+ */
+export const GUEST_IMPORT = {
+  /** Pièces reprises au plus. */
+  coins: 300,
+  /** Niveau repris au plus (l'XP est ramenée au début de ce niveau). */
+  level: 10,
+  /** Sacs de dés gardés en invité repris au plus. */
+  bags: 10,
+  /** Statistiques : chaque compteur au plus. */
+  stat: 3000,
+  /** Objets de la boutique repris : valeur totale au plus (en pièces), du moins cher au plus cher. */
+  shopBudget: 3000,
+} as const;
+/** Cadeau de bienvenue d'un nouveau compte : sacs de dés (en plus des sacs repris). */
+export const WELCOME_BAGS = 3;
+
+/** XP totale au début du niveau `level`. */
+export const xpForLevel = (level: number) => { let xp = 0; for (let l = 1; l < level; l++) xp += xpToNext(l); return xp; };
+
+/**
+ * Profil d'invité (déjà passé par sanitizeProfile) ramené à des valeurs plausibles :
+ * pièces, XP et statistiques plafonnées ; ni prestige, ni titres (pass, ligues, saisons, patrons),
+ * ni pass du mois, ni série de connexions, ni défis du jour en cours ; objets limités aux objets de
+ * la boutique achetables à ce niveau (pas d'objets d'événement ni du pass) ; succès gardés seulement
+ * s'ils sont cohérents avec les statistiques reprises ; sacs plafonnés. Les dés de collection, éclats,
+ * vitrine et effets ne viennent jamais d'un appareil (ils ne se créent que sur le serveur).
+ */
+export function capGuestImport(p: Profile): Profile {
+  const xp = Math.min(p.xp, xpForLevel(GUEST_IMPORT.level));
+  const level = levelInfo(xp).level;
+  const cap = (n: number) => Math.min(GUEST_IMPORT.stat, n);
+  const stats = { ...p.stats };
+  for (const k of Object.keys(stats) as (keyof Stats)[]) stats[k] = cap(stats[k]);
+  stats.won = Math.min(stats.won, stats.played);
+  stats.onlineGames = Math.min(stats.onlineGames, stats.played);
+  stats.onlineWins = Math.min(stats.onlineWins, stats.onlineGames, stats.won);
+  // Objets : gratuits + objets de la boutique (hors événement et pass) de niveau atteint, dans un budget.
+  let budget: number = GUEST_IMPORT.shopBudget;
+  const shop = p.owned.map((id) => getItem(id)).filter((it): it is Item => !!it && it.price > 0 && !it.pass && !it.event && it.level <= level)
+    .sort((a, b) => a.price - b.price);
+  const kept: string[] = [];
+  for (const it of shop) if (it.price <= budget) { budget -= it.price; kept.push(it.id); }
+  const owned = [...new Set([...FREE, ...kept])];
+  const equipped = { ...DEFAULT_APPEARANCE };
+  for (const k of Object.keys(DEFAULT_APPEARANCE) as (keyof Appearance)[]) if (owned.includes(p.equipped[k])) equipped[k] = p.equipped[k];
+  const base: Profile = {
+    version: 1, xp, coins: Math.min(GUEST_IMPORT.coins, p.coins), owned, equipped, stats, achievements: {},
+    tutorial: p.tutorial, album: p.album, albumPages: p.albumPages, bossWeek: p.bossWeek, chestAt: p.chestAt, pity: p.pity,
+    bags: Math.min(GUEST_IMPORT.bags, p.bags ?? 0),
+  };
+  for (const k of ['month', 'prevMonth'] as const) {
+    const m = p[k];
+    if (m) base[k] = { ...m, played: cap(m.played), won: Math.min(cap(m.won), cap(m.played)), c421: cap(m.c421) };
+  }
+  if (p.vsAi) base.vsAi = Object.fromEntries(Object.entries(p.vsAi).map(([n, x]) => [n, { w: cap(x.w), l: cap(x.l) }]));
+  // Courtisan : parties et meilleur tour ; pas de pot (les Groschen n'existent qu'avec un compte).
+  if (p.dm) base.dm = { games: cap(p.dm.games), wins: Math.min(cap(p.dm.wins), cap(p.dm.games)), bestTurn: p.dm.bestTurn, bestPot: 0 };
+  // Succès : seulement ceux que les statistiques reprises justifient.
+  const input = { stats, level, purchases: purchases(base), owned };
+  for (const a of ACHIEVEMENTS) if (p.achievements[a.id] && a.value(input) >= a.target) base.achievements[a.id] = p.achievements[a.id];
+  if (p.title && availableTitles(base).includes(p.title)) base.title = p.title;
+  return base;
+}
+
+// ---------------------------------------------------------------------------------------------
 // Récompenses de fin de partie
 
 export interface RewardContext {

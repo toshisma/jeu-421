@@ -4448,3 +4448,58 @@ button.mode-chip { cursor: pointer; }
 .app-view .h2-toast { bottom: 16px; }
 /* Pied des écrans de Coups Fourrés (Mes decks…) : ne pas hériter du « pied » des cartes (12 px de haut). */
 .cf-screen > .cf-foot { display: block; height: auto; font: inherit; letter-spacing: normal; text-transform: none; color: inherit; }
+
+/* ---------- Invitation à créer un compte (invités, après une partie) et cadeau de bienvenue ----------
+ * Fenêtre de comptoir : ardoise chaude, liseré laiton, illustration des cadeaux (sacs de dés + boosters).
+ * Ne se ferme jamais toute seule : croix, « Plus tard », Échap ou toucher à côté. */
+.gi-veil { position: fixed; inset: 0; z-index: 150; display: grid; place-items: center; padding: 12px 16px; background: rgba(8, 10, 12, 0.72); animation: fade 0.25s; overflow-y: auto; }
+.gi-card { position: relative; width: min(400px, 100%); max-height: 100%; overflow: hidden auto; padding: 16px 18px 12px; border-radius: 20px; text-align: center;
+  background: radial-gradient(120% 70% at 50% 0%, #3b2f1c 0%, #2a2620 38%, var(--ardoise) 70%);
+  border: 1px solid rgba(241, 204, 125, 0.55); box-shadow: 0 0 0 4px rgba(0,0,0,0.25), 0 30px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.08);
+  animation: gi-in 0.35s cubic-bezier(.2,1.3,.4,1) both; }
+@keyframes gi-in { from { opacity: 0; transform: translateY(18px) scale(0.94); } to { opacity: 1; transform: none; } }
+.gi-rays { position: absolute; left: 50%; top: 92px; width: 420px; height: 420px; margin: -210px 0 0 -210px; pointer-events: none; opacity: 0.22;
+  background: repeating-conic-gradient(from 0deg, rgba(255, 214, 110, 0.55) 0deg 7deg, transparent 7deg 22deg);
+  -webkit-mask: radial-gradient(circle, #000 0%, transparent 62%); mask: radial-gradient(circle, #000 0%, transparent 62%); animation: rays 60s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .gi-rays, .gi-card { animation: none; } }
+.gi-x { position: absolute; top: 8px; right: 8px; z-index: 2; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 0; cursor: pointer;
+  background: rgba(0,0,0,0.45); color: var(--blanc); box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35); }
+.gi-x:hover { background: rgba(0,0,0,0.7); box-shadow: inset 0 0 0 2px var(--blanc); }
+.gi-kicker { position: relative; margin: 2px 44px 0; font: 700 0.8125rem/1.2 var(--cond); letter-spacing: 0.08em; text-transform: uppercase; color: #f1cc7d; }
+.gi-title { position: relative; margin: 2px 40px 0; font: 800 1.75rem/1.05 var(--cond); color: var(--blanc); text-shadow: 0 2px 0 rgba(0,0,0,0.4); }
+.gi-art { position: relative; display: flex; align-items: flex-end; justify-content: center; gap: 6px; height: 104px; margin: 8px 0 4px; }
+.gi-art.small { height: 88px; }
+.gi-glow { position: absolute; left: 50%; bottom: 4px; width: 250px; height: 70px; transform: translateX(-50%); border-radius: 50%; background: radial-gradient(ellipse, rgba(255, 205, 110, 0.38), transparent 70%); }
+.gi-group { position: relative; display: flex; align-items: flex-end; width: 116px; height: 100%; justify-content: center; }
+.gi-group > span { position: absolute; bottom: 6px; filter: drop-shadow(0 6px 8px rgba(0,0,0,0.5)); }
+.gi-b1 { left: 4px; transform: rotate(-10deg); } .gi-b3 { right: 4px; transform: rotate(10deg); } .gi-b2 { left: 50%; bottom: 2px !important; transform: translateX(-50%); }
+.gi-p1 { left: 10px; transform: rotate(-14deg); transform-origin: bottom center; } .gi-p3 { right: 10px; transform: rotate(14deg); transform-origin: bottom center; }
+.gi-p2 { left: 50%; transform: translateX(-50%); }
+.gi-group .cf-pack, .gi-group .bag-icon { display: block; }
+.gi-count { position: absolute; right: -2px; top: 2px; z-index: 1; padding: 1px 7px; border-radius: 999px; font: 800 0.9375rem/1.3 var(--cond); font-style: normal;
+  color: #1a1408; background: linear-gradient(180deg, #f6dc98, #d29b38); box-shadow: 0 2px 0 #7a5410, 0 4px 10px rgba(0,0,0,0.4); }
+.gi-plus { align-self: center; font: 800 2rem/1 var(--cond); color: #f1cc7d; text-shadow: 0 2px 0 rgba(0,0,0,0.5); margin-top: 18px; }
+.gi-offer { position: relative; margin: 4px 0 10px; font-size: 1rem; line-height: 1.35; color: var(--texte-2); }
+.gi-offer b { color: #f6dc98; }
+.gi-perks { position: relative; list-style: none; margin: 0 0 12px; padding: 10px 12px; display: grid; gap: 8px; text-align: left; border-radius: 14px; background: rgba(0,0,0,0.22); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06); }
+.gi-perks li { display: flex; align-items: center; gap: 10px; font-size: 0.9375rem; line-height: 1.25; }
+.gi-ic { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: #f1cc7d; background: rgba(241, 204, 125, 0.14); box-shadow: inset 0 0 0 1px rgba(241, 204, 125, 0.35); }
+.btn.gi-cta { position: relative; width: 100%; font-weight: 800; letter-spacing: 0.01em; color: #1a1408; background: linear-gradient(180deg, #f6dc98, #d29b38);
+  box-shadow: 0 4px 0 #7a5410, 0 10px 22px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.6); }
+.btn.gi-cta:hover:not(:disabled) { background: linear-gradient(180deg, #fbe6ad, #dca545); }
+.btn.gi-cta:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 2px 0 #7a5410; }
+.btn.gi-cta.violet { color: var(--blanc); background: linear-gradient(180deg, #7a52b8, #4a2c78); box-shadow: 0 4px 0 #2a1648, 0 10px 22px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.25); }
+.btn.gi-cta.violet:hover:not(:disabled) { background: linear-gradient(180deg, #8a62c8, #5a3a8a); }
+.gi-gifts { position: relative; display: grid; gap: 12px; margin: 4px 0 6px; }
+.gi-fine { position: relative; margin: 8px 0 0; font-size: 0.8125rem; color: var(--texte-3); }
+.btn.gi-later { position: relative; margin-top: 2px; min-height: 40px; color: var(--texte-3); }
+@media (max-height: 700px) {
+  .gi-card { padding: 12px 14px 8px; }
+  .gi-title { font-size: 1.5rem; }
+  .gi-art { height: 86px; margin: 4px 0 2px; }
+  .gi-perks { gap: 5px; padding: 8px 10px; margin-bottom: 10px; }
+  .gi-perks li { font-size: 0.875rem; }
+  .gi-ic { width: 26px; height: 26px; }
+  .gi-offer { margin: 2px 0 8px; font-size: 0.9375rem; }
+  .gi-fine { margin-top: 6px; }
+}

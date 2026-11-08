@@ -60,7 +60,11 @@ export function QuestsPanel({ profile, onClaim }: { profile: Profile; onClaim: (
 // ---------------------------------------------------------------------------------------------
 // Compte
 
-export function AccountScreen({ pa, onBack, onPrivacy, initial = 'register' }: { pa: ProfileApi; onBack: () => void; onPrivacy?: () => void; initial?: 'login' | 'register' }) {
+/**
+ * `onRegistered` : après la création du compte et le code de récupération, retour là où l'on était
+ * (par exemple le menu du jeu, depuis l'invitation de fin de partie).
+ */
+export function AccountScreen({ pa, onBack, onPrivacy, onRegistered, initial = 'register' }: { pa: ProfileApi; onBack: () => void; onPrivacy?: () => void; onRegistered?: () => void; initial?: 'login' | 'register' }) {
   const [tab, setTab] = useState<'login' | 'register' | 'recover'>(initial);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -70,6 +74,8 @@ export function AccountScreen({ pa, onBack, onPrivacy, initial = 'register' }: {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [recovery, setRecovery] = useState<string | null>(null);
+  /** Le code affiché vient d'une inscription (pas d'un mot de passe oublié). */
+  const [justRegistered, setJustRegistered] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [rank, setRank] = useState<number | null>(null);
   const [toast, showToast] = useToast();
@@ -87,9 +93,10 @@ export function AccountScreen({ pa, onBack, onPrivacy, initial = 'register' }: {
   };
 
   if (recovery) {
+    const done = () => { setRecovery(null); if (justRegistered && onRegistered) onRegistered(); };
     return (
-      <Shell title="Code de récupération" onBack={() => setRecovery(null)} icon="key"
-        foot={<BigAction icon="check" tone="green" label="C'est noté" onClick={() => setRecovery(null)} />}>
+      <Shell title="Code de récupération" onBack={done} icon="key"
+        foot={<BigAction icon="check" tone="green" label="C'est noté" onClick={done} />}>
         <div className="k-stack">
           <p className="k-warn">Notez ce code et gardez-le en lieu sûr : c'est <b>le seul moyen</b> de récupérer votre compte si vous oubliez votre mot de passe (il n'y a pas d'adresse e-mail).</p>
           <div className="recovery">{recovery}</div>
@@ -175,7 +182,7 @@ export function AccountScreen({ pa, onBack, onPrivacy, initial = 'register' }: {
   const canSubmit = !busy && username.trim().length >= 3 && password.length >= 8;
   const submit = () => {
     if (!canSubmit) return;
-    if (tab === 'register') void run(() => pa.register(username, password, importGuest, referrer));
+    if (tab === 'register') void run(async () => { const code = await pa.register(username, password, importGuest, referrer); setJustRegistered(true); return code; });
     else if (tab === 'login') void run(() => pa.login(username, password));
     else void run(() => pa.recover(username, code, password));
   };

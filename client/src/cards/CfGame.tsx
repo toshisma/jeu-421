@@ -45,6 +45,7 @@ import {
   TrapSheet, EffectChips, type FicheTarget, type LogLine,
 } from './BoardParts';
 import { activeEffects } from './effects';
+import { useGuestInviteAtEnd } from '../ui/guestInvite';
 import { screenTour, type TourStep } from './tour';
 
 export { EndScreen, Mulligan, ChoiceWindow, RespondPanel } from './BoardParts';
@@ -433,6 +434,8 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   };
   // Barre du bas : compacte pendant la partie ; partir par la barre = même règle que ✕.
   useNavGuard({ game: true, ask: okToLeave, leave: () => { const c = controller as { close?: () => void }; if (isOver() && c.close) c.close(); else controller.leave(); } });
+  // Écran de fin affiché : invitation à créer un compte (invités ; App décide).
+  useGuestInviteAtEnd('cf', !!snap && (snap.finished || v?.phase === 'over') && !animating && !spectator);
 
   if (!snap || !v || !meP) {
     return <div className="cfn-board"><div className="cfn-loading" role="status"><span className="cf-wait-spin" aria-hidden><i /><i /><i /></span>Préparation de la table…</div></div>;

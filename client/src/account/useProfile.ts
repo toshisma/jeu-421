@@ -3,6 +3,7 @@
  * (enregistré sur le serveur, qui fait foi). L'interface utilise les mêmes actions dans les deux cas.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { saveWelcomeGift } from '../ui/guestInvite';
 import type { GameState } from '../../../shared/engine';
 import {
   applyGameEnd, buy, claimDaily, claimPassTier, claimQuest, completeTutorial, computeReward, didWin, equip, loadProfile, saveProfile, sanitizeProfile, setTitle, addSeasonPoints, doPrestige,
@@ -82,9 +83,11 @@ export function useProfile(enabled: boolean) {
   }, [setProfile]);
 
   const register = useCallback(async (username: string, password: string, importGuest: boolean, referrer?: string) => {
-    const r = await api<{ token: string; user: PublicUser; profile: Profile; recoveryCode: string }>('/register', {
+    const r = await api<{ token: string; user: PublicUser; profile: Profile; recoveryCode: string; welcome?: { bags: number; boosters: number } }>('/register', {
       body: { username, password, guestProfile: importGuest ? loadProfile() : undefined, referrer: referrer?.trim() || undefined },
     });
+    // Cadeau de bienvenue (3 sacs de dés, 3 boosters) : message au premier passage après l'inscription.
+    if (r.welcome) saveWelcomeGift({ user: r.user.username, bags: r.welcome.bags > 0, boosters: r.welcome.boosters > 0 });
     signIn(r);
     return r.recoveryCode;
   }, [signIn]);

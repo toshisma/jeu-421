@@ -79,7 +79,7 @@ export function PartyGame({ controller, settings, onSettings, onExit, appearance
   }, [controller]);
   return (
     <>
-      <GameScreen controller={controller} settings={{ ...settings, shake: false }} onSettings={onSettings} onExit={onExit} appearance={appearance} />
+      <GameScreen controller={controller} settings={{ ...settings, shake: false }} onSettings={onSettings} onExit={onExit} guestInvite={false} appearance={appearance} />
       {handoff && (
         <div className="handoff" role="dialog" aria-label="Passer le téléphone">
           <div className="handoff-card">
