@@ -7,6 +7,12 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.47', date: '2026-11-08T17:30:00+01:00', title: 'Nouveau menu principal', items: [
+    'Un menu principal pour tout le jeu : votre profil et vos pièces en haut, les 3 jeux (421, Coups Fourrés, Le Courtisan) en grandes cartes, vos sacs de dés à ouvrir et votre collection bien en vue, et en bas Accueil · Amis · Collection · Boutique · Plus.',
+    'Chaque jeu a un menu allégé qui ne garde que ce qui le concerne (jouer, tournois, classement…), avec un bouton « ← Menu » pour revenir. Rien n’a disparu : tout ce qui est commun à tous les jeux est passé dans le menu principal.',
+    'Les pièces deviennent la monnaie de tout le jeu (boutique) : on en gagne maintenant aussi à Coups Fourrés, comme au 421 et au Courtisan.',
+    'Coups Fourrés donne aussi des sacs de dés : on en trouve désormais dans les trois jeux.',
+  ] },
   { version: '0.46', date: '2026-11-08T07:30:00+01:00', title: 'Coups Fourrés : 90 cartes, et Le Courtisan a son menu', items: [
     'Coups Fourrés : 40 nouvelles cartes, 10 par famille (Le Garde champêtre, La Fée verte, La Souricière, L’Effet papillon…). Elles arrivent dans vos boosters ; vos collections sont gardées.',
     'Grand rééquilibrage testé sur des dizaines de milliers de parties : les decks Pièges ne dominent plus, chaque famille gagne entre 47 et 53 %, et on joue de nouveau environ une carte payante par manche (combos possibles en économisant). Quelques cartes connues changent : Leurre, Mise en bouche, Tournée du patron, Mouchard…',

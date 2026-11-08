@@ -28,7 +28,7 @@ Tout le texte du jeu est **en français** (vouvoiement côté joueurs). Réponds
 | Statistiques publiques et admin, alertes admin | `server/stats.ts` |
 | Base de données (tables, requêtes) | `server/db.ts` |
 | Navigation entre écrans | `client/src/App.tsx` |
-| Accueil (vitrine 3D, tuiles « Aujourd'hui », barre du bas, menu « Plus ») | `client/src/ui/Home.tsx` (l'ancien `Home` de `Screens.tsx` n'est plus utilisé) |
+| Menu principal (0.47 : profil + pièces, vitrine 3D, 3 jeux, sacs de dés et collection en vue, étagère Cadeau/Coffre/Défis/Pass, barre du bas Accueil · Amis · Collection · Boutique · Plus) | `client/src/ui/Home.tsx` ; menu du 421 : `client/src/ui/ClassicMenu.tsx` ; menus de mode réduits à ce qui les concerne, bouton « ← Menu » |
 | Réglages, bac d'essai, config solo | `client/src/ui/Screens.tsx` |
 | Messages privés entre amis | `server/messages.ts`, `client/src/messages.ts`, `client/src/ui/Messages.tsx` |
 | Mode spectateur | `client/src/ui/SpectateFlow.tsx`, `server/app.ts` (`spectate:*`) |
@@ -47,6 +47,7 @@ Tout le texte du jeu est **en français** (vouvoiement côté joueurs). Réponds
 
 ## Principes à respecter
 - **Le serveur fait foi** pour les comptes : récompenses, sacs, mises et défis sont recalculés côté serveur. Les invités ont un profil local (`localStorage` `421.profil`).
+- **Pièces = monnaie générale** (cosmétiques) et **sacs de dés** gagnables dans les 3 jeux, calculés par le serveur, barème et rythme du 421 (compteur de sac garanti commun).
 - **Gains volontairement bas** (Sam les a réduits trois fois : succès divisés par 4 en 0.30, pass à paliers croissants ≈ 10 700 points). Ne pas les gonfler sans qu'il le demande.
 - **Mises en scène** : seuls le 4-2-1 et les trois as ont le ralenti / gros plan. Sam a refusé l'extension aux brelans.
 - **Sacs de dés et boosters = pur hasard** (Sam ne veut pas de rare garantie).
