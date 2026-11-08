@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { BagIcon } from './BagIcon';
 import { accessoryEmoji } from '../../../shared/progress/catalog';
-import { DAILY_REWARDS, chestWait, dailyStatus, levelInfo, passProgress, seasonOf, titleLabel, type Profile } from '../../../shared/progress/profile';
+import { DAILY_REWARDS, chestWait, collectionCount, dailyStatus, levelInfo, passProgress, seasonOf, titleLabel, type Profile } from '../../../shared/progress/profile';
 import { dailyQuests, questsFor, today } from '../../../shared/progress/quests';
 import { activeEvent, coinBoost, happyHour } from '../../../shared/progress/events';
 import { CURRENT_VERSION } from '../../../shared/changelog';
@@ -45,7 +45,9 @@ export interface HomeProps {
   /** Les trois jeux. */
   onClassic: () => void; onCards: () => void; onDixMille: () => void;
   /** Le général. */
-  onShop: () => void; onAccount: () => void; onLogin: () => void; onCollection: () => void; onFriends: () => void; onMessages: () => void;
+  onShop: () => void; onAccount: () => void; onLogin: () => void;
+  /** Collection de dés ; `open` : ouvrir tout de suite un sac (écran d'ouverture). */
+  onCollection: (open?: boolean) => void; onFriends: () => void; onMessages: () => void;
   onSettings: () => void; onSandbox: () => void; onLegal: () => void; onPass: () => void; onStats: () => void; onClub: () => void;
   onDuels: () => void; onRecap: () => void; onChangelog: () => void; onDuelPlay: (d: DuelPlay) => void; openNotifs?: boolean;
   onAdmin?: () => void; onModeration?: () => void;
@@ -197,6 +199,9 @@ export function Home(props: HomeProps) {
   const passReady = Array.from({ length: pass.tier }, (_, i) => i + 1).filter((t) => !season.claimed.includes(t)).length;
   const hLeft = (ms: number) => { const m = Math.ceil(ms / 60000); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`; };
   const bags = profile.bags ?? 0;
+  const coll = collectionCount(profile);
+  // Dernier dé de collection obtenu (le profil garde l'ordre d'arrivée).
+  const lastDie = [...profile.owned].reverse().find((id) => id.startsWith('dc-'))?.replace('-brillant', '') ?? null;
 
   const openChest = async () => {
     sound.unlock(); sound.rattle();
@@ -234,7 +239,7 @@ export function Home(props: HomeProps) {
     if (props.resume && !STANDALONE) return <button className="home-banner resume" onClick={props.onResume}><Icon name="resume" size={20} /><span><b>{props.resume.tournament ? 'Tournoi du 421 en cours' : props.resume.courtisan ? 'Partie du Courtisan en cours' : 'Partie de 421 en cours'}</b><small>Table {props.resume.code}</small></span><em>Reprendre</em></button>;
     const salon = prog?.slots.find((x) => x.status === 'salon' && x.registered && x.code);
     if (salon && props.onJoinScheduled) return <button className="home-banner resume" onClick={() => props.onJoinScheduled!(salon.code!, false)}><Icon name="trophy" size={20} /><span><b>Votre tournoi de {salon.hour} h commence !</b><small>Le salon est ouvert : rejoignez-le</small></span><em>Rejoindre</em></button>;
-    if (pa.welcomeBack) return <button className="home-banner gift" onClick={() => { pa.dismissWelcome(); props.onCollection(); }}><Icon name="gift" size={20} /><span><b>Content de vous revoir !</b><small>Un sac de dés vous attend dans la Collection.</small></span></button>;
+    if (pa.welcomeBack) return <button className="home-banner gift" onClick={() => { pa.dismissWelcome(); props.onCollection(true); }}><Icon name="gift" size={20} /><span><b>Content de vous revoir !</b><small>Un sac de dés vous attend dans la Collection.</small></span></button>;
     if (!STANDALONE && !pa.isAccount) return <button className="home-banner account" onClick={props.onAccount}><Icon name="key" size={20} /><span><b>Gardez votre progression</b><small>Compte gratuit : amis, classements, tous les jeux</small></span><em>Créer</em></button>;
     if (happyHour(now)) return <HappyHourBanner />;
     if (ev) return <EventBanner onShop={props.onShop} />;
@@ -293,6 +298,26 @@ export function Home(props: HomeProps) {
             art={<span className="mm-dice"><DieCube id={profile.equipped.dice} size={30} /></span>} />
         </nav>
 
+        {/* Sacs de dés et collection : bien en vue (communs aux trois jeux). */}
+        {!STANDALONE && <section className="mm-coll" aria-label="Sacs de dés et collection">
+          <button className={`mm-bags${bags > 0 ? ' on' : ''}`} onClick={() => props.onCollection(bags > 0)}>
+            <span className="mm-bags-art" aria-hidden><BagIcon size={46} />{bags > 0 && <em className="mm-bags-n">{bags > 99 ? '99+' : bags}</em>}</span>
+            <span className="mm-coll-text">
+              <b>Sacs de dés</b>
+              <small className={bags > 0 ? 'mm-hot' : ''}>{bags > 0 ? (acc ? `${bags} à ouvrir ›` : `${bags} gardé${bags > 1 ? 's' : ''} ›`) : 'À gagner en jouant'}</small>
+            </span>
+            {bags > 0 && <i className="mm-bags-go">{acc ? 'Ouvrir' : 'Voir'}</i>}
+          </button>
+          <button className="mm-dicecoll" onClick={() => props.onCollection()}>
+            <span className="mm-dicecoll-art" aria-hidden><DieCube id={lastDie ?? 'dc-dragon'} size={34} spin={!!lastDie} locked={!lastDie} /></span>
+            <span className="mm-coll-text">
+              <b>Collection</b>
+              <small>{coll.owned}/{coll.total} dés</small>
+              <span className="tile-bar"><i style={{ width: `${(100 * coll.owned) / Math.max(1, coll.total)}%` }} /></span>
+            </span>
+          </button>
+        </section>}
+
         <section className="v2-shelf tex-wood mm-shelf" aria-label={ready ? `Récompenses du jour : ${ready} à récupérer` : 'Récompenses du jour'}>
           {rewards.map((r) => (
             <button key={r.id} className={`v2-rw${r.hot ? ' on' : ''}`} onClick={r.go} aria-label={`${r.title}${r.hot ? ' : prêt' : ''}`}>
@@ -308,7 +333,7 @@ export function Home(props: HomeProps) {
       <nav className="h2-tabs" aria-label="Navigation">
         <button className="on" aria-current="page"><Icon name="home" size={22} /><span>Accueil</span></button>
         {!STANDALONE && <button onClick={props.onFriends}><Icon name="people" size={22} /><span>Amis</span>{(notifs?.requests?.length ?? 0) > 0 && <i className="tab-dot">{notifs!.requests!.length}</i>}</button>}
-        {!STANDALONE && <button onClick={props.onCollection}><Icon name="grid" size={22} /><span>Collection</span>{bags > 0 && <i className="tab-dot">{bags}</i>}</button>}
+        {!STANDALONE && <button onClick={() => props.onCollection()}><Icon name="grid" size={22} /><span>Collection</span>{bags > 0 && <i className="tab-dot">{bags}</i>}</button>}
         <button onClick={props.onShop}><Icon name="shop" size={22} /><span>Boutique</span></button>
         <button onClick={() => setSheet('menu')}><Icon name="menu" size={22} /><span>Plus</span>{(changelogUnseen() || discordDot) && <i className="tab-dot small" />}</button>
       </nav>

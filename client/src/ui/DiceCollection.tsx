@@ -229,7 +229,7 @@ export function CollectionScreen({ pa, onBack, onAccount, onTry, openNow }: {
           <span className="bag-ico" aria-hidden><BagIcon size="1em" /></span>
           <div>
             <b>{bags} sac{bags > 1 ? 's' : ''} à ouvrir</b>
-            <small>On en trouve en jouant au 421 et au Courtisan : environ 1 partie gagnée sur 5, et au plus tard toutes les {BAG_PITY} parties. Aussi au 7e jour de la série et contre le patron de la semaine.</small>
+            <small>On en trouve dans les trois jeux (421, Coups Fourrés, Le Courtisan) : environ 1 partie gagnée sur 5, et au plus tard toutes les {BAG_PITY} parties. Aussi au 7e jour de la série et contre le patron de la semaine.</small>
           </div>
           {pa.isAccount
             ? <button className="btn primary" disabled={bags < 1} onClick={() => setOpening(true)}>Ouvrir un sac</button>

@@ -4341,3 +4341,36 @@ button.mode-chip { cursor: pointer; }
 .plus-set { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border-radius: 999px; cursor: pointer; color: #f5eedf; font: 700 13px/1 var(--font);
   border: 1px solid rgba(255,255,255,0.14); background: linear-gradient(180deg, #2c3d37, #1b2824); box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 3px 0 #0b1512; }
 .plus-set .ico { color: #f1cc7d; }
+
+/* --- Menu principal : sacs de dés et collection, bien en vue --- */
+.mm-coll { flex: none; display: grid; grid-template-columns: 1.15fr 1fr; gap: 8px; }
+.mm-coll > button { position: relative; display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 64px; padding: 6px 10px 6px 8px; border: 0; border-radius: 16px; cursor: pointer; text-align: left; color: #fff; overflow: hidden;
+  box-shadow: 0 0 0 1.5px rgba(241,204,125,0.85), 0 0 14px rgba(224,177,85,0.25), 0 6px 12px rgba(0,0,0,0.35); transition: transform 0.06s; }
+.mm-coll > button:active { transform: translateY(2px); }
+.mm-bags { background: radial-gradient(120% 140% at 20% 0%, #b8552b, #5a1f10); }
+.mm-bags.on { box-shadow: 0 0 0 2px #f6d27a, 0 0 22px rgba(246,210,122,0.6), 0 6px 12px rgba(0,0,0,0.35); }
+.mm-bags.on::after { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 30%; pointer-events: none; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.28), transparent); animation: promo-shine 3.2s ease-in-out infinite; }
+.mm-dicecoll { background: radial-gradient(120% 140% at 20% 0%, #5b3a8f, #2a1747); }
+.mm-bags-art { position: relative; flex: none; width: 50px; height: 50px; display: grid; place-items: center; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5)); }
+.mm-bags.on .mm-bags-art { animation: mm-bag-bob 1.6s ease-in-out infinite; }
+@keyframes mm-bag-bob { 0%, 100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-4px) rotate(-6deg); } 60% { transform: translateY(0) rotate(5deg); } }
+.mm-bags-n { position: absolute; top: -4px; right: -8px; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 12px; font: 800 15px/24px var(--cond); font-style: normal; text-align: center; color: #fff;
+  background: #e8463a; border: 2px solid #fff3d6; box-shadow: 0 2px 6px rgba(0,0,0,0.5); animation: mm-badge-pulse 1.6s ease-in-out infinite; }
+@keyframes mm-badge-pulse { 50% { transform: scale(1.15); } }
+.mm-dicecoll-art { flex: none; width: 46px; height: 46px; display: grid; place-items: center; filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5)); }
+.mm-coll-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.mm-coll-text b { font: 800 18px/1 var(--cond); color: #f6d27a; text-shadow: 0 2px 4px rgba(0,0,0,0.6); white-space: nowrap; }
+.mm-coll-text small { font: 700 12px/1.1 var(--font); color: #fff3e6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm-coll-text .tile-bar { width: 100%; max-width: 90px; margin-top: 1px; }
+.mm-bags-go { flex: none; font: 800 13px/1 var(--font); font-style: normal; padding: 8px 10px; border-radius: 999px; color: #3a1a08; background: linear-gradient(180deg, #f6d98d, #d79f3c); box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 2px 0 #7a4a10; }
+@media (max-width: 400px) { .mm-coll-text b { font-size: 17px; } .mm-bags-go { display: none; } .mm-bags-art { width: 46px; } .mm-coll > button { gap: 8px; padding-right: 8px; } }
+.mm-coll-text b { overflow: hidden; text-overflow: ellipsis; }
+@media (max-height: 700px) {
+  .mm-coll > button { min-height: 56px; padding-top: 4px; padding-bottom: 4px; }
+  .mm-mode { min-height: 54px; }
+  .mm-mode-art { height: 36px; transform: scale(0.88); }
+  .mm-shelf { padding-top: 6px; padding-bottom: 4px; }
+  .mm-shelf .v2-medal { width: 40px; height: 40px; }
+  .mm-shelf .v2-medal .art { transform: scale(0.8); }
+}
+@media (prefers-reduced-motion: reduce) { .mm-bags.on .mm-bags-art, .mm-bags-n, .mm-bags.on::after { animation: none; } }

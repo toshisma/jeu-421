@@ -239,7 +239,7 @@ export function App() {
         profile={profile} pa={pa} avatar={settings.avatar} displayName={settings.name} settings={settings} onChangeSettings={setSettings}
         onClassic={classic} onCards={() => setScreen({ name: 'cf' })} onDixMille={() => setScreen({ name: 'dixmille' })}
         onShop={() => setScreen({ name: 'shop' })} onAccount={() => setScreen({ name: 'account' })} onLogin={() => setScreen({ name: 'account', tab: 'login' })}
-        onCollection={() => setScreen({ name: 'collection' })} onFriends={() => setScreen({ name: 'friends' })} onMessages={() => setScreen({ name: 'messages' })}
+        onCollection={(open) => setScreen({ name: 'collection', open })} onFriends={() => setScreen({ name: 'friends' })} onMessages={() => setScreen({ name: 'messages' })}
         onSettings={() => setScreen({ name: 'settings' })} onSandbox={() => setScreen({ name: 'sandbox' })} onLegal={() => setScreen({ name: 'legal', back: { name: 'home' } })}
         onPass={() => setScreen({ name: 'pass' })} onStats={() => setScreen({ name: 'stats' })} onClub={() => setScreen({ name: 'club' })}
         onDuels={() => setScreen({ name: 'duels' })} onRecap={() => setScreen({ name: 'recap' })} onChangelog={() => setScreen({ name: 'changelog' })}

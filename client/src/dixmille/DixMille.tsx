@@ -544,7 +544,7 @@ function EndDialog({ s, seats, reward, groschen, buttons, waiting, bags = 0, que
           <div className="dm-bag-won" role="status">
             <span className="dm-bag-ico" aria-hidden><BagIcon size={44} /></span>
             <span className="dm-bag-text"><b>{bags > 1 ? `${bags} sacs de dés trouvés !` : 'Sac de dés trouvé !'}</b>
-              <small>{isAccount ? 'Un dé ou un effet au hasard, pour le 421 et le Courtisan.' : 'Gardé pour vous : un compte gratuit permet de l’ouvrir.'}</small></span>
+              <small>{isAccount ? 'Un dé ou un effet au hasard, pour les trois jeux.' : 'Gardé pour vous : un compte gratuit permet de l’ouvrir.'}</small></span>
             {onBags && <button className="btn small primary" onClick={onBags}>{isAccount ? 'Ouvrir' : 'Voir'}</button>}
           </div>
         )}
