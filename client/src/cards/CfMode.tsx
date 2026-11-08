@@ -45,6 +45,7 @@ import { TournamentCard, TournamentScreen } from './CfTournament';
 import { EnigmeEntry, EnigmeScreen } from './CfEnigme';
 import './fonts';
 import { trackEvent } from '../visit';
+import { CardZoomHost } from './zoom';
 
 export interface CfModeProps {
   pa: ProfileApi;
@@ -115,7 +116,12 @@ const gameKey = (c: object) => { let k = keys.get(c); if (!k) { k = ++keyN; keys
 const FACE_COLORS = ['linear-gradient(135deg,#3fbf8a,#1d7a55)', 'linear-gradient(135deg,#b06ad9,#6a2f99)', 'linear-gradient(135deg,#e8964a,#b8552b)', 'linear-gradient(135deg,#5b8cff,#2c54c2)'];
 const initials = (n: string) => n.replace(/[^\p{L}\p{N}]/gu, '').slice(0, 2).toUpperCase() || '?';
 
+/** Le mode, avec l'affichage « carte en grand » commun à tous ses écrans (toucher long, loupe). */
 export function CfMode(props: CfModeProps) {
+  return <><CfModeScreens {...props} /><CardZoomHost /></>;
+}
+
+function CfModeScreens(props: CfModeProps) {
   const { pa } = props;
   const acc = pa.isAccount;
   const [st, setSt] = useState<CfState | null>(null);

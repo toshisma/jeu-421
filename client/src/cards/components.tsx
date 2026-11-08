@@ -9,6 +9,7 @@ import { cardDef, FAMILY_LABEL, RARITY_LABEL, TYPE_LABEL, type CardDef, type Car
 import { CardArt } from './art';
 import { TYPE_META, TypeIcon } from './cardTypes';
 import { FAMILY_SHORT, FAMILY_STYLE, splitEmphasis } from './meta';
+import { useLongPress, zoomCard, ZoomBtn } from './zoom';
 import './fonts';
 
 /** Largeur et hauteur de référence d'une carte complète (prototype). */
@@ -106,6 +107,11 @@ export interface CardViewProps {
   onClick?: () => void;
   className?: string;
   style?: CSSProperties;
+  /**
+   * Lecture en grand : toucher long sur la carte (sans la jouer ni l'ajouter), plus une loupe dans le
+   * coin. Par défaut pour toute carte de moins de 200 px ; 'press' = toucher long seulement ; false = rien.
+   */
+  zoom?: boolean | 'press';
 }
 
 /** Corps de la carte à sa taille de référence (230×322). */
@@ -133,10 +139,12 @@ function CardFace({ def, shiny, isNew, count, gloss }: { def: CardDef; shiny?: b
 }
 
 /** Carte complète, fidèle au prototype (230×322 de base, prop `width` pour la taille affichée). */
-export function CardView({ id, width, shiny, isNew, dimmed, selected, count, onClick, className, style }: CardViewProps) {
+export function CardView({ id, width, shiny, isNew, dimmed, selected, count, onClick, className, style, zoom }: CardViewProps) {
   const def = cardDef(id);
-  if (!def) return null;
   const w = width ?? CARD_W;
+  const z = zoom ?? (w < 200);
+  const press = useLongPress(z && def ? () => zoomCard(id) : null);
+  if (!def) return null;
   const scale = w / CARD_W;
   const classes = cx(
     'cf-card', FAMILY_STYLE[def.family].cls,
@@ -150,10 +158,12 @@ export function CardView({ id, width, shiny, isNew, dimmed, selected, count, onC
       style={{ width: w, height: Math.round(w * CARD_H / CARD_W), ...style }}
       aria-label={onClick ? label : undefined}
       {...clickable(onClick)}
+      {...press}
     >
       <article className={classes} style={scale === 1 ? undefined : { transform: `scale(${scale})` }} aria-label={onClick ? undefined : label}>
         <CardFace def={def} shiny={shiny} isNew={isNew} count={count} gloss={w >= 170 && !onClick} />
       </article>
+      {z === true && <ZoomBtn id={id} />}
     </div>
   );
 }

@@ -38,7 +38,7 @@ import { RulesContent } from './CfInfo';
 import { Pip } from './cfui';
 import { MomentTracker, makeShareImage, shareImage, type ShareMoment } from './share';
 import { TypeIcon } from './cardTypes';
-import { decisionBanner, handHints, keepAfter, planEvents, roundRecap, type Announce } from './board';
+import { decisionBanner, handHints, keepAfter, planEvents, readMs, roundRecap, type Announce } from './board';
 import {
   AnnounceView, ChoiceWindow, EndScreen, Fiche, HabPin, Hand, HelpSheet, Journal, Mulligan, PlayerBox, PlayerSheet, RespondPanel, Tokens,
   TrapSheet, EffectChips, type FicheTarget, type LogLine,
@@ -170,19 +170,38 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
     });
   }, [controller]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2800); return () => clearTimeout(t); }, [toast]);
-  useEffect(() => { if (!notice) return; const t = setTimeout(() => setNotice(null), 3600); return () => clearTimeout(t); }, [notice]);
+  useEffect(() => { if (!notice) return; const t = setTimeout(() => setNotice(null), readMs(notice.text, 4200, 8000)); return () => clearTimeout(t); }, [notice]);
   useEffect(() => { if (!bigShot) return; const t = setTimeout(() => setBigShot(null), 2300); return () => clearTimeout(t); }, [bigShot]); // filet : la file l'efface elle-même
 
   // ----------------------------------------------------------------------------------------------
   // File d'annonces : chaque mise à jour est jouée (dés, annonces une par une) avant d'afficher l'état suivant.
+  const [annOut, setAnnOut] = useState(false);
   const showAnn = useCallback((a: Announce, view: CfView) => new Promise<void>((resolve) => {
     if (!alive.current) { resolve(); return; }
     annView.current = view;
-    annDone.current = () => { annDone.current = null; if (annTimer.current) clearTimeout(annTimer.current); if (alive.current) setAnn(null); resolve(); };
+    annDone.current = () => {
+      annDone.current = null;
+      if (annTimer.current) clearTimeout(annTimer.current);
+      // Carte en grand : elle file à la défausse (un quart de seconde) avant l'étape suivante.
+      if (alive.current && a.style === 'big' && a.card && !reduced()) {
+        setAnnOut(true);
+        setTimeout(() => { if (alive.current) { setAnn(null); setAnnOut(false); } resolve(); }, 240);
+        return;
+      }
+      if (alive.current) setAnn(null);
+      resolve();
+    };
     setAnn(a);
     if (!a.block || spectator) annTimer.current = setTimeout(() => annDone.current?.(), (reduced() ? Math.min(a.ms, 2000) : a.ms) / SPEED);
   }), [spectator]);
   const skipAnn = useCallback(() => annDone.current?.(), []);
+  /** Petite annonce du bandeau en cours : toucher le bandeau la passe (elles durent plus longtemps depuis 0.46). */
+  const stripSkip = useRef<(() => void) | null>(null);
+  const stripWait = useCallback((ms: number) => new Promise<void>((resolve) => {
+    const t = setTimeout(done, ms / SPEED);
+    function done() { clearTimeout(t); if (stripSkip.current === done) stripSkip.current = null; resolve(); }
+    stripSkip.current = done;
+  }), []);
 
   const rollTray = useCallback(async (player: string, dice: number[], keepMask: boolean[], prev: number[]) => {
     const t = tray.current;
@@ -261,7 +280,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         const a = st.ann;
         if (a.style === 'strip') {
           setVoice(a);
-          await wait(reduced() ? Math.min(a.ms, 900) : a.ms);
+          await stripWait(reduced() ? Math.min(a.ms, 1800) : a.ms);
           continue;
         }
         // Grande annonce au centre : le bandeau revient à l'état de la partie (pas deux voix).
@@ -296,7 +315,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
     busy.current = false;
     if (alive.current) { setAnimating(false); setVoice(null); }
     controller.screen?.(false);
-  }, [rollTray, showAnn, spectator, controller]);
+  }, [rollTray, showAnn, stripWait, spectator, controller]);
 
   useEffect(() => controller.subscribe((s, events) => { queue.current.push({ snap: s, events }); void pump(); }), [controller, pump]);
 
@@ -481,11 +500,12 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         {opps.map((o) => (
           <PlayerBox key={o.id} p={o} v={v} seat={seat(o.id)} emote={emotes[o.id]?.e} wide={opps.length === 1}
             active={turnId === o.id || v.waiting.includes(o.id)} focus={focus === 'opp'} tokRef={(el) => { tokRefs.current[o.id] = el; }}
-            onOpen={() => { sound.click(); setSheetOf(o.id); }} last={lastOf(o.id)} />
+            onOpen={() => { sound.click(); setSheetOf(o.id); }} last={lastOf(o.id)}
+            onCard={(id) => { sound.click(); setFiche({ id, owner: o.id }); }} onTrap={() => { sound.click(); setTrapOf(o.id); }} />
         ))}
       </div>
 
-      <div className={`cfn-banner ${say.tone}${bigShot ? ' hush' : ''}${fx('say')}`} role="status" aria-live="polite">
+      <div className={`cfn-banner ${say.tone}${bigShot ? ' hush' : ''}${fx('say')}${voice ? ' skippable' : ''}`} role="status" aria-live="polite" onClick={() => stripSkip.current?.()}>
         <span key={sayKey} className="cfn-say">
           {say.icon && <TypeIcon type={TONE_ICON[say.icon]!} size={14} />}
           {say.title && <b>{say.title}</b>}<span>{say.text}</span>
@@ -545,7 +565,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         </div>
       </div>
 
-      {ann && <AnnounceView a={ann} onDone={skipAnn} spectator={spectator} me={spectator ? '' : me} v={annView.current ?? v} />}
+      {ann && <AnnounceView a={ann} leaving={annOut} onDone={skipAnn} spectator={spectator} me={spectator ? '' : me} v={annView.current ?? v} />}
       {toast && <div key={toast.key} className="cf-toast is-err" role="alert">{toast.text}</div>}
 
       {!overlayOpen && mulliganMine && !tourStep && <Mulligan v={v} legal={legal} pending={pending} onAct={act} clock={clock?.text} />}

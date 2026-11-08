@@ -3423,7 +3423,7 @@ span.cfn-hab { cursor: default; }
 .cfn-count.violet { background: rgba(214,166,255,.16); border-color: rgba(214,166,255,.6); color: #efe0ff; }
 .cfn-share { flex: none; display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 999px; border: 1.5px solid #f1cc7d; background: rgba(241,204,125,.12); color: #f6dfa6; font: 700 12px/1 Barlow, sans-serif; cursor: pointer; animation: cf-head-in .3s ease-out; }
 /* Main en rangée (0.39) : cartes côte à côte, nom entier, ce que fait la carte écrit dessous ; défilement horizontal. */
-.cfn-hand { display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden; padding: 9px 12px 4px; margin: 0 -10px; scroll-padding: 0 12px; scroll-snap-type: x proximity; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.cfn-hand { display: flex; gap: 8px; overflow-x: auto; overflow-y: hidden; padding: 9px 12px 4px; margin: 0; scroll-padding: 0 12px; scroll-snap-type: x proximity; overscroll-behavior-x: contain; touch-action: pan-x; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .cfn-hand::-webkit-scrollbar { display: none; }
 .cfn-hand-slot { flex: none; scroll-snap-align: start; }
 .cfn-hand .cfn-hc { position: relative; width: 88px; height: 146px; }
@@ -3747,7 +3747,7 @@ span.cfn-hab { cursor: default; }
 .cf-enigme-row .tag.trap { background: linear-gradient(160deg, #5a3b85, #1c1030); box-shadow: inset 0 0 0 1px #a99ad0; }
 .cf-enigme-steps { margin: 0; padding: 8px 10px 8px 30px; border-radius: 12px; background: rgba(0,0,0,0.22); font: 500 13px/1.35 var(--font); color: #efe6d4; display: flex; flex-direction: column; gap: 3px; }
 .cf-enigme-hint { margin: 0; font: 600 13px/1.3 var(--font); color: var(--cf-lilac); }
-.cf-enigme .cfn-hand { margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
+.cf-enigme .cfn-hand-wrap { margin: 0 -16px; } .cf-enigme .cfn-hand { padding-left: 16px; padding-right: 16px; }
 .cf-enigme-acts { display: flex; gap: 10px; }
 .cf-enigme-acts .cf-btn { flex: 1; min-width: 0; }
 .cf-enigme-acts .cf-btn.gold { flex: 1.4; }
@@ -4039,3 +4039,95 @@ b .cf-term { font-weight: inherit; }
 .dm-end.many .dm-rank li { padding: 4px 10px; }
 .dm-end.many .dm-rank small { display: none; }
 .dm-end.many .dm-rank .avatar { width: 24px !important; height: 24px !important; font-size: 13px !important; }
+
+
+/* ===== Coups Fourrés : demandes de Sam (novembre) — main qui défile, cartes en grand, choix du deck ===== */
+/* Main : flèches ‹ › (nombre de cartes cachées) dès que la main dépasse, sur ordinateur comme au téléphone. */
+.cfn-hand-wrap { position: relative; margin: 0 -10px; min-width: 0; }
+.cfn-hand-wrap::before, .cfn-hand-wrap::after { content: ''; position: absolute; top: 0; bottom: 0; width: 34px; pointer-events: none; opacity: 0; transition: opacity .2s; z-index: 1; }
+.cfn-hand-wrap::before { left: 0; background: linear-gradient(90deg, rgba(16,9,28,.92), rgba(16,9,28,0)); }
+.cfn-hand-wrap::after { right: 0; background: linear-gradient(270deg, rgba(16,9,28,.92), rgba(16,9,28,0)); }
+.cfn-hand-wrap.more-l::before, .cfn-hand-wrap.more-r::after { opacity: 1; }
+.cfn-hand-arrow { position: absolute; top: calc(50% + 2px); transform: translateY(-50%); z-index: 2; width: 34px; height: 70px; padding: 0; border-radius: 12px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 1.5px solid rgba(241,204,125,.85);
+  background: rgba(28,16,48,.92); color: #f6dfa6; box-shadow: 0 4px 12px rgba(0,0,0,.55); -webkit-tap-highlight-color: transparent; animation: fade .15s; }
+.cfn-hand-arrow.l { left: 3px; } .cfn-hand-arrow.r { right: 3px; }
+.cfn-hand-arrow b { font: 800 13px/1 'Barlow Condensed', Barlow, sans-serif; color: #fff3cf; }
+.cfn-hand-arrow:hover { background: rgba(48,28,80,.95); }
+.cfn-hand-arrow:active { transform: translateY(-50%) scale(.94); }
+.cfn-hc, .cf-card-box, .cfn-mini, .cfn-pin { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+
+/* Loupe dans le coin d'une carte, et la carte en grand par-dessus tout. */
+.cf-zoombtn { position: absolute; right: -5px; bottom: -5px; z-index: 3; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  background: rgba(20,10,36,.92); color: #f6dfa6; border: 1.5px solid rgba(241,204,125,.85); box-shadow: 0 2px 6px rgba(0,0,0,.5); -webkit-tap-highlight-color: transparent; }
+.cf-zoombtn:hover { background: #3b2457; }
+.cf-bigzoom { position: fixed; inset: 0; z-index: 8900; display: flex; align-items: center; justify-content: center; padding: 12px; background: rgba(8,4,16,.82); animation: fade .15s; overflow-y: auto; }
+.cf-bigzoom-in { display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 360px; width: 100%; margin: auto; }
+.cf-bigzoom-in .cfn-act { max-width: 330px; }
+.cf-bigzoom-card { animation: cf-zoom-in .2s ease-out; }
+.cf-bigzoom-card .cfn-big-tx { font-size: 15.5px; line-height: 1.35; }
+.cf-bigzoom-card h3 { font-size: 20px; }
+.cf-bigzoom-card .cfn-big-art { height: clamp(110px, 24vh, 170px); }
+.cf-bigzoom-card .cfn-big-tl { font-size: 11.5px; }
+.cf-bigzoom-flavor { margin: 0; text-align: center; color: #d8cbe9; font: 500 13px/1.35 Barlow, sans-serif; display: flex; flex-direction: column; gap: 3px; }
+.cf-bigzoom-flavor small { color: #a99ad0; font-size: 11.5px; letter-spacing: .04em; text-transform: uppercase; }
+@keyframes cf-zoom-in { from { transform: scale(.86); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Case adverse : la partie « fiche » (bouton) et, devant le joueur, ses Habitués et pièges en mini-cartes. */
+.cfn-pbox { cursor: default; }
+.cfn-pbox-main { all: unset; box-sizing: border-box; min-width: 0; display: flex; flex-direction: column; align-items: stretch; gap: 4px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.cfn-pbox-main:focus-visible { outline: 2px solid #f1cc7d; outline-offset: 2px; border-radius: 8px; }
+.cfn-front { display: flex; align-items: flex-end; gap: 4px; min-width: 0; flex-wrap: nowrap; padding-top: 1px; }
+.cfn-mc { position: relative; flex: none; width: 26px; height: 36px; padding: 0; border-radius: 5px; cursor: pointer; overflow: visible; display: grid; place-items: center;
+  border: 0; background: #1c1030; box-shadow: inset 0 0 0 1.5px var(--mc-edge, #a99ad0), 0 2px 5px rgba(0,0,0,.5); -webkit-tap-highlight-color: transparent; animation: cfn-mc-in .35s ease-out; }
+.cfn-pboxes.n1 .cfn-mc { width: 32px; height: 44px; }
+.cfn-mc .art { position: absolute; inset: 2px; border-radius: 3.5px; overflow: hidden; }
+.cfn-mc .art svg { display: block; width: 100%; height: 100%; }
+.cfn-mc.hab { --mc-edge: #7fdcae; background: linear-gradient(160deg, #2f7a55, #0f3523); }
+.cfn-mc.trap { --mc-edge: #c9a5ff; color: #e3c6ff; }
+.cfn-mc.trap.back { background: repeating-linear-gradient(45deg, #2a1a40 0 4px, #3b2457 4px 8px); }
+.cfn-mc .left { position: absolute; right: -5px; bottom: -5px; min-width: 15px; height: 15px; padding: 0 3px; box-sizing: border-box; border-radius: 8px; background: #1d5c3d; border: 1.5px solid #a8f0cc; font: 800 10px/12px 'Barlow Condensed', sans-serif; color: #fff; text-align: center; }
+.cfn-mc .tag { position: absolute; right: -4px; top: -4px; width: 13px; height: 13px; border-radius: 50%; background: #5a3b85; display: grid; place-items: center; box-shadow: 0 0 0 1px #c9a5ff; }
+.cfn-mc.more { width: auto; min-width: 26px; padding: 0 4px; background: rgba(255,255,255,.08); color: #e9e0f5; font: 800 12px/1 Barlow, sans-serif; box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); }
+@keyframes cfn-mc-in { from { transform: translateY(-8px) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Carte liée (grand enchaînement, petite sœur) et choix d'un Habitué : illustration + loupe. */
+.cfn-related { display: flex; align-items: center; gap: 10px; width: 100%; max-width: 330px; margin: 8px auto 0; padding: 6px 10px 6px 6px; border-radius: 12px; cursor: pointer;
+  border: 1px solid rgba(241,204,125,.45); background: rgba(241,204,125,.08); color: #f6dfa6; text-align: left; font-family: Barlow, sans-serif; }
+.cfn-related-art { flex: none; width: 46px; height: 34px; border-radius: 6px; overflow: hidden; }
+.cfn-related-art svg { display: block; width: 100%; height: 100%; }
+.cfn-related > span:nth-child(2) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cfn-related small { font: 700 10.5px/1 Barlow, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #cdbfe0; }
+.cfn-related b { font: 400 14px/1.1 'Alfa Slab One', Rockwell, serif; color: #fbf6e9; }
+.cfn-param-row button.hab { display: inline-flex; align-items: center; gap: 8px; text-align: left; padding-right: 6px; }
+.cfn-param-row .hab-art { flex: none; width: 40px; height: 30px; border-radius: 5px; overflow: hidden; }
+.cfn-param-row .hab-art svg { display: block; width: 100%; height: 100%; }
+.cf-zoombtn.inline { position: static; flex: none; width: 26px; height: 26px; }
+.cfn-big { position: relative; }
+.cfn-big > .cf-zoombtn { right: 6px; bottom: auto; top: 6px; }
+
+/* Choix « parmi N » (Calcul mental) : une ligne par carte, texte entier, lisible d'emblée. */
+.cf-calc { max-width: 440px; width: 100%; max-height: calc(100dvh - 28px); overflow-y: auto; box-sizing: border-box; }
+.cf-calc h3 { margin-bottom: 2px; }
+.cf-calc > p { margin: 0 0 8px; }
+.cf-calc-list { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.cf-pick-row { display: flex; gap: 12px; align-items: flex-start; padding: 8px; border-radius: 12px; background: rgba(0,0,0,.25); border: 1px solid rgba(255,255,255,.1); text-align: left; }
+.cf-pick-card { position: relative; flex: none; width: 82px; height: 115px; cursor: zoom-in; -webkit-tap-highlight-color: transparent; }
+.cf-pick-card .cfn-hc { position: relative; cursor: inherit; }
+.cf-pick-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cf-pick-tx > b { font: 400 15px/1.1 'Alfa Slab One', Rockwell, serif; color: #fbf6e9; }
+.cf-pick-tx > small { display: inline-flex; align-items: center; gap: 4px; font: 800 10px/1 Barlow, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+.cf-pick-text { padding: 6px 8px; border-radius: 7px; background: linear-gradient(180deg, #fbf3df, #efe2c4); color: #2a1d12; font: 500 13.5px/1.32 Barlow, sans-serif; }
+.cf-pick-text b { color: #3b1c5a; }
+.cf-pick-tx .cfn-act { flex: none; height: 40px; font-size: 16px; align-self: flex-start; margin-top: 2px; min-width: 120px; }
+
+/* Carte adverse annoncée : elle arrive d'en haut (la case du joueur), se lit, puis file à la défausse. */
+.cfn-ann-big.has-card.from-top { animation: cfn-card-in .45s cubic-bezier(.25,.8,.3,1.12); }
+@keyframes cfn-card-in { from { transform: translateY(-34vh) scale(.28) rotate(-8deg); opacity: .2; } to { transform: none; opacity: 1; } }
+.cfn-ann-wrap.out { animation: fade .26s reverse forwards; }
+.cfn-ann-wrap.out .cfn-ann-big.has-card { animation: cfn-card-out .26s ease-in forwards; }
+@keyframes cfn-card-out { to { transform: translate(28vw, 30vh) scale(.22) rotate(14deg); opacity: 0; } }
+.cfn-ann-gist { max-width: 300px; padding: 6px 12px; border-radius: 999px; background: rgba(0,0,0,.62); border: 1.5px solid var(--tc, #f1cc7d); font: 800 14px/1.25 Barlow, sans-serif; color: #fff6dc; }
+.cfn-ann-hint { font: 600 12px/1.3 Barlow, sans-serif; color: #d8cbe9; max-width: 300px; }
+@media (max-height: 680px) { .cfn-ann-card .cfn-big-art { height: 74px; } .cfn-ann-big { gap: 6px; } .cfn-ann-big > b { font-size: 17px; } }
+.cfn-banner.skippable { cursor: pointer; }

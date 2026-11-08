@@ -310,6 +310,8 @@ export interface Announce {
   list?: string[];
   /** Comptes : la manche en bref (cartes jouées, pièges, annulations), 3 lignes au plus. */
   recap?: string[];
+  /** Joueur qui joue la carte (la carte arrive de sa case). */
+  from?: string;
 }
 
 /** La manche en bref, à partir des événements de la manche (ordre du journal). */
@@ -342,6 +344,14 @@ export type PlanStep = { kind: 'dice'; ev: CfEvent; strip?: Announce; after?: An
 // Durées de lecture (touchez pour passer). Raccourcies le 5 novembre : le jeu doit rester vif.
 // 0.39 : tout un peu plus court (Sam : « le jeu est lent »). Toucher l'annonce la passe.
 export const ANN_MS = { big: 1800, strip: 1100, trap: 2300, comptes: 2600, reveal: 3200 };
+/**
+ * Temps de lecture d'un texte (demande de Sam, novembre : « laisser plus longtemps le texte des petits
+ * événements ») : une base, plus ~45 ms par caractère, entre `min` et `max`. Toucher passe toujours.
+ */
+export const readMs = (text: string | undefined, min: number, max: number, base = 1200, perChar = 45) =>
+  Math.round(Math.max(min, Math.min(max, base + (text?.length ?? 0) * perChar)));
+/** Petite annonce du bandeau (événement court) : au moins 2,4 s, plus si le texte est long. */
+export const stripMs = (text: string) => readMs(text, 2400, 5200);
 const TRAP_CONSEQ = new Set(['faux-421', 'croche-patte', 'gueule-bois', 'coup-nenette', 'ardoise-piegee', 'mouchard', 'piege', 'annule', 'verre-de-trop', 'courant-air', 'engrenage']);
 const noDot = (t: string) => t.replace(/[.!]\s*$/, '');
 
@@ -416,8 +426,9 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
             continue;
           }
         }
+        // Carte adverse : en grand au centre (illustration, nom, ce qu'elle fait), le temps de la lire.
         out.push({ kind: 'ann', ev: e, ann: {
-          style: 'big', tone: t, card: e.card, ms: ANN_MS.big,
+          style: 'big', tone: t, card: e.card, ms: readMs(def(e.card)?.text, 2800, 4600, 1600, 18), from: e.player,
           kicker: t === 'habitue' ? 'Habitué installé' : `${TYPE_META[t].label}`,
           title: noDot(e.text), text: def(e.card)?.text,
         } });
@@ -503,12 +514,13 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
         out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'riposte', kicker: 'Riposte', card: 'yeux-piquent', ms: 2400, title: noDot(e.text) } });
         continue;
       case 'manche': case 'tirage':
-        out.push({ kind: 'ann', ev: e, ann: strip(e.text, 'manche', 1600) });
+        out.push({ kind: 'ann', ev: e, ann: strip(e.text, 'manche', readMs(e.text, 2600, 4200)) });
         continue;
       case 'commande': {
         // Commande du comptoir : annoncée en grand au début de la manche (elle reste écrite en haut).
         const k = commandeOf(next.commande);
-        if (k) out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'info', kicker: 'Commande du comptoir', ms: 2600, title: k.title, text: `${k.text} Pour tout le monde, cette manche seulement.` } });
+        // 0.46 : deux fois plus longue au moins, selon la longueur du texte (touchez pour passer).
+        if (k) { const text = `${k.text} Pour tout le monde, cette manche seulement.`; out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'info', kicker: 'Commande du comptoir', ms: readMs(k.title + text, 5600, 10000, 2400, 55), title: k.title, text, hint: 'Elle reste écrite en haut de l’écran : touchez-la pour la relire.' } }); }
         continue;
       }
       case 'comptes': {
@@ -539,7 +551,7 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
     // Effets de cartes qui changent des dés : le bac les anime, un bandeau les explique.
     if (e.dice && e.player) { out.push({ kind: 'dice', ev: e, strip: strip(e.text, typeOf(e.card) ?? 'info', 1700) }); continue; }
     if (e.kind === 'defausse' && mine) continue;
-    out.push({ kind: 'ann', ev: e, ann: strip(e.text, e.card ? typeOf(e.card) : e.who === me && me ? 'bad' : 'info') });
+    out.push({ kind: 'ann', ev: e, ann: strip(e.text, e.card ? typeOf(e.card) : e.who === me && me ? 'bad' : 'info', stripMs(e.text)) });
   }
   return out;
 }
