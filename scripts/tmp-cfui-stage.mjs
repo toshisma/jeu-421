@@ -35,7 +35,7 @@ for (const [lab, wd, h, mob] of sizes) {
   await w(600);
   await p.screenshot({ path: `${OUT}/${lab}-main-12-fin.png` });
   // toucher long sur une carte -> en grand
-  const box = await p.evaluate(() => { const r = document.querySelector('.cfn-hand .cfn-hc').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
+  const box = await p.evaluate(() => { const r = [...document.querySelectorAll('.cfn-hand .cfn-hc')].map((e) => e.getBoundingClientRect()).find((r) => r.x > 50 && r.right < window.innerWidth - 50); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; });
   await p.mouse.move(box.x, box.y); await p.mouse.down(); await w(700); await p.mouse.up();
   await w(400);
   await p.screenshot({ path: `${OUT}/${lab}-zoom-main.png` });

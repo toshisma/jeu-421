@@ -311,7 +311,7 @@ export function FrontRow({ p, v, max, onCard, onTrap, onMore }: { p: CfPlayerVie
   return (
     <span className="cfn-front" role="group" aria-label={`Devant ${p.name} : ${plural(p.habitues.length, 'Habitué')}, ${plural(traps.length, 'piège')}`}>
       {shown.map((x) => x.el)}
-      {shown.length < items.length && <button type="button" className="cfn-mc more" onClick={(e) => { e.stopPropagation(); onMore(); }} aria-label="Tout voir">+{items.length - shown.length}</button>}
+      {shown.length < items.length && <button type="button" className="cfn-mc plus" onClick={(e) => { e.stopPropagation(); onMore(); }} aria-label="Tout voir">+{items.length - shown.length}</button>}
     </span>
   );
 }

@@ -76,7 +76,8 @@ class StageController implements CfController {
   current() { return this.snap(); }
   subscribe(cb: (snap: CfSnapshot, events: CfEvent[]) => void) {
     this.subs.add(cb);
-    setTimeout(() => cb(this.snap(), this.first), 50);
+    setTimeout(() => cb(this.snap(), []), 30);
+    if (this.first.length) setTimeout(() => cb(this.snap(), this.first), 900);
     return () => { this.subs.delete(cb); };
   }
   async act(a: CfAction) {
