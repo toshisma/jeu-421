@@ -50,6 +50,11 @@ export interface LocalCfOptions {
   tour?: boolean;
   /** Bulles d'accueil propres à cette partie (parcours débutant), à la place de la visite standard. */
   tourSteps?: TourStep[];
+  /**
+   * Invité (partie sans serveur) : pièces, XP et sac de dés éventuel versés sur le profil de l'appareil,
+   * comme au 421 et au Courtisan (null : rien, partie trop courte).
+   */
+  onGuestEnd?: (r: { won: boolean; place: number; players: number; minutes: number; level: CfLevel }) => { coins: number; bags: number } | null;
 }
 
 /** Autres habitués du comptoir pour les parties à plusieurs (noms originaux). */
@@ -98,12 +103,15 @@ export class LocalCfController implements CfController {
   private turnStart = 0;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private pendingStart: CfEvent[];
+  private startedAt = Date.now();
+  private onGuestEnd: LocalCfOptions['onGuestEnd'];
   /** Actions envoyées au serveur à la fin (= match.mine). */
   get actions(): CfAction[] { return this.match.mine; }
   get setup(): BotMatchSetup { return this.match.setup; }
 
   private constructor(o: LocalCfOptions, setup: BotMatchSetup, gameId: string | null, notice: string | null) {
     this.level = o.level;
+    this.onGuestEnd = !o.token && !o.tour && !o.tourSteps?.length ? o.onGuestEnd : undefined;
     this.gameId = gameId;
     this.rewarded = !!gameId;
     this.notice = notice;
@@ -150,7 +158,7 @@ export class LocalCfController implements CfController {
       bots: [{ id: 'ordi', name: bot.name, deck: o.deckId?.startsWith('parcours:') ? [...o.deck] : localBotDeck(o.level, o.deck, rnd), level: o.level },
         ...MORE_BOTS.slice(0, Math.min(3, Math.max(1, o.opponents ?? 1)) - 1).map((b, i) => ({ id: `ordi${i + 2}`, name: b.name, deck: localBotDeck(o.level, o.deck, rnd), level: o.level }))],
     };
-    const notice = o.tour ? null : o.token ? 'Partie d’entraînement : elle ne rapporte pas de capsules cette fois.' : 'Partie d’essai : créez un compte gratuit pour gagner des capsules et ouvrir des boosters.';
+    const notice = o.tour ? null : o.token ? 'Partie d’entraînement : elle ne rapporte pas de capsules cette fois.' : 'Partie d’essai : vous gagnez des pièces ; avec un compte gratuit, aussi des capsules et des boosters.';
     return new LocalCfController(o, setup, null, notice);
   }
 
@@ -256,6 +264,12 @@ export class LocalCfController implements CfController {
     this.closed = true;
     this.clearTimer();
     this.publish([]);
+    if (!this.token && this.onGuestEnd) {
+      const place = Math.max(1, standings.indexOf(this.me) + 1);
+      const r = this.onGuestEnd({ won: place === 1, place, players: standings.length || 2, minutes: (Date.now() - this.startedAt) / 60000, level: this.level });
+      if (r) { this.finished = { standings, reward: { coins: r.coins, bags: r.bags } }; this.publish([]); }
+      return;
+    }
     if (!this.gameId || !this.token) return;
     try {
       const r = await cfBotEnd(this.token, this.gameId, this.match.mine);

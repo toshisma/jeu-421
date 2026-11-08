@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GameState } from '../../../shared/engine';
 import {
   applyGameEnd, buy, claimDaily, claimPassTier, claimQuest, completeTutorial, computeReward, didWin, equip, loadProfile, saveProfile, sanitizeProfile, setTitle, addSeasonPoints, doPrestige,
-  craftDie, setShowcase, equipFx,
+  craftDie, setShowcase, equipFx, applyPlainReward,
   type Applied, type BagResult, type Profile, type Reward, type RewardContext, openChest } from '../../../shared/progress/profile';
 import { api, ApiError, loadSession, saveAccountSession, type Session } from './api';
 import { challengeReward, playChallenge, type ChallengeResult } from '../../../shared/challenge';
@@ -15,8 +15,9 @@ import { loadGuestPhoto, photoToDataUrl, saveGuestPhoto } from './photo';
 import { deviceId, setPresence } from '../presence';
 import { trackEvent } from '../visit';
 import type { FxKind } from '../../../shared/progress/dice-collection';
-import { applyDixMilleGame, dixMilleReward } from '../../../shared/dixmille/reward';
+import { applyDixMilleGame, dixMilleBagRoll, dixMilleReward } from '../../../shared/dixmille/reward';
 import type { DmLevel } from '../../../shared/dixmille/engine';
+import { cfCoinReward } from '../../../shared/cards/coins';
 
 export interface EndReward { reward: Reward; applied: Applied }
 /** Fin d'une partie du Courtisan : récompense, sacs de dés trouvés, défis du jour accomplis. */
@@ -315,6 +316,20 @@ export function useProfile(enabled: boolean) {
 
   // --- Le Dix mille contre l'ordinateur ---------------------------------------------------------
   const dmGame = useRef<{ token: string | null; startedAt: number } | null>(null);
+  /**
+   * Coups Fourrés, invité : pièces, XP (barème du 421) et sac de dés éventuel sur le profil de l'appareil.
+   * Les comptes, eux, sont payés par le serveur. Renvoie les pièces gagnées et les sacs trouvés.
+   */
+  const onCfGuestEnd = useCallback((r: { won: boolean; place: number; players: number; minutes: number; level: 'debutant' | 'habitue' | 'fine-fouine' }): { coins: number; bags: number } | null => {
+    if (ref.current.session || r.minutes < 1 / 3) return null;
+    const day = today();
+    const reward = cfCoinReward({ ...r, botLevel: r.level, day, now: Date.now() });
+    const applied = applyPlainReward(ref.current.profile, reward, day);
+    // Sac de dés : même règle que le 421 et le Courtisan (résultat de l'appareil : compté comme une défaite).
+    const bag = dixMilleBagRoll(applied.profile, { won: r.won, players: r.players, minutes: r.minutes, mode: 'solo', declared: true });
+    setProfile(bag.profile);
+    return { coins: reward.coins + applied.levelBonusCoins, bags: bag.found };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const onDixMilleStart = useCallback(() => {
     dmGame.current = { token: null, startedAt: Date.now() };
     if (!enabled) return;
@@ -373,7 +388,7 @@ export function useProfile(enabled: boolean) {
     register, login, recover, logout, deleteAccount,
     submitChallenge,
     buyItem, equipItem, claim, blocked, block, isBlocked, claimDailyReward, openEveningChest, claimPass, chooseTitle, finishTutorial, prestige,
-    onSoloStart, onGameEnd, onDixMilleStart, onDixMilleEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
+    onSoloStart, onGameEnd, onCfGuestEnd, onDixMilleStart, onDixMilleEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
     token: session?.token ?? null,
   };
 }

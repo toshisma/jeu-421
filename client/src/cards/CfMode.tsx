@@ -8,22 +8,17 @@
  */
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { ProfileApi } from '../account/useProfile';
-import { ApiError, api } from '../account/api';
+import { ApiError } from '../account/api';
 import type { CfFriendPresence } from '../../../shared/cards/protocol';
 import type { Settings } from '../settings';
-import type { DuelPlay } from '../ui/ChallengeScreen';
 import { Avatar } from '../ui/Avatar';
 import { Icon } from '../ui/Icon';
-import { MessagesButton } from '../ui/Messages';
 import { FriendsButton } from '../ui/Friends';
-import { NotifBell, NotifPanel, useNotifications } from '../ui/Social';
-import { ProfileView } from '../ui/ProfileView';
 import { Sheet } from '../ui/kit';
-import { ModeSwitch } from '../ui/ModeSwitch';
-import { accessoryEmoji } from '../../../shared/progress/catalog';
+import { ModeBar, ModeChip } from '../ui/ModeBar';
 import { sound } from '../audio/sound';
 import { BOOSTER, CARDS, CF_RULES, STARTER_DECKS, CAPSULES } from '../../../shared/cards/catalog';
-import { CF_DIVISIONS, type CfGameView } from '../../../shared/cards/progress';
+import type { CfGameView } from '../../../shared/cards/progress';
 import { CF_LEVEL_LABEL, type CfLevel } from '../../../shared/cards/ai';
 import { cfBuyBooster, cfDiscover, cfFriends, cfMe, type CfState } from './api';
 import { BoosterPack, CardBack, CardView } from './components';
@@ -54,20 +49,14 @@ export interface CfModeProps {
   onSettings: (s: Settings) => void;
   avatar: string;
   displayName: string;
-  /** Retour au 421 classique (accueil). */
+  /** Retour au menu principal. */
   onHome: () => void;
-  /** Le Courtisan (troisième mode). */
-  onDixMille?: () => void;
-  onMessages: () => void;
+  /** Liste d'amis (bouton de l'en-tête : défier un ami, le regarder jouer). */
   onFriends: () => void;
   onAccount: () => void;
   onLogin: () => void;
-  onDuelPlay: (d: DuelPlay) => void;
-  onDuels: () => void;
-  /** Fonctions communes du jeu : réglages, administration, modération. */
-  onOpenSettings?: () => void;
-  onAdmin?: () => void;
-  onModeration?: () => void;
+  /** Sacs de dés gagnés en fin de partie : la collection de dés (commune aux trois jeux) s'ouvre dessus. */
+  onBags?: () => void;
   /** À faire dès l'ouverture (venu de la liste d'amis) : défier ce pseudo, ou regarder cette partie. */
   pending?: { challenge?: string; watch?: string; tournoi?: boolean };
 }
@@ -88,7 +77,7 @@ type Route =
   | { r: 'enigme' }
   | { r: 'game'; ctrl: CfController; mode: string; again?: () => void; online?: boolean };
 
-type SheetKind = 'bot' | 'friends' | 'boosters' | 'missions' | null;
+type SheetKind = 'bot' | 'friends' | 'boosters' | 'missions' | 'learn' | null;
 
 /** Amis présents dans le mode (bandeau « Dédé est dans Coups Fourrés · Défier »). */
 type CfFriend = CfFriendPresence;
@@ -180,7 +169,7 @@ function CfModeScreens(props: CfModeProps) {
   });
 
   const name = pa.session?.username ?? (props.displayName || 'Vous');
-  const menu = useCallback(() => { setRoute({ r: 'menu' }); void reload(); }, [reload]);
+  const menu = useCallback(() => { setRoute({ r: 'menu' }); void reload(); pa.refresh(); }, [reload, pa]);
 
   // --- parties ---------------------------------------------------------------------------------
   const activeDeck = st?.decks.find((d) => d.id === st.activeDeck && d.valid) ?? st?.decks.find((d) => d.valid) ?? null;
@@ -226,13 +215,14 @@ function CfModeScreens(props: CfModeProps) {
         level, deck: deckList(cards), deckId: pc ? `parcours:${pc.step}` : own ? own.id : null, token: own || (pc && st?.discovered) ? pa.token : null, opponents,
         tourSteps: pc ? [...(pc.step === 1 ? screenTour(opponents) : []), { focus: 'hand', title: `Parcours ${pc.step}/${PARCOURS.length} · ${pc.title}`, text: pc.intro }] : undefined,
         me: { name, avatar: props.avatar, photo: pa.photo, account: pa.session?.username },
+        onGuestEnd: pa.onCfGuestEnd,
       });
       setSheet(null);
       setRoute({ r: 'game', ctrl, mode: '', again: () => void startBot(level, deckId, opponents) });
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Impossible de lancer la partie.', 'err');
     } finally { setStarting(false); }
-  }, [starting, st, pa.token, pa.photo, pa.session, name, props.avatar, showToast, offerTutorial]);
+  }, [starting, st, pa.token, pa.photo, pa.session, pa.onCfGuestEnd, name, props.avatar, showToast, offerTutorial]);
 
   /** Commande en ligne : erreur claire en français si elle échoue. */
   const tryOnline = useCallback(async (f: (o: CfOnline) => Promise<unknown>): Promise<boolean> => {
@@ -282,8 +272,8 @@ function CfModeScreens(props: CfModeProps) {
   // --- écrans ----------------------------------------------------------------------------------
   if (route.r === 'game') {
     return <CfGame key={gameKey(route.ctrl)} controller={route.ctrl} mode={route.mode} settings={props.settings} onSettings={props.onSettings} pa={pa}
-      online={route.online ? online : null} onExit={() => { if (route.mode === 'tournoi') { setRoute({ r: 'tournoi' }); void reload(); } else menu(); }} onAgain={route.again ? () => { route.again!(); } : undefined}
-      onAccount={props.onAccount} />;
+      online={route.online ? online : null} onExit={() => { if (route.mode === 'tournoi') { setRoute({ r: 'tournoi' }); void reload(); pa.refresh(); } else menu(); }} onAgain={route.again ? () => { route.again!(); } : undefined}
+      onAccount={props.onAccount} onBags={props.onBags} />;
   }
   if (route.r === 'discover' && st) {
     return <Discover onGo={async () => {
@@ -327,8 +317,8 @@ function CfModeScreens(props: CfModeProps) {
         onBot={() => setSheet('bot')} onFriendsPlay={() => setSheet('friends')} onRanked={ranked}
         onDecks={() => setRoute({ r: 'decks' })} onBoosters={() => setSheet('boosters')} onCollection={() => setRoute({ r: 'collection' })}
         onMissions={() => setSheet('missions')} onLeague={() => setRoute({ r: 'league' })} onRules={() => setRoute({ r: 'rules' })}
-        onChallenge={challenge} onWatch={(f) => f.code && watch(f.code)} onRetry={() => void reload()} onTournament={() => setRoute({ r: 'tournoi' })} onEnigme={() => setRoute({ r: 'enigme' })}
-        onLearn={(r) => setRoute({ r })} onTuto={startTutorial} onTuto4={() => void startTutorial4()}
+        onTuto={startTutorial} onChallenge={challenge} onWatch={(f) => f.code && watch(f.code)} onRetry={() => void reload()} onTournament={() => setRoute({ r: 'tournoi' })} onEnigme={() => setRoute({ r: 'enigme' })}
+        onLearn={() => setSheet('learn')}
         top={<>
           {resumeGame && <button className="cf-banner gold" onClick={() => void tryOnline((o) => o.resume(resumeGame.id))}><b>Partie en cours</b><span>{resumeGame.ranked ? 'Classée' : 'Entre amis'} : reprenez-la avant d’être compté absent.</span><em>Reprendre</em></button>}
           {online?.challenges.map((c) => (
@@ -349,6 +339,10 @@ function CfModeScreens(props: CfModeProps) {
           catch (e) { showToast(e instanceof Error ? e.message : 'Achat impossible.', 'err'); }
         }} />}
       {sheet === 'missions' && <Sheet title="Missions du jour" onClose={() => setSheet(null)}><MissionsList st={st} onAccount={props.onAccount} /></Sheet>}
+      {sheet === 'learn' && <Sheet title="Apprendre Coups Fourrés" onClose={() => setSheet(null)}>
+        <LearnBlock fresh={!st?.history.length} onTuto={startTutorial} onTuto4={() => void startTutorial4()} onRules={() => { setSheet(null); setRoute({ r: 'rules' }); }}
+          onCards={() => { setSheet(null); setRoute({ r: 'cards' }); }} onTips={() => { setSheet(null); setRoute({ r: 'tips' }); }} onLexicon={() => { setSheet(null); setRoute({ r: 'lexicon' }); }} />
+      </Sheet>}
       {online?.table && <TableLobby online={online} st={st} pa={pa} me={pa.session?.username ?? ''} onError={(t) => showToast(t, 'err')} />}
       {waiting?.kind === 'queue' && <WaitingOverlay title={waiting.title} status={q?.text ?? 'Recherche d’un adversaire de votre niveau…'}
         onCancel={() => { void online?.queueLeave(); setWaiting(null); }}
@@ -427,19 +421,13 @@ function CfMenu(p: CfModeProps & {
   st: CfState | null; loadErr: string | null; name: string;
   onBot: () => void; onFriendsPlay: () => void; onRanked: () => void; onDecks: () => void; onBoosters: () => void; onCollection: () => void;
   onMissions: () => void; onLeague: () => void; onRules: () => void; onChallenge: (u: string) => void; onWatch: (f: CfFriend) => void; onRetry: () => void;
-  onLearn: (r: 'cards' | 'tips' | 'lexicon') => void;
+  /** « Apprendre » : parties guidées, règles, cartes, conseils, lexique. */
+  onLearn: () => void;
   onTuto: () => void;
-  onTuto4?: () => void;
   onTournament: () => void; onEnigme: () => void; token?: string | null; top?: React.ReactNode;
 }) {
   const { pa, st } = p;
   const acc = pa.isAccount;
-  const { notifs, reload } = useNotifications(pa);
-  const [showNotifs, setShowNotifs] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [showMore, setShowMore] = useState(false);
-  const [role, setRole] = useState<{ admin: boolean; moderator: boolean; pending: number }>({ admin: false, moderator: false, pending: 0 });
-  useEffect(() => { if (acc && pa.token) api<{ admin: boolean; moderator: boolean; pending: number }>('/moderation/whoami', { token: pa.token }).then(setRole).catch(() => {}); }, [acc, pa.token]);
   const friends = useCfFriends(pa.token);
   const league = st?.league;
   const prog = league ? divisionProgress(league.points) : null;
@@ -447,30 +435,18 @@ function CfMenu(p: CfModeProps & {
   const deck = st?.decks.find((d) => d.id === st.activeDeck) ?? null;
   const missionsDone = st?.missions.filter((m) => m.done).length ?? 0;
   const last: CfGameView | undefined = st?.history[0];
-  const divName = league ? CF_DIVISIONS.find((d) => d.id === league.division)?.name : null;
   const present = (friends ?? []).slice(0, 3);
-  // Nouveau joueur (aucune partie jouée) : la section « Bien débuter » est mise en avant.
+  // Nouveau joueur (aucune partie jouée) : la partie guidée est mise en avant.
   const fresh = !st?.history.length;
   return (
     <div className="cf-menu">
       <span className="cf-stars" aria-hidden />
-      <header className="cf-menu-bar">
-        <button className="cf-me" onClick={() => setShowProfile(true)} aria-label="Mon profil">
-          <Avatar photo={pa.photo} emoji={p.avatar} size={42} accessory={accessoryEmoji(pa.profile.equipped.accessoire)} />
-          <span className="cf-me-text">
-            <b>{p.name}{divName && <em>{divName}</em>}</b>
-            {acc ? <Capsules n={st?.capsules ?? 0} size={16} /> : <small>Invité</small>}
-          </span>
-        </button>
-        {!acc && <button className="cf-login" onClick={p.onLogin}>Connexion</button>}
-        {acc && <MessagesButton pa={pa} onOpen={p.onMessages} />}
+      <ModeBar tone="cartes" title="Coups Fourrés" onBack={p.onHome}>
+        {acc ? <ModeChip label={`${st?.capsules ?? 0} capsules`}><Capsules n={st?.capsules ?? 0} size={16} /></ModeChip>
+          : null}
         {acc && <FriendsButton pa={pa} onOpen={p.onFriends} />}
-        {acc && <NotifBell count={notifs?.count ?? 0} onOpen={() => { setShowNotifs(true); reload(); }} />}
-        <button className="icon-btn cf-more-btn" onClick={() => setShowMore(true)} aria-label="Réglages et plus">
-          <Icon name="settings" size={22} />{(role.admin || role.moderator) && role.pending > 0 && <i className="cf-more-dot" aria-hidden />}
-        </button>
-      </header>
-      <ModeSwitch active="cartes" onClassic={p.onHome} onCards={() => {}} onDixMille={p.onDixMille} />
+        <button className="icon-btn mode-rules" onClick={p.onRules} aria-label="Règles de Coups Fourrés"><Icon name="rules" size={20} /></button>
+      </ModeBar>
 
       <main className="cf-menu-main">
         {p.top}
@@ -494,8 +470,7 @@ function CfMenu(p: CfModeProps & {
             <span className="cf-hero-die"><b /><b /><b /><b /></span>
           </div>
           <h1>Coups Fourrés</h1>
-          <p>Le 421 aux cartes : bluff, fouine et coups bas · <button className="cf-link" onClick={p.onRules}>Règles</button></p>
-          <p className="cf-beta"><b>Bêta</b> Nouvel écran de partie, plus clair : en partie, touchez « ? » pour l’aide et le rappel des 5 types de cartes.</p>
+          <p>Le 421 aux cartes : bluff, fouine et coups bas</p>
         </section>
 
         {acc && league && prog ? (
@@ -533,13 +508,12 @@ function CfMenu(p: CfModeProps & {
         </div>
 
         <EnigmeEntry token={pa.token} acc={acc} onOpen={p.onEnigme} />
-
         <TournamentCard token={pa.token} acc={acc} onOpen={p.onTournament} />
 
         <div className="cf-tiles">
           <button className="cf-tile" onClick={p.onDecks}>
             <span className="cf-tile-art minis" aria-hidden><i className="cf-hab" /><i className="cf-cha" /><i className="cf-ivr" /></span>
-            <b>Mes decks</b><small>{deck ? `« ${deck.name} » actif` : acc ? 'Construire' : 'Decks de départ'}</small>
+            <b>Mes decks</b><small>{deck ? `« ${deck.name} »` : acc ? 'Construire' : 'Decks de départ'}</small>
           </button>
           <button className="cf-tile" onClick={acc ? p.onBoosters : p.onAccount}>
             {!!st?.boosters && <span className="cf-badge">{st.boosters}</span>}
@@ -548,7 +522,7 @@ function CfMenu(p: CfModeProps & {
           </button>
           <button className="cf-tile" onClick={p.onCollection}>
             <span className="cf-tile-art num" aria-hidden>{acc ? owned : '?'}<small>/{CARDS.length}</small></span>
-            <b>Collection</b><small>{acc ? 'Cartes, éclats' : `Les ${CARDS.length} cartes`}</small>
+            <b>Mes cartes</b><small>{acc ? 'Collection, éclats' : `Les ${CARDS.length} cartes`}</small>
           </button>
           <button className="cf-tile" onClick={p.onMissions}>
             {st && st.missions.some((m) => m.done) && missionsDone < st.missions.length && <span className="cf-badge green">{missionsDone}</span>}
@@ -557,15 +531,13 @@ function CfMenu(p: CfModeProps & {
           </button>
           <button className="cf-tile" onClick={p.onLeague}>
             <span className="cf-tile-art" aria-hidden><Icon name="chart" size={28} /></span>
-            <b>Classement</b><small>Saison en cours</small>
+            <b>Classement</b><small>Ligue du mois</small>
           </button>
-          <button className="cf-tile classic" onClick={p.onHome}>
-            <span className="cf-tile-art" aria-hidden><span className="cf-421">421</span></span>
-            <b>421 classique</b><small>Jeu de base</small>
+          <button className={`cf-tile${fresh ? ' hot' : ''}`} onClick={p.onLearn}>
+            <span className="cf-tile-art" aria-hidden><Icon name="rules" size={28} /></span>
+            <b>Apprendre</b><small>Guide, règles</small>
           </button>
         </div>
-
-        <LearnBlock fresh={fresh} onTuto={p.onTuto} onTuto4={p.onTuto4} onRules={p.onRules} onCards={() => p.onLearn('cards')} onTips={() => p.onLearn('tips')} onLexicon={() => p.onLearn('lexicon')} />
 
         {last ? (
           <div className="cf-last">
@@ -575,24 +547,9 @@ function CfMenu(p: CfModeProps & {
               {last.ranked && last.points ? ` · ${last.points > 0 ? '+' : ''}${last.points} pts` : ''}{last.capsules ? ` · +${last.capsules} capsules` : ''}</span>
           </div>
         ) : !acc ? (
-          <p className="cf-guest-note">Invité : essayez contre l’ordinateur avec les decks de départ (sans rien gagner). <button className="cf-link" onClick={p.onAccount}>Créer un compte</button> pour la collection, les boosters et le classé.</p>
+          <p className="cf-guest-note">Invité : essayez contre l’ordinateur avec les decks de départ (vous gagnez des pièces, pas de capsules). <button className="cf-link" onClick={p.onAccount}>Créer un compte</button> pour la collection, les boosters et le classé.</p>
         ) : null}
       </main>
-
-      {showMore && (
-        <Sheet title="Réglages et plus" onClose={() => setShowMore(false)}>
-          <div className="cf-more">
-            {p.onOpenSettings && <button className="cf-more-item" onClick={() => { setShowMore(false); p.onOpenSettings!(); }}><Icon name="settings" size={20} /><span>Réglages<small>Son, musique, vibrations, qualité 3D…</small></span></button>}
-            {role.admin && p.onAdmin && <button className="cf-more-item" onClick={() => { setShowMore(false); p.onAdmin!(); }}><Icon name="chart" size={20} /><span>Administration<small>Tableau de bord, joueurs, signalements</small></span>{role.pending > 0 && <em>{role.pending}</em>}</button>}
-            {!role.admin && role.moderator && p.onModeration && <button className="cf-more-item" onClick={() => { setShowMore(false); p.onModeration!(); }}><Icon name="flag" size={20} /><span>Modération<small>Signalements à traiter</small></span>{role.pending > 0 && <em>{role.pending}</em>}</button>}
-            <button className="cf-more-item" onClick={() => { setShowMore(false); p.onRules(); }}><Icon name="rules" size={20} /><span>Règles du mode<small>Cartes, Tournées, pièges, Dernier mot</small></span></button>
-            <button className="cf-more-item" onClick={() => { setShowMore(false); p.onHome(); }}><Icon name="home" size={20} /><span>421 classique<small>Retour à l'accueil du jeu</small></span></button>
-          </div>
-        </Sheet>
-      )}
-      {showNotifs && <NotifPanel pa={pa} notifs={notifs} reload={reload} onClose={() => { setShowNotifs(false); reload(); }}
-        onPlay={(d) => { setShowNotifs(false); p.onDuelPlay(d); }} onDuels={() => { setShowNotifs(false); p.onDuels(); }} />}
-      {showProfile && <ProfileView pa={pa} displayName={p.displayName} avatar={p.avatar} onClose={() => setShowProfile(false)} />}
     </div>
   );
 }
@@ -642,7 +599,7 @@ function BotSheet({ st, acc, starting, onClose, onStart, onAccount }: { st: CfSt
         <DeckPicker decks={decks} value={chosen?.id ?? null} active={acc && st ? st.activeDeck : null} onChange={setDeckId} />
       </div>
       <p className="cf-sheet-note">{acc ? (left > 0 ? `+${CAPSULES.vsBot} capsules par partie terminée (encore ${left} aujourd’hui).` : 'Plafond de capsules contre l’ordinateur atteint aujourd’hui : la partie reste un bon entraînement.')
-        : <>Partie d’essai sans gain. <button className="cf-link" onClick={onAccount}>Créer un compte</button> pour gagner des capsules.</>}</p>
+        : <>Partie d’essai : des pièces, pas de capsules. <button className="cf-link" onClick={onAccount}>Créer un compte</button> pour gagner des capsules.</>}</p>
       <button className="cf-btn gold big" disabled={starting || !chosen} onClick={() => chosen && onStart(level, chosen.id, opp)}>{starting ? 'Préparation…' : chosen ? `Jouer avec « ${chosen.name} »` : 'Jouer'}</button>
     </Sheet>
   );
@@ -707,7 +664,7 @@ function Discover({ onGo, onBack, toast }: { onGo: () => Promise<void>; onBack: 
   return (
     <div className="cf-discover">
       <span className="cf-stars" aria-hidden />
-      <button className="cf-ib cf-discover-back" onClick={onBack} aria-label="Retour au 421 classique"><Icon name="back" size={22} /></button>
+      <button className="cf-ib cf-discover-back" onClick={onBack} aria-label="Retour au menu principal"><Icon name="back" size={22} /></button>
       <div className="cf-discover-fan" aria-hidden>
         <CardView id="josiane" width={104} /><CardView id="tete-tourne" width={104} /><CardView id="fouine" width={104} />
       </div>

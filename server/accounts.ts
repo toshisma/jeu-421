@@ -35,7 +35,7 @@ import { DIVISIONS, SEASON_DIE_FROM, SEASON_TITLE_FROM, divisionIndex, divisionO
 import { today } from '../shared/progress/quests';
 import type { ComboKind } from '../shared/combos';
 import type { Difficulty } from '../shared/ai';
-import { applyDixMilleGame, dixMilleOnlineReward, dixMilleReward } from '../shared/dixmille/reward';
+import { applyDixMilleGame, dixMilleBagRoll, dixMilleOnlineReward, dixMilleReward } from '../shared/dixmille/reward';
 import type { DmLevel } from '../shared/dixmille/engine';
 
 export interface AccountsOptions {
@@ -939,9 +939,12 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     if (o.botLevel && store.bumpSolo(userId, o.day) > SOLO_CAP) return null;
     const reward = cfCoinReward({ ...o, now: opts.now?.() ?? Date.now() });
     const applied = applyPlainReward(store.profileOf(u), reward, o.day);
-    store.saveProfile(userId, applied.profile);
+    // Sac de dés : la règle du 421 et du Courtisan (même chance, sac garanti au bout de 10 parties,
+    // compteur commun), tirée ici ; rien pour une partie de moins de 1 min 30.
+    const bag = dixMilleBagRoll(applied.profile, { won: o.won, players: o.players, minutes: o.minutes, mode: o.botLevel ? 'solo' : 'online' });
+    store.saveProfile(userId, bag.profile);
     leagueGain(userId, reward.xp);
-    return { coins: reward.coins + applied.levelBonusCoins, xp: reward.xp };
+    return { coins: reward.coins + applied.levelBonusCoins, xp: reward.xp, bags: bag.found };
   };
   const cards = createCards({ router, store, auth, userOf, fail, now: () => opts.now?.() ?? Date.now(), push: (u, t, b, url) => void social.push(u, t, b, url), rng: opts.cardsRng, generalReward: cfGeneralReward });
   // Coups Fourrés : l'énigme du jour (score recalculé ici, une validation par jour).

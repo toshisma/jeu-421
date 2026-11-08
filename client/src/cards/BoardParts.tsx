@@ -9,6 +9,7 @@ import { commandeOf, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerVi
 import { Avatar } from '../ui/Avatar';
 import { Icon } from '../ui/Icon';
 import { CoinArt } from '../ui/illustrations';
+import { BagIcon } from '../ui/BagIcon';
 import { Sheet } from '../ui/kit';
 import { CardArt } from './art';
 import { CapsuleIcon, CardView } from './components';
@@ -865,7 +866,7 @@ export function ChoiceWindow({ v, legal, pending, onAct, focus, tuto }: { v: CfV
   return null;
 }
 
-export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, bot, guest, rewarded, ranked, spectator, onShare, sharing, againLabel }: { againLabel?: string; snap: CfSnapshot; v: CfView; me: string; onExit: () => void; onAgain?: () => void; onAccount: () => void; bot: boolean; guest: boolean; rewarded: boolean; ranked: boolean; spectator: boolean; onShare?: () => void; sharing?: boolean }) {
+export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, onBags, bot, guest, rewarded, ranked, spectator, onShare, sharing, againLabel }: { againLabel?: string; onBags?: () => void; snap: CfSnapshot; v: CfView; me: string; onExit: () => void; onAgain?: () => void; onAccount: () => void; bot: boolean; guest: boolean; rewarded: boolean; ranked: boolean; spectator: boolean; onShare?: () => void; sharing?: boolean }) {
   const standings = snap.finished?.standings ?? v.ranking;
   const won = standings[0] === me;
   const abandon = (snap.finished as { abandon?: string | null } | null)?.abandon;
@@ -873,6 +874,7 @@ export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, bot, guest,
   const num = (k: string) => (reward && typeof reward[k] === 'number' ? (reward[k] as number) : null);
   const capsules = num('capsules');
   const coins = num('coins');
+  const bags = num('bags') ?? 0;
   const points = ranked ? num('points') : null;
   const boosters = num('boosters') ?? (reward?.booster === true ? 1 : null);
   const missions = Array.isArray(reward?.missions) ? (reward!.missions as string[]).length : 0;
@@ -891,6 +893,7 @@ export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, bot, guest,
         <div className="cf-gains">
           {capsules !== null && <span className="cf-gain"><b>+{capsules}</b><CapsuleIcon size={22} /> <small>capsule{capsules > 1 ? 's' : ''}</small></span>}
           {coins !== null && coins > 0 && <span className="cf-gain coins"><b>+{coins}</b><CoinArt size={22} /> <small>pièce{coins > 1 ? 's' : ''}</small></span>}
+          {bags > 0 && <span className="cf-gain bag"><b>+{bags}</b><BagIcon size={26} /> <small>sac de dés{bags > 1 ? ' (×' + bags + ')' : ''}</small>{onBags && <button className="cf-btn small gold" onClick={onBags}>Ouvrir</button>}</span>}
           {points !== null && <span className="cf-gain"><b>{points > 0 ? `+${points}` : points}</b> <small>points de ligue</small></span>}
           {boosters ? <span className="cf-gain"><b>+{boosters}</b> <small>booster{boosters > 1 ? 's' : ''}{won ? ' (première victoire du jour)' : ''}</small></span> : null}
           {missions > 0 && <span className="cf-gain"><b>✓ {missions}</b> <small>mission{missions > 1 ? 's' : ''} du jour</small></span>}

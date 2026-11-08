@@ -25,6 +25,7 @@ import { accessoryEmoji } from '../../shared/progress/catalog';
 import { AccountScreen, LeaderboardScreen } from './ui/AccountScreens';
 import { RulesScreen, Sandbox, SettingsScreen, SoloSetup, STANDALONE } from './ui/Screens';
 import { Home } from './ui/Home';
+import { ClassicMenu } from './ui/ClassicMenu';
 import { StatsScreen } from './ui/StatsScreen';
 import { CollectionScreen } from './ui/DiceCollection';
 import { DuelsScreen } from './ui/Social';
@@ -64,13 +65,17 @@ const DixMilleMode = lazyScreen(() => import('./dixmille/DixMille'), 'DixMilleMo
 /** Préchargés en arrière-plan une fois l'accueil affiché (les plus utilisés d'abord). */
 const LIKELY = [GameScreen, OnlineHub, OnlineFlow, TournamentFlow, ShopScreen, SpectateFlow, TutorialScreen, PartySetup, ClubScreen, AlbumScreen];
 
+/** D'où l'on vient (pour revenir au bon menu) : menu principal, ou le menu d'un des trois jeux. */
+type Back = 'home' | 'classic' | 'cf' | 'dixmille';
+
 type Screen =
   | { name: 'home' }
+  | { name: 'classic' }
   | { name: 'solo-setup' }
   | { name: 'solo'; controller: LocalController; personas: Record<string, Persona> }
   | { name: 'hub'; tab: HubTab }
-  | { name: 'friends'; from?: 'cf' }
-  | { name: 'messages'; with?: string; from?: 'cf' }
+  | { name: 'friends'; from?: Back }
+  | { name: 'messages'; with?: string; from?: Back }
   | { name: 'dixmille'; pending?: DmPending }
   | { name: 'cf'; pending?: { challenge?: string; watch?: string; tournoi?: boolean } }
   | { name: 'changelog' }
@@ -78,11 +83,11 @@ type Screen =
   | { name: 'watch'; code: string; back: Screen }
   | { name: 'tournament'; mode: TournamentMode }
   | { name: 'rules' }
-  | { name: 'settings'; from?: 'cf' | 'dixmille' }
-  | { name: 'sandbox'; tryFx?: string; from?: 'dixmille' }
-  | { name: 'shop'; from?: 'dixmille' }
+  | { name: 'settings'; from?: Back }
+  | { name: 'sandbox'; tryFx?: string; from?: Back }
+  | { name: 'shop'; from?: Back }
   | { name: 'account'; tab?: 'login' | 'register' }
-  | { name: 'leaderboard' }
+  | { name: 'leaderboard'; from?: Back }
   | { name: 'legal'; back: Screen }
   | { name: 'pass' }
   | { name: 'challenge' }
@@ -94,12 +99,12 @@ type Screen =
   | { name: 'album' }
   | { name: 'recap' }
   | { name: 'tutorial'; controller: TutorialController }
-  | { name: 'stats' }
-  | { name: 'collection'; from?: 'dixmille'; open?: boolean }
+  | { name: 'stats'; from?: Back }
+  | { name: 'collection'; from?: Back; open?: boolean }
   | { name: 'duels' }
   | { name: 'duel'; duel: DuelPlay }
-  | { name: 'admin'; from?: 'cf' }
-  | { name: 'moderation'; from?: 'cf' };
+  | { name: 'admin'; from?: 'stats' }
+  | { name: 'moderation' };
 
 /**
  * Nettoie l'adresse (lien d'invitation, page de confidentialité) sans recharger la page.
@@ -195,12 +200,17 @@ export function App() {
     return () => clearTimeout(t);
   }, []);
 
-  const home = () => {
+  const refreshResume = () => {
     if (invite || tInvite || watchLink || courtInvite || location.pathname.startsWith('/confidentialite')) cleanUrl();
     setResume(loadSession());
     setCourtResume(loadDmSession());
-    setScreen({ name: 'home' });
   };
+  /** Menu principal. */
+  const home = () => { refreshResume(); setScreen({ name: 'home' }); };
+  /** Menu du 421 classique (retour de toutes ses parties et de ses écrans). */
+  const classic = () => { refreshResume(); setScreen({ name: 'classic' }); };
+  /** Retour au menu d'où l'on venait. */
+  const backTo = (from?: Back) => () => (from === 'cf' ? setScreen({ name: 'cf' }) : from === 'dixmille' ? setScreen({ name: 'dixmille' }) : from === 'classic' ? classic() : home());
 
   const startSolo = (cfg: GameConfig, opponents: Opponent[]) => {
     sound.unlock();
@@ -220,145 +230,143 @@ export function App() {
     sound.unlock();
     setScreen({ name: 'tutorial', controller: new TutorialController({ name: settings.name || pa.session?.username || 'Vous', avatar: settings.avatar, photo: pa.photo }) });
   };
+  const resumeGame = () => setScreen(resume?.tournament ? { name: 'tournament', mode: { kind: 'resume' } } : resume ? { name: 'online', mode: { kind: 'resume' } } : { name: 'dixmille', pending: { resume: true } });
+  const onJoinScheduled = (code: string, pay: boolean) => setScreen({ name: 'tournament', mode: { kind: 'join', code, pay } });
 
   const view = (() => { switch (screen.name) {
     case 'home':
       return <Home
-        profile={profile} pa={pa} avatar={settings.avatar} displayName={settings.name} onShop={() => setScreen({ name: 'shop' })}
-        onAccount={() => setScreen({ name: 'account' })} onLogin={() => setScreen({ name: 'account', tab: 'login' })} onLeaderboard={() => setScreen({ name: 'leaderboard' })}
+        profile={profile} pa={pa} avatar={settings.avatar} displayName={settings.name} settings={settings} onChangeSettings={setSettings}
+        onClassic={classic} onCards={() => setScreen({ name: 'cf' })} onDixMille={() => setScreen({ name: 'dixmille' })}
+        onShop={() => setScreen({ name: 'shop' })} onAccount={() => setScreen({ name: 'account' })} onLogin={() => setScreen({ name: 'account', tab: 'login' })}
+        onCollection={() => setScreen({ name: 'collection' })} onFriends={() => setScreen({ name: 'friends' })} onMessages={() => setScreen({ name: 'messages' })}
+        onSettings={() => setScreen({ name: 'settings' })} onSandbox={() => setScreen({ name: 'sandbox' })} onLegal={() => setScreen({ name: 'legal', back: { name: 'home' } })}
+        onPass={() => setScreen({ name: 'pass' })} onStats={() => setScreen({ name: 'stats' })} onClub={() => setScreen({ name: 'club' })}
+        onDuels={() => setScreen({ name: 'duels' })} onRecap={() => setScreen({ name: 'recap' })} onChangelog={() => setScreen({ name: 'changelog' })}
+        onDuelPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }} openNotifs={openNotifs}
+        onAdmin={() => setScreen({ name: 'admin' })} onModeration={() => setScreen({ name: 'moderation' })}
+        onLeaderboard={() => setScreen({ name: 'leaderboard' })} onRules={() => setScreen({ name: 'rules' })} onTutorial={startTutorial}
+        onTournaments={() => setScreen({ name: 'hub', tab: 'tournois' })} onAlbum={() => setScreen({ name: 'album' })} onParty={() => setScreen({ name: 'party-setup' })}
+        onOnline={() => setScreen({ name: 'hub', tab: 'tables' })} onChallenge={() => { sound.unlock(); setScreen({ name: 'challenge' }); }}
+        onJoinScheduled={onJoinScheduled}
+        resume={resume ?? (courtResume ? { code: courtResume.code, courtisan: true } : null)} onResume={resumeGame} />;
+    case 'classic':
+      return <ClassicMenu profile={profile} pa={pa} settings={settings} onBack={home}
         onSolo={() => setScreen({ name: 'solo-setup' })}
         onOnline={() => setScreen({ name: 'hub', tab: 'tables' })}
         onQuick={() => { sound.unlock(); setScreen({ name: 'online', mode: { kind: 'quick' } }); }}
         onTournaments={() => setScreen({ name: 'hub', tab: 'tournois' })}
+        onParty={() => setScreen({ name: 'party-setup' })}
         onRules={() => setScreen({ name: 'rules' })}
-        onSettings={() => setScreen({ name: 'settings' })}
-        onSandbox={() => setScreen({ name: 'sandbox' })}
-        onLegal={() => setScreen({ name: 'legal', back: { name: 'home' } })}
-        onPass={() => setScreen({ name: 'pass' })}
+        onTutorial={startTutorial}
         onChallenge={() => { sound.unlock(); setScreen({ name: 'challenge' }); }}
         onBoss={startBoss}
-        onParty={() => setScreen({ name: 'party-setup' })}
-        onClub={() => setScreen({ name: 'club' })}
         onAlbum={() => setScreen({ name: 'album' })}
-        onRecap={() => setScreen({ name: 'recap' })}
-        onTutorial={startTutorial}
-        onStats={() => setScreen({ name: 'stats' })}
-        onCollection={() => setScreen({ name: 'collection' })}
-        onDuels={() => setScreen({ name: 'duels' })}
-        onFriends={() => setScreen({ name: 'friends' })}
-        onMessages={() => setScreen({ name: 'messages' })}
-        onChangelog={() => setScreen({ name: 'changelog' })}
-        onCards={() => setScreen({ name: 'cf' })}
-        onDixMille={() => setScreen({ name: 'dixmille' })}
-        onAdmin={() => setScreen({ name: 'admin' })}
-        onModeration={() => setScreen({ name: 'moderation' })}
-        settings={settings} onChangeSettings={setSettings}
+        onLeaderboard={() => setScreen({ name: 'leaderboard', from: 'classic' })}
+        onStats={() => setScreen({ name: 'stats', from: 'classic' })}
+        onAccount={() => setScreen({ name: 'account' })}
+        onFriends={() => setScreen({ name: 'friends', from: 'classic' })}
         onJoinRoom={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
-        onJoinScheduled={(code, pay) => setScreen({ name: 'tournament', mode: { kind: 'join', code, pay } })}
-        onDuelPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }}
-        openNotifs={openNotifs}
-        resume={resume ?? (courtResume ? { code: courtResume.code, courtisan: true } : null)}
-        onResume={() => setScreen(resume?.tournament ? { name: 'tournament', mode: { kind: 'resume' } } : resume ? { name: 'online', mode: { kind: 'resume' } } : { name: 'dixmille', pending: { resume: true } })} />;
+        onJoinScheduled={onJoinScheduled}
+        resume={resume} onResume={resumeGame} />;
     case 'hub':
-      return <OnlineHub tab={screen.tab} settings={settings} onSettings={setSettings} pa={pa} onBack={home}
+      return <OnlineHub tab={screen.tab} settings={settings} onSettings={setSettings} pa={pa} onBack={classic}
         onJoinRoom={(code) => setScreen({ name: 'online', mode: { kind: 'join', code, auto: true } })}
         onJoinTournament={(code) => setScreen({ name: 'tournament', mode: { kind: 'join', code } })}
         onCreateRoom={() => setScreen({ name: 'online', mode: { kind: 'create' } })}
         onQuick={() => setScreen({ name: 'online', mode: { kind: 'quick' } })}
         onCreateTournament={() => setScreen({ name: 'tournament', mode: { kind: 'create' } })}
         onWatch={(code) => setScreen({ name: 'watch', code, back: { name: 'hub', tab: 'tables' } })}
-        onJoinScheduled={(code, pay) => setScreen({ name: 'tournament', mode: { kind: 'join', code, pay } })}
+        onJoinScheduled={onJoinScheduled}
         onAccount={() => setScreen({ name: 'account' })} />;
     case 'watch':
       return <SpectateFlow key={screen.code} code={screen.code} settings={settings} onSettings={setSettings} pa={pa}
-        onExit={() => (screen.back.name === 'home' ? home() : setScreen(screen.back))} />;
+        onExit={() => (screen.back.name === 'home' ? classic() : setScreen(screen.back))} />;
     case 'tournament':
-      return <TournamentFlow mode={screen.mode} settings={settings} onSettings={setSettings} onExit={home} onCancel={() => setScreen({ name: 'hub', tab: 'tournois' })}
+      return <TournamentFlow mode={screen.mode} settings={settings} onSettings={setSettings} onExit={classic} onCancel={() => setScreen({ name: 'hub', tab: 'tournois' })}
         appearance={profile.equipped} onGameEnd={pa.onGameEnd} pa={pa} />;
     case 'solo-setup':
-      return <SoloSetup settings={settings} onBack={home} onStart={startSolo} />;
+      return <SoloSetup settings={settings} onBack={classic} onStart={startSolo} />;
     case 'solo':
-      return <GameScreen controller={screen.controller} personas={screen.personas} settings={settings} onSettings={setSettings} onExit={home}
+      return <GameScreen controller={screen.controller} personas={screen.personas} settings={settings} onSettings={setSettings} onExit={classic}
         appearance={profile.equipped} onGameStart={pa.onSoloStart} pa={pa}
         onGameEnd={(st, ctx) => pa.onGameEnd(st, screen.controller.meId, ctx)} />;
     case 'online':
-      return <OnlineFlow mode={screen.mode} settings={settings} onSettings={setSettings} onExit={home} onCancel={() => setScreen({ name: 'hub', tab: 'tables' })}
+      return <OnlineFlow mode={screen.mode} settings={settings} onSettings={setSettings} onExit={classic} onCancel={() => setScreen({ name: 'hub', tab: 'tables' })}
         appearance={profile.equipped} onGameEnd={pa.onGameEnd} auth={pa.token} onServerReward={pa.onServerReward} pa={pa} />;
     case 'rules':
-      return <RulesScreen onBack={home} />;
+      return <RulesScreen onBack={classic} />;
     case 'settings':
-      return <SettingsScreen settings={settings} onChange={setSettings} onBack={screen.from === 'cf' ? () => setScreen({ name: 'cf' }) : screen.from === 'dixmille' ? () => setScreen({ name: 'dixmille' }) : home} />;
+      return <SettingsScreen settings={settings} onChange={setSettings} onBack={backTo(screen.from)} />;
     case 'sandbox':
       return <Sandbox settings={settings} appearance={profile.equipped} trail={profile.fx?.trainee} fete={profile.fx?.fete} tryFx={screen.tryFx}
-        onSettings={setSettings} onBack={screen.tryFx ? () => setScreen({ name: 'collection', from: screen.from }) : home} />;
+        onSettings={setSettings} onBack={screen.tryFx ? () => setScreen({ name: 'collection', from: screen.from }) : backTo(screen.from)} />;
     case 'shop':
-      return <ShopScreen profile={profile} settings={settings} onBuy={pa.buyItem} onEquip={pa.equipItem} onBack={screen.from === 'dixmille' ? () => setScreen({ name: 'dixmille' }) : home} />;
+      return <ShopScreen profile={profile} settings={settings} onBuy={pa.buyItem} onEquip={pa.equipItem} onBack={backTo(screen.from)} />;
     case 'account':
       return <AccountScreen key={screen.tab ?? 'register'} initial={screen.tab} pa={pa} onBack={home} onPrivacy={() => setScreen({ name: 'legal', back: { name: 'account' } })} />;
     case 'tutorial':
-      return <TutorialScreen controller={screen.controller} settings={settings} onSettings={setSettings} onExit={home} appearance={profile.equipped} pa={pa} />;
+      return <TutorialScreen controller={screen.controller} settings={settings} onSettings={setSettings} onExit={classic} appearance={profile.equipped} pa={pa} />;
     case 'boss': {
       const c = screen.controller;
       const personas = Object.fromEntries(c.getMeta().filter((m) => m.isBot).map((m, i) => [m.id, PERSONAS.find((p) => p.name === m.name) ?? PERSONAS[i]]));
-      return <GameScreen controller={c} personas={personas} settings={settings} onSettings={setSettings} onExit={home}
+      return <GameScreen controller={c} personas={personas} settings={settings} onSettings={setSettings} onExit={classic}
         appearance={profile.equipped} onGameStart={pa.onSoloStart} pa={pa} bossId={c.boss.id}
         onGameEnd={(st, ctx) => pa.onGameEnd(st, c.meId, ctx)} />;
     }
     case 'party-setup':
-      return <PartySetup settings={settings} onBack={home} onStart={(kind, names, cfg) => setScreen(kind === 'referee'
+      return <PartySetup settings={settings} onBack={classic} onStart={(kind, names, cfg) => setScreen(kind === 'referee'
         ? { name: 'referee', names, config: cfg } : { name: 'party', controller: new PartyController(cfg, names) })} />;
     case 'party':
-      return <PartyGame controller={screen.controller} settings={settings} onSettings={setSettings} onExit={home} appearance={profile.equipped} />;
+      return <PartyGame controller={screen.controller} settings={settings} onSettings={setSettings} onExit={classic} appearance={profile.equipped} />;
     case 'referee':
-      return <RefereeScreen names={screen.names} config={screen.config} onExit={home} />;
+      return <RefereeScreen names={screen.names} config={screen.config} onExit={classic} />;
     case 'club':
       return <ClubScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} />;
     case 'album':
-      return <AlbumScreen pa={pa} onBack={home} />;
+      return <AlbumScreen pa={pa} onBack={classic} />;
     case 'recap':
       return <RecapScreen pa={pa} onBack={home} />;
     case 'challenge':
-      return <ChallengeScreen pa={pa} settings={settings} appearance={profile.equipped} onBack={home} />;
+      return <ChallengeScreen pa={pa} settings={settings} appearance={profile.equipped} onBack={classic} />;
     case 'pass':
       return <PassScreen pa={pa} onBack={home} />;
     case 'changelog':
       return <ChangelogScreen onBack={home} />;
     case 'dixmille':
-      return <DixMilleMode key={JSON.stringify(screen.pending ?? null)} pending={screen.pending} onAccount={() => setScreen({ name: 'account' })} pa={pa} settings={settings} onSettings={setSettings} onHome={home} onCards={() => setScreen({ name: 'cf' })}
-        onCollection={(open) => setScreen({ name: 'collection', from: 'dixmille', open })} onShop={() => setScreen({ name: 'shop', from: 'dixmille' })} onAllSettings={() => setScreen({ name: 'settings', from: 'dixmille' })}
+      return <DixMilleMode key={JSON.stringify(screen.pending ?? null)} pending={screen.pending} onAccount={() => setScreen({ name: 'account' })} pa={pa} settings={settings} onSettings={setSettings} onHome={home}
+        onCollection={(open) => setScreen({ name: 'collection', from: 'dixmille', open })}
         displayName={settings.name} avatar={settings.avatar} />;
     case 'cf':
-      return <CfMode onDixMille={() => setScreen({ name: 'dixmille' })} key={JSON.stringify(screen.pending ?? null)} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
-        onHome={home} onMessages={() => setScreen({ name: 'messages', from: 'cf' })} onFriends={() => setScreen({ name: 'friends', from: 'cf' })}
-        onAccount={() => setScreen({ name: 'account' })} onLogin={() => setScreen({ name: 'account', tab: 'login' })}
-        onDuelPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }} onDuels={() => setScreen({ name: 'duels' })}
-        onOpenSettings={() => setScreen({ name: 'settings', from: 'cf' })} onAdmin={() => setScreen({ name: 'admin', from: 'cf' })} onModeration={() => setScreen({ name: 'moderation', from: 'cf' })} />;
+      return <CfMode key={JSON.stringify(screen.pending ?? null)} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
+        onHome={home} onFriends={() => setScreen({ name: 'friends', from: 'cf' })} onBags={() => setScreen({ name: 'collection', from: 'cf', open: true })}
+        onAccount={() => setScreen({ name: 'account' })} onLogin={() => setScreen({ name: 'account', tab: 'login' })} />;
     case 'friends':
-      return <FriendsScreen pa={pa} onBack={screen.from === 'cf' ? () => setScreen({ name: 'cf' }) : home}
-        onCfChallenge={screen.from === 'cf' ? (u) => setScreen({ name: 'cf', pending: { challenge: u } }) : undefined}
-        onCfWatch={screen.from === 'cf' ? (c) => setScreen({ name: 'cf', pending: { watch: c } }) : undefined} onAccount={() => setScreen({ name: 'account' })} onJoin={joinTable}
+      return <FriendsScreen pa={pa} onBack={backTo(screen.from)}
+        onCfChallenge={(u) => setScreen({ name: 'cf', pending: { challenge: u } })}
+        onCfWatch={(c) => setScreen({ name: 'cf', pending: { watch: c } })} onAccount={() => setScreen({ name: 'account' })} onJoin={joinTable}
         onInvite={(username) => setScreen({ name: 'online', mode: { kind: 'create', invite: username } })}
-        onMessage={(username) => setScreen({ name: 'messages', with: username })}
-        onWatch={(code, game) => setScreen(game === 'courtisan' ? { name: 'dixmille', pending: { watch: code } } : { name: 'watch', code, back: { name: 'friends' } })} />;
+        onMessage={(username) => setScreen({ name: 'messages', with: username, from: screen.from })}
+        onWatch={(code, game) => setScreen(game === 'courtisan' ? { name: 'dixmille', pending: { watch: code } } : { name: 'watch', code, back: { name: 'friends', from: screen.from } })} />;
     case 'messages':
-      return <MessagesScreen key={screen.with ?? ''} pa={pa} initial={screen.with} onBack={screen.from === 'cf' ? () => setScreen({ name: 'cf' }) : home} onAccount={() => setScreen({ name: 'account' })} />;
+      return <MessagesScreen key={screen.with ?? ''} pa={pa} initial={screen.with} onBack={backTo(screen.from)} onAccount={() => setScreen({ name: 'account' })} />;
     case 'duels':
       return <DuelsScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} onPlay={(duel) => { sound.unlock(); setScreen({ name: 'duel', duel }); }} />;
     case 'duel':
       return <ChallengeScreen key={screen.duel.id} pa={pa} settings={settings} appearance={profile.equipped} duel={screen.duel} onBack={() => setScreen({ name: 'duels' })} />;
     case 'collection':
-      return <CollectionScreen key={screen.open ? 'ouvrir' : 'voir'} pa={pa} openNow={screen.open} onBack={screen.from === 'dixmille' ? () => setScreen({ name: 'dixmille' }) : home}
+      return <CollectionScreen key={screen.open ? 'ouvrir' : 'voir'} pa={pa} openNow={screen.open} onBack={backTo(screen.from)}
         onAccount={() => setScreen({ name: 'account' })} onTry={(fx) => setScreen({ name: 'sandbox', tryFx: fx, from: screen.from })} />;
     case 'stats':
-      return <StatsScreen pa={pa} onBack={home} onAdmin={() => setScreen({ name: 'admin' })} />;
+      return <StatsScreen pa={pa} onBack={backTo(screen.from)} onAdmin={() => setScreen({ name: 'admin', from: 'stats' })} />;
     case 'admin':
-      return <AdminDashboard pa={pa} onBack={() => setScreen(screen.from === 'cf' ? { name: 'cf' } : { name: 'stats' })} />;
+      return <AdminDashboard pa={pa} onBack={() => (screen.from === 'stats' ? setScreen({ name: 'stats' }) : home())} />;
     case 'moderation':
-      return <ModerationScreen pa={pa} onBack={screen.from === 'cf' ? () => setScreen({ name: 'cf' }) : home} />;
+      return <ModerationScreen pa={pa} onBack={home} />;
     case 'legal':
       return <LegalScreen onBack={() => (screen.back.name === 'home' ? home() : setScreen(screen.back))} />;
     case 'leaderboard':
-      return <LeaderboardScreen pa={pa} onBack={home} onAccount={() => setScreen({ name: 'account' })} />;
+      return <LeaderboardScreen pa={pa} onBack={backTo(screen.from)} onAccount={() => setScreen({ name: 'account' })} />;
   } })();
   // Invitation d'un ami : bandeau partout, sauf quand on est déjà à une table en ligne.
   const atTable = screen.name === 'online' || screen.name === 'tournament' || screen.name === 'watch' || screen.name === 'dixmille';

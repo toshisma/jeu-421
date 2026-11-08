@@ -209,8 +209,10 @@ const guestPa = { isAccount: false, token: null, session: null, photo: null, pro
 describe('rendu des écrans du mode', () => {
   it('menu du mode (invité) : boutons, tuiles, invitation à créer un compte', () => {
     const html = renderToString(h(CfMode, { pa: guestPa, settings: { name: '', avatar: '🎩' } as never, onSettings: noop, avatar: '🎩', displayName: '',
-      onHome: noop, onMessages: noop, onFriends: noop, onAccount: noop, onLogin: noop, onDuelPlay: noop, onDuels: noop }));
-    for (const t of ['Coups Fourrés', 'Partie classée', 'Contre l’ordinateur', 'Entre amis', 'Mes decks', 'Boosters', 'Collection', 'Missions', 'Classement', '421 classique', 'Règles', 'Connexion', 'sans rien gagner']) expect(html).toContain(t);
+      onHome: noop, onFriends: noop, onAccount: noop, onLogin: noop }));
+    for (const t of ['Coups Fourrés', 'Menu', 'Partie classée', 'Contre l’ordinateur', 'Entre amis', 'Mes decks', 'Boosters', 'Mes cartes', 'Missions', 'Classement', 'Apprendre', 'Règles', 'vous gagnez des pièces']) expect(html).toContain(t);
+    // Le général (messages, notifications, réglages, autres jeux) n'encombre plus le menu du mode.
+    for (const t of ['421 classique', 'Réglages et plus', 'Courtisan']) expect(html).not.toContain(t);
   });
 
   it('collection, decks, éditeur, classement, règles, missions, booster', () => {

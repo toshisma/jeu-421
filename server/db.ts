@@ -1113,6 +1113,12 @@ export class Store {
     return bal + delta;
   }
   /** Cadeau quotidien : versé une seule fois par jour (jour donné par le serveur). Renvoie le montant versé. */
+  /** Le cadeau du jour des Groschen est-il encore à recevoir (sans le verser) ? */
+  dmGiftReady(userId: string, day: string): boolean {
+    this.dmInit();
+    const row = this.db.prepare('SELECT gift_day FROM dm_wallet WHERE user_id = ?').get(userId) as { gift_day: string } | undefined;
+    return row?.gift_day !== day;
+  }
   dmDailyGift(userId: string, day: string, amount: number, at = Date.now()): number {
     this.dmInit();
     const row = this.db.prepare('SELECT gift_day FROM dm_wallet WHERE user_id = ?').get(userId) as { gift_day: string } | undefined;

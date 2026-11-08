@@ -58,6 +58,8 @@ interface Props {
   onExit: () => void;
   onAgain?: () => void;
   onAccount: () => void;
+  /** Ouvrir les sacs de dés gagnés (collection de dés, commune à tous les jeux). */
+  onBags?: () => void;
   /** Session en ligne (tchat de table, réactions), pour une partie en ligne. */
   online?: CfOnline | null;
 }
@@ -70,7 +72,7 @@ const reduced = () => typeof window !== 'undefined' && !!window.matchMedia?.('(p
 let rollSeed = 1;
 const nextSeed = () => (rollSeed = (Math.imul(rollSeed, 1664525) + 1013904223) >>> 0);
 
-export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onAgain, onAccount, online }: Props) {
+export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onAgain, onAccount, onBags, online }: Props) {
   const tray = useRef<DiceTrayHandle>(null);
   const [snap, setSnap] = useState<CfSnapshot | null>(null);
   const spectator = !!(controller as { spectator?: boolean }).spectator;
@@ -571,7 +573,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       {!overlayOpen && mulliganMine && !tourStep && <Mulligan v={v} legal={legal} pending={pending} onAct={act} clock={clock?.text} />}
       {!overlayOpen && respondMine && <RespondPanel v={v} legal={legal} pending={pending} onAct={act} deadline={deadline} focus={focus === 'respond'} tuto={guide?.text ?? null} />}
       {!overlayOpen && choiceMine && <ChoiceWindow v={v} legal={legal} pending={pending} onAct={act} focus={focus === 'choice'} tuto={guide?.text ?? null} />}
-      {(snap.finished || v.phase === 'over') && !animating && <EndScreen snap={snap} v={v} me={me} onExit={close} onAgain={onAgain} onAccount={onAccount}
+      {(snap.finished || v.phase === 'over') && !animating && <EndScreen snap={snap} v={v} me={me} onExit={close} onAgain={onAgain} onAccount={onAccount} onBags={onBags}
         bot={controller.kind === 'bot'} guest={!pa.isAccount} ranked={controller.ranked} spectator={spectator} rewarded={(controller as { rewarded?: boolean }).rewarded ?? controller.kind === 'online'}
         againLabel={isTuto ? 'Contre l’ordinateur' : undefined}
         onShare={spectator || isTuto || !moments.current.best() ? undefined : () => { const m = moments.current.best(); if (m) void share(m); }} sharing={sharing} />}

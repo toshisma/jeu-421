@@ -44,6 +44,10 @@ export function createGroschen(o: { store: Store; userFromToken: (t: unknown) =>
     const u = o.userFromToken(tokenOf(req));
     if (!u) return res.status(401).json({ ok: false, error: 'Les Groschen demandent un compte (gratuit).' });
     const day = today();
+    // Aperçu (menu principal) : solde et cadeau du jour disponible, sans le verser (il l'est à l'ouverture du mode).
+    if (req.query.peek) {
+      return res.json({ ok: true, balance: store.dmBalance(u.id), giftReady: store.dmGiftReady(u.id, day), day });
+    }
     const gift = store.dmDailyGift(u.id, day, GROSCHEN_DAILY, now());
     res.json({ ok: true, balance: store.dmBalance(u.id), gift, day, history: store.dmLedgerOf(u.id, 20) });
   });

@@ -15,7 +15,7 @@ import { GROSCHEN_DAILY, GROSCHEN_MAX_STAKE } from '../../../shared/dixmille/gro
 import { AVATARS, EMOTES, PHRASES } from '../../../shared/protocol';
 import type { Appearance } from '../../../shared/progress/catalog';
 import { fxDef } from '../../../shared/progress/dice-collection';
-import { collectionCount, type Profile, type Reward } from '../../../shared/progress/profile';
+import { type Profile, type Reward } from '../../../shared/progress/profile';
 import { BagIcon } from '../ui/BagIcon';
 import type { ProfileApi } from '../account/useProfile';
 import { api } from '../account/api';
@@ -24,12 +24,12 @@ import type { Insets } from '../three/TrayScene';
 import type { ThrowGesture } from '../physics/diceSim';
 import { PERSONAS, PERSONA_DICE, type Persona } from '../game/personas';
 import { DiceTray, type DiceTrayHandle } from '../ui/DiceTray';
-import { BigAction, Choices, Section, Sheet, Shell, Toggle } from '../ui/kit';
+import { BigAction, Choices, Section, Sheet, Shell } from '../ui/kit';
 import { DieCube } from '../ui/DiceCollection';
 import { MiniDie } from '../ui/MiniDie';
 import { Icon } from '../ui/Icon';
 import { Avatar } from '../ui/Avatar';
-import { ModeSwitch } from '../ui/ModeSwitch';
+import { ModeBar, ModeChip } from '../ui/ModeBar';
 import { VolumeControl } from '../ui/VolumeControl';
 import { Chat } from '../ui/Chat';
 import { askConfirm } from '../ui/confirm';
@@ -1023,11 +1023,13 @@ export function DixMilleSetup({ onBack, onStart, onRules, onOnline, pa, groschen
 
 export type DmPending = { join?: string; watch?: string; resume?: boolean };
 
-export function DixMilleMode({ pa, settings, onSettings, onHome, onCards, displayName, avatar, pending, onAccount, onCollection, onShop, onAllSettings }: {
-  pa: ProfileApi; settings: Settings; onSettings: (s: Settings) => void; onHome: () => void; onCards?: () => void; displayName: string; avatar: string;
+export function DixMilleMode({ pa, settings, onSettings, onHome, displayName, avatar, pending, onAccount, onCollection }: {
+  pa: ProfileApi; settings: Settings; onSettings: (s: Settings) => void;
+  /** Retour au menu principal. */
+  onHome: () => void; displayName: string; avatar: string;
   pending?: DmPending; onAccount?: () => void;
-  /** Collection de dés commune au 421 (`open` : ouvrir un sac tout de suite), boutique et équipement, tous les réglages. */
-  onCollection?: (open?: boolean) => void; onShop?: () => void; onAllSettings?: () => void;
+  /** Collection de dés commune aux trois jeux (`open` : ouvrir un sac tout de suite). */
+  onCollection?: (open?: boolean) => void;
 }) {
   type Route = { r: 'menu' } | { r: 'setup'; tab: 'solo' | 'ligne' } | { r: 'game'; setup: DmSetup; opponents: Persona[]; key: number } | { r: 'online'; mode: DmOnlineMode; key: number; from: 'menu' | 'setup' };
   const [route, setRoute] = useState<Route>(() => pending?.join ? { r: 'online', mode: { kind: 'join', code: pending.join }, key: 1, from: 'menu' }
@@ -1058,9 +1060,9 @@ export function DixMilleMode({ pa, settings, onSettings, onHome, onCards, displa
         ? <DixMilleSetup key={route.tab} initialTab={route.tab} onBack={toMenu} onRules={() => setRules(true)} pa={pa} groschen={groschen} onAccount={onAccount}
           onStart={(setup, opponents) => { sound.unlock(); setRoute({ r: 'game', setup, opponents, key: Date.now() }); }}
           onOnline={(mode) => online(mode, 'setup')} />
-        : <DmMenu pa={pa} groschen={groschen} settings={settings} onSettings={onSettings} onHome={onHome} onCards={onCards} onAccount={onAccount}
-          name={me.name} avatar={avatar} onRules={() => setRules(true)} onSetup={(tab) => setRoute({ r: 'setup', tab })} onOnline={(mode) => online(mode, 'menu')}
-          onCollection={onCollection} onShop={onShop} onAllSettings={onAllSettings} />}
+        : <DmMenu pa={pa} groschen={groschen} onHome={onHome} onAccount={onAccount}
+          onRules={() => setRules(true)} onSetup={(tab) => setRoute({ r: 'setup', tab })} onOnline={(mode) => online(mode, 'menu')}
+          onCollection={onCollection} />}
       {rules && <Sheet title="Règles du Courtisan" onClose={() => setRules(false)}><DmRules /></Sheet>}
       {gift}
     </>
@@ -1081,34 +1083,31 @@ const helpUrl = (path: string) => (NO_SERVER || !/^https?:$/.test(location.proto
 const GR_REASON: Record<string, string> = { cadeau: 'Cadeau du jour', mise: 'Mise', gain: 'Pot emporté', remboursement: 'Mise rendue', admin: 'Ajustement' };
 const fmtWhen = (t: number) => new Intl.DateTimeFormat('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(t));
 
-function DmMenu({ pa, groschen, settings, onSettings, onHome, onCards, onAccount, name, avatar, onRules, onSetup, onOnline, onCollection, onShop, onAllSettings }: {
-  pa: ProfileApi; groschen: ReturnType<typeof useGroschen>; settings: Settings; onSettings: (s: Settings) => void;
-  onHome: () => void; onCards?: () => void; onAccount?: () => void; name: string; avatar: string;
+function DmMenu({ pa, groschen, onHome, onAccount, onRules, onSetup, onOnline, onCollection }: {
+  pa: ProfileApi; groschen: ReturnType<typeof useGroschen>;
+  onHome: () => void; onAccount?: () => void;
   onRules: () => void; onSetup: (tab: 'solo' | 'ligne') => void; onOnline: (m: DmOnlineMode) => void;
-  onCollection?: (open?: boolean) => void; onShop?: () => void; onAllSettings?: () => void;
+  onCollection?: (open?: boolean) => void;
 }) {
   const p = pa.profile;
   const acc = pa.isAccount;
   const [code, setCode] = useState('');
-  const [sheet, setSheet] = useState<'stats' | 'history' | 'settings' | null>(null);
+  const [sheet, setSheet] = useState<'stats' | 'history' | null>(null);
   const bal = groschen.balance;
   const bags = p.bags ?? 0;
-  const count = collectionCount(p);
   const saved = NO_SERVER ? null : loadDmSession();
   const st = p.dm;
-  const set = (x: Partial<Settings>) => { sound.unlock(); onSettings({ ...settings, ...x }); };
   return (
     <div className="dm-menu">
-      <header className="dm-menu-bar">
-        <button className="scr-back" onClick={onHome} aria-label="Retour à l’accueil"><Icon name="back" size={22} /></button>
-        <span className="dm-me"><Avatar photo={pa.photo} emoji={avatar} size={36} /><span><b>{name}</b><small>{acc ? 'Le Courtisan' : 'Invité · Le Courtisan'}</small></span></span>
-        {acc && bal != null ? <button className="dm-wallet" onClick={() => setSheet('history')} aria-label={`${bal} Groschen : historique`}><GroschenIcon size={18} /><b>{fmt(bal)}</b></button>
-          : !acc && onAccount && !NO_SERVER ? <button className="btn small" onClick={onAccount}>Connexion</button> : null}
-        <button className="icon-btn" onClick={() => setSheet('settings')} aria-label="Réglages"><Icon name="settings" size={22} /></button>
-      </header>
-      {onCards && <ModeSwitch active="dixmille" onClassic={onHome} onCards={onCards} onDixMille={() => {}} />}
+      <ModeBar tone="dixmille" title="Le Courtisan" onBack={onHome}>
+        {acc && bal != null ? <ModeChip onClick={() => setSheet('history')} label={`${bal} Groschen : historique`}><GroschenIcon size={18} /><b>{fmt(bal)}</b></ModeChip>
+          : null}
+        <button className="icon-btn mode-rules" onClick={onRules} aria-label="Règles du Courtisan"><Icon name="rules" size={20} /></button>
+      </ModeBar>
       <main className="dm-menu-main">
         {saved && <button className="home-banner resume dm-resume" onClick={() => onOnline({ kind: 'resume' })}><Icon name="resume" size={20} /><span><b>Reprendre la partie</b><small>Table {saved.code}</small></span></button>}
+        {/* Sacs de dés gagnés ici : accès direct (la collection est commune aux trois jeux, dans le menu principal). */}
+        {bags > 0 && onCollection && <button className="home-banner gift dm-bags" onClick={() => onCollection(acc)}><BagIcon size={26} /><span><b>{bags > 1 ? `${bags} sacs de dés` : 'Un sac de dés'} {acc ? 'à ouvrir' : 'gardé'}</b><small>{acc ? 'Gagnés en jouant, ouvrez-les !' : 'Créez un compte pour les ouvrir'}</small></span><em>Ouvrir</em></button>}
 
         <section className="dm-hero">
           <span className="dm-hero-dice" aria-hidden>
@@ -1117,7 +1116,7 @@ function DmMenu({ pa, groschen, settings, onSettings, onHome, onCards, onAccount
           </span>
           <span className="dm-hero-text">
             <h1>Le Courtisan</h1>
-            <p>Le Dix mille à 6 dés : gardez les 1, les 5 et les combinaisons, relancez… ou encaissez avant le raté. <button className="link" onClick={onRules}>Règles et valeurs</button></p>
+            <p>Le Dix mille à 6 dés : gardez les 1, les 5 et les combinaisons… et encaissez avant le raté.</p>
           </span>
         </section>
 
@@ -1131,7 +1130,7 @@ function DmMenu({ pa, groschen, settings, onSettings, onHome, onCards, onAccount
             <em>Historique</em>
           </button>
         ) : onAccount && (
-          <button className="dm-gr-cta" onClick={onAccount}><GroschenIcon size={22} /><span><b>Les Groschen, monnaie du Courtisan</b><small>Avec un compte gratuit : +{GROSCHEN_DAILY} chaque jour, des mises et l’ouverture des sacs de dés</small></span></button>
+          <button className="dm-gr-cta" onClick={onAccount}><GroschenIcon size={22} /><span><b>Les Groschen, monnaie du Courtisan</b><small>Avec un compte gratuit : +{GROSCHEN_DAILY} chaque jour et des mises</small></span></button>
         ))}
 
         <div className="dm-plays">
@@ -1154,19 +1153,6 @@ function DmMenu({ pa, groschen, settings, onSettings, onHome, onCards, onAccount
         </div>
 
         <div className="dm-tiles">
-          {onCollection && <button className="dm-tile bags" onClick={() => (bags > 0 && acc ? onCollection(true) : onCollection())}>
-            {bags > 0 && <span className="dm-badge">{bags > 9 ? '9+' : bags}</span>}
-            <span className="dm-tile-art" aria-hidden><BagIcon size={34} /></span>
-            <b>Sacs de dés</b><small>{bags > 0 ? (acc ? `${bags} à ouvrir` : `${bags} gardé${bags > 1 ? 's' : ''}`) : 'À gagner en jouant'}</small>
-          </button>}
-          {onCollection && <button className="dm-tile" onClick={() => onCollection()}>
-            <span className="dm-tile-art num" aria-hidden>{count.owned}<small>/{count.total}</small></span>
-            <b>Collection</b><small>Dés et effets</small>
-          </button>}
-          {onShop && <button className="dm-tile" onClick={onShop}>
-            <span className="dm-tile-art" aria-hidden><Icon name="shop" size={28} /></span>
-            <b>Équipement</b><small>Dés et tapis</small>
-          </button>}
           <button className="dm-tile" onClick={() => setSheet('stats')}>
             <span className="dm-tile-art" aria-hidden><Icon name="chart" size={28} /></span>
             <b>Statistiques</b><small>{st?.games ? `${st.games} partie${st.games > 1 ? 's' : ''}` : 'Vos parties'}</small>
@@ -1175,10 +1161,13 @@ function DmMenu({ pa, groschen, settings, onSettings, onHome, onCards, onAccount
             <span className="dm-tile-art" aria-hidden><Icon name="rules" size={28} /></span>
             <b>Règles</b><small>Et valeurs</small>
           </button>
-          <button className="dm-tile" onClick={() => setSheet('settings')}>
-            <span className="dm-tile-art" aria-hidden><Icon name="settings" size={28} /></span>
-            <b>Réglages</b><small>Son, gobelet</small>
-          </button>
+          {acc && !NO_SERVER ? <button className="dm-tile" onClick={() => setSheet('history')}>
+            <span className="dm-tile-art" aria-hidden><GroschenIcon size={30} /></span>
+            <b>Groschen</b><small>Historique</small>
+          </button> : onCollection && <button className="dm-tile bags" onClick={() => onCollection()}>
+            <span className="dm-tile-art" aria-hidden><BagIcon size={34} /></span>
+            <b>Sacs de dés</b><small>À gagner en jouant</small>
+          </button>}
         </div>
 
         <nav className="dm-help" aria-label="Pages d’aide">
@@ -1195,7 +1184,7 @@ function DmMenu({ pa, groschen, settings, onSettings, onHome, onCards, onAccount
             <div><b>{fmt(st?.bestTurn ?? 0)}</b><small>Meilleur tour</small></div>
             <div><b>{acc ? fmt(st?.bestPot ?? 0) : '—'}</b><small>Plus gros pot (Groschen)</small></div>
           </div>
-          <p className="muted small">Comptées depuis cette mise à jour : parties contre l’ordinateur et en ligne{acc ? '' : ' (sur cet appareil ; avec un compte, elles vous suivent partout)'}. Les sacs de dés gagnés au Courtisan s’ouvrent dans la collection, commune avec le 421.</p>
+          <p className="muted small">Parties contre l’ordinateur et en ligne{acc ? '' : ' (sur cet appareil ; avec un compte, elles vous suivent partout)'}. Chaque partie rapporte aussi des pièces (la monnaie de la boutique) et parfois un sac de dés, comme au 421 et à Coups Fourrés.</p>
         </Sheet>
       )}
       {sheet === 'history' && (
@@ -1212,15 +1201,6 @@ function DmMenu({ pa, groschen, settings, onSettings, onHome, onCards, onAccount
             </ul>
           )}
           <p className="muted small">Les 20 derniers mouvements. Monnaie de jeu, sans argent réel.</p>
-        </Sheet>
-      )}
-      {sheet === 'settings' && (
-        <Sheet title="Réglages" onClose={() => setSheet(null)}>
-          <Toggle label="Sons" hint="Dés, jetons et annonces" checked={!settings.muted} onChange={(b) => set({ muted: !b, volume: b && settings.volume === 0 ? 0.8 : settings.volume })} />
-          <Toggle label="Vibrations" hint="Quand les dés frappent (téléphone)" checked={settings.vibrate} onChange={(b) => set({ vibrate: b })} />
-          <Toggle label="Lancer au gobelet" hint="Les dés partent d’un gobelet renversé" checked={settings.cup} onChange={(b) => set({ cup: b })} />
-          <Toggle label="M’alerter quand c’est mon tour" hint="En ligne, quand le jeu est en arrière-plan" checked={settings.turnAlert} onChange={(b) => set({ turnAlert: b })} />
-          {onAllSettings && <button className="btn wide dm-allset" onClick={onAllSettings}><Icon name="settings" size={18} /> Tous les réglages</button>}
         </Sheet>
       )}
     </div>
