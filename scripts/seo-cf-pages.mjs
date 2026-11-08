@@ -3,7 +3,7 @@
  * Tous les chiffres viennent du catalogue officiel (shared/cards/catalog.ts) ou du code du mode
  * (tournoi : shared/cards/tournament.ts ; ligue : shared/cards/progress.ts ; ordinateurs :
  * client/src/cards/local.ts). La durée moyenne d'un duel vient de `npx tsx scripts/cf-simulate.ts
- * --games 32000` (0.46 : 6,9 manches en moyenne, 20 au plus) : à refaire si l'équilibrage change.
+ * --games 32000` (0.46 : 6,8 manches en moyenne, 20 au plus) : à refaire si l'équilibrage change.
  */
 import { BOOSTER, CAPSULES, CARDS, CF_RULES, DECK_RULES, FAMILY_LABEL, RARITY_LABEL, SHARDS, STARTER_DECKS, TYPE_LABEL } from '../shared/cards/catalog.ts';
 
