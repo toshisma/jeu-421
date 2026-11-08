@@ -260,6 +260,13 @@ describe('rendu des écrans du mode', () => {
     expect(end).toContain('Victoire !');
     expect(end).toContain('première victoire du jour');
     expect(end).toContain('mission');
+    // Pièces (monnaie générale) et sac de dés, avec le bouton pour l'ouvrir.
+    const snap2 = { ...snap, finished: { standings: ['a', 'b'], reward: { capsules: 3, booster: false, points: 0, missions: [], coins: 6, xp: 40, bags: 1 } } };
+    const end2 = renderToString(h(EndScreen, { snap: snap2, v: snap2.view, me: 'a', onExit: noop, onAccount: noop, onBags: noop, bot: true, guest: false, rewarded: true, ranked: false, spectator: false }));
+    expect(end2).toMatch(/<b>\+(<!-- -->)?6<\/b>/);
+    expect(end2).toContain('pièces');
+    expect(end2).toContain('sac de dés');
+    expect(end2).toContain('Ouvrir');
   });
 
   it('statistiques et conseils de deck', () => {

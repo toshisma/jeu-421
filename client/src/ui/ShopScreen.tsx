@@ -172,7 +172,7 @@ export function ShopScreen({ profile, settings, onBuy, onEquip, onBack }: Props)
               </button>
             );
           })}
-          <p className="shop-fine">Les pièces se gagnent en jouant (victoires, 4-2-1, niveaux). Elles ne s'achètent pas et ne valent rien hors du jeu.</p>
+          <p className="shop-fine">Les pièces sont la monnaie de tout le jeu : elles se gagnent en jouant aux trois jeux (421 classique, Coups Fourrés, Le Courtisan), avec le cadeau du jour, le coffre et les défis. Elles ne s'achètent pas et ne servent qu'aux objets de la boutique.</p>
         </div>
 
         <footer className="shop-foot">

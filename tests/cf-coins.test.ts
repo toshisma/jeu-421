@@ -120,4 +120,41 @@ describe('Coups Fourrés : pièces versées par le serveur', () => {
     expect(r[0].coins).toBeUndefined();
     expect(await coins(a.token)).toBe(before);
   });
+
+  it('sacs de dés : règle du 421 (compteur commun, sac garanti à la 10e partie), rien pour un abandon ni une partie trop courte', async () => {
+    const a = await reg('Sacoche'), b = await reg('Partant');
+    const prof = (id: string) => srv.store.profileOf(srv.store.userById(id)!);
+    // Compteur commun avec le 421 et le Courtisan : 9 parties sans sac → la 10e en donne un, à coup sûr.
+    srv.store.saveProfile(a.id, { ...prof(a.id), pity: 9, bags: 0 });
+    const r = srv.accounts.cards.recordCfGame({ winnerId: null, loserId: a.id, ranked: false, vsBot: true, players: 2, loserPlace: 2, minutes: 12, botLevel: 'habitue' });
+    expect(r[0].bags).toBe(1);
+    expect(prof(a.id).bags).toBe(1);
+    expect(prof(a.id).pity ?? 0).toBe(0);
+    // Partie de moins de 1 min 30 : jamais de sac, et le compteur n'avance pas.
+    srv.store.saveProfile(a.id, { ...prof(a.id), pity: 9 });
+    const short = srv.accounts.cards.recordCfGame({ winnerId: a.id, loserId: null, ranked: false, vsBot: true, players: 2, minutes: 1, botLevel: 'habitue' });
+    expect(short[0].bags).toBe(0);
+    expect(prof(a.id).pity).toBe(9);
+    // Abandon en ligne : rien pour celui qui part (ni sac ni compteur).
+    srv.store.saveProfile(b.id, { ...prof(b.id), pity: 9, bags: 0 });
+    const ab = srv.accounts.cards.recordCfGame({ winnerId: a.id, loserId: b.id, ranked: false, vsBot: false, abandoned: true, players: 2, loserPlace: 2, minutes: 20 });
+    expect(ab.find((x) => x.userId === b.id)?.bags).toBeUndefined();
+    expect(prof(b.id).bags ?? 0).toBe(0);
+    expect(prof(b.id).pity).toBe(9);
+    // Rythme : jamais plus d'un sac par partie, au moins le sac garanti toutes les 10, et rien au-delà
+    // du plafond quotidien des parties contre l'ordinateur (commun avec le solo du 421).
+    srv.store.saveProfile(a.id, { ...prof(a.id), pity: 0, bags: 0 });
+    let found = 0, paid = 0;
+    for (let i = 0; i < 300; i++) {
+      const x = srv.accounts.cards.recordCfGame({ winnerId: a.id, loserId: null, ranked: false, vsBot: true, players: 2, minutes: 12, botLevel: 'debutant' });
+      if (x[0].coins === undefined) { expect(x[0].bags).toBeUndefined(); continue; }
+      paid++;
+      expect(x[0].bags ?? 0).toBeLessThanOrEqual(1);
+      found += x[0].bags ?? 0;
+    }
+    expect(paid).toBeLessThanOrEqual(40);
+    expect(found).toBeGreaterThanOrEqual(Math.floor(paid / 10));
+    expect(found).toBeLessThanOrEqual(paid * 0.6);
+    expect(prof(a.id).bags ?? 0).toBe(found);
+  });
 });

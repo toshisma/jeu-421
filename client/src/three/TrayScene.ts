@@ -1059,6 +1059,9 @@ export class TrayScene {
     this.party?.stop();
     if (this.flashLight) { this.flashLight.dispose(); this.flashLight.removeFromParent(); }
     this.renderer.dispose();
+    // Rend tout de suite le contexte WebGL au navigateur (sinon il attend le ramasse-miettes : en passant
+    // d'un menu à l'autre, les vitrines 3D s'accumulent et le navigateur finit par en perdre).
+    try { this.renderer.forceContextLoss(); } catch { /* contexte déjà perdu */ }
     this.renderer.domElement.remove();
   }
 }

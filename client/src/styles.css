@@ -4264,7 +4264,7 @@ button.mode-chip { cursor: pointer; }
 .mode-bar.dixmille .mode-bar-title { color: #f3cf7a; }
 .mode-bar.dixmille .mode-chip { box-shadow: inset 0 0 0 1px rgba(243,207,122,0.45); }
 .mode-bar.dixmille .mode-chip b { color: #f3cf7a; font-size: 17px; }
-@media (max-width: 370px) { .mode-back span { display: none; } .mode-back { padding: 0 9px; } .mode-bar { gap: 6px; padding-left: 12px; padding-right: 12px; } .mode-bar-title { font-size: 18px; } .mode-bar.cartes .mode-bar-title { font-size: 17px; } }
+@media (max-width: 370px) { .mode-bar { gap: 6px; padding-left: 12px; padding-right: 12px; } .mode-bar-title { font-size: 18px; } .mode-bar.cartes .mode-bar-title { font-size: 17px; } }
 
 /* --- Menu du 421 : la rangée « Entre amis · Classement · Album · Partie guidée » --- */
 .cm-links { flex: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); grid-auto-flow: column; gap: 8px; }
@@ -4336,3 +4336,6 @@ button.mode-chip { cursor: pointer; }
 .cf-tile.hot { box-shadow: 0 0 0 2px #f1cc7d, 0 0 14px rgba(241,204,125,0.4); }
 .cf-menu > .mode-bar, .dm-menu > .mode-bar { position: relative; }
 .dm-menu-main .dm-bags { margin: 0; }
+.plus-set { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border-radius: 999px; cursor: pointer; color: #f5eedf; font: 700 13px/1 var(--font);
+  border: 1px solid rgba(255,255,255,0.14); background: linear-gradient(180deg, #2c3d37, #1b2824); box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 3px 0 #0b1512; }
+.plus-set .ico { color: #f1cc7d; }

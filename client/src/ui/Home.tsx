@@ -39,8 +39,6 @@ import { GUIDES_421 } from './ClassicMenu';
 import { inTime, tournamentInfo, useCfPeek, useGroschenPeek, useOnlineCount, useProgramme } from './menuData';
 import { GROSCHEN_DAILY } from '../../../shared/dixmille/groschen';
 
-export { Sheet };
-export { nextTournamentSlot } from './menuData';
 
 export interface HomeProps {
   profile: Profile; pa: ProfileApi; avatar: string; displayName: string; settings: Settings; onChangeSettings: (s: Settings) => void;
@@ -116,7 +114,7 @@ function PlusMenu(p: HomeProps & { onProfile: () => void; onClose: () => void; o
   const pick = (go: () => void) => { p.onClose(); go(); };
   return (
     <Sheet title="Plus" onClose={p.onClose}>
-      <div className="plus-audio"><span>Son</span><VolumeControl settings={p.settings} onSettings={p.onChangeSettings} /><InstallPrompt compact /></div>
+      <div className="plus-audio"><span>Son</span><VolumeControl settings={p.settings} onSettings={p.onChangeSettings} /><button className="plus-set" onClick={() => pick(p.onSettings)}><Icon name="settings" size={18} />Réglages</button><InstallPrompt compact /></div>
       <label className="plus-search"><Icon name="search" size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher : règles, réglages, club…" aria-label="Chercher dans le menu" /></label>
       {groups.map((g) => {
         const items = g.items.filter((i) => i.show !== false && (nq ? norm(`${i.label} ${i.keys ?? ''}`).includes(nq) : !i.search));

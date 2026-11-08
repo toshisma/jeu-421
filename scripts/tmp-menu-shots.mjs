@@ -3,7 +3,7 @@ import puppeteer from 'puppeteer-core';
 const [,, prefix = 'avant', who = 'invite'] = process.argv;
 const OUT = '/tmp/claude-0/-home-claude/2354a900-6617-5b77-aea4-015b57db42fb/scratchpad/menu';
 const URL = 'http://localhost:3081';
-const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const b = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'] });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const p = await b.newPage();
 const errs = [];
