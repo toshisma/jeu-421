@@ -150,7 +150,7 @@ describe('ce que fait une carte ici et maintenant', () => {
     const v = viewFor(s, leader);
     expect(describeNow(v, 'faux-421')).toMatch(/face cachée devant .*1\/3 pièges.*4-2-1/);
     expect(describeNow(v, 'josiane')).toMatch(/^S’installe devant vous/);
-    expect(describeNow(v, 'tournee-patron')).toBe(`Vous gagnez ${TOURNEE_PATRON_GAIN} Tournées (vous en aurez 6 sur 6) et piochez 1 carte.`);
+    expect(describeNow(v, 'tournee-patron')).toBe(`Vous gagnez ${TOURNEE_PATRON_GAIN} Tournées (vous en aurez 6 sur 6).`);
     expect(costNow(v, 'josiane')).toBe(cardDef('josiane')!.cost);
     const s2 = structuredClone(s);
     s2.players.find((p) => p.id === leader)!.r.discount = 2;

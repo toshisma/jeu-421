@@ -49,7 +49,7 @@ export const CARD_GIST: Record<string, string> = {
   'vieux-marcel': 'Suites à 4 · piochez 1 carte',
   pilier: '2 jetons de moins si vous perdez',
   videur: 'Annule le 1er piège adverse',
-  'tournee-patron': '+3 Tournées et 1 carte',
+  'tournee-patron': '+3 Tournées',
   'ticket-caisse': 'Annule un Coup (4 ou moins)',
   fermeture: 'Chasse un Habitué, sinon +2 Tournées',
   'note-salee': '+2 jetons donnés si vous gagnez',

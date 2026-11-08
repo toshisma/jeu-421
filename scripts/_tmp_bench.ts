@@ -5,6 +5,7 @@ export const TEST: Record<string, Record<string, number>> = {
   'P+C pièges': { leurre: 2, fouine: 2, 'peau-banane': 2, 'mot-de-trop': 2, 'croche-patte': 2, 'coup-nenette': 2, 'retournement-veste': 1, 'mise-bouche': 2, 'compte-rond': 2, 'derniere-maille': 1, 'coup-pouce': 2 },
   'P+C verrou': { souriciere: 2, 'noeud-coulant': 2, engrenage: 2, embuscade: 1, leurre: 2, fouine: 2, 'croche-patte': 2, 'mot-de-trop': 2, 'compte-rond': 2, 'mise-bouche': 2, ricochet: 1 },
   'P+C opt': { leurre: 2, fouine: 2, 'peau-banane': 2, 'mot-de-trop': 2, 'retournement-veste': 1, 'croche-patte': 1, ricochet: 2, 'mise-bouche': 2, 'derniere-maille': 2, 'coup-pouce': 2, 'compte-rond': 2 },
+  'H+C opt': { fermeture: 2, patron: 1, 'tournee-patron': 2, 'beau-frere': 2, 'ticket-caisse': 2, doyen: 1, ricochet: 2, domino: 2, recompter: 2, 'petite-soeur': 2, 'coup-pouce': 2 },
   'P+H': { leurre: 2, fouine: 2, 'peau-banane': 2, 'mot-de-trop': 2, 'croche-patte': 2, 'coup-nenette': 1, guetteur: 1, josiane: 2, 'plat-du-jour': 2, 'tournee-patron': 2, 'efface-tout': 1, patron: 1 },
   'P+I': { leurre: 2, fouine: 2, 'peau-banane': 2, 'mot-de-trop': 2, 'croche-patte': 2, 'gueule-bois': 2, 'verre-de-trop': 2, 'double-tournee': 2, 'verre-offert': 2, 'tete-tourne': 1, 'tournee-generale': 1 },
 };

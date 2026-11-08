@@ -1630,8 +1630,8 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
   switch (id) {
     case 'tournee-patron': {
       const g = gainTournees(c, p, TOURNEE_PATRON_GAIN, true);
-      you(`${p.name} gagne ${plural(g, 'Tournée')} et pioche 1 carte.`, `Vous gagnez ${plural(g, 'Tournée')} et piochez 1 carte.`);
-      draw(c, p, 1, false, true);
+      // 0.46 : ne fait plus piocher (trop d'enchaînements).
+      you(`${p.name} gagne ${plural(g, 'Tournée')}.`, `Vous gagnez ${plural(g, 'Tournée')}.`);
       break;
     }
     case 'fermeture': {

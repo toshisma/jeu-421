@@ -150,7 +150,7 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
   switch (cardId) {
     case 'tournee-patron': {
       const after = Math.min(v.rules.tourneesMax, p.tournees - costNow(v, cardId) + TOURNEE_PATRON_GAIN);
-      return `Vous gagnez ${TOURNEE_PATRON_GAIN} Tournées (vous en aurez ${after} sur ${v.rules.tourneesMax}) et piochez 1 carte.`;
+      return `Vous gagnez ${TOURNEE_PATRON_GAIN} Tournées (vous en aurez ${after} sur ${v.rules.tourneesMax}).`;
     }
     case 'cul-sec': {
       const lim = p.throwLimit ?? v.rules.maxThrows;

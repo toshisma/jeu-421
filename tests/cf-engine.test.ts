@@ -230,12 +230,12 @@ describe('Coups Fourrés : les cartes', () => {
     expect(lastEvents.some((e) => e.kind === 'videur')).toBe(true);
   });
 
-  it('Tournée du patron : +3 Tournées et 1 carte', () => {
+  it('Tournée du patron : +3 Tournées (0.46 : plus de pioche)', () => {
     let { s, L } = setup();
     P(s, L).tournees = 2;
     s = act(s, L, play(give(s, L, 'tournee-patron')));
     expect(P(s, L).tournees).toBe(Math.min(6, 2 - cost('tournee-patron') + TOURNEE_PATRON_GAIN));
-    expect(P(s, L).hand).toHaveLength(1);
+    expect(P(s, L).hand).toHaveLength(0);
   });
 
   it('Ticket de caisse : annule un Coup qui coûte 4 ou moins', () => {
