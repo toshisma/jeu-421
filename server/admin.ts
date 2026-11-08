@@ -24,6 +24,7 @@ import { ACHIEVEMENTS } from '../shared/progress/achievements';
 import { BAGS_MAX, levelInfo, newProfile, sanitizeProfile, type Profile } from '../shared/progress/profile';
 import { CF_CARD_LIST, cfAdminAdjust, cfAdminView } from './cards';
 import { COUNTRY_SOURCE_LABEL, countryName, flag, guessCountry, type CountrySource } from '../shared/geo';
+import { buildLive, type PresenceEntry, type SeatInfo } from './live';
 
 export const BANNED_MESSAGE = 'Votre compte est suspendu.';
 const DAY_MS = 86400_000;
@@ -65,6 +66,10 @@ export interface AdminOptions {
   isAdmin: (u: UserRow | undefined) => boolean;
   userFromToken: (t: unknown) => UserRow | undefined;
   now?: () => number;
+  /** « En ligne maintenant » : onglets reliés (présence), table d'un compte, codes de table existants. */
+  presence?: () => PresenceEntry[];
+  seatOf?: (userId: string) => SeatInfo | null;
+  codeKnown?: (code: string) => boolean;
 }
 
 export function createAdmin(store: Store, opts: AdminOptions) {
@@ -865,6 +870,33 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     const per = new Map((db.prepare('SELECT day, SUM(earned) AS earned, SUM(spent) AS spent FROM economy WHERE day >= ? GROUP BY day').all(from) as { day: string; earned: number; spent: number }[]).map((r) => [r.day, r]));
     const richest = (db.prepare(`SELECT username, json_extract(profile, '$.coins') AS coins FROM users ORDER BY coins DESC LIMIT 10`).all() as { username: string; coins: number }[]);
     res.json({ ok: true, bySource, days: series(from, n).map((d) => ({ day: d, earned: per.get(d)?.earned ?? 0, spent: per.get(d)?.spent ?? 0 })), richest });
+  });
+
+  // « En ligne maintenant » : chaque appareil relié, ce qu'il fait, d'où il vient (jamais d'IP).
+  admin.get('/live', (_req, res) => {
+    const t = now();
+    const today = brusselsDay(t);
+    const rowsP = people();
+    const byKey = new Map(rowsP.map((p) => [p.key, p]));
+    const byUser = new Map<string, Person>();
+    for (const p of rowsP) if (p.userId && (!byUser.has(p.userId) || p.lastAt > byUser.get(p.userId)!.lastAt)) byUser.set(p.userId, p);
+    const live = buildLive(opts.presence?.() ?? [], {
+      now: t,
+      seatOf: (id) => opts.seatOf?.(id) ?? null,
+      codeKnown: (c) => opts.codeKnown?.(c) ?? false,
+      visitorKey: (device) => hash(`d:${device}`),
+      visitorInfo: (key, userId) => {
+        const p = byKey.get(key) ?? (userId ? byUser.get(userId) : undefined);
+        if (!p) return null;
+        return { country: p.country, countryName: p.country ? countryName(p.country) : null, flag: p.country ? flag(p.country) : null, newcomer: p.firstDay === today, activeDays: p.activeDays };
+      },
+      userInfo: (id) => {
+        const u = store.userById(id);
+        if (!u) return null;
+        return { username: u.username, level: levelInfo(store.profileOf(u).xp).level, photo: toPublic(u).photo ?? null, admin: opts.isAdmin(u) };
+      },
+    });
+    res.json({ ok: true, at: t, ...live });
   });
 
   router.use('/admin', admin);

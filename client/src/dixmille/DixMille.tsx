@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { act, currentPlayer, diceAfter, inPlay, newGame, pickPoints, ranking, validSelections, DM_LEVELS, DM_TARGETS, DM_VALUES, type DmAction, type DmEvent, type DmLevel, type DmState } from '../../../shared/dixmille/engine';
 import { decide } from '../../../shared/dixmille/ai';
+import { usePresenceLayer } from '../presence';
 import { DM_TABLE_MAX, type DmPublicMember, type DmPublicTable } from '../../../shared/dixmille/protocol';
 import { GROSCHEN_DAILY, GROSCHEN_MAX_STAKE } from '../../../shared/dixmille/groschen';
 import { AVATARS, EMOTES, PHRASES } from '../../../shared/protocol';
@@ -910,6 +911,11 @@ function DmOnlineFlow({ mode, pa, settings, onSettings, me, onExit, onReplay, gr
     return () => { off = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useDm(session ?? DUMMY);
+  // Présence (administration) : salon, partie ou spectateur, avec le code de la table.
+  const dt = session?.table;
+  usePresenceLayer(dt ? (session!.spectating ? { view: 'spectateur', code: dt.code, state: 'menu' }
+    : dt.status === 'playing' ? { view: dt.solo ? 'partie-solo' : 'partie', code: dt.code, state: dt.solo ? 'solo' : 'online' }
+      : { view: 'salon', code: dt.code, state: 'online' }) : null);
   // Fermer l'onglet ou changer d'écran sans « Quitter » : la place est gardée (reprise).
   useEffect(() => () => { if (session && !session.closed) { session.closed = true; session.socket.disconnect(); } }, [session]);
   // Partir par la barre du bas (salon, attente) : comme la flèche retour ; en partie, l'écran de jeu confirme d'abord.
@@ -1046,6 +1052,8 @@ export function DixMilleMode({ pa, settings, onSettings, onHome, displayName, av
     : pending?.watch ? { r: 'online', mode: { kind: 'watch', code: pending.watch }, key: 1, from: 'menu' }
       : pending?.resume ? { r: 'online', mode: { kind: 'resume' }, key: 1, from: 'menu' } : { r: 'menu' });
   const [rules, setRules] = useState(false);
+  // Présence : menu du Courtisan (pas « en partie »), partie solo, ou en ligne (précisé par la table).
+  usePresenceLayer(route.r === 'game' ? { view: 'partie-solo', state: 'solo', depth: 1 } : route.r === 'online' ? { view: 'attente', state: 'online', depth: 1 } : { view: route.r === 'setup' ? 'preparation' : 'menu', state: 'menu', depth: 1 });
   const groschen = useGroschen(pa);
   const me = { name: pa.session?.username ?? displayName ?? 'Vous', avatar, photo: pa.photo };
   const toMenu = () => { groschen.reload(); setRoute({ r: 'menu' }); };

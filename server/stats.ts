@@ -17,6 +17,7 @@ import { randomUUID } from 'node:crypto';
 import express, { type Request, type Response } from 'express';
 import type { Namespace, Server } from 'socket.io';
 import type { Store, UserRow } from './db';
+import { cleanTabInfo, deviceKindOf, type PresenceEntry } from './live';
 
 export interface StatsOptions {
   /** Durée minimale d'une partie solo pour qu'elle compte. */
@@ -55,7 +56,9 @@ export function createStats(store: Store, opts: StatsOptions & { userFromToken: 
   const isAdmin = (u: UserRow | undefined) => !!u && admins.has(u.username.toLowerCase());
 
   // --- Présence : appareils reliés en ce moment ---------------------------------------------------
-  const presence = new Map<string, { device: string; state: 'menu' | 'solo' | 'online'; name?: string; since?: number }>();
+  // Un onglet par connexion ; `state` (menu / solo / en ligne) sert aux statistiques publiques,
+  // `info` au détail « En ligne maintenant » de l'administration (voir live.ts).
+  const presence = new Map<string, PresenceEntry & { state: 'menu' | 'solo' | 'online' }>();
   const devices = () => new Set([...presence.values()].map((p) => p.device));
   const soloDevices = () => new Set([...presence.values()].filter((p) => p.state === 'solo').map((p) => p.device));
   let peak: { n: number; at: number } = (() => { try { return JSON.parse(store.getMeta('stats_peak') ?? '') as { n: number; at: number }; } catch { return { n: 0, at: 0 }; } })();
@@ -85,13 +88,24 @@ export function createStats(store: Store, opts: StatsOptions & { userFromToken: 
       const user = opts.userFromToken(socket.handshake.auth?.token);
       const who = user?.username ?? 'Un visiteur';
       const quiet = isAdmin(user);
-      presence.set(socket.id, { device, state: 'menu', name: user?.username, since: now() });
+      const t0 = now();
+      presence.set(socket.id, {
+        device, state: 'menu', name: user?.username, userId: user?.id, since: t0, changedAt: t0,
+        kind: deviceKindOf(String(socket.handshake.headers['user-agent'] ?? '')), info: cleanTabInfo('menu'),
+      });
       checkPeak();
       const others = () => [...presence.values()].filter((x) => x.device !== device).length;
       if (!quiet) alert(`v:${device}`, 3 * 3600_000, `${who} est sur le jeu`, others() ? `${others() + 1} personnes connectées en ce moment.` : 'Personne d’autre en ligne : c’est le moment de le rejoindre !');
-      socket.on('presence', (st: unknown) => {
+      socket.on('presence', (raw: unknown) => {
+        // Ancien format (texte) ou nouveau (objet) : les deux sont acceptés.
+        const info = cleanTabInfo(raw);
+        const st = info.state;
         const p = presence.get(socket.id);
-        if (p) p.state = st === 'solo' || st === 'online' ? st : 'menu';
+        if (p) {
+          const changed = JSON.stringify({ ...p.info, name: 0, avatar: 0 }) !== JSON.stringify({ ...info, name: 0, avatar: 0 });
+          p.state = st; p.info = info;
+          if (changed) p.changedAt = now();
+        }
         if (!quiet && (st === 'solo' || st === 'online')) {
           alert(`g:${device}`, 30 * 60_000, st === 'online' ? `${who} joue en ligne` : `${who} lance une partie solo`,
             st === 'online' ? 'Une table en ligne est ouverte : rejoins-la depuis l’accueil.' : 'Contre les habitués du bistrot.');
@@ -223,5 +237,7 @@ export function createStats(store: Store, opts: StatsOptions & { userFromToken: 
     });
   });
 
-  return { router, attach, recordOnline, recordSolo, isAdmin };
+  /** Onglets reliés en ce moment (administration : « En ligne maintenant »). */
+  const presenceEntries = (): PresenceEntry[] => [...presence.values()];
+  return { router, attach, recordOnline, recordSolo, isAdmin, presenceEntries };
 }
