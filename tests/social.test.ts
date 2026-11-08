@@ -4,7 +4,7 @@ import { io as connect } from 'socket.io-client';
 import { startServer } from '../server/app';
 import { CHALLENGE_TURNS } from '../shared/challenge';
 import { SERIES } from '../shared/progress/dice-collection';
-import { applyGameEnd, applySeries, newProfile, rewardFor, titleLabel } from '../shared/progress/profile';
+import { WELCOME_BAGS, applyGameEnd, applySeries, newProfile, rewardFor, titleLabel } from '../shared/progress/profile';
 import { happyHour, happyHourOfDay } from '../shared/progress/events';
 import { divisionOf, seasonDelta } from '../shared/season';
 
@@ -135,9 +135,9 @@ describe('saisons classées', () => {
     expect(after.owned).toContain('ds-2026-11');
     expect(after.titles).toContain('saison:2026-11_salle');
     expect(titleLabel('saison:2026-11_salle')).toBe('Salle de novembre 2026');
-    expect(after.bags).toBe(3); // 2 sacs de saison + 1 sac de retour (12 jours d'absence)
+    expect(after.bags).toBe(3 + WELCOME_BAGS); // 2 sacs de saison + 1 sac de retour (12 jours d'absence)
     expect((await api('/season', undefined, t)).me.points).toBe(0); // nouvelle saison
-    expect((await api('/me', undefined, t)).profile.bags).toBe(3); // versé une seule fois
+    expect((await api('/me', undefined, t)).profile.bags).toBe(3 + WELCOME_BAGS); // versé une seule fois
   });
 });
 

@@ -47,7 +47,7 @@ describe('administration', () => {
     const l = await api('/admin/players?q=jo', undefined, adminTok);
     expect(l.players.map((p: { username: string }) => p.username)).toContain('Joe');
     const f = await api('/admin/players/Joe', undefined, adminTok);
-    expect(f.player).toMatchObject({ username: 'Joe', coins: 0, level: 1, ban: null, bags: 0 });
+    expect(f.player).toMatchObject({ username: 'Joe', coins: 0, level: 1, ban: null, bags: 3 }); // 3 sacs de bienvenue
     expect(f.player.createdAt).toBeGreaterThan(0);
     expect((await api('/admin/players/Personne', undefined, adminTok)).status).toBe(404);
   });
@@ -74,9 +74,9 @@ describe('administration', () => {
     const me = (await api('/me', undefined, joeTok)).profile;
     expect(me.owned).not.toContain('felt-bordeaux');
     expect(me.equipped.felt).not.toBe('felt-bordeaux');
-    expect((await api(`/admin/players/${joeId}/bags`, { delta: 3 }, adminTok)).player.bags).toBe(3);
-    expect((await api(`/admin/players/${joeId}/bags`, { delta: -5 }, adminTok)).status).toBe(400);
-    expect((await api(`/admin/players/${joeId}/bags`, { delta: -1 }, adminTok)).player.bags).toBe(2);
+    expect((await api(`/admin/players/${joeId}/bags`, { delta: 3 }, adminTok)).player.bags).toBe(6); // 3 de bienvenue + 3
+    expect((await api(`/admin/players/${joeId}/bags`, { delta: -7 }, adminTok)).status).toBe(400);
+    expect((await api(`/admin/players/${joeId}/bags`, { delta: -1 }, adminTok)).player.bags).toBe(5);
     // Le joueur ouvre un sac : noté dans son activité.
     expect((await api('/bags/open', {}, joeTok)).ok).toBe(true);
     const act = await api('/admin/activity?user=Joe', undefined, adminTok);

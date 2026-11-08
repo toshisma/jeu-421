@@ -3,6 +3,7 @@
  * Parties complètes à 2 et à 6, actions refusées, reprise, quitter puis revenir, temps écoulé,
  * invités, et les Groschen (cadeau du jour, mises, pot, remboursements, abandon).
  */
+import { WELCOME_BAGS } from '../shared/progress/profile';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { io as connect, type Socket } from 'socket.io-client';
 import { startServer } from '../server/app';
@@ -372,10 +373,10 @@ describe('Le Courtisan en ligne : sacs de dés (tirés par le serveur)', () => {
     expect(rewards[0][0].bags).toBe(1);
     expect(rewards[1]).toEqual([]);
     const [p0, p1] = [await prof(accs[0].token), await prof(accs[1].token)];
-    expect(p0.bags).toBe(1);
+    expect(p0.bags).toBe(1 + WELCOME_BAGS);
     expect(p0.pity ?? 0).toBe(0);
     expect(p0.dm.games).toBe(1);
-    expect(p1.bags ?? 0).toBe(0);
+    expect(p1.bags ?? 0).toBe(WELCOME_BAGS);
     expect(p1.pity).toBe(9);
     expect(p1.dm).toBeUndefined();
     for (const c of cs) c.s.close();
@@ -392,7 +393,7 @@ describe('Le Courtisan en ligne : sacs de dés (tirés par le serveur)', () => {
     for (const i of [0, 1]) {
       expect(rewards[i][0].bags).toBe(0);
       const p = await prof(accs[i].token);
-      expect(p.bags ?? 0).toBe(0);
+      expect(p.bags ?? 0).toBe(WELCOME_BAGS);
       expect(p.pity).toBe(9); // la partie ne compte pas pour le sac garanti
       expect(p.dm.games).toBe(1);
     }

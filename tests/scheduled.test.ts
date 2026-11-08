@@ -1,4 +1,5 @@
 /** Tournois programmés (11h et 21h, heure de Bruxelles) : horaires, inscriptions payantes, gains, redémarrage. */
+import { WELCOME_BAGS } from '../shared/progress/profile';
 import { afterAll, describe, expect, it } from 'vitest';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -208,9 +209,9 @@ describe('tournois programmés : serveur', () => {
     const winner = accts.find((a) => a.user.id === byId(t.standings![0]))!;
     const second = accts.find((a) => a.user.id === byId(t.standings![1]))!;
     const third = accts.find((a) => a.user.id === byId(t.standings![2]))!;
-    expect((await api('/me', undefined, winner.token)).profile.bags).toBe(2);
-    expect((await api('/me', undefined, second.token)).profile.bags).toBe(1);
-    expect((await api('/me', undefined, third.token)).profile.bags ?? 0).toBe(0);
+    expect((await api('/me', undefined, winner.token)).profile.bags).toBe(2 + WELCOME_BAGS);
+    expect((await api('/me', undefined, second.token)).profile.bags).toBe(1 + WELCOME_BAGS);
+    expect((await api('/me', undefined, third.token)).profile.bags ?? 0).toBe(WELCOME_BAGS);
     const last = (await api('/tournois/programme', undefined, winner.token)).last;
     expect(last).toMatchObject({ status: 'joue', place: 0, bags: 2, players: 6 });
     for (const c of cs) c.s.disconnect();

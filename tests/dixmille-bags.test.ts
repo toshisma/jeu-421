@@ -5,7 +5,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startServer } from '../server/app';
 import { DM_BAG_MIN_MINUTES, applyDixMilleGame, dixMilleBagRoll, dixMilleReward } from '../shared/dixmille/reward';
-import { BAG_PITY, applyGameEnd, newProfile, rewardFor, sanitizeProfile } from '../shared/progress/profile';
+import { BAG_PITY, WELCOME_BAGS, applyGameEnd, newProfile, rewardFor, sanitizeProfile } from '../shared/progress/profile';
 import { mulberry32 } from '../shared/rng';
 
 const day = '2026-03-10';
@@ -90,7 +90,7 @@ describe('Sacs de dés du Courtisan : serveur (partie contre l’ordinateur sur 
     const end = await api('/dixmille/end', { gameToken: g.gameToken, won: true, place: 1, opponents: 1, level: 'habitue', bestTurn: 850, bags: 50, bagsFound: 50, minutes: 999 }, token);
     expect(end.ok).toBe(true);
     expect(end.applied.bagsFound).toBe(1);
-    expect(end.applied.profile.bags).toBe(1);
+    expect(end.applied.profile.bags).toBe(1 + WELCOME_BAGS);
     expect(end.applied.profile.dm).toMatchObject({ games: 1, wins: 1, bestTurn: 850 });
   });
 
@@ -101,11 +101,11 @@ describe('Sacs de dés du Courtisan : serveur (partie contre l’ordinateur sur 
     const end = await api('/dixmille/end', { gameToken: g.gameToken, won: true, place: 1, opponents: 3, level: 'fouine' }, token);
     expect(end.ok).toBe(true);
     expect(end.applied.bagsFound).toBe(0);
-    expect(end.applied.profile.bags ?? 0).toBe(0);
+    expect(end.applied.profile.bags ?? 0).toBe(WELCOME_BAGS);
     expect(end.applied.profile.pity).toBe(9);
     // Déclarer une fin sans partie commencée, ou deux fois la même : refusé.
     expect((await api('/dixmille/end', { gameToken: 'faux', won: true }, token)).status).toBe(400);
     expect((await api('/dixmille/end', { gameToken: g.gameToken, won: true }, token)).status).toBe(400);
-    expect((await api('/me', undefined, token)).profile.bags ?? 0).toBe(0);
+    expect((await api('/me', undefined, token)).profile.bags ?? 0).toBe(WELCOME_BAGS);
   });
 });
