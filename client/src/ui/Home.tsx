@@ -231,7 +231,7 @@ export function Home(props: HomeProps) {
   // --- Une seule bannière : la plus utile ---------------------------------------------------------------
   const ev = activeEvent(day) || coinBoost(day);
   const banner = (() => {
-    if (props.resume && !STANDALONE) return <button className="home-banner resume" onClick={props.onResume}><Icon name="resume" size={20} /><span><b>{props.resume.tournament ? 'Reprendre le tournoi du 421' : props.resume.courtisan ? 'Reprendre la partie du Courtisan' : 'Reprendre la partie de 421'}</b><small>Table {props.resume.code}</small></span><em>Reprendre</em></button>;
+    if (props.resume && !STANDALONE) return <button className="home-banner resume" onClick={props.onResume}><Icon name="resume" size={20} /><span><b>{props.resume.tournament ? 'Tournoi du 421 en cours' : props.resume.courtisan ? 'Partie du Courtisan en cours' : 'Partie de 421 en cours'}</b><small>Table {props.resume.code}</small></span><em>Reprendre</em></button>;
     const salon = prog?.slots.find((x) => x.status === 'salon' && x.registered && x.code);
     if (salon && props.onJoinScheduled) return <button className="home-banner resume" onClick={() => props.onJoinScheduled!(salon.code!, false)}><Icon name="trophy" size={20} /><span><b>Votre tournoi de {salon.hour} h commence !</b><small>Le salon est ouvert : rejoignez-le</small></span><em>Rejoindre</em></button>;
     if (pa.welcomeBack) return <button className="home-banner gift" onClick={() => { pa.dismissWelcome(); props.onCollection(); }}><Icon name="gift" size={20} /><span><b>Content de vous revoir !</b><small>Un sac de dés vous attend dans la Collection.</small></span></button>;
@@ -245,7 +245,7 @@ export function Home(props: HomeProps) {
   // --- Les trois jeux : ce qui les attend ---------------------------------------------------------------
   const t = tournamentInfo(prog, now);
   const classicRes = props.resume && !props.resume.courtisan && !STANDALONE;
-  const classic = classicRes ? { status: <><b className="mm-hot">Partie en cours</b> · table {props.resume!.code}</>, hot: true, badge: 'Reprendre' }
+  const classic = classicRes ? { status: <><b className="mm-hot">Partie en cours</b> · table {props.resume!.code}</>, hot: true }
     : !STANDALONE && t.registered ? { status: <><b className="mm-hot">Inscrit</b> · tournoi de {t.label} {t.open ? '· salon ouvert' : inTime(t.minutes)}</>, hot: t.open, badge: t.open ? 'Go !' : undefined }
     : { status: STANDALONE ? 'Contre l’ordinateur, entre amis' : <>{online != null && <><i className="live-dot" aria-hidden />{online} en ligne · </>}Tournoi {t.label} {inTime(t.minutes)}</> };
   const cardsSt = !acc ? { status: 'Le 421 aux cartes · essai gratuit' }
@@ -254,7 +254,7 @@ export function Home(props: HomeProps) {
     : cf.boosters > 0 ? { status: <><b className="mm-hot">{cf.boosters} booster{cf.boosters > 1 ? 's' : ''}</b> à ouvrir{cf.division ? ` · ${cf.division}` : ''}</>, hot: true, badge: String(cf.boosters) }
     : { status: `${cf.division ?? 'Ligue'} · missions ${cf.missionsDone}/${cf.missions}` };
   const courtRes = props.resume?.courtisan && !STANDALONE;
-  const courtSt = courtRes ? { status: <><b className="mm-hot">Partie en cours</b> · table {props.resume!.code}</>, hot: true, badge: 'Reprendre' }
+  const courtSt = courtRes ? { status: <><b className="mm-hot">Partie en cours</b> · table {props.resume!.code}</>, hot: true }
     : gr?.giftReady ? { status: <><b className="mm-hot">Cadeau du jour</b> : +{GROSCHEN_DAILY} Groschen</>, hot: true, badge: `+${GROSCHEN_DAILY}` }
     : gr ? { status: `${gr.balance.toLocaleString('fr-BE')} Groschen · 2 à 6 joueurs` }
     : { status: 'Le Dix mille à 6 dés' };
