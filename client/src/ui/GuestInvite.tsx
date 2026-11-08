@@ -49,8 +49,8 @@ function Popup({ onClose, children }: { label: string; onClose: () => void; chil
     return () => { window.removeEventListener('keydown', onKey, true); prev?.focus?.({ preventScroll: true }); };
   }, []);
   return (
-    <div className="gi-veil" role="dialog" aria-modal="true" aria-labelledby="gi-title"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="gi-veil" role="dialog" aria-modal="true" aria-labelledby="gi-title">
+      {/* 0.49 : pas de fermeture en touchant à côté (Sam : le joueur la ferme lui-même, croix ou « Plus tard »). */}
       <div className="gi-card" ref={card} tabIndex={-1}>
         <span className="gi-rays" aria-hidden />
         <button type="button" className="gi-x" onClick={onClose} aria-label="Fermer"><Icon name="close" size={22} /></button>

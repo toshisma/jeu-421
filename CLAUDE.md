@@ -48,6 +48,7 @@ Tout le texte du jeu est **en français** (vouvoiement côté joueurs). Réponds
 ## Principes à respecter
 - **Le serveur fait foi** pour les comptes : récompenses, sacs, mises et défis sont recalculés côté serveur. Les invités ont un profil local (`localStorage` `421.profil`).
 - **Pièces = monnaie générale** (cosmétiques) et **sacs de dés** gagnables dans les 3 jeux, calculés par le serveur, barème et rythme du 421 (compteur de sac garanti commun).
+- **Comptes** (0.49) : fenêtre « Créez un compte » après chaque partie pour les invités (`client/src/ui/GuestInvite.tsx`, pas deux fois en moins de 2 min, fermée par le joueur : croix / Plus tard / Échap) ; nouveau compte = 3 sacs de dés + 3 boosters CF ; la reprise du profil invité à l'inscription est plafonnée (300 pièces, niveau 10, pas de titres/prestige/pass).
 - **Gains volontairement bas** (Sam les a réduits trois fois : succès divisés par 4 en 0.30, pass à paliers croissants ≈ 10 700 points). Ne pas les gonfler sans qu'il le demande.
 - **Mises en scène** : seuls le 4-2-1 et les trois as ont le ralenti / gros plan. Sam a refusé l'extension aux brelans.
 - **Sacs de dés et boosters = pur hasard** (Sam ne veut pas de rare garantie).

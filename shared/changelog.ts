@@ -7,6 +7,11 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.49', date: '2026-11-08T20:10:00+01:00', title: 'Un cadeau pour les nouveaux comptes', items: [
+    'Créez un compte gratuit : 3 sacs de dés et 3 boosters Coups Fourrés vous sont offerts, à ouvrir dès votre arrivée.',
+    'Sans compte, une petite fenêtre vous le rappelle à la fin de vos parties (fermez-la d’un geste avec la croix ou « Plus tard »).',
+    'Avec un compte : collection de dés et de cartes, progression sauvegardée sur tous vos appareils, parties en ligne, classées et tournois, amis, messages et Groschen.',
+  ] },
   { version: '0.48', date: '2026-11-08T19:15:00+01:00', title: 'La barre du bas, partout', items: [
     'La barre du bas (Accueil · Amis · Collection · Boutique · Plus) est maintenant sur tous les écrans : menus des 3 jeux, decks, boosters, tournois, classements, boutique, réglages… On navigue d’un clic où que l’on soit.',
     'Pendant une partie, elle se fait discrète (icônes seules) et le plateau garde toute sa place. Quitter une partie en cours par la barre demande confirmation, comme le bouton Quitter.',
