@@ -82,8 +82,8 @@ type Screen =
   | { name: 'hub'; tab: HubTab }
   | { name: 'friends'; from?: Back }
   | { name: 'messages'; with?: string; from?: Back }
-  | { name: 'dixmille'; pending?: DmPending }
-  | { name: 'cf'; pending?: { challenge?: string; watch?: string; tournoi?: boolean } }
+  | { name: 'dixmille'; pending?: DmPending; reset?: number }
+  | { name: 'cf'; pending?: { challenge?: string; watch?: string; tournoi?: boolean }; reset?: number }
   | { name: 'changelog' }
   | { name: 'online'; mode: OnlineMode }
   | { name: 'watch'; code: string; back: Screen }
@@ -254,8 +254,9 @@ export function App() {
     onShop: go(() => setScreen({ name: 'shop', from: ctx })),
     onMessages: go(() => setScreen({ name: 'messages', from: ctx })),
     onClassic: go(() => setScreen({ name: 'classic' })),
-    onCards: go(() => setScreen({ name: 'cf' })),
-    onDixMille: go(() => setScreen({ name: 'dixmille' })),
+    // Déjà dans ce jeu (sous-écran, partie) : retour à son menu.
+    onCards: go(() => setScreen({ name: 'cf', reset: Date.now() })),
+    onDixMille: go(() => setScreen({ name: 'dixmille', reset: Date.now() })),
     onAccount: go(() => setScreen({ name: 'account' })),
     onLogin: go(() => setScreen({ name: 'account', tab: 'login' })),
     onSettings: go(() => setScreen({ name: 'settings', from: ctx })),
@@ -385,11 +386,11 @@ export function App() {
     case 'changelog':
       return <ChangelogScreen onBack={home} />;
     case 'dixmille':
-      return <DixMilleMode key={JSON.stringify(screen.pending ?? null)} pending={screen.pending} onAccount={() => setScreen({ name: 'account' })} pa={pa} settings={settings} onSettings={setSettings} onHome={home}
+      return <DixMilleMode key={`${JSON.stringify(screen.pending ?? null)}${screen.reset ?? ''}`} pending={screen.pending} onAccount={() => setScreen({ name: 'account' })} pa={pa} settings={settings} onSettings={setSettings} onHome={home}
         onCollection={(open) => setScreen({ name: 'collection', from: 'dixmille', open })}
         displayName={settings.name} avatar={settings.avatar} />;
     case 'cf':
-      return <CfMode key={JSON.stringify(screen.pending ?? null)} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
+      return <CfMode key={`${JSON.stringify(screen.pending ?? null)}${screen.reset ?? ''}`} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
         onHome={home} onFriends={() => setScreen({ name: 'friends', from: 'cf' })} onBags={() => setScreen({ name: 'collection', from: 'cf', open: true })}
         onAccount={() => setScreen({ name: 'account' })} onLogin={() => setScreen({ name: 'account', tab: 'login' })} />;
     case 'friends':
