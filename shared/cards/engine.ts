@@ -1575,9 +1575,11 @@ function installHabitue(c: Ctx, p: CfPlayer, card: CardInst) {
   guetteurSees(s, p);
   if (id === 'vieux-marcel' || id === 'guetteur' || id === 'doyen' || id === 'joueur-belote') {
     const extra = id === 'doyen' && p.habitues.length > 1 ? ' ; vos autres Habitués restent 1 manche de plus' : '';
-    emit(c, { kind: 'effet', player: p.id, card: id, who: p.id, text: `${cardName(id)} s’installe : ${p.name} pioche 1 carte${extra ? ' ; ses autres Habitués restent 1 manche de plus' : ''}.`, textYou: `${cardName(id)} s’installe : vous piochez 1 carte${extra}.` });
+    const t = id === 'doyen' ? ' gagne 1 Tournée et' : '';
+    emit(c, { kind: 'effet', player: p.id, card: id, who: p.id, text: `${cardName(id)} s’installe : ${p.name}${t} pioche 1 carte${extra ? ' ; ses autres Habitués restent 1 manche de plus' : ''}.`, textYou: `${cardName(id)} s’installe : vous ${id === 'doyen' ? 'gagnez 1 Tournée et ' : ''}piochez 1 carte${extra}.` });
     draw(c, p, 1, false, true);
   }
+  if (id === 'doyen') gainTournees(c, p, 1, true);
   if (id === 'guetteur') {
     const g = gainTournees(c, p, 1, true);
     emit(c, { kind: 'effet', player: p.id, card: id, who: p.id, text: `Le Guetteur s’installe : ${p.name} gagne ${plural(g, 'Tournée')}.`, textYou: `Le Guetteur s’installe : vous gagnez ${plural(g, 'Tournée')} ; vous voyez les pièges posés devant vous.` });
@@ -1785,9 +1787,9 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       break;
     }
     case 'mise-bouche':
+      // 0.46 : coûte 1 au lieu de 2, mais ne fait plus piocher.
       p.r.discount = MISE_FREE;
-      you(`${p.name} pioche 1 carte : sa prochaine carte sera gratuite.`, 'Vous piochez 1 carte : votre prochaine carte sera gratuite.');
-      draw(c, p, 1, false, true);
+      you(`Mise en bouche : la prochaine carte de ${p.name} sera gratuite.`, 'Mise en bouche : votre prochaine carte sera gratuite.');
       break;
     case 'cafe-serre': {
       const hab = p.habitues.length > 0;
@@ -1798,9 +1800,7 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
     }
     case 'plat-du-jour': {
       const g = gainTournees(c, p, PLAT_TOURNEES, true);
-      const lead = s.order[0] === p.id;
-      you(`Le Plat du jour : ${p.name} gagne ${plural(g, 'Tournée')}${lead ? ' et pioche 1 carte' : ''}.`, `Le Plat du jour : vous gagnez ${plural(g, 'Tournée')}${lead ? ' et piochez 1 carte' : ''}.`);
-      if (lead) draw(c, p, 1, false, true);
+      you(`Le Plat du jour : ${p.name} gagne ${plural(g, 'Tournée')}.`, `Le Plat du jour : vous gagnez ${plural(g, 'Tournée')}.`);
       break;
     }
     case 'boule-de-neige': {
@@ -1888,8 +1888,7 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       }
       p.discard = p.discard.filter((x) => !got.includes(x));
       p.hand.push(...got.map((k) => ({ uid: k.uid, id: k.id })));
-      const g = gainTournees(c, p, 1, true);
-      you(`La Boucle : ${p.name} reprend ${got.map((k) => cardName(k.id)).join(' et ') || 'rien'} et gagne ${plural(g, 'Tournée')}.`, `La Boucle : vous reprenez ${got.map((k) => cardName(k.id)).join(' et ') || 'rien'} et gagnez ${plural(g, 'Tournée')}.`);
+      you(`La Boucle : ${p.name} reprend ${got.map((k) => cardName(k.id)).join(' et ') || 'rien'}.`, `La Boucle : vous reprenez ${got.map((k) => cardName(k.id)).join(' et ') || 'rien'}.`);
       break;
     }
     case 'passe-passe': {
@@ -1908,9 +1907,10 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       const o = pl(s, t.owner);
       s.traps = s.traps.filter((x) => x.uid !== t.uid);
       o.discard.push({ uid: t.uid, id: t.id });
-      emit(c, { kind: 'fouine-defausse', player: p.id, card: t.id, who: p.id, text: `La Dénonciation de ${p.name} défausse le piège ${cardName(t.id)} de ${o.name}.`, textYou: `La Dénonciation défausse le piège ${cardName(t.id)} de ${o.name} : vous piochez 1 carte.` });
+      emit(c, { kind: 'fouine-defausse', player: p.id, card: t.id, who: p.id, text: `La Dénonciation de ${p.name} défausse le piège ${cardName(t.id)} de ${o.name}.`, textYou: `La Dénonciation défausse le piège ${cardName(t.id)} de ${o.name} : vous piochez 1 carte et gagnez 1 Tournée.` });
       if (t.id === 'leurre') leurreBonus(c, o);
       draw(c, p, 1, false, true);
+      gainTournees(c, p, 1, true);
       break;
     }
     case 'embuscade': {

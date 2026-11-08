@@ -37,7 +37,7 @@ const c = (id: string, name: string, family: CardFamily, type: CardType, cost: n
 
 export const CARDS: CardDef[] = [
   // --- Les Habitués ---
-  c('patron', 'Le Patron', 'habitues', 'habitue', 2, 'legendaire', 'Au début de chaque manche, +1 Tournée et 1 carte. Vos Habitués ne peuvent être ni chassés ni annulés par une carte qui coûte 2 ou moins.', '« Ici, c’est moi qui sers. »'),
+  c('patron', 'Le Patron', 'habitues', 'habitue', 1, 'legendaire', 'Au début de chaque manche, +1 Tournée et 1 carte. Vos Habitués ne peuvent être ni chassés ni annulés par une carte qui coûte 2 ou moins.', '« Ici, c’est moi qui sers. »'),
   c('josiane', 'Josiane, la serveuse', 'habitues', 'habitue', 1, 'rare', 'Une fois par manche, relancez un de vos dés sans utiliser de lancer.', '« Je vous remets la même ? »'),
   c('vieux-marcel', 'Le Vieux Marcel', 'habitues', 'habitue', 1, 'commune', 'En arrivant, piochez 1 carte. Vos suites valent 4 au lieu de 2.', '« De mon temps, on comptait jusqu’à trois. »'),
   c('pilier', 'Le Pilier de comptoir', 'habitues', 'habitue', 2, 'commune', 'Quand vous perdez une manche, vous recevez 2 jetons de moins (au moins 1).', '« Trente ans au même tabouret. Rien ne le bouge. »'),
@@ -79,7 +79,7 @@ export const CARDS: CardDef[] = [
   c('complice', 'Le Complice', 'pieges', 'habitue', 1, 'epique', 'Quand un de vos pièges se déclenche, gagnez 1 Tournée et piochez 1 carte.', '« Moi ? J’étais au comptoir, comme d’habitude. »'),
   // --- Les Chaînes ---
   c('coup-coude', 'Coup de coude', 'chaines', 'coup', 0, 'commune', 'Piochez 1 carte.', '« Psst, regarde un peu ça. »'),
-  c('mise-bouche', 'Mise en bouche', 'chaines', 'coup', 1, 'commune', 'Piochez 1 carte. Votre prochaine carte de la manche est gratuite (sauf une autre Mise en bouche).', '« Juste de quoi ouvrir l’appétit. »'),
+  c('mise-bouche', 'Mise en bouche', 'chaines', 'coup', 1, 'commune', 'Votre prochaine carte de la manche est gratuite (sauf une autre Mise en bouche).', '« Juste de quoi ouvrir l’appétit. »'),
   c('coup-pouce', 'Coup de pouce', 'chaines', 'coup', 3, 'commune', 'Ajoutez ou retirez 1 à un de vos dés (un 6 ne monte pas, un 1 ne descend pas).', '« Un tout petit coup de pouce, personne n’a rien vu. »'),
   c('calcul-mental', 'Calcul mental', 'chaines', 'coup', 0, 'commune', 'Regardez les 3 cartes du dessus de votre deck, gardez-en une, remettez les autres dessous.', '« Je retiens deux, et je pose quatre. »'),
   c('recompter', 'Recompter', 'chaines', 'dernier-mot', 3, 'commune', 'Si vous avez joué une autre carte dans la manche : ajoutez ou retirez 1 à un de vos dés.', '« Attendez, je recompte. »'),
@@ -94,14 +94,14 @@ export const CARDS: CardDef[] = [
   // Les Habitués
   c('joueur-belote', 'Le Joueur de belote', 'habitues', 'habitue', 1, 'commune', 'En arrivant, piochez 1 carte. Vos brelans valent 3 de plus.', '« Belote, rebelote… et brelan ! »'),
   c('garde-champetre', 'Le Garde champêtre', 'habitues', 'habitue', 1, 'rare', 'Les cartes adverses ne peuvent pas toucher à vos dés : ni Coups, ni Derniers mots, ni pièges.', '« Circulez, il n’y a rien à voir. »'),
-  c('doyen', 'Le Doyen', 'habitues', 'habitue', 1, 'rare', 'En arrivant, piochez 1 carte, et vos autres Habitués restent 1 manche de plus.', '« J’étais là avant le comptoir. »'),
+  c('doyen', 'Le Doyen', 'habitues', 'habitue', 1, 'rare', 'En arrivant, gagnez 1 Tournée et piochez 1 carte ; vos autres Habitués restent 1 manche de plus.', '« J’étais là avant le comptoir. »'),
   c('cafe-serre', 'Le Café serré', 'habitues', 'coup', 1, 'commune', 'Piochez 1 carte. Si vous avez un Habitué en jeu, gagnez aussi 1 Tournée.', '« Un petit noir, comme d’habitude. »'),
-  c('plat-du-jour', 'Le Plat du jour', 'habitues', 'coup', 1, 'commune', 'Gagnez 2 Tournées. Si vous menez la manche, piochez aussi 1 carte.', '« Aujourd’hui : blanquette. Comme hier. »'),
+  c('plat-du-jour', 'Le Plat du jour', 'habitues', 'coup', 1, 'commune', 'Gagnez 2 Tournées.', '« Aujourd’hui : blanquette. Comme hier. »'),
   c('table-reservee', 'Table réservée', 'habitues', 'riposte', 1, 'commune', 'Annulez un piège qu’un adversaire pose devant vous.', '« Désolé, cette place est prise. »'),
   c('addition', 'L’Addition', 'habitues', 'dernier-mot', 1, 'commune', 'Si vous gagnez la manche, votre combinaison vaut au moins 3.', '« Avec le pain, le couvert et tout le reste. »'),
   c('pique-assiette', 'Le Pique-assiette', 'habitues', 'piege', 1, 'rare', 'Quand l’adversaire gagne des Tournées grâce à une carte, c’est vous qui les gagnez.', '« Je me sers, ça ne vous dérange pas ? »'),
   c('debauchage', 'Le Débauchage', 'habitues', 'coup', 2, 'epique', 'Un Habitué adverse passe de votre côté du comptoir, avec les manches qu’il lui reste. S’il n’y en a aucun, piochez 2 cartes.', '« Viens chez moi, la bière y est moins chère. »'),
-  c('retrouvailles', 'Les Retrouvailles', 'habitues', 'coup', 3, 'legendaire', 'Le dernier Habitué de votre défausse revient s’installer devant vous pour 3 manches. Piochez 1 carte.', '« Tiens, revoilà les copains ! »'),
+  c('retrouvailles', 'Les Retrouvailles', 'habitues', 'coup', 2, 'legendaire', 'Le dernier Habitué de votre défausse revient s’installer devant vous pour 3 manches. Piochez 1 carte.', '« Tiens, revoilà les copains ! »'),
   // L'Ivresse
   c('petit-dernier', 'Un petit dernier', 'ivresse', 'coup', 1, 'commune', 'Relancez un de vos dés, sans utiliser de lancer.', '« Pour la route, et après j’arrête. »'),
   c('hoquet', 'Le Hoquet', 'ivresse', 'piege', 1, 'commune', 'Quand l’adversaire relance en gardant des dés, un des dés gardés est relancé aussi.', '« Hic ! Pardon. Hic ! »'),
@@ -109,31 +109,31 @@ export const CARDS: CardDef[] = [
   c('sante', 'À votre santé !', 'ivresse', 'dernier-mot', 1, 'commune', 'Si vous perdez la manche, l’adversaire qui gagne reçoit aussi 1 jeton.', '« On trinque quand même, sans rancune. »'),
   c('calva', 'Le Petit Calva', 'ivresse', 'dernier-mot', 3, 'commune', 'Retournez un de vos dés sur sa face opposée (1 devient 6, 2 devient 5, 3 devient 4).', '« Le trou normand, ça remet les idées à l’envers. »'),
   c('miroir', 'Le Miroir du bar', 'ivresse', 'coup', 3, 'rare', 'Mettez un de vos dés sur la face d’un autre de vos dés.', '« Je vois double… et ça m’arrange. »'),
-  c('pochtron', 'Le Pochtron', 'ivresse', 'habitue', 2, 'rare', 'À chacun de vos tours, vous avez droit à un lancer de plus.', '« Je ne suis pas saoul, je suis en avance. »'),
+  c('pochtron', 'Le Pochtron', 'ivresse', 'habitue', 1, 'rare', 'À chacun de vos tours, vous avez droit à un lancer de plus.', '« Je ne suis pas saoul, je suis en avance. »'),
   c('a-la-votre', 'À la vôtre !', 'ivresse', 'riposte', 1, 'rare', 'Annulez une Riposte adverse.', '« Vous n’alliez quand même pas refuser un verre ? »'),
   c('verres-echanges', 'Les Verres échangés', 'ivresse', 'coup', 4, 'epique', 'Échangez vos trois dés contre ceux d’un adversaire qui a fini son tour.', '« C’était votre verre ? Ah, mince. »'),
-  c('fee-verte', 'La Fée verte', 'ivresse', 'coup', 3, 'legendaire', 'Choisissez un de vos dés et une face : ce dé est relancé jusqu’à 3 fois, tant qu’il ne tombe pas dessus.', '« Elle exauce un vœu… ou presque. »'),
+  c('fee-verte', 'La Fée verte', 'ivresse', 'coup', 2, 'legendaire', 'Choisissez un de vos dés et une face : ce dé est relancé jusqu’à 3 fois, tant qu’il ne tombe pas dessus.', '« Elle exauce un vœu… ou presque. »'),
   // Les Pièges
   c('mot-de-trop', 'Le Mot de trop', 'pieges', 'piege', 0, 'commune', 'Quand l’adversaire joue un Dernier mot, il est annulé.', '« Tais-toi, tu en as assez dit. »'),
   c('peau-banane', 'La Peau de banane', 'pieges', 'piege', 2, 'commune', 'Quand l’adversaire s’arrête sur une combinaison qui vaut 4 ou plus, un de ses dés est relancé au hasard.', '« Plus dure sera la chute. »'),
   c('guetteur', 'Le Guetteur', 'pieges', 'habitue', 1, 'commune', 'En arrivant, gagnez 1 Tournée et piochez 1 carte. Vous voyez les pièges posés devant vous.', '« Rien ne m’échappe, derrière ma vitre. »'),
-  c('denonciation', 'La Dénonciation', 'pieges', 'dernier-mot', 1, 'commune', 'Défaussez un piège adverse posé devant vous, puis piochez 1 carte.', '« C’est lui, monsieur l’agent ! »'),
+  c('denonciation', 'La Dénonciation', 'pieges', 'dernier-mot', 1, 'commune', 'Défaussez un piège adverse posé devant vous, puis piochez 1 carte et gagnez 1 Tournée.', '« C’est lui, monsieur l’agent ! »'),
   c('passe-passe', 'Le Tour de passe-passe', 'pieges', 'coup', 1, 'commune', 'Reprenez en main un de vos pièges posés (sauf un Leurre), gagnez 1 Tournée et piochez 1 carte.', '« Vous le voyez… vous ne le voyez plus. »'),
   c('attrape-nigaud', 'L’Attrape-nigaud', 'pieges', 'piege', 1, 'rare', 'Quand l’adversaire pose un piège devant vous, ce piège est défaussé et vous piochez 1 carte.', '« Qui piège qui, maintenant ? »'),
   c('lot-consolation', 'Le Lot de consolation', 'pieges', 'piege', 1, 'rare', 'Quand l’adversaire gagne une manche, gagnez 1 Tournée et piochez 2 cartes.', '« Perdu, mais pas pour tout le monde. »'),
   c('flagrant-delit', 'Flagrant délit', 'pieges', 'riposte', 0, 'rare', 'Annulez un Coup adverse qui coûte 1 ou moins.', '« On ne bouge plus ! »'),
   c('souriciere', 'La Souricière', 'pieges', 'piege', 2, 'epique', 'Quand l’adversaire joue sa 1re carte de la manche, il ne peut plus en jouer d’autre jusqu’à la fin de la manche.', '« Un bout de fromage, et clac. »'),
-  c('embuscade', 'L’Embuscade', 'pieges', 'coup', 3, 'legendaire', 'Posez gratuitement devant un adversaire tous les pièges de votre main (3 au plus devant lui).', '« Ils étaient cachés partout ! »'),
+  c('embuscade', 'L’Embuscade', 'pieges', 'coup', 2, 'legendaire', 'Posez gratuitement devant un adversaire tous les pièges de votre main (3 au plus devant lui).', '« Ils étaient cachés partout ! »'),
   // Les Chaînes
   c('boule-de-neige', 'La Boule de neige', 'chaines', 'coup', 0, 'commune', 'Piochez 1 carte par autre carte jouée dans cette manche (3 au plus).', '« Plus elle roule, plus elle grossit. »'),
-  c('ricochet', 'Le Ricochet', 'chaines', 'coup', 1, 'commune', 'Si vous avez déjà joué une carte dans cette manche, ajoutez ou retirez 1 à un de vos dés.', '« Un, deux, trois rebonds… dans le mille. »'),
+  c('ricochet', 'Le Ricochet', 'chaines', 'coup', 2, 'commune', 'Si vous avez déjà joué une carte dans cette manche, ajoutez ou retirez 1 à un de vos dés.', '« Un, deux, trois rebonds… dans le mille. »'),
   c('noeud-coulant', 'Le Nœud coulant', 'chaines', 'piege', 1, 'commune', 'Quand l’adversaire joue sa 2e carte de la manche, il reçoit 1 jeton et ne peut plus en jouer d’autre cette manche.', '« Plus on tire, plus ça serre. »'),
   c('compte-rond', 'Le Compte rond', 'chaines', 'dernier-mot', 1, 'commune', 'Gagnez 1 Tournée par autre carte que vous avez jouée dans cette manche (3 au plus).', '« Et on arrondit au-dessus. »'),
   c('retour-envoyeur', 'Retour à l’envoyeur', 'chaines', 'riposte', 1, 'commune', 'Annulez un Coup adverse : il retourne dans la main de son joueur.', '« Pas de ça ici, reprenez-le. »'),
   c('comptable', 'Le Comptable', 'chaines', 'habitue', 2, 'rare', 'Quand vous jouez votre 2e carte d’une manche, gagnez 1 Tournée et piochez 1 carte.', '« Deux et deux font… une de plus. »'),
   c('derniere-maille', 'La Dernière maille', 'chaines', 'dernier-mot', 3, 'rare', 'Si vous avez joué 2 autres cartes ou plus dans cette manche, mettez un de vos dés sur la face de votre choix.', '« Tout tient à un fil. »'),
   c('echo', 'L’Écho', 'chaines', 'coup', 2, 'rare', 'Rejouez gratuitement le dernier Coup qu’un adversaire a joué dans cette manche.', '« … manche… manche… manche. »'),
-  c('boucle', 'La Boucle', 'chaines', 'coup', 1, 'epique', 'Reprenez en main les 2 derniers Coups de votre défausse (sauf La Boucle et La petite sœur), et gagnez 1 Tournée.', '« Et on recommence, et on recommence… »'),
+  c('boucle', 'La Boucle', 'chaines', 'coup', 1, 'epique', 'Reprenez en main les 2 derniers Coups de votre défausse (sauf La Boucle et La petite sœur).', '« Et on recommence, et on recommence… »'),
   c('effet-papillon', 'L’Effet papillon', 'chaines', 'coup', 2, 'legendaire', 'Piochez 1 carte. Jusqu’à la fin de la manche, vos autres cartes coûtent 1 Tournée de moins.', '« Un battement d’ailes, et tout le comptoir s’envole. »'),
 ];
 

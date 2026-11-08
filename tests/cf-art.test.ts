@@ -12,7 +12,7 @@ const refs = (html: string) => [...html.matchAll(/url\(#([^)]+)\)/g)].map((m) =>
 
 describe('Coups Fourrés : illustrations des cartes', () => {
   it('chacune des cartes a son illustration (et aucune en trop)', () => {
-    expect(CARDS).toHaveLength(50);
+    expect(CARDS).toHaveLength(90);
     for (const c of CARDS) expect(hasCardArt(c.id), c.id).toBe(true);
     expect([...CARD_ART_IDS].sort()).toEqual(CARDS.map((c) => c.id).sort());
   });

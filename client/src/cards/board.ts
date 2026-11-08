@@ -9,7 +9,7 @@
  * - threatLine : ce que la carte adverse va vous faire (fenêtre de riposte).
  */
 import { CARDS, CARD_BY_ID, FAMILY_LABEL, type CardFamily, type CardType } from '../../../shared/cards/catalog';
-import { ADDITION_MIN, ARDOISE_EXTRA, FERMETURE_TOURNEES, PEAU_MIN, TOURNEE_PATRON_GAIN, LEURRE_DRAW, LEURRE_TOURNEES, VESTE_MIN, commandeOf, echoSource, evalPlayer, maxTrapsOn, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView } from '../../../shared/cards/engine';
+import { ADDITION_MIN, ARDOISE_EXTRA, PLAT_TOURNEES, FERMETURE_TOURNEES, PEAU_MIN, TOURNEE_PATRON_GAIN, LEURRE_DRAW, LEURRE_TOURNEES, VESTE_MIN, commandeOf, echoSource, evalPlayer, maxTrapsOn, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView } from '../../../shared/cards/engine';
 import { comboOf, comboWith, costNow, isTurnOf, meOf, nameIn, playOptions, playerOf, playsAfter, plural } from './describe';
 import { FAMILY_SHORT } from './meta';
 import { TYPE_META } from './cardTypes';
@@ -59,7 +59,7 @@ function playableLabel(v: CfView, legal: CfAction[], uid: string, id: string): s
     case 'tournee-patron': return `+${TOURNEE_PATRON_GAIN} Tournées, 1 carte`;
     case 'cul-sec': return '+1 lancer, 1 carte';
     case 'coup-coude': return 'Piocher 1 carte';
-    case 'mise-bouche': return '1 carte, suivante gratuite';
+    case 'mise-bouche': return 'Suivante gratuite';
     case 'calcul-mental': return 'Garder 1 sur 3';
     case 'pari-comptoir': return 'Pari ±2 jetons';
     case 'double-tournee': return 'Gain doublé';
@@ -84,9 +84,9 @@ function playableLabel(v: CfView, legal: CfAction[], uid: string, id: string): s
     case 'petite-soeur': return 'Reprendre un Coup';
     // 0.46
     case 'cafe-serre': return p.habitues.length ? '1 carte, +1 Tournée' : 'Piocher 1 carte';
-    case 'plat-du-jour': return 'Piocher 2 cartes';
-    case 'boule-de-neige': return `Piocher ${plural(Math.min(3, 1 + p.r.played), 'carte')}`;
-    case 'effet-papillon': return '2 cartes, suivantes −1';
+    case 'plat-du-jour': return `+${PLAT_TOURNEES} Tournées`;
+    case 'boule-de-neige': return `Piocher ${plural(Math.min(3, p.r.played), 'carte')}`;
+    case 'effet-papillon': return '1 carte, suivantes −1';
     case 'addition': return `Au moins ${ADDITION_MIN} si gagné`;
     case 'sante': return '+1 jeton au gagnant';
     case 'compte-rond': return `+${plural(Math.min(3, p.r.played), 'Tournée')}`;
@@ -97,10 +97,10 @@ function playableLabel(v: CfView, legal: CfAction[], uid: string, id: string): s
     case 'ricochet': return bestDice(v, p, opts, (o) => p.r.dice[o.die!] + (o.delta ?? 0)) ?? '±1 à un dé';
     case 'fee-verte': return 'Viser une face';
     case 'verres-echanges': return 'Échanger vos dés';
-    case 'debauchage': return 'Débaucher un Habitué';
+    case 'debauchage': return opts.some((o) => o.habitue) ? 'Débaucher un Habitué' : 'Piocher 2 cartes';
     case 'retrouvailles': return 'Rappeler un Habitué';
     case 'boucle': return 'Reprendre 2 Coups';
-    case 'passe-passe': return 'Reprendre un piège';
+    case 'passe-passe': return 'Reprendre un piège, +1 Tournée';
     case 'denonciation': return 'Défausser son piège';
     case 'embuscade': return 'Poser vos pièges';
     case 'echo': { const src = echoSource(v, p.id); return src ? `Rejouer ${cardName(src).split(' ')[0]}` : 'Rejouer'; }
@@ -313,9 +313,9 @@ export const TRAP_WHEN: Record<string, string> = {
   'mot-de-trop': 'quand vous jouez un Dernier mot : il est annulé',
   'peau-banane': `quand vous vous arrêtez sur une combinaison qui vaut ${PEAU_MIN} ou plus : un de vos dés est relancé au hasard`,
   'attrape-nigaud': 'quand vous posez un piège devant son poseur : votre piège est défaussé',
-  'lot-consolation': 'quand vous gagnez une manche : son poseur gagne 1 Tournée et pioche 1 carte',
+  'lot-consolation': 'quand vous gagnez une manche : son poseur gagne 1 Tournée et pioche 2 cartes',
   souriciere: 'quand vous jouez votre 1re carte de la manche : plus aucune autre ensuite',
-  'noeud-coulant': 'quand vous jouez votre 3e carte de la manche : 1 jeton, et plus aucune carte',
+  'noeud-coulant': 'quand vous jouez votre 2e carte de la manche : 1 jeton, et plus aucune autre carte',
 };
 export const TRAP_TIP: Record<string, string> = {
   'faux-421': 'Astuce : la « Fouine » défausse un piège avant que vous vous arrêtiez.',
@@ -337,7 +337,7 @@ export const TRAP_TIP: Record<string, string> = {
   'attrape-nigaud': 'Astuce : la Fouine ou la Dénonciation le retirent avant que vous posiez vos pièges.',
   'lot-consolation': 'Astuce : gagner reste le but ; ce piège ne fait que consoler son poseur.',
   souriciere: 'Astuce : quand un piège est posé, jouez d’abord votre meilleure carte.',
-  'noeud-coulant': 'Astuce : quand un piège est posé, ne jouez pas trois cartes dans la même manche.',
+  'noeud-coulant': 'Astuce : quand un piège est posé, choisissez bien votre seule carte de la manche.',
 };
 const TIP_DEFAULT = 'Astuce : la Fouine défausse un piège adverse ; le Videur annule le premier piège de chaque manche.';
 
@@ -679,20 +679,20 @@ export function threatLine(v: CfView): string {
     case 'petit-dernier': return `Ici : il relance son ${dieOf(o, pr.die) === 1 ? 'as' : dieOf(o, pr.die)} au hasard.`;
     case 'fee-verte': return `Ici : il relance son ${dieOf(o, pr.die) === 1 ? 'as' : dieOf(o, pr.die)} jusqu’à 3 fois pour faire un ${pr.face}.`;
     case 'verres-echanges': { const c = comboOf(v, me); return pr.target === me.id ? `Ici : il prend vos dés${c ? ` (${shortCombo(c.label)})` : ''} et vous donne les siens.` : 'Ici : il échange ses dés avec ceux de son adversaire.'; }
-    case 'debauchage': { const h = v.players.flatMap((p) => p.habitues).find((x) => x.uid === pr.habitue); return `Ici : ${cardName(h?.id)} passe de son côté du comptoir.`; }
+    case 'debauchage': { if (!pr.habitue) return 'Ici : il pioche 2 cartes.'; const h = v.players.flatMap((p) => p.habitues).find((x) => x.uid === pr.habitue); return `Ici : ${cardName(h?.id)} passe de son côté du comptoir.`; }
     case 'retrouvailles': return 'Ici : un Habitué de sa défausse revient s’installer devant lui, et il pioche 1 carte.';
     case 'embuscade': return pr.target === me.id ? 'Ici : il pose devant vous tous les pièges de sa main, gratuitement.' : 'Ici : il pose tous les pièges de sa main, gratuitement.';
-    case 'effet-papillon': return 'Ici : il pioche 2 cartes et ses cartes coûtent 1 Tournée de moins cette manche.';
+    case 'effet-papillon': return 'Ici : il pioche 1 carte et ses cartes coûtent 1 Tournée de moins cette manche.';
     case 'echo': { const src = o ? echoSource(v, o.id) : null; return `Ici : il rejoue gratuitement ${src ? `« ${cardName(src)} »` : 'votre dernier Coup'}.`; }
     case 'boucle': return 'Ici : il reprend en main les 2 derniers Coups de sa défausse.';
     case 'cafe-serre': return `Ici : il pioche 1 carte${o?.habitues.length ? ' et gagne 1 Tournée' : ''}.`;
-    case 'plat-du-jour': return 'Ici : il pioche 2 cartes.';
-    case 'boule-de-neige': return `Ici : il pioche ${plural(Math.min(3, o?.r.played ?? 1), 'carte')}.`;
-    case 'passe-passe': return 'Ici : il reprend un de ses pièges posés et gagne 1 Tournée.';
+    case 'plat-du-jour': return `Ici : il gagne ${PLAT_TOURNEES} Tournées.`;
+    case 'boule-de-neige': return `Ici : il pioche ${plural(Math.max(1, Math.min(3, (o?.r.played ?? 2) - 1)), 'carte')}.`;
+    case 'passe-passe': return 'Ici : il reprend un de ses pièges posés, gagne 1 Tournée et pioche 1 carte.';
     case 'addition': return `Ici : s’il gagne, sa combinaison vaudra au moins ${ADDITION_MIN}.`;
     case 'sante': return 'Ici : s’il perd, le gagnant recevra aussi 1 jeton.';
     case 'compte-rond': return 'Ici : il gagne des Tournées pour les cartes déjà jouées.';
-    case 'denonciation': return 'Ici : il défausse un de vos pièges.';
+    case 'denonciation': return 'Ici : il défausse un de vos pièges, pioche 1 carte et gagne 1 Tournée.';
     case 'table-reservee': case 'retour-envoyeur': case 'flagrant-delit': case 'a-la-votre': {
       const under = v.stack[v.stack.length - 2];
       const what = under && under.kind === 'card' && under.cardId ? `« ${cardName(under.cardId)} »` : 'la carte';

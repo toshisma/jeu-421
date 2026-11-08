@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import {
   apply, defaultAction, eventsFor, legalActions, newGame, throwLimit, viewFor, waitingFor,
   type CfAction, type CfEvent, type CfState,
-  FERMETURE_TOURNEES, TOURNEE_PATRON_GAIN, BELOTE_BONUS, LOT_DRAW,
+  FERMETURE_TOURNEES, TOURNEE_PATRON_GAIN, BELOTE_BONUS, LOT_DRAW, PLAT_TOURNEES,
 } from '../shared/cards/engine';
 import { cfDecide, type CfLevel } from '../shared/cards/ai';
 import { CARDS, CF_RULES, STARTER_DECKS, cardDef } from '../shared/cards/catalog';
@@ -1103,12 +1103,14 @@ describe('Coups Fourrés : les 40 cartes de la 0.46', () => {
     expect(legalActions(s, O).filter((a) => a.type === 'play' && a.card === d).every((a) => (a as { target: string }).target === O)).toBe(true);
     expect(legalActions(s, O).some((a) => a.type === 'play' && a.card === v)).toBe(false);
   });
-  it('Le Doyen : 1 carte, et les autres Habitués restent 1 manche de plus', () => {
+  it('Le Doyen : +1 Tournée, 1 carte, et les autres Habitués restent 1 manche de plus', () => {
     let { s, L } = setup();
+    P(s, L).tournees = 3;
     hab(s, L, 'pilier'); P(s, L).habitues[0].rounds = 2;
     s = act(s, L, play(give(s, L, 'doyen')));
     expect(P(s, L).habitues.map((h) => [h.id, h.rounds])).toEqual([['pilier', 3], ['doyen', 3]]);
     expect(P(s, L).hand).toHaveLength(1);
+    expect(P(s, L).tournees).toBe(3 - cost('doyen') + 1);
   });
   it('Le Café serré : 1 carte, +1 Tournée avec un Habitué en jeu', () => {
     let { s, L } = setup();
@@ -1119,10 +1121,11 @@ describe('Coups Fourrés : les 40 cartes de la 0.46', () => {
     s = act(s, L, play(give(s, L, 'cafe-serre')));
     expect(P(s, L).tournees).toBe(3 - 2 * cost('cafe-serre') + 1);
   });
-  it('Le Plat du jour : 2 cartes', () => {
+  it('Le Plat du jour : 2 Tournées', () => {
     let { s, L } = setup();
+    P(s, L).tournees = 2;
     s = act(s, L, play(give(s, L, 'plat-du-jour')));
-    expect(P(s, L).hand).toHaveLength(2);
+    expect(P(s, L).tournees).toBe(2 - cost('plat-du-jour') + PLAT_TOURNEES);
   });
   it('Table réservée (Riposte) : annule un piège posé devant soi', () => {
     let { s, L, O } = setup();
@@ -1279,8 +1282,10 @@ describe('Coups Fourrés : les 40 cartes de la 0.46', () => {
     const d = give(s, L, 'denonciation');
     s = act(s, L, roll(), [6, 3, 2]); s = act(s, L, stop);
     s = act(s, O, roll(), [5, 3, 2]);
+    P(s, L).tournees = 2;
     s = act(s, L, play(d, { trap: t }));
     expect(lastEvents.some((e) => e.kind === 'coup-nenette')).toBe(false);
+    expect(P(s, L).tournees).toBe(2 - cost('denonciation') + 1 + CF_RULES.tourneesPerRound);
     expect(P(s, O).tokens).toBe(12);
   });
   it('Le Tour de passe-passe : reprend un de ses pièges (sauf un Leurre), +1 Tournée et 1 carte', () => {

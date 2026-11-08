@@ -1289,7 +1289,7 @@ const ART: Record<string, (g: G, u: U) => ReactNode> = {
     </>
   ),
 
-  // L'ardoise du plat du jour et l'assiette fumante ; deux cartes servies avec.
+  // L'ardoise du plat du jour et l'assiette fumante ; deux Tournées servies avec.
   'plat-du-jour': (g, u) => (
     <>
       <Radial g={g} u={u} c={['#a8dcbd', '#3f8a65', '#123e2b']} cx="50%" cy="30%" r="80%" />
@@ -1300,8 +1300,8 @@ const ART: Record<string, (g: G, u: U) => ReactNode> = {
       <ellipse cx="120" cy="98" rx="44" ry="9" fill="#fbf6e9" /><ellipse cx="120" cy="95" rx="30" ry="6" fill="#e8c78a" />
       <ellipse cx="112" cy="93" rx="9" ry="4" fill="#c97a3e" /><ellipse cx="128" cy="94" rx="8" ry="3.5" fill="#d98a4e" />
       <g fill="none" stroke="#fbf6e9" strokeWidth="2.5" strokeLinecap="round" opacity=".7"><path d="M110 84 Q104 74 112 66" /><path d="M126 84 Q132 74 124 64" /></g>
-      <MiniCardShape x={168} y={34} w={26} h={36} rot={-8} fill="#2f7a55" edge="#b9a56a" />
-      <MiniCardShape x={180} y={42} w={26} h={36} rot={10} fill="#2f7a55" edge="#ffd36b"><text x="193" y="65" fontFamily={SLAB} fontSize="12" fill="#ffd36b" textAnchor="middle">2</text></MiniCardShape>
+      <Beer x={170} y={100} w={16} h={24} /><Beer x={190} y={100} w={16} h={28} />
+      <text x="184" y="40" fontFamily={SLAB} fontSize="20" fill="#ffd36b" textAnchor="middle">+2</text>
       <Spark x={150} y={20} r={6} />
     </>
   ),

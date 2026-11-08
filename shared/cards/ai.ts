@@ -290,7 +290,7 @@ const STATIC: Record<string, number> = {
   'faux-421': 1.1, 'coup-nenette': 1.1, 'retournement-veste': 1.6,
   fanfaron: 1.0, complice: 0.6, 'verre-de-trop': 0.7, 'courant-air': 0.8, engrenage: 0.9,
   // 0.46
-  'joueur-belote': 0.8, 'garde-champetre': 0.7, doyen: 0.9, pochtron: 2.0, guetteur: 0.8, comptable: 1.0,
+  'joueur-belote': 0.8, 'garde-champetre': 0.7, doyen: 0.9, pochtron: 1.3, guetteur: 0.8, comptable: 1.0,
   'pique-assiette': 0.8, hoquet: 0.8, 'der-des-ders': 0.9, 'mot-de-trop': 0.6, 'lot-consolation': 0.8,
   'attrape-nigaud': 0.5, 'peau-banane': 1.3, souriciere: 1.1, 'noeud-coulant': 0.6,
 };
@@ -600,7 +600,7 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
     case 'tournee-patron': return Math.min(TOURNEE_PATRON_GAIN, view.rules.tourneesMax - me.tournees + costNow(me, id)) * TV + (me.tournees <= 1 ? 0.2 : 0) + CV - drawCost(1);
     case 'coup-coude': return CV + 0.1 - drawCost(1);
     case 'cafe-serre': return CV - drawCost(1) + (me.habitues.length > 0 && me.tournees < view.rules.tourneesMax ? TV : 0);
-    case 'plat-du-jour': return Math.min(PLAT_TOURNEES, view.rules.tourneesMax - me.tournees + costNow(me, id)) * TV + (view.order[0] === me.id ? CV - drawCost(1) : 0);
+    case 'plat-du-jour': return Math.min(PLAT_TOURNEES, view.rules.tourneesMax - me.tournees + costNow(me, id)) * TV;
     case 'boule-de-neige': { const n = Math.min(3, me.r.played); return n * CV - drawCost(n); }
     case 'effet-papillon': {
       // Deux cartes, puis les cartes suivantes de la manche à 1 Tournée de moins.
@@ -620,7 +620,7 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
     }
     case 'boucle': {
       const got = [...me.discard].reverse().filter((k) => k.uid !== a.card && boucleOk(k)).slice(0, 2);
-      return got.reduce((acc, k) => acc + CV * keepValue(k.id, me) * 0.8 + def(k.id).cost * TV * 0.3, 0) - 0.2 + (me.tournees < view.rules.tourneesMax ? TV : 0);
+      return got.reduce((acc, k) => acc + CV * keepValue(k.id, me) * 0.8 + def(k.id).cost * TV * 0.3, 0) - 0.2;
     }
     case 'passe-passe': {
       const t = view.traps.find((x) => x.uid === a.trap);
@@ -641,7 +641,7 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
       // La prochaine carte est gratuite : utile si une carte chère (hors Dernier mot et Riposte) attend en main.
       const saved = Math.max(0, ...me.hand!.filter((k) => k.id !== 'mise-bouche' && !['dernier-mot', 'riposte'].includes(def(k.id).type)).map((k) => def(k.id).cost));
       if (me.r.discount > 0) return null; // la réduction en cours serait perdue
-      return CV - drawCost(1) + (saved >= 2 ? saved * TV * 0.8 : 0);
+      return (saved >= 2 ? saved * TV * 0.8 : 0) - 0.1;
     }
     case 'domino': return target && target.tournees > 0 ? target.tournees * TV * 0.9 : null;
     case 'verre-offert': {
@@ -690,7 +690,7 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
   if (d.type === 'habitue') {
     let v = STATIC[id] ?? 0.5;
     if (id === 'garde-champetre') v = opps.some((o) => o.families.includes('ivresse')) ? 1.1 : opps.some((o) => o.families.includes('pieges')) ? 0.7 : 0.3;
-    if (id === 'doyen') v = 0.4 + CV + 0.25 * me.habitues.length;
+    if (id === 'doyen') v = 0.4 + CV + (me.tournees < view.rules.tourneesMax ? TV : 0) + 0.25 * me.habitues.length;
     if (id === 'guetteur') v = 0.3 + CV + (me.tournees < view.rules.tourneesMax ? TV : 0) + 0.2 * view.traps.filter((t) => t.target === me.id && !t.id).length;
     if (id === 'joueur-belote') v = 0.5 + CV - drawCost(1);
     if (id === 'beau-frere') v = 0.5 + 0.25 * Math.min(4, me.hand!.filter((k) => k.id !== 'beau-frere' && def(k.id).cost >= 1).length) + (me.tournees < view.rules.tourneesMax ? TV : 0);
@@ -880,7 +880,7 @@ function lastword(view: CfView, legal: CfAction[], level: CfLevel, rng: Rng, han
     else if (id === 'denonciation') {
       const t = view.traps.find((x) => x.uid === a.trap);
       // Aux comptes, un piège inconnu peut encore être une nénette, un Retournement… (ou un Leurre).
-      g = CV + (t?.id === 'leurre' ? -0.3 : t?.id ? (['coup-nenette', 'retournement-veste', 'der-des-ders', 'gueule-bois', 'lot-consolation'].includes(t.id) ? 0.9 : 0.1) : 0.5);
+      g = CV + (me.tournees < view.rules.tourneesMax ? TV : 0) + (t?.id === 'leurre' ? -0.3 : t?.id ? (['coup-nenette', 'retournement-veste', 'der-des-ders', 'gueule-bois', 'lot-consolation'].includes(t.id) ? 0.9 : 0.1) : 0.5);
     }
     else if (id === 'calva' || id === 'derniere-maille') {
       const d = [...me.r.dice];

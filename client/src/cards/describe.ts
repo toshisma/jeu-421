@@ -7,7 +7,7 @@
 import { evaluate } from '../../../shared/combos';
 import { DEFAULT_CONFIG } from '../../../shared/config';
 import { CARD_BY_ID, TYPE_LABEL, type CardDef } from '../../../shared/cards/catalog';
-import { ADDITION_MIN, ARDOISE_EXTRA, FEE_TRIES, FERMETURE_TOURNEES, FLAGRANT_MAX, PEAU_MIN, TOURNEE_PATRON_GAIN, TICKET_MAX, LEURRE_DRAW, LEURRE_TOURNEES, MOUCHARD_DRAW, MOUCHARD_TOURNEES, VIDE_POCHES_TOURNEES, POT_MIN, VESTE_MIN, beauFrere, boucleOk, echoSource, evalPlayer, guarded, maxTrapsOn, petiteSoeurOk, retrouvaillesTarget, trapsBefore, type CfAction, type CfEvent, type CfPlayerView, type CfView, type PlayParams } from '../../../shared/cards/engine';
+import { ADDITION_MIN, ARDOISE_EXTRA, FEE_TRIES, LOT_DRAW, LOT_TOURNEES, PAPILLON_DRAW, PLAT_TOURNEES, FERMETURE_TOURNEES, FLAGRANT_MAX, PEAU_MIN, TOURNEE_PATRON_GAIN, TICKET_MAX, LEURRE_DRAW, LEURRE_TOURNEES, MOUCHARD_DRAW, MOUCHARD_TOURNEES, VIDE_POCHES_TOURNEES, POT_MIN, VESTE_MIN, beauFrere, boucleOk, echoSource, evalPlayer, guarded, maxTrapsOn, petiteSoeurOk, retrouvaillesTarget, trapsBefore, type CfAction, type CfEvent, type CfPlayerView, type CfView, type PlayParams } from '../../../shared/cards/engine';
 
 const def = (id: string): CardDef | undefined => CARD_BY_ID[id];
 export const plural = (n: number, w: string) => `${n} ${w}${n > 1 ? 's' : ''}`;
@@ -110,9 +110,9 @@ const conditionOf: Record<string, string> = {
   'mot-de-trop': 'il joue un Dernier mot (il est annulé)',
   'peau-banane': `il s’arrête sur une combinaison qui vaut ${PEAU_MIN} ou plus (un de ses dés est relancé au hasard)`,
   'attrape-nigaud': 'il pose un piège devant vous (son piège est défaussé et vous piochez 1 carte)',
-  'lot-consolation': 'il gagne une manche (vous gagnez 1 Tournée et piochez 1 carte)',
+  'lot-consolation': `il gagne une manche (vous gagnez ${plural(LOT_TOURNEES, 'Tournée')} et piochez ${plural(LOT_DRAW, 'carte')})`,
   souriciere: 'il joue sa 1re carte de la manche (il ne pourra plus en jouer d’autre)',
-  'noeud-coulant': 'il joue sa 3e carte de la manche (1 jeton, et plus de carte)',
+  'noeud-coulant': 'il joue sa 2e carte de la manche (1 jeton, et plus aucune autre carte)',
 };
 
 /** Effet d'un dé modifié : « Le 6 devient un 1 : vous passez à 4-2-1 (vaut 8). » */
@@ -208,7 +208,7 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
       if (!opts.some((o) => o.trap) && !params.trap) return 'Aucun piège adverse posé : vous piochez 1 carte.';
       return 'Vous défaussez le piège adverse choisi (vous découvrez lequel c’était) et piochez 1 carte.';
     case 'coup-coude': return `Vous piochez 1 carte (il en reste ${p.deckCount} dans votre deck).`;
-    case 'mise-bouche': return 'Vous piochez 1 carte, et votre prochaine carte de la manche sera gratuite (Riposte et Dernier mot compris).';
+    case 'mise-bouche': return 'Votre prochaine carte de la manche sera gratuite (Riposte et Dernier mot compris).';
     case 'calcul-mental': return p.deckCount > 0 ? `Vous regardez les ${Math.min(3, p.deckCount)} cartes du dessus de votre deck et en gardez une ; les autres repartent dessous.` : 'Votre deck est vide : rien à regarder.';
     case 'grand-enchainement': {
       const last = p.r.lastCoup;
@@ -262,9 +262,9 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
     }
     // ------------------------------------------------------------- 0.46
     case 'cafe-serre': return p.habitues.length ? 'Vous piochez 1 carte et, comme vous avez un Habitué en jeu, gagnez 1 Tournée.' : 'Vous piochez 1 carte (avec un Habitué en jeu, vous gagneriez aussi 1 Tournée).';
-    case 'plat-du-jour': return `Vous piochez 2 cartes (il en reste ${p.deckCount} dans votre deck).`;
-    case 'boule-de-neige': { const n = Math.min(3, 1 + p.r.played); return `Vous piochez ${plural(n, 'carte')} (1${p.r.played ? ` + ${Math.min(2, p.r.played)} pour ${p.r.played > 1 ? 'les cartes déjà jouées' : 'la carte déjà jouée'}` : ''}).`; }
-    case 'effet-papillon': return 'Vous piochez 2 cartes ; jusqu’à la fin de la manche, vos autres cartes coûtent 1 Tournée de moins.';
+    case 'plat-du-jour': return `Vous gagnez ${PLAT_TOURNEES} Tournées (vous en aurez ${Math.min(v.rules.tourneesMax, p.tournees - costNow(v, cardId) + PLAT_TOURNEES)} sur ${v.rules.tourneesMax}).`;
+    case 'boule-de-neige': { const n = Math.min(3, p.r.played); return n ? `Vous piochez ${plural(n, 'carte')} (une par carte déjà jouée cette manche, 3 au plus).` : 'Jouez d’abord une autre carte : elle pioche 1 carte par carte déjà jouée cette manche.'; }
+    case 'effet-papillon': return `Vous piochez ${plural(PAPILLON_DRAW, 'carte')} ; jusqu’à la fin de la manche, vos autres cartes coûtent 1 Tournée de moins.`;
     case 'addition': {
       const c = comboOf(v, p);
       return `Si vous gagnez la manche, votre combinaison vaut au moins ${ADDITION_MIN}${c && c.value < ADDITION_MIN ? ` (votre ${lbl(c.label)} vaut ${c.value} : elle passerait à ${ADDITION_MIN})` : ''}.`;
@@ -298,7 +298,7 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
         const h = owner?.habitues.find((x) => x.uid === params.habitue);
         return `${h ? def(h.id)?.name : 'Cet Habitué'} quitte ${owner?.name ?? 'l’adversaire'} et s’installe devant vous${h?.rounds ? ` (encore ${plural(h.rounds, 'manche')})` : ''}.`;
       }
-      return 'Un Habitué adverse passe de votre côté du comptoir, avec les manches qu’il lui reste.';
+      return opts.some((o) => o.habitue) ? 'Un Habitué adverse passe de votre côté du comptoir, avec les manches qu’il lui reste.' : 'Aucun Habitué adverse à débaucher : vous piochez 2 cartes.';
     }
     case 'retrouvailles': {
       const k = retrouvaillesTarget(p, v.rules.maxHabitues);
@@ -308,8 +308,8 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
       const got = [...p.discard].reverse().filter(boucleOk).slice(0, 2);
       return got.length ? `Vous reprenez en main ${got.map((k) => `« ${def(k.id)?.name} »`).join(' et ')}.` : 'Aucun Coup à reprendre dans votre défausse.';
     }
-    case 'passe-passe': return 'Un de vos pièges posés revient dans votre main (un Leurre vous rapporte alors sa Tournée et sa carte), et vous gagnez 1 Tournée.';
-    case 'denonciation': return 'Vous défaussez le piège adverse choisi, posé devant vous (vous découvrez lequel c’était), puis piochez 1 carte.';
+    case 'passe-passe': return 'Un de vos pièges posés (pas un Leurre) revient dans votre main, prêt à être reposé ; vous gagnez 1 Tournée et piochez 1 carte.';
+    case 'denonciation': return 'Vous défaussez le piège adverse choisi, posé devant vous, avant les comptes (vous découvrez lequel c’était), puis piochez 1 carte et gagnez 1 Tournée.';
     case 'embuscade': {
       const traps = (p.hand ?? []).filter((k) => def(k.id)?.type === 'piege').length;
       const room = target ? Math.max(0, maxTrapsOn(v) - trapsBefore(v, target.id)) : maxTrapsOn(v);
@@ -368,7 +368,7 @@ export function whyNot(v: CfView, cardId: string, legal: CfAction[], uid: string
       if (cardId === 'table-reservee') return 'N’annule qu’un piège posé devant vous.';
       if (cardId === 'a-la-votre') return 'N’annule qu’une Riposte.';
       if (cardId === 'retour-envoyeur') return 'N’annule qu’un Coup.';
-      if (cardId === 'flagrant-delit') return `N’annule qu’un Coup ou un Habitué qui coûte ${FLAGRANT_MAX} ou moins.`;
+      if (cardId === 'flagrant-delit') return `N’annule qu’un Coup qui coûte ${FLAGRANT_MAX} ou moins.`;
       return 'Ne peut pas répondre à cette action.';
     }
     return 'Riposte : se joue en réponse à une carte adverse (on vous le proposera).';

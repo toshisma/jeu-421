@@ -15,7 +15,7 @@ const FAMS = ['habitues', 'ivresse', 'pieges', 'chaines'];
 const FAM_TEXT = {
   habitues: 'Des alliés qui s’installent pour 3 manches (les Habitués), des Tournées en plus et de quoi annuler les petits coups adverses.',
   ivresse: 'Des dés qui tournent : relancer, retourner un dé, parier… et bousculer les dés de l’adversaire.',
-  pieges: 'Des pièges posés face cachée, qui se déclenchent tout seuls chez l’adversaire. Et la Fouine pour les défausser.',
+  pieges: 'Des pièges posés face cachée, qui se déclenchent tout seuls chez l’adversaire (trois au plus devant un même joueur). Et la Fouine pour les défausser.',
   chaines: 'Des cartes qui s’enchaînent : pioche, réductions, retouches de dés, ripostes de plus en plus fortes.',
 };
 const WHEN = {
@@ -206,7 +206,7 @@ ${toc([['but', 'Le but'], ['mise-en-place', 'Mise en place'], ['manche', 'Une ma
 <h2 id="types">Les types de cartes</h2>
 ${typesTable()}
 <ul>
-<li><b>Pièges</b> : ${R.maxTraps} posés au plus. On voit combien l’adversaire en a posé, jamais lesquels. Un piège qui ne s’est pas déclenché en ${R.trapReturnRounds} manches revient dans la main de son propriétaire.</li>
+<li><b>Pièges</b> : ${R.maxTrapsOn} au plus devant un même joueur (tous poseurs confondus), et ${R.maxTraps} posés au plus par joueur. On voit combien l’adversaire en a posé, jamais lesquels. Un piège qui ne s’est pas déclenché en ${R.trapReturnRounds} manches revient dans la main de son propriétaire.</li>
 <li><b>Habitués</b> : ${R.maxHabitues} en jeu au plus. Chacun reste ${R.habitueRounds} manches, sauf s’il est chassé avant (par exemple par « Fermeture ! »).</li>
 <li><b>Ripostes en chaîne</b> : si plusieurs cartes se répondent, la dernière posée s’applique la première.</li>
 </ul>
