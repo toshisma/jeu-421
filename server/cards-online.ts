@@ -761,7 +761,7 @@ export function createCfOnline(c: Ctx) {
       for (const m of t.members) {
         // Chacun joue SON deck choisi au salon : revérifié ici (possédé, jouable selon les règles de construction).
         const d = deckFor(m.userId, m.deckId);
-        if ('error' in d) return fail(a, `${m.name} n’est pas prêt : ${d.error}`);
+        if ('error' in d) { broadcastTable(t); return fail(a, `${m.name} n’est pas prêt : ${d.error}`); }
         if (liveGameOf(m.userId)) return fail(a, `${m.name} est déjà en partie.`);
         players.push({ userId: m.userId, deck: d.cards, socketId: m.socketId });
       }
