@@ -59,7 +59,7 @@ function playableLabel(v: CfView, legal: CfAction[], uid: string, id: string): s
     case 'tournee-patron': return `+${TOURNEE_PATRON_GAIN} Tournées, 1 carte`;
     case 'cul-sec': return '+1 lancer, 1 carte';
     case 'coup-coude': return 'Piocher 1 carte';
-    case 'mise-bouche': return '1 carte, suivante gratuite';
+    case 'mise-bouche': return '1 carte, suivante −2';
     case 'calcul-mental': return 'Garder 1 sur 3';
     case 'pari-comptoir': return 'Pari ±2 jetons';
     case 'double-tournee': return 'Gain doublé';

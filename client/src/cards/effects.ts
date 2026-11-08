@@ -69,7 +69,7 @@ export const CARD_GIST: Record<string, string> = {
   'coup-nenette': 'Sa victoire à 1 ou 2 → nénette',
   'retournement-veste': 'Renvoie un gros don (8 et plus)',
   'coup-coude': 'Piochez 1 carte',
-  'mise-bouche': '1 carte, la suivante gratuite',
+  'mise-bouche': '1 carte, la suivante −2',
   'coup-pouce': '+1 ou −1 sur un de vos dés',
   'calcul-mental': 'Choisissez 1 carte parmi 3',
   recompter: '+1 ou −1 sur un dé, à la fin',

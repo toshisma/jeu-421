@@ -118,6 +118,8 @@ export interface CfPlayer {
   penaltyNext: number;
   /** Carte à l'origine de penaltyNext (Gueule de bois, Le verre offert). */
   penaltyNextCard?: string;
+  /** 0.46 — Le Plat du jour : Tournées servies en plus à la prochaine manche. */
+  tourneesNext?: number;
   out: boolean;
   place: number | null;
   r: RoundState;
@@ -504,7 +506,8 @@ function startRound(c: Ctx) {
       emit(c, { kind: 'ardoise', player: id, who: id, text: `${p.name} rembourse l'ardoise : pas de Tournées cette manche.`, textYou: 'Vous remboursez l’ardoise : pas de Tournées cette manche.' });
     } else {
       const n = s.rules.tourneesPerRound + (s.prevLoser === id ? s.rules.tourneesLoserBonus : 0) + (s.commande === 'tournees' ? 1 : 0);
-      gainTournees(c, p, n, false);
+      gainTournees(c, p, n + (p.tourneesNext ?? 0), false);
+      delete p.tourneesNext;
     }
   }
   for (const id of s.order) {
@@ -803,7 +806,7 @@ function endRound(c: Ctx) {
       const o = pl(s, t.owner);
       o.hand.push({ uid: t.uid, id: t.id });
       emit(c, { kind: 'piege-retour', player: o.id, who: o.id, text: `Un piège de ${o.name} revient dans sa main.`, textYou: `Votre piège ${cardName(t.id)} revient dans votre main.` });
-      if (t.id === 'leurre') leurreBonus(c, o);
+      // 0.46 : le Leurre ne rapporte plus rien quand il revient seul en main (seulement s'il est découvert).
     }
   }
   s.discardQueue = s.order.filter((id) => pl(s, id).hand.length > s.rules.handMax);
@@ -851,8 +854,8 @@ const diceIdx = [0, 1, 2];
 export const TICKET_MAX = 4;
 /** Le Pot aux roses : annule un Coup ou un Dernier mot qui coûte au moins ce nombre de Tournées (coût imprimé). */
 export const POT_MIN = 2;
-/** Mise en bouche : réduction qui rend la prochaine carte gratuite. */
-const MISE_FREE = 99;
+/** Mise en bouche : réduction de la prochaine carte (0.46 : 2 Tournées de moins au lieu de gratuite). */
+export const MISE_FREE = 2;
 /** Retournement de veste : se déclenche quand le perdant devrait recevoir au moins ce nombre de jetons. */
 export const VESTE_MIN = 8;
 /** Tournée du patron : Tournées gagnées (0.41 : 3, pour 2 Tournées, au lieu de 2 pour 1). */
@@ -865,7 +868,7 @@ export const FERMETURE_TOURNEES = 2;
 /** Le Vide-poches : Tournées prises à l'adversaire (0.41), en plus de la carte défaussée au hasard. */
 export const VIDE_POCHES_TOURNEES = 1;
 /** Le Mouchard : ce que gagne son poseur quand il se déclenche (0.41 : 1 Tournée + 1 carte, avant 2 cartes). */
-export const MOUCHARD_DRAW = 1;
+export const MOUCHARD_DRAW = 2;
 export const MOUCHARD_TOURNEES = 1;
 /** Ardoise piégée : Tournées à payer en plus pour un Coup. */
 export const ARDOISE_EXTRA = 3;
@@ -1788,7 +1791,7 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
     }
     case 'mise-bouche':
       p.r.discount = MISE_FREE;
-      you(`${p.name} pioche 1 carte : sa prochaine carte sera gratuite.`, 'Vous piochez 1 carte : votre prochaine carte sera gratuite.');
+      you(`${p.name} pioche 1 carte : sa prochaine carte coûtera ${MISE_FREE} Tournées de moins.`, `Vous piochez 1 carte : votre prochaine carte coûtera ${MISE_FREE} Tournées de moins.`);
       draw(c, p, 1, false, true);
       break;
     case 'cafe-serre': {
@@ -1799,8 +1802,9 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       break;
     }
     case 'plat-du-jour': {
-      const g = gainTournees(c, p, PLAT_TOURNEES, true);
-      you(`Le Plat du jour : ${p.name} gagne ${plural(g, 'Tournée')}.`, `Le Plat du jour : vous gagnez ${plural(g, 'Tournée')}.`);
+      // 0.46 : servi à la manche suivante (pas de quoi enchaîner tout de suite).
+      p.tourneesNext = (p.tourneesNext ?? 0) + PLAT_TOURNEES;
+      you(`Le Plat du jour : ${p.name} recevra ${plural(PLAT_TOURNEES, 'Tournée')} de plus à la prochaine manche.`, `Le Plat du jour : vous recevrez ${plural(PLAT_TOURNEES, 'Tournée')} de plus à la prochaine manche.`);
       break;
     }
     case 'boule-de-neige': {

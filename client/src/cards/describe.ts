@@ -208,7 +208,7 @@ export function describeNow(v: CfView, cardId: string, params: PlayParams = {}, 
       if (!opts.some((o) => o.trap) && !params.trap) return 'Aucun piège adverse posé : vous piochez 1 carte.';
       return 'Vous défaussez le piège adverse choisi (vous découvrez lequel c’était) et piochez 1 carte.';
     case 'coup-coude': return `Vous piochez 1 carte (il en reste ${p.deckCount} dans votre deck).`;
-    case 'mise-bouche': return 'Vous piochez 1 carte, et votre prochaine carte de la manche sera gratuite (Riposte et Dernier mot compris).';
+    case 'mise-bouche': return 'Vous piochez 1 carte, et votre prochaine carte de la manche coûtera 2 Tournées de moins (Riposte et Dernier mot compris).';
     case 'calcul-mental': return p.deckCount > 0 ? `Vous regardez les ${Math.min(3, p.deckCount)} cartes du dessus de votre deck et en gardez une ; les autres repartent dessous.` : 'Votre deck est vide : rien à regarder.';
     case 'grand-enchainement': {
       const last = p.r.lastCoup;

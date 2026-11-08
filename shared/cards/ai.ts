@@ -285,7 +285,7 @@ let TV = CF_AI_TUNING.tv;
 let CV = CF_AI_TUNING.cv;
 
 const STATIC: Record<string, number> = {
-  patron: 2.0, josiane: 1.6, 'vieux-marcel': 0.9 + 0.55, pilier: 1.2, videur: 1.0, 'beau-frere': 1.1, mouchard: 0.9,
+  patron: 2.0, josiane: 1.6, 'vieux-marcel': 0.9 + 0.55, pilier: 1.2, videur: 1.0, 'beau-frere': 1.1, mouchard: 1.2,
   leurre: 0.35, 'gueule-bois': 0.9, 'croche-patte': 0.8, 'main-sac': 1.0, 'ardoise-piegee': 0.7,
   'faux-421': 1.1, 'coup-nenette': 1.1, 'retournement-veste': 1.6,
   fanfaron: 1.0, complice: 0.6, 'verre-de-trop': 0.7, 'courant-air': 0.8, engrenage: 0.9,
@@ -600,7 +600,7 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
     case 'tournee-patron': return Math.min(TOURNEE_PATRON_GAIN, view.rules.tourneesMax - me.tournees + costNow(me, id)) * TV + (me.tournees <= 1 ? 0.2 : 0) + CV - drawCost(1);
     case 'coup-coude': return CV + 0.1 - drawCost(1);
     case 'cafe-serre': return CV - drawCost(1) + (me.habitues.length > 0 && me.tournees < view.rules.tourneesMax ? TV : 0);
-    case 'plat-du-jour': return Math.min(PLAT_TOURNEES, view.rules.tourneesMax - me.tournees + costNow(me, id)) * TV;
+    case 'plat-du-jour': return Math.min(PLAT_TOURNEES, Math.max(0, view.rules.tourneesMax - (me.tournees - costNow(me, id) + view.rules.tourneesPerRound))) * TV * 0.85;
     case 'boule-de-neige': { const n = Math.min(3, me.r.played); return n * CV - drawCost(n); }
     case 'effet-papillon': {
       // Deux cartes, puis les cartes suivantes de la manche à 1 Tournée de moins.
@@ -641,7 +641,7 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
       // La prochaine carte est gratuite : utile si une carte chère (hors Dernier mot et Riposte) attend en main.
       const saved = Math.max(0, ...me.hand!.filter((k) => k.id !== 'mise-bouche' && !['dernier-mot', 'riposte'].includes(def(k.id).type)).map((k) => def(k.id).cost));
       if (me.r.discount > 0) return null; // la réduction en cours serait perdue
-      return CV - drawCost(1) + (saved >= 2 ? saved * TV * 0.8 : 0);
+      return CV - drawCost(1) + (saved >= 2 ? Math.min(2, saved) * TV * 0.8 : 0);
     }
     case 'domino': return target && target.tournees > 0 ? target.tournees * TV * 0.9 : null;
     case 'verre-offert': {

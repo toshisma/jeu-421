@@ -22,7 +22,7 @@ export interface ParcoursStep {
 export const PARCOURS: ParcoursStep[] = [
   {
     step: 1, title: 'Les Coups', types: ['coup'],
-    intro: `Pour commencer, seulement des Coups : ils se jouent pendant votre tour, avant ou après un lancer, et se paient en Tournées (le chiffre dans le petit verre). Vous n’en recevez que ${CF_RULES.tourneesPerRound} par manche (${CF_RULES.tourneesPerRound + CF_RULES.tourneesLoserBonus} après une manche perdue) : économisez pour les grosses cartes. « Mise en bouche » rend la carte suivante gratuite, « Tant qu’on y est » rapporte des Tournées : de quoi enchaîner. Le premier à 0 jeton gagne.`,
+    intro: `Pour commencer, seulement des Coups : ils se jouent pendant votre tour, avant ou après un lancer, et se paient en Tournées (le chiffre dans le petit verre). Vous n’en recevez que ${CF_RULES.tourneesPerRound} par manche (${CF_RULES.tourneesPerRound + CF_RULES.tourneesLoserBonus} après une manche perdue) : économisez pour les grosses cartes. « Mise en bouche » fait baisser de 2 Tournées la carte suivante, « Tant qu’on y est » rapporte des Tournées : de quoi enchaîner. Le premier à 0 jeton gagne.`,
     cards: { 'cul-sec': 2, 'tete-tourne': 2, 'pari-comptoir': 2, 'double-tournee': 2, 'de-sous-table': 1, 'coup-coude': 2, 'coup-pouce': 1, 'boule-de-neige': 1, 'petit-dernier': 1, 'mise-bouche': 2, 'tant-qu-on-y-est': 2, 'petite-soeur': 2 },
   },
   {

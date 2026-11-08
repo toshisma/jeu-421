@@ -57,7 +57,7 @@ export const CARD_EMPHASIS: Record<string, string> = {
   'coup-nenette': 'devient une nénette',
   'retournement-veste': '8 jetons ou plus',
   'coup-coude': 'Piochez 1 carte.',
-  'mise-bouche': 'est gratuite',
+  'mise-bouche': 'coûte 2 Tournées de moins',
   'coup-pouce': 'Ajoutez ou retirez 1',
   'calcul-mental': 'gardez-en une',
   recompter: 'ajoutez ou retirez 1',
