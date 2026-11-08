@@ -1787,9 +1787,9 @@ function effect(c: Ctx, p: CfPlayer, id: string, prm: PlayParams, playedBefore: 
       break;
     }
     case 'mise-bouche':
-      // 0.46 : coûte 1 au lieu de 2, mais ne fait plus piocher.
       p.r.discount = MISE_FREE;
-      you(`Mise en bouche : la prochaine carte de ${p.name} sera gratuite.`, 'Mise en bouche : votre prochaine carte sera gratuite.');
+      you(`${p.name} pioche 1 carte : sa prochaine carte sera gratuite.`, 'Vous piochez 1 carte : votre prochaine carte sera gratuite.');
+      draw(c, p, 1, false, true);
       break;
     case 'cafe-serre': {
       const hab = p.habitues.length > 0;

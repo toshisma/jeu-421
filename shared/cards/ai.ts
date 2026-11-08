@@ -641,7 +641,7 @@ function cardGain(view: CfView, ctx: DiceCtx, me: CfPlayerView, id: string, a: P
       // La prochaine carte est gratuite : utile si une carte chère (hors Dernier mot et Riposte) attend en main.
       const saved = Math.max(0, ...me.hand!.filter((k) => k.id !== 'mise-bouche' && !['dernier-mot', 'riposte'].includes(def(k.id).type)).map((k) => def(k.id).cost));
       if (me.r.discount > 0) return null; // la réduction en cours serait perdue
-      return (saved >= 2 ? saved * TV * 0.8 : 0) - 0.1;
+      return CV - drawCost(1) + (saved >= 2 ? saved * TV * 0.8 : 0);
     }
     case 'domino': return target && target.tournees > 0 ? target.tournees * TV * 0.9 : null;
     case 'verre-offert': {

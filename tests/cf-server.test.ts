@@ -194,13 +194,13 @@ describe('Coups Fourrés : serveur', () => {
     // Cartes non possédées (Bob n'a rien) et deck incomplet.
     await api('/cf/discover', {}, bob.token);
     const sb = await me(bob.token);
-    const withPatron = { ...STARTER_DECKS[0].cards, josiane: 0, patron: 1 };
+    const withPatron = { ...STARTER_DECKS[0].cards, 'cafe-serre': 0, patron: 1 };
     const no = await api('/cf/decks', { name: 'Royal', cards: withPatron }, bob.token);
     expect(no.code).toBe(400);
     expect(no.error).toMatch(/Le Patron : vous n’en avez que 0/);
-    const short = await api('/cf/decks', { name: 'Court', cards: { ...STARTER_DECKS[0].cards, josiane: 0 } }, bob.token);
+    const short = await api('/cf/decks', { name: 'Court', cards: { ...STARTER_DECKS[0].cards, 'cafe-serre': 0 } }, bob.token);
     expect(short.error).toMatch(/exactement 20/);
-    expect((await api('/cf/decks', { name: 'Trop', cards: { ...STARTER_DECKS[0].cards, josiane: 0, pilier: 3 } }, bob.token)).error).toMatch(/2 exemplaires au plus/);
+    expect((await api('/cf/decks', { name: 'Trop', cards: { ...STARTER_DECKS[0].cards, 'cafe-serre': 0, pilier: 3 } }, bob.token)).error).toMatch(/2 exemplaires au plus/);
     expect((await api('/cf/decks', { name: '   ', cards: STARTER_DECKS[0].cards }, bob.token)).error).toMatch(/nom/);
     expect((await api('/cf/decks', { name: 'Bizarre', cards: { leurre: 'deux' } }, bob.token)).error).toMatch(/invalide/);
     expect(sb.decks).toHaveLength(2);
