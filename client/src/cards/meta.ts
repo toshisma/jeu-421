@@ -114,7 +114,7 @@ export const CARD_EMPHASIS: Record<string, string> = {
   embuscade: 'tous les pièges de votre main',
   'boule-de-neige': '1 carte par autre carte jouée',
   ricochet: 'ajoutez ou retirez 1',
-  'noeud-coulant': 'ne peut plus jouer de carte',
+  'noeud-coulant': 'ne peut plus en jouer d’autre',
   'compte-rond': '1 Tournée par autre carte',
   'retour-envoyeur': 'il retourne dans la main de son joueur',
   comptable: 'gagnez 1 Tournée et piochez 1 carte',

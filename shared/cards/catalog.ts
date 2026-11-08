@@ -92,7 +92,7 @@ export const CARDS: CardDef[] = [
   c('engrenage', 'L’Engrenage', 'chaines', 'piege', 1, 'rare', 'Quand l’adversaire joue sa 2e carte de la manche, elle est annulée.', '« Une fois qu’on a mis le doigt dedans… »'),
   // --- 0.46 : dix cartes de plus par famille (demande de Sam) ---
   // Les Habitués
-  c('joueur-belote', 'Le Joueur de belote', 'habitues', 'habitue', 1, 'commune', 'En arrivant, piochez 1 carte. Vos brelans valent 3 de plus.', '« Belote, rebelote… et brelan ! »'),
+  c('joueur-belote', 'Le Joueur de belote', 'habitues', 'habitue', 0, 'commune', 'En arrivant, piochez 1 carte. Vos brelans valent 3 de plus.', '« Belote, rebelote… et brelan ! »'),
   c('garde-champetre', 'Le Garde champêtre', 'habitues', 'habitue', 1, 'rare', 'Les cartes adverses ne peuvent pas toucher à vos dés : ni Coups, ni Derniers mots, ni pièges.', '« Circulez, il n’y a rien à voir. »'),
   c('doyen', 'Le Doyen', 'habitues', 'habitue', 1, 'rare', 'En arrivant, gagnez 1 Tournée et piochez 1 carte ; vos autres Habitués restent 1 manche de plus.', '« J’étais là avant le comptoir. »'),
   c('cafe-serre', 'Le Café serré', 'habitues', 'coup', 1, 'commune', 'Piochez 1 carte. Si vous avez un Habitué en jeu, gagnez aussi 1 Tournée.', '« Un petit noir, comme d’habitude. »'),
@@ -114,7 +114,7 @@ export const CARDS: CardDef[] = [
   c('verres-echanges', 'Les Verres échangés', 'ivresse', 'coup', 4, 'epique', 'Échangez vos trois dés contre ceux d’un adversaire qui a fini son tour.', '« C’était votre verre ? Ah, mince. »'),
   c('fee-verte', 'La Fée verte', 'ivresse', 'coup', 2, 'legendaire', 'Choisissez un de vos dés et une face : ce dé est relancé jusqu’à 3 fois, tant qu’il ne tombe pas dessus.', '« Elle exauce un vœu… ou presque. »'),
   // Les Pièges
-  c('mot-de-trop', 'Le Mot de trop', 'pieges', 'piege', 0, 'commune', 'Quand l’adversaire joue un Dernier mot, il est annulé.', '« Tais-toi, tu en as assez dit. »'),
+  c('mot-de-trop', 'Le Mot de trop', 'pieges', 'piege', 1, 'commune', 'Quand l’adversaire joue un Dernier mot, il est annulé.', '« Tais-toi, tu en as assez dit. »'),
   c('peau-banane', 'La Peau de banane', 'pieges', 'piege', 2, 'commune', 'Quand l’adversaire s’arrête sur une combinaison qui vaut 4 ou plus, un de ses dés est relancé au hasard.', '« Plus dure sera la chute. »'),
   c('guetteur', 'Le Guetteur', 'pieges', 'habitue', 1, 'commune', 'En arrivant, gagnez 1 Tournée et piochez 1 carte. Vous voyez les pièges posés devant vous.', '« Rien ne m’échappe, derrière ma vitre. »'),
   c('denonciation', 'La Dénonciation', 'pieges', 'dernier-mot', 1, 'commune', 'Défaussez un piège adverse posé devant vous, puis piochez 1 carte et gagnez 1 Tournée.', '« C’est lui, monsieur l’agent ! »'),

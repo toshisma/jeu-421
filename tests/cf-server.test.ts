@@ -339,9 +339,9 @@ describe('Coups Fourrés : serveur', () => {
     expect((await api('/admin/players/Ana/cf', { what: 'card', cardId: 'zzz', delta: 1 }, admin)).error).toMatch(/inconnue/);
     const sh = await api('/admin/players/Ana/cf', { what: 'card', cardId: 'videur', delta: 1, shiny: true }, admin);
     expect(sh.cf.cards.find((x: { id: string }) => x.id === 'videur')).toMatchObject({ shiny: 1 });
-    // Retirer toutes ses Josiane (les boosters ont pu en donner d'autres) casse « Le Zinc » : refusé.
-    const jo = (await api('/admin/players/Ana/cf', undefined, admin)).cf.cards.find((x: { id: string; count: number }) => x.id === 'josiane')?.count ?? 1;
-    const broken = await api('/admin/players/Ana/cf', { what: 'card', cardId: 'josiane', delta: -jo }, admin);
+    // Retirer tous ses Cafés serrés (les boosters ont pu en donner d'autres) casse « Le Zinc » : refusé.
+    const jo = (await api('/admin/players/Ana/cf', undefined, admin)).cf.cards.find((x: { id: string; count: number }) => x.id === 'cafe-serre')?.count ?? 1;
+    const broken = await api('/admin/players/Ana/cf', { what: 'card', cardId: 'cafe-serre', delta: -jo }, admin);
     expect(broken.error).toMatch(/utilisée dans/);
     const sheet = await api('/admin/players/Ana', undefined, admin);
     expect(sheet.player.cf).toMatchObject({ discovered: true });
