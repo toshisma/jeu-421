@@ -420,12 +420,14 @@ export function createCfOnline(c: Ctx) {
     const user = (id: string) => seatOf(g, id)!.userId;
     const quit = (id: string) => id === abandonSeat || !!seatOf(g, id)?.left;
     let rewards: CfGameReward[] = [];
+    // Pièces : barème du 421 en ligne, durée mesurée ici.
+    const coinInfo = { players: Math.max(standings.length, g.seats.length), minutes: (g.endedAt - g.startedAt) / 60000 };
     if (standings.length === 2) {
-      rewards = cards.recordCfGame({ winnerId: user(standings[0]), loserId: user(standings[1]), ranked: g.ranked, vsBot: false, abandoned: quit(standings[1]) });
+      rewards = cards.recordCfGame({ winnerId: user(standings[0]), loserId: user(standings[1]), ranked: g.ranked, vsBot: false, abandoned: quit(standings[1]), ...coinInfo, loserPlace: 2 });
     } else if (standings.length > 2) {
-      rewards = cards.recordCfGame({ winnerId: user(standings[0]), loserId: user(standings[1]), ranked: false, vsBot: false, abandoned: quit(standings[1]) });
-      for (const id of standings.slice(2))
-        rewards.push(...cards.recordCfGame({ winnerId: user(standings[0]), loserId: user(id), ranked: false, vsBot: false, abandoned: quit(id), onlyLoser: true }));
+      rewards = cards.recordCfGame({ winnerId: user(standings[0]), loserId: user(standings[1]), ranked: false, vsBot: false, abandoned: quit(standings[1]), ...coinInfo, loserPlace: 2 });
+      standings.slice(2).forEach((id, i) =>
+        rewards.push(...cards.recordCfGame({ winnerId: user(standings[0]), loserId: user(id), ranked: false, vsBot: false, abandoned: quit(id), onlyLoser: true, ...coinInfo, loserPlace: i + 3 })));
     }
     for (const r of rewards) g.rewards.set(r.userId, r);
     recordStats(g, standings, abandonSeat);
@@ -984,7 +986,9 @@ export function createCfOnline(c: Ctx) {
     const counts = cfMissionCounts(events, new Set()).get(b.setup.me.id) ?? {};
     const missionsDone: string[] = [];
     for (const [k, n] of Object.entries(counts)) missionsDone.push(...cards.progressCfMission(u.id, k as CfMissionKind, n).map((m) => m.id));
-    const reward = cards.recordCfGame({ winnerId: won ? u.id : null, loserId: won ? null : u.id, ranked: false, vsBot: true })[0] ?? null;
+    const place = won ? 1 : Math.max(2, r.state.ranking.indexOf(b.setup.me.id) + 1 || 1 + b.setup.bots.length);
+    const reward = cards.recordCfGame({ winnerId: won ? u.id : null, loserId: won ? null : u.id, ranked: false, vsBot: true,
+      players: 1 + b.setup.bots.length, loserPlace: place, minutes: (t - b.startedAt) / 60000, botLevel: b.setup.bots[0]?.level ?? null })[0] ?? null;
     c.stats?.recordGame({
       mode: 'bot', level: b.setup.bots[0]?.level ?? null, players: 1 + b.setup.bots.length, rounds: r.state.round, durationMs: t - b.startedAt,
       firstLeaderWon: b.setup.bots.length === 1 && track.firstLeader ? r.state.winner === track.firstLeader : null,

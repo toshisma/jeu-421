@@ -349,6 +349,20 @@ export function rewardFor(won: boolean, rounds: number, ctx: RewardContext): Rew
   };
 }
 
+/**
+ * Récompense « simple » d'une partie des autres modes (Courtisan, Coups Fourrés) : pièces, XP (et
+ * bonus de niveau), points du pass. Ni statistiques du 421, ni succès, ni album.
+ */
+export function applyPlainReward(p: Profile, r: Reward, day: string): { profile: Profile; levelBefore: number; levelAfter: number; levelBonusCoins: number } {
+  const levelBefore = levelInfo(p.xp).level;
+  const xp = p.xp + r.xp;
+  const levelAfter = levelInfo(xp).level;
+  let levelBonusCoins = 0;
+  for (let l = levelBefore + 1; l <= levelAfter; l++) levelBonusCoins += REWARDS.levelBonus(l);
+  const profile = addSeasonPoints({ ...p, xp, coins: p.coins + r.coins + levelBonusCoins }, r.xp, day);
+  return { profile, levelBefore, levelAfter, levelBonusCoins };
+}
+
 export interface Applied {
   profile: Profile;
   levelBefore: number;

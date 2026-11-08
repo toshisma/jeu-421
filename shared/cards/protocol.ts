@@ -6,7 +6,7 @@
 import type { CfAction, CfEvent, CfView } from './engine';
 
 /** Gains d'une partie (même forme que CfGameReward côté serveur). */
-export interface CfGameReward { userId: string; won: boolean; capsules: number; booster: boolean; points: number; leaguePoints: number | null; missions: string[] }
+export interface CfGameReward { userId: string; won: boolean; capsules: number; booster: boolean; points: number; leaguePoints: number | null; missions: string[]; /** Pièces et XP (monnaie générale), comptes seulement. */ coins?: number; xp?: number }
 
 export type CfAck<T extends object = object> = ({ ok: true } & T) | { ok: false; error: string };
 

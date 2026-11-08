@@ -18,7 +18,7 @@ import { PHRASES } from '../shared/protocol';
 import {
   adjustCoins, applyGameEnd, applyPot, applyTournament, buy, claimDaily, claimPassTier, completeTutorial, setTitle, titleLabel, addSeasonPoints, REWARDS,
   LEAGUES, LEAGUE_DEMOTE, LEAGUE_PRIZES, ALBUM_KEYS, CLUB_CHEST, CLUB_COST, CLUB_EMBLEMS, CLUB_MAX, doPrestige, PRESTIGE_LEVEL, LEAGUE_PROMOTE, LEAGUE_SIZE, REFERRAL_BONUS, REFERRAL_GAMES, REFERRAL_BAGS_MAX, RETURN_DAYS, openChest, claimQuest, equip, levelInfo, rewardFor, sanitizeProfile, newProfile,
-  openBag, craftDie, setShowcase, collectionCount, equipFx, BAGS_MAX,
+  applyPlainReward, openBag, craftDie, setShowcase, collectionCount, equipFx, BAGS_MAX,
   type Profile, type RewardContext,
 } from '../shared/progress/profile';
 import { DEFAULT_APPEARANCE } from '../shared/progress/catalog';
@@ -29,6 +29,8 @@ import { muteText } from '../shared/moderation';
 import { createDiscord } from './discord';
 import { createCards } from './cards';
 import { createCfEnigme } from './cf-enigme';
+import { cfCoinReward } from '../shared/cards/progress';
+import type { CfLevel } from '../shared/cards/ai';
 import { DIVISIONS, SEASON_DIE_FROM, SEASON_TITLE_FROM, divisionIndex, divisionOf, nextSeasonStart, seasonDelta, seasonOf } from '../shared/season';
 import { today } from '../shared/progress/quests';
 import type { ComboKind } from '../shared/combos';
@@ -927,7 +929,21 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   const messages = createMessages({ router, store, auth, userOf, fail, push: social.push, userFromToken, now: () => opts.now?.() ?? Date.now() });
   createDiscord({ router, store, auth, userOf, userFromToken, now: () => opts.now?.() ?? Date.now(), env: opts.discord?.env, discordApi: opts.discord?.api });
   // Coups Fourrés (mode cartes) : collection, decks, boosters, ligue et missions.
-  const cards = createCards({ router, store, auth, userOf, fail, now: () => opts.now?.() ?? Date.now(), push: (u, t, b, url) => void social.push(u, t, b, url), rng: opts.cardsRng });
+  /**
+   * Coups Fourrés : pièces et XP (monnaie générale) d'une partie terminée, au barème du 421 ; contre
+   * l'ordinateur, plafond quotidien commun avec le solo du 421 et du Courtisan.
+   */
+  const cfGeneralReward = (userId: string, o: { won: boolean; place: number; players: number; minutes: number; botLevel?: CfLevel | null; day: string }) => {
+    const u = store.userById(userId);
+    if (!u) return null;
+    if (o.botLevel && store.bumpSolo(userId, o.day) > SOLO_CAP) return null;
+    const reward = cfCoinReward({ ...o, now: opts.now?.() ?? Date.now() });
+    const applied = applyPlainReward(store.profileOf(u), reward, o.day);
+    store.saveProfile(userId, applied.profile);
+    leagueGain(userId, reward.xp);
+    return { coins: reward.coins + applied.levelBonusCoins, xp: reward.xp };
+  };
+  const cards = createCards({ router, store, auth, userOf, fail, now: () => opts.now?.() ?? Date.now(), push: (u, t, b, url) => void social.push(u, t, b, url), rng: opts.cardsRng, generalReward: cfGeneralReward });
   // Coups Fourrés : l'énigme du jour (score recalculé ici, une validation par jour).
   const enigme = createCfEnigme({ router, store, auth, userOf, fail, now: () => opts.now?.() ?? Date.now() });
 

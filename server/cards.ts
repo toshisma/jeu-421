@@ -19,6 +19,7 @@ import { brusselsDay } from './stats';
 import { BOOSTER, CAPSULES, CARDS, CF_RULES, SHARDS, STARTER_DECKS, cardDef, deckProblems } from '../shared/cards/catalog';
 import { buildAutoDeck, usableCount } from '../shared/cards/autodeck';
 import { CF_TUTORIAL_CAPSULES } from '../shared/cards/tutorial';
+import type { CfLevel } from '../shared/cards/ai';
 import {
   CF_DECK_NAME_MAX, CF_DIVISIONS, CF_LEGEND_COUNT, CF_LEGEND_NAME, CF_MAX_DECKS, cfApplyDelta, cfDailyMissions, cfDecksBroken,
   cfDivisionOf, cfFloor, cfLeagueDelta, cfMaxUseful, cfNextSeasonPoints, cfRollBooster, cfSeasonEnd, cfSeasonOf,
@@ -120,6 +121,12 @@ export interface CardsCtx {
   push?: (userId: string, title: string, body: string, url?: string) => void;
   /** Source de hasard des boosters (tests) ; par défaut cryptographique. */
   rng?: () => number;
+  /**
+   * Pièces et XP (monnaie générale du jeu) d'une partie terminée, versées sur le profil du compte
+   * (barème du 421, plafond quotidien des parties contre l'ordinateur) : fourni par accounts.ts.
+   * Renvoie null si rien n'est versé (plafond atteint).
+   */
+  generalReward?: (userId: string, o: { won: boolean; place: number; players: number; minutes: number; botLevel?: CfLevel | null; day: string }) => { coins: number; xp: number } | null;
 }
 
 export interface CfGameInput {
@@ -133,8 +140,13 @@ export interface CfGameInput {
   abandoned?: boolean;
   /** Partie à 3-4 : n'enregistrer que le perdant (le gagnant est enregistré une seule fois, à part). */
   onlyLoser?: boolean;
+  /** Pour les pièces : joueurs à la table, place du perdant, durée réelle (mesurée par le serveur), niveau des ordinateurs. */
+  players?: number;
+  loserPlace?: number;
+  minutes?: number;
+  botLevel?: CfLevel | null;
 }
-export interface CfGameReward { userId: string; won: boolean; capsules: number; booster: boolean; points: number; leaguePoints: number | null; missions: string[] }
+export interface CfGameReward { userId: string; won: boolean; capsules: number; booster: boolean; points: number; leaguePoints: number | null; missions: string[]; coins?: number; xp?: number }
 
 export function createCards(c: CardsCtx) {
   const { store } = c;
@@ -300,6 +312,17 @@ export function createCards(c: CardsCtx) {
         out.push({ userId, won, capsules, booster, points, leaguePoints: ranked ? leagueRow(userId).points : null, missions: missionsDone });
       }
     });
+    // Pièces et XP (monnaie générale) : jamais pour un abandon ; barème et plafond décidés par accounts.ts.
+    if (c.generalReward) {
+      for (const r of out) {
+        if (!r.won && g.abandoned) continue;
+        const gen = c.generalReward(r.userId, {
+          won: r.won, place: r.won ? 1 : g.loserPlace ?? Math.max(2, g.players ?? 2), players: g.players ?? 2,
+          minutes: g.minutes ?? 0, botLevel: g.vsBot ? g.botLevel ?? 'habitue' : null, day: day(),
+        });
+        if (gen) { r.coins = gen.coins; r.xp = gen.xp; }
+      }
+    }
     return out;
   }
 

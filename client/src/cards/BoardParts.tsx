@@ -8,6 +8,7 @@ import { CARD_BY_ID, cardDef, type CardType } from '../../../shared/cards/catalo
 import { commandeOf, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView, type PlayParams } from '../../../shared/cards/engine';
 import { Avatar } from '../ui/Avatar';
 import { Icon } from '../ui/Icon';
+import { CoinArt } from '../ui/illustrations';
 import { Sheet } from '../ui/kit';
 import { CardArt } from './art';
 import { CapsuleIcon, CardView } from './components';
@@ -871,6 +872,7 @@ export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, bot, guest,
   const reward = (snap.finished?.reward ?? null) as Record<string, unknown> | null;
   const num = (k: string) => (reward && typeof reward[k] === 'number' ? (reward[k] as number) : null);
   const capsules = num('capsules');
+  const coins = num('coins');
   const points = ranked ? num('points') : null;
   const boosters = num('boosters') ?? (reward?.booster === true ? 1 : null);
   const missions = Array.isArray(reward?.missions) ? (reward!.missions as string[]).length : 0;
@@ -888,6 +890,7 @@ export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, bot, guest,
         </ol>
         <div className="cf-gains">
           {capsules !== null && <span className="cf-gain"><b>+{capsules}</b><CapsuleIcon size={22} /> <small>capsule{capsules > 1 ? 's' : ''}</small></span>}
+          {coins !== null && coins > 0 && <span className="cf-gain coins"><b>+{coins}</b><CoinArt size={22} /> <small>pièce{coins > 1 ? 's' : ''}</small></span>}
           {points !== null && <span className="cf-gain"><b>{points > 0 ? `+${points}` : points}</b> <small>points de ligue</small></span>}
           {boosters ? <span className="cf-gain"><b>+{boosters}</b> <small>booster{boosters > 1 ? 's' : ''}{won ? ' (première victoire du jour)' : ''}</small></span> : null}
           {missions > 0 && <span className="cf-gain"><b>✓ {missions}</b> <small>mission{missions > 1 ? 's' : ''} du jour</small></span>}
@@ -896,7 +899,7 @@ export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, bot, guest,
           {!reward && rewarded && !spectator && <small className="cf-gain-note">Calcul des gains…</small>}
           {!reward && !rewarded && bot && <small className="cf-gain-note">{guest ? 'Partie d’essai : aucun gain.' : 'Partie d’entraînement : pas de capsules cette fois.'}</small>}
         </div>
-        {guest && bot && <button className="cf-link" onClick={onAccount}>Créer un compte gratuit pour gagner des capsules</button>}
+        {guest && bot && <button className="cf-link" onClick={onAccount}>Créer un compte gratuit pour gagner des capsules et des pièces</button>}
         {onShare && <button className="cf-btn violet" disabled={sharing} onClick={onShare}><Icon name="share" size={18} />Partager mon plus beau coup</button>}
         <div className="cf-modal-btns">
           <button className="cf-btn ghost" onClick={onExit}>Menu du mode</button>

@@ -5,7 +5,7 @@
  * statistiques propres au Courtisan et, avec une chance basse, un sac de dés (mêmes sacs que le 421).
  */
 import type { Difficulty } from '../ai';
-import { BAGS_MAX, BAG_PITY, REWARDS, addSeasonPoints, bagChance, botTableRules, levelInfo, rewardFor, type Profile, type Reward } from '../progress/profile';
+import { BAGS_MAX, BAG_PITY, applyPlainReward, bagChance, botTableRules, rewardFor, type Profile, type Reward } from '../progress/profile';
 import { applySummary } from '../progress/quests';
 import { randomFloat } from '../random';
 import type { DmLevel } from './engine';
@@ -24,13 +24,7 @@ export function dixMilleReward(o: { won: boolean; place: number; opponents: numb
 
 /** Ajoute la récompense au profil : pièces, XP (et bonus de niveau), points du pass. */
 export function applyDixMille(p: Profile, r: Reward, day: string): { profile: Profile; levelBefore: number; levelAfter: number; levelBonusCoins: number } {
-  const levelBefore = levelInfo(p.xp).level;
-  const xp = p.xp + r.xp;
-  const levelAfter = levelInfo(xp).level;
-  let levelBonusCoins = 0;
-  for (let l = levelBefore + 1; l <= levelAfter; l++) levelBonusCoins += REWARDS.levelBonus(l);
-  const profile = addSeasonPoints({ ...p, xp, coins: p.coins + r.coins + levelBonusCoins }, r.xp, day);
-  return { profile, levelBefore, levelAfter, levelBonusCoins };
+  return applyPlainReward(p, r, day);
 }
 
 /**
