@@ -16,7 +16,7 @@ let url = '';
 beforeAll(async () => {
   srv = await startServer({
     port: 0, dbPath: ':memory:', turnTimeoutMs: 60_000, accounts: { now: () => clock, authAttempts: 1000 },
-    dm: { decisionMs: 60_000, autoplayMs: 5, animMs: 0, disconnectMs: 150 },
+    dm: { decisionMs: 60_000, autoplayMs: 5, animMs: 0, disconnectMs: 150, now: () => clock },
   });
   url = `http://localhost:${srv.port}`;
 });
@@ -335,5 +335,67 @@ describe('Le Courtisan : les Groschen', () => {
     await wait(50);
     expect(await bal(u.token)).toBe(end.winner === a.id ? 10 + 30 : 10);
     a.s.close(); g.s.close();
+  }, 60_000);
+});
+
+describe('Le Courtisan en ligne : sacs de dés (tirés par le serveur)', () => {
+  /** Compte prêt pour un sac garanti (9 parties sans sac : la 10e en donne un). */
+  async function nearPity() {
+    const username = `Sac${++nameSeq}${Math.floor(Math.random() * 1000)}`;
+    const r = await api('/register', { username, password: 'motdepasse1', guestProfile: { pity: 9 } });
+    return { username, token: r.token as string };
+  }
+  const prof = async (token: string) => (await api('/me', undefined, token)).profile;
+  async function table(accs: { username: string; token: string }[]) {
+    const cs = await Promise.all(accs.map(() => client()));
+    const rewards: Record<number, { bags?: number }[]> = {};
+    cs.forEach((c, i) => { rewards[i] = []; c.s.on('profile:reward', (m: { bags?: number }) => rewards[i].push(m)); });
+    const cr = await emit(cs[0], 'table:create', { name: accs[0].username, auth: accs[0].token, target: 2000 });
+    cs[0].id = cr.playerId;
+    for (let i = 1; i < accs.length; i++) {
+      const r = await emit(cs[i], 'table:join', { code: cr.code, name: accs[i].username, auth: accs[i].token });
+      cs[i].id = r.playerId;
+      await emit(cs[i], 'table:ready', { ready: true, auth: accs[i].token });
+    }
+    return { cs, rewards };
+  }
+
+  it('partie assez longue : sac au joueur resté, rien pour celui qui a quitté', async () => {
+    const accs = [await nearPity(), await nearPity()];
+    const { cs, rewards } = await table(accs);
+    expect((await emit(cs[0], 'table:start')).ok).toBe(true);
+    await until(() => cs.every((c) => !!c.state));
+    clock += 3 * 60_000; // 3 minutes de jeu (horloge du serveur)
+    await emit(cs[1], 'table:leave'); // abandon : le serveur joue pour lui
+    await playOut([cs[0]], 40_000);
+    await until(() => rewards[0].length > 0, 3000);
+    expect(rewards[0][0].bags).toBe(1);
+    expect(rewards[1]).toEqual([]);
+    const [p0, p1] = [await prof(accs[0].token), await prof(accs[1].token)];
+    expect(p0.bags).toBe(1);
+    expect(p0.pity ?? 0).toBe(0);
+    expect(p0.dm.games).toBe(1);
+    expect(p1.bags ?? 0).toBe(0);
+    expect(p1.pity).toBe(9);
+    expect(p1.dm).toBeUndefined();
+    for (const c of cs) c.s.close();
+  }, 60_000);
+
+  it('partie trop courte (moins de 1 min 30) : jamais de sac, même au bout du compteur', async () => {
+    const accs = [await nearPity(), await nearPity()];
+    const { cs, rewards } = await table(accs);
+    await emit(cs[0], 'table:start');
+    await until(() => cs.every((c) => !!c.state));
+    clock += 60_000;
+    await playOut(cs, 40_000);
+    await until(() => rewards[0].length > 0 && rewards[1].length > 0, 3000);
+    for (const i of [0, 1]) {
+      expect(rewards[i][0].bags).toBe(0);
+      const p = await prof(accs[i].token);
+      expect(p.bags ?? 0).toBe(0);
+      expect(p.pity).toBe(9); // la partie ne compte pas pour le sac garanti
+      expect(p.dm.games).toBe(1);
+    }
+    for (const c of cs) c.s.close();
   }, 60_000);
 });

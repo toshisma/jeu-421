@@ -4134,3 +4134,4 @@ b .cf-term { font-weight: inherit; }
 .dm-quests { list-style: none; margin: -4px 0 12px; padding: 0; font-size: 13px; color: #a9e2b4; }
 .dm-quests li { display: flex; align-items: center; justify-content: center; gap: 5px; }
 @media (max-height: 680px) { .dm-hero { padding: 9px 10px; } .dm-hero h1 { font-size: 26px; } .dm-play { min-height: 56px; } }
+.dm-menu .sheet { background: linear-gradient(180deg, #3a1f10, #1e0f08); box-shadow: 0 -10px 30px rgba(0,0,0,.5), inset 0 1px 0 rgba(241,204,125,.35); }

@@ -34,6 +34,8 @@ export interface DmOnlineOptions {
   disconnectMs?: number;
   /** Rythme du serveur quand il joue (ordinateur, joueur parti). */
   autoplayMs?: number;
+  /** Horloge (durée des parties, pour les récompenses) : réglable dans les tests. */
+  now?: () => number;
   /** Temps laissé aux navigateurs pour animer (multiplié selon ce qui se passe ; 0 dans les tests). */
   animMs?: number;
   /** Partie rapide : attente avant les ordinateurs, puis compte à rebours. */
@@ -296,7 +298,7 @@ export function createDixMilleOnline(c: Ctx) {
     t.version = 1;
     t.autoOf = null;
     t.rewarded = false;
-    t.startedAt = Date.now();
+    t.startedAt = (o.now ?? Date.now)();
     t.lastActivity = Date.now();
     ns.to(t.code).emit('game:state', snapshot(t));
     if (t.pot > 0) notice(t, `Partie lancée : ${t.pot} Groschen dans le pot. Le gagnant emporte tout.`);
@@ -379,7 +381,7 @@ export function createDixMilleOnline(c: Ctx) {
     const inGame = t.members.filter((m) => t.players.includes(m.id));
     const humans = inGame.filter((m) => !m.bot).length;
     const botLevels = inGame.flatMap((m) => (m.bot ? [m.bot] : []));
-    const minutes = (Date.now() - t.startedAt) / 60000;
+    const minutes = ((o.now ?? Date.now)() - t.startedAt) / 60000;
     // Le pot : au gagnant s'il est encore là. S'il a quitté (le serveur jouait pour lui), il ne touche
     // rien : les joueurs restés récupèrent leur mise, les mises des partants sont perdues.
     let potTo: string | null = null;

@@ -377,10 +377,11 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
 
   // --- Le Dix mille contre l'ordinateur (joué sur l'appareil) : même principe que le solo du 421 --
   // (jeton de début, durée minimale, plafond quotidien partagé avec le solo), barème du solo.
+  const clock = () => opts.now?.() ?? Date.now();
   router.post('/dixmille/start', auth, (req, res) => {
     const token = randomBytes(18).toString('base64url');
-    soloGames.set(token, { userId: userOf(req).id, startedAt: Date.now() });
-    soloGames.prune(Date.now() - 12 * 3600_000);
+    soloGames.set(token, { userId: userOf(req).id, startedAt: clock() });
+    soloGames.prune(clock() - 12 * 3600_000);
     res.json({ ok: true, gameToken: token });
   });
   router.post('/dixmille/end', auth, (req, res) => {
@@ -388,7 +389,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const b = req.body ?? {};
     const g = typeof b.gameToken === 'string' ? soloGames.get(b.gameToken) : undefined;
     if (!g || g.userId !== u.id) return fail(res, 400, 'Partie inconnue.');
-    if (Date.now() - g.startedAt < MIN_SOLO) return fail(res, 400, 'Partie trop courte pour être récompensée.');
+    if (clock() - g.startedAt < MIN_SOLO) return fail(res, 400, 'Partie trop courte pour être récompensée.');
     soloGames.delete(b.gameToken);
     const day = clientDay(req.headers['x-day']);
     if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.');
@@ -396,12 +397,12 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const opponents = Math.min(3, Math.max(1, Math.floor(Number(b.opponents) || 1)));
     const reward = dixMilleReward({
       won: !!b.won, place: Math.floor(Number(b.place) || opponents + 1), opponents,
-      level: levels.includes(b.level) ? b.level : 'habitue', minutes: (Date.now() - g.startedAt) / 60000, day, now: Date.now(),
+      level: levels.includes(b.level) ? b.level : 'habitue', minutes: (clock() - g.startedAt) / 60000, day, now: clock(),
     });
     // Sac de dés : durée mesurée ici ; le résultat annoncé par le téléphone ne change pas la chance.
     const level: DmLevel = levels.includes(b.level) ? b.level : 'habitue';
     const applied = applyDixMilleGame(store.profileOf(u), reward, day, {
-      won: !!b.won, players: opponents + 1, minutes: (Date.now() - g.startedAt) / 60000, mode: 'solo', level,
+      won: !!b.won, players: opponents + 1, minutes: (clock() - g.startedAt) / 60000, mode: 'solo', level,
       bestTurn: Number(b.bestTurn) || 0, declared: true,
     });
     store.saveProfile(u.id, applied.profile);
