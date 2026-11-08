@@ -39,7 +39,7 @@ export const CARDS: CardDef[] = [
   // --- Les Habitués ---
   c('patron', 'Le Patron', 'habitues', 'habitue', 2, 'legendaire', 'Au début de chaque manche, +1 Tournée et 1 carte. Vos Habitués ne peuvent être ni chassés ni annulés par une carte qui coûte 2 ou moins.', '« Ici, c’est moi qui sers. »'),
   c('josiane', 'Josiane, la serveuse', 'habitues', 'habitue', 2, 'rare', 'Une fois par manche, relancez un de vos dés sans utiliser de lancer.', '« Je vous remets la même ? »'),
-  c('vieux-marcel', 'Le Vieux Marcel', 'habitues', 'habitue', 1, 'commune', 'En arrivant, piochez 1 carte. Vos suites valent 4 au lieu de 2.', '« De mon temps, on comptait jusqu’à trois. »'),
+  c('vieux-marcel', 'Le Vieux Marcel', 'habitues', 'habitue', 0, 'commune', 'En arrivant, piochez 1 carte. Vos suites valent 4 au lieu de 2.', '« De mon temps, on comptait jusqu’à trois. »'),
   c('pilier', 'Le Pilier de comptoir', 'habitues', 'habitue', 2, 'commune', 'Quand vous perdez une manche, vous recevez 2 jetons de moins (au moins 1).', '« Trente ans au même tabouret. Rien ne le bouge. »'),
   c('videur', 'Le Videur', 'habitues', 'habitue', 2, 'epique', 'Le premier piège adverse qui se déclenche dans chaque manche est annulé et défaussé.', '« Pas de ça chez nous. »'),
   c('tournee-patron', 'Tournée du patron', 'habitues', 'coup', 2, 'commune', 'Gagnez 3 Tournées.', '« C’est la maison qui offre ! »'),
@@ -62,7 +62,7 @@ export const CARDS: CardDef[] = [
   c('trinquer', 'Trinquer', 'ivresse', 'dernier-mot', 3, 'rare', 'Échangez un de vos dés avec un dé de l’adversaire, tous deux pris au hasard.', '« À la vôtre ! Oups, mauvais verre. »'),
   c('coup-etrier', 'Le Coup de l’étrier', 'ivresse', 'dernier-mot', 2, 'commune', 'Relancez un de vos dés.', '« Allez, un dernier pour la route ! »'),
   c('fanfaron', 'Le Fanfaron', 'ivresse', 'habitue', 2, 'rare', 'Quand vous gagnez une manche, le perdant reçoit 1 jeton de plus.', '« Je vous l’avais bien dit ! »'),
-  c('verre-de-trop', 'Le Verre de trop', 'ivresse', 'piege', 0, 'commune', 'Quand l’adversaire fait un 2e lancer dans son tour, il reçoit 1 jeton.', '« Celui-là, il ne fallait pas. »'),
+  c('verre-de-trop', 'Le Verre de trop', 'ivresse', 'piege', 1, 'commune', 'Quand l’adversaire fait un 2e lancer dans son tour, il reçoit 1 jeton.', '« Celui-là, il ne fallait pas. »'),
   // --- Les Pièges ---
   c('leurre', 'Leurre', 'pieges', 'piege', 0, 'commune', 'Ne fait rien. Quand une carte adverse le découvre et le défausse, gagnez 1 Tournée et piochez 1 carte.', '« Rien dans les mains, rien dans les poches. »'),
   c('croche-patte', 'Croche-patte', 'pieges', 'piege', 1, 'commune', 'Quand l’adversaire finit son tour, un de ses dés est relancé au hasard.', '« Attention à la marche. »'),
@@ -185,14 +185,14 @@ export const CF_RULES = {
  * des cartes nouvelles (Pourboire, Engrenage, Complice, Coup de l’étrier, Pot aux roses). 0.41 : réajustés
  * après la refonte des coûts (Fermeture, Videur et Domino pour le Zinc ; Cul sec, Vide-poches, Mouchard, Verre de trop pour la Bringue) ; puis économie serrée (1 Tournée par manche) :
  * La petite sœur remplace L’Engrenage dans le Zinc (elle reprend une Tournée du patron ou un Coup de pouce).
- * 0.46 (90 cartes) : dans le Zinc, Le Café serré remplace Josiane et L’Addition une Tournée du patron (moins
+ * 0.46 (90 cartes) : dans le Zinc, Le Café serré remplace Le Vieux Marcel et L’Addition une Tournée du patron (moins
  * d’enchaînements à 3 ou 4 cartes payantes) ; la Bringue prend Le Miroir du bar, La Peau de
  * banane et La Der des ders (à la place du Mouchard, du Faux 4-2-1 et des Yeux qui piquent).
  * Les joueurs qui ont déjà reçu leurs decks gardent leur version (seuls les nouveaux venus ont celle-ci).
  */
 export const STARTER_DECKS: { id: string; name: string; cards: Record<string, number> }[] = [
   { id: 'le-zinc', name: 'Le Zinc', cards: {
-    'cafe-serre': 1, 'vieux-marcel': 1, pilier: 1, 'beau-frere': 1, 'tournee-patron': 1, addition: 1, 'ticket-caisse': 1, pourboire: 1, 'note-salee': 2, 'coup-coude': 2,
+    'cafe-serre': 1, josiane: 1, pilier: 1, 'beau-frere': 1, 'tournee-patron': 1, addition: 1, 'ticket-caisse': 1, pourboire: 1, 'note-salee': 2, 'coup-coude': 2,
     'coup-pouce': 1, 'calcul-mental': 1, recompter: 1, 'reaction-chaine': 1, 'petite-soeur': 1, fermeture: 1, domino: 1, videur: 1,
   } },
   { id: 'la-bringue', name: 'La Bringue', cards: {
