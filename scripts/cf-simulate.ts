@@ -39,19 +39,21 @@ function fits(deck: string[], id: string, curve = false): boolean {
 
 /**
  * Ordre de préférence pour construire des decks « optimisés » : les cartes les mieux notées par les
- * dernières simulations d'abord (valeur marginale d'une série de 8 000 parties, 0.41 : économie serrée, 1 Tournée par manche),
+ * dernières simulations d'abord (0.46, 90 cartes : moyenne des valeurs marginales de deux séries de 32 000 et 12 000 parties),
  * pour chercher les decks les plus forts possibles.
  * PREF_FILE (variable d'environnement) : fichier JSON { carte: valeur } pour le recalculer.
  */
 let PREF = [
-  'tant-qu-on-y-est', 'vide-poches', 'josiane', 'mise-bouche', 'recompter', 'trinquer', 'pot-aux-roses',
-  'tournee-generale', 'double-tournee', 'coup-etrier', 'petite-soeur', 'efface-tout', 'leurre', 'fermeture',
-  'verre-offert', 'main-sac', 'pari-comptoir', 'ardoise-piegee', 'tournee-patron', 'tete-tourne',
-  'verre-de-trop', 'vieux-marcel', 'domino', 'cul-sec', 'coup-pouce', 'calcul-mental', 'ticket-caisse',
-  'fouine', 'videur', 'patron', 'courant-air', 'retournement-veste', 'beau-frere', 'coup-coude',
-  'bon-numero', 'gueule-bois', 'note-salee', 'reaction-chaine', 'fanfaron', 'faux-421', 'complice', 'pilier',
-  'croche-patte', 'de-sous-table', 'mouchard', 'pourboire', 'coup-nenette', 'engrenage',
-  'grand-enchainement', 'yeux-piquent',
+  'embuscade', 'derniere-maille', 'fermeture', 'gueule-bois', 'reaction-chaine', 'coup-pouce', 'retour-envoyeur', 'verre-de-trop', 'domino',
+  'retournement-veste', 'tournee-generale', 'double-tournee', 'coup-etrier', 'trinquer', 'flagrant-delit', 'efface-tout', 'miroir', 'croche-patte',
+  'verre-offert', 'calcul-mental', 'pot-aux-roses', 'ricochet', 'table-reservee', 'retrouvailles', 'note-salee', 'yeux-piquent', 'ardoise-piegee',
+  'compte-rond', 'peau-banane', 'ticket-caisse', 'verres-echanges', 'tournee-patron', 'de-sous-table', 'plat-du-jour', 'tete-tourne', 'josiane',
+  'fee-verte', 'calva', 'bon-numero', 'boule-de-neige', 'fanfaron', 'denonciation', 'grand-enchainement', 'leurre', 'petite-soeur',
+  'fouine', 'a-la-votre', 'comptable', 'tant-qu-on-y-est', 'complice', 'debauchage', 'joueur-belote', 'sante', 'recompter',
+  'garde-champetre', 'attrape-nigaud', 'mot-de-trop', 'coup-coude', 'coup-nenette', 'addition', 'cul-sec', 'doyen', 'guetteur',
+  'lot-consolation', 'petit-dernier', 'mouchard', 'echo', 'faux-421', 'beau-frere', 'engrenage', 'hoquet', 'effet-papillon',
+  'cafe-serre', 'pilier', 'videur', 'patron', 'vide-poches', 'souriciere', 'main-sac', 'pique-assiette', 'der-des-ders',
+  'courant-air', 'passe-passe', 'mise-bouche', 'pochtron', 'pourboire', 'pari-comptoir', 'noeud-coulant', 'vieux-marcel', 'boucle',
 ];
 if (process.env.PREF_FILE) {
   const mg = JSON.parse(readFileSync(process.env.PREF_FILE, 'utf8')) as Record<string, number>;
@@ -143,7 +145,8 @@ export interface Eco { pr: number; paid: number; paid2: number; paid0: number; p
 
 const STEP_CAP = 30000;
 /** Cartes qui rapportent des Tournées ou font baisser les coûts (moteurs de combo). */
-const ENGINES = new Set(['tournee-patron', 'tant-qu-on-y-est', 'fermeture', 'vide-poches', 'mise-bouche', 'beau-frere', 'patron', 'grand-enchainement', 'petite-soeur', 'leurre', 'mouchard', 'complice']);
+const ENGINES = new Set(['tournee-patron', 'tant-qu-on-y-est', 'fermeture', 'vide-poches', 'mise-bouche', 'beau-frere', 'patron', 'grand-enchainement', 'petite-soeur', 'leurre', 'mouchard', 'complice',
+  'cafe-serre', 'compte-rond', 'passe-passe', 'lot-consolation', 'comptable', 'effet-papillon', 'boucle', 'echo', 'pique-assiette']);
 
 export function playGame(seats: Seat[], seed: number, config: CfConfig, set: string): GameRecord {
   let s = newGame({ commandes: true, ...config }, seats.map((x, i) => ({ id: `p${i}`, name: `J${i + 1}`, deck: x.deck.cards })), seed);
@@ -208,7 +211,7 @@ export function playGame(seats: Seat[], seed: number, config: CfConfig, set: str
       if (roundNow >= 1) {
         closeRound(tBefore);
         startT = s.players.map((p) => p.tournees);
-        engineOn = s.players.map((p) => p.habitues.some((h) => h.id === 'beau-frere' || h.id === 'patron' || h.id === 'complice'));
+        engineOn = s.players.map((p) => p.habitues.some((h) => h.id === 'beau-frere' || h.id === 'patron' || h.id === 'complice' || h.id === 'comptable'));
         if (s.phase !== 'over') s.players.forEach((p, k) => {
           if (p.out) return;
           const inc = s.rules.tourneesPerRound + (s.prevLoser === p.id ? s.rules.tourneesLoserBonus : 0) + (s.commande === 'tournees' ? 1 : 0);

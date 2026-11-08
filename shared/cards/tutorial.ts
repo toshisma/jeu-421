@@ -35,7 +35,7 @@ export type TutoStep =
 
 const MY_HAND = ['tete-tourne', 'croche-patte', 'ticket-caisse', 'fouine', 'tournee-patron'];
 /** Dessus du deck en premier : pioche de la manche 1, puis de la manche 2. */
-const MY_DECK = ['coup-etrier', 'calcul-mental', 'leurre', 'coup-coude', 'mise-bouche', 'cul-sec', 'pilier', 'vieux-marcel', 'gueule-bois', 'coup-pouce', 'calcul-mental', 'pari-comptoir', 'main-sac', 'domino', 'josiane', 'note-salee'];
+const MY_DECK = ['coup-etrier', 'leurre', 'calcul-mental', 'coup-coude', 'mise-bouche', 'cul-sec', 'pilier', 'vieux-marcel', 'gueule-bois', 'coup-pouce', 'calcul-mental', 'pari-comptoir', 'main-sac', 'domino', 'josiane', 'note-salee'];
 const BOT_HAND = ['pari-comptoir', 'coup-pouce', 'mouchard', 'cul-sec'];
 const BOT_DECK = ['tournee-patron', 'pari-comptoir', 'vieux-marcel', 'pilier', 'leurre', 'coup-coude', 'mise-bouche', 'croche-patte', 'calcul-mental', 'tete-tourne', 'main-sac', 'cul-sec', 'coup-pouce', 'faux-421', 'leurre', 'gueule-bois'];
 
@@ -106,7 +106,7 @@ export const TUTO_STEPS: TutoStep[] = [
   { kind: 'me', title: 'Lancer', text: `Vous menez cette manche : lancez les 3 dés (${R.maxThrows} lancers au plus).`, focus: 'roll', expect: isRoll(NONE) },
   { kind: 'me', title: 'Garder des dés', text: 'Un 4 et un 2 : il ne manque qu’un 1 pour le 4-2-1, la meilleure combinaison. Touchez le 4 et le 2 dans le bac pour les garder, puis relancez le dernier dé.', focus: 'tray', expect: isRoll([true, true, false]) },
   { kind: 'me', title: 'Jouer un Coup', text: `Un 6… Mais « Tête qui tourne » retourne un dé sur sa face opposée : le 6 devient 1 ! Touchez la carte, choisissez le 6, puis « Jouer ». Elle coûte ${cost('tete-tourne')}.`, focus: 'hand', expect: isPlay('tete-tourne', (p) => p.die === 2) },
-  { kind: 'me', title: 'Reprendre des Tournées', text: `4-2-1 ! Il vous reste ${tour(R.tourneesMax - (cardDef('tete-tourne')?.cost ?? 0))}. « Tournée du patron » en coûte ${cardDef('tournee-patron')?.cost}, vous en rend ${TOURNEE_PATRON_GAIN} et vous fait piocher une carte : de quoi enchaîner. Jouez-la.`, focus: 'hand', expect: isPlay('tournee-patron') },
+  { kind: 'me', title: 'Reprendre des Tournées', text: `4-2-1 ! Il vous reste ${tour(R.tourneesMax - (cardDef('tete-tourne')?.cost ?? 0))}. « Tournée du patron » en coûte ${cardDef('tournee-patron')?.cost}, vous en rend ${TOURNEE_PATRON_GAIN} : de quoi enchaîner. Jouez-la.`, focus: 'hand', expect: isPlay('tournee-patron') },
   { kind: 'me', title: 'Poser un piège', text: `Posez maintenant « Croche-patte » (${cost('croche-patte')}) : un piège face cachée. ${TUTO_BOT_NAME} verra qu’il y a un piège, pas lequel. Il se déclenchera tout seul.`, focus: 'hand', expect: isPlay('croche-patte') },
   { kind: 'me', title: 'La limite de lancers', text: `Arrêtez-vous là. Vous avez fait 2 lancers : ${TUTO_BOT_NAME} n’aura droit qu’à 2 lancers lui aussi. Le meneur fixe la limite de l’autre.`, focus: 'stop', expect: (a) => a.type === 'stop' },
   { kind: 'bot', text: `À ${TUTO_BOT_NAME} de jouer, en voyant votre 4-2-1…`, action: () => ({ type: 'roll', keep: NONE }) },
@@ -121,7 +121,7 @@ export const TUTO_STEPS: TutoStep[] = [
   { kind: 'bot', text: `${TUTO_BOT_NAME}, vexé, pose un autre piège sur vous…`, action: botPlay('mouchard', () => ({ target: TUTO_ME })) },
   { kind: 'bot', action: () => ({ type: 'roll', keep: NONE }) },
   { kind: 'bot', action: () => ({ type: 'stop' }) },
-  { kind: 'me', title: 'Parer un piège', text: `Deux as et un 3 pour ${TUTO_BOT_NAME}. Avant de lancer, méfiez-vous de son piège : jouez la « Fouine » (${cost('fouine')}) : elle le défausse, vous montre ce que c’était et vous fait piocher une carte.`, focus: 'hand', expect: isPlay('fouine') },
+  { kind: 'me', title: 'Parer un piège', text: `Deux as et un 3 pour ${TUTO_BOT_NAME}. Avant de lancer, méfiez-vous de son piège : jouez la « Fouine » (${cost('fouine')}). Elle le défausse sans le déclencher (même un piège qui guette vos Coups), vous montre ce que c’était et vous fait piocher une carte.`, focus: 'hand', expect: isPlay('fouine') },
   { kind: 'me', title: 'Bluffer', text: `Posez ce « Leurre » : il ne fait rien… mais ${TUTO_BOT_NAME} ne le sait pas. Retenez qu’il est posé.`, focus: 'hand', expect: isPlay('leurre') },
   { kind: 'me', title: 'Lancer', text: `${TUTO_BOT_NAME} s’est arrêté après 2 lancers : vous en avez 2 au plus. Croisez les doigts et lancez !`, focus: 'roll', expect: isRoll(NONE) },
   { kind: 'me', title: 'S’arrêter', text: `4-2-2 : ça ne bat pas les deux as de ${TUTO_BOT_NAME}… Arrêtez-vous quand même : vous gardez une carte pour la fin.`, focus: 'stop', expect: (a) => a.type === 'stop' },

@@ -3,7 +3,7 @@
  * Tous les chiffres viennent du catalogue officiel (shared/cards/catalog.ts) ou du code du mode
  * (tournoi : shared/cards/tournament.ts ; ligue : shared/cards/progress.ts ; ordinateurs :
  * client/src/cards/local.ts). La durée moyenne d'un duel vient de `npx tsx scripts/cf-simulate.ts
- * --games 2000` (7,6 manches en moyenne, 20 au plus) : à refaire si l'équilibrage change.
+ * --games 32000` (0.46 : 6,8 manches en moyenne, 20 au plus) : à refaire si l'équilibrage change.
  */
 import { BOOSTER, CAPSULES, CARDS, CF_RULES, DECK_RULES, FAMILY_LABEL, RARITY_LABEL, SHARDS, STARTER_DECKS, TYPE_LABEL } from '../shared/cards/catalog.ts';
 
@@ -15,7 +15,7 @@ const FAMS = ['habitues', 'ivresse', 'pieges', 'chaines'];
 const FAM_TEXT = {
   habitues: 'Des alliés qui s’installent pour 3 manches (les Habitués), des Tournées en plus et de quoi annuler les petits coups adverses.',
   ivresse: 'Des dés qui tournent : relancer, retourner un dé, parier… et bousculer les dés de l’adversaire.',
-  pieges: 'Des pièges posés face cachée, qui se déclenchent tout seuls chez l’adversaire. Et la Fouine pour les défausser.',
+  pieges: 'Des pièges posés face cachée, qui se déclenchent tout seuls chez l’adversaire (trois au plus devant un même joueur). Et la Fouine pour les défausser.',
   chaines: 'Des cartes qui s’enchaînent : pioche, réductions, retouches de dés, ripostes de plus en plus fortes.',
 };
 const WHEN = {
@@ -63,7 +63,7 @@ export const cfPages = [
   {
     slug: 'coups-fourres', nav: 'Coups Fourrés', short: 'Coups Fourrés, le 421 aux cartes',
     blurb: 'Le mode cartes du 421 : dés, deck de 20 cartes, pièges et bluff. Gratuit.',
-    published: '2026-11-05', updated: '2026-11-06', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
+    published: '2026-11-05', updated: '2026-11-08', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
     title: 'Coups Fourrés : jeu de cartes et de dés gratuit en ligne',
     description: `Coups Fourrés, le 421 aux cartes : un duel de dés, de stratégie et de bluff avec ${CARDS.length} cartes à collectionner. Gratuit, dans le navigateur, sans téléchargement.`,
     h1: 'Coups Fourrés, le 421 aux cartes',
@@ -157,7 +157,7 @@ ${play('Jouer gratuitement à Coups Fourrés', 'Dans le navigateur, sans téléc
   {
     slug: 'regles-coups-fourres', nav: 'Règles CF', short: 'Règles de Coups Fourrés', parent: 'coups-fourres',
     blurb: 'Manche, Tournées, types de cartes, pièges, partie à 3 ou 4, lexique.',
-    published: '2026-11-05', updated: '2026-11-06', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
+    published: '2026-11-05', updated: '2026-11-08', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
     title: 'Règles de Coups Fourrés : manche, Tournées, cartes et lexique',
     description: 'Les règles de Coups Fourrés, le 421 aux cartes : déroulé d’une manche, combinaisons, Tournées, types de cartes, pièges, parties à 3 ou 4 et lexique.',
     h1: 'Les règles de Coups Fourrés',
@@ -206,7 +206,7 @@ ${toc([['but', 'Le but'], ['mise-en-place', 'Mise en place'], ['manche', 'Une ma
 <h2 id="types">Les types de cartes</h2>
 ${typesTable()}
 <ul>
-<li><b>Pièges</b> : ${R.maxTraps} posés au plus. On voit combien l’adversaire en a posé, jamais lesquels. Un piège qui ne s’est pas déclenché en ${R.trapReturnRounds} manches revient dans la main de son propriétaire.</li>
+<li><b>Pièges</b> : ${R.maxTrapsOn} au plus devant un même joueur (tous poseurs confondus), et ${R.maxTraps} posés au plus par joueur. On voit combien l’adversaire en a posé, jamais lesquels. Un piège qui ne s’est pas déclenché en ${R.trapReturnRounds} manches revient dans la main de son propriétaire.</li>
 <li><b>Habitués</b> : ${R.maxHabitues} en jeu au plus. Chacun reste ${R.habitueRounds} manches, sauf s’il est chassé avant (par exemple par « Fermeture ! »).</li>
 <li><b>Ripostes en chaîne</b> : si plusieurs cartes se répondent, la dernière posée s’applique la première.</li>
 </ul>
@@ -284,7 +284,7 @@ ${play('Essayer Coups Fourrés', 'La partie guidée applique ces règles pas à 
   {
     slug: 'cartes-coups-fourres', nav: 'Cartes', short: 'Les cartes de Coups Fourrés', parent: 'coups-fourres',
     blurb: `Les ${CARDS.length} cartes illustrées, leur effet, leur coût et leur rareté.`,
-    published: '2026-11-05', updated: '2026-11-06', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
+    published: '2026-11-05', updated: '2026-11-08', play: CF_PLAY, og: '/og-coups-fourres.jpg', about: 'cf',
     title: `Les ${CARDS.length} cartes de Coups Fourrés : familles, effets et raretés`,
     description: `Toutes les cartes de Coups Fourrés, jeu de cartes à collectionner gratuit autour du 421 : ${CARDS.length} cartes illustrées en 4 familles, avec effet, coût et rareté.`,
     h1: `Les ${CARDS.length} cartes de Coups Fourrés`,

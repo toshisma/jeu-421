@@ -220,8 +220,15 @@ const POOL: [string, number][] = [
   ['tant-qu-on-y-est', 2], ['pari-comptoir', 1.2], ['bon-numero', 1], ['petite-soeur', 1.3],
 ];
 const TRAPS = ['main-sac', 'ardoise-piegee', 'faux-421', 'coup-nenette', 'retournement-veste'];
+/**
+ * 0.46 : cartes du nouveau set à effet fixe, dans les énigmes à partir de ce jour seulement (les énigmes
+ * des jours passés ne changent pas : leurs meilleurs scores sont déjà enregistrés).
+ */
+export const POOL_046_FROM = '2026-11-10';
+const POOL_046: [string, number][] = [['miroir', 1.5], ['calva', 1.2], ['addition', 1]];
 
-function candidate(rnd: () => number, seed: number): PuzzleSetup {
+function candidate(rnd: () => number, seed: number, day = ''): PuzzleSetup {
+  const pool = day >= POOL_046_FROM ? [...POOL, ...POOL_046] : POOL;
   const die = () => 1 + Math.floor(rnd() * 6);
   const pickW = (list: [string, number][]) => {
     const tot = list.reduce((a, x) => a + x[1], 0);
@@ -242,7 +249,7 @@ function candidate(rnd: () => number, seed: number): PuzzleSetup {
   if (traps.length && rnd() < 0.5) hand.push('fouine');
   if (oppHabitues.length && rnd() < 0.4) hand.push('fermeture');
   while (hand.length < size) {
-    const id = pickW(POOL);
+    const id = pickW(pool);
     if (hand.filter((x) => x === id).length >= 2) continue;
     hand.push(id);
   }
@@ -283,7 +290,7 @@ export function generatePuzzle(day: string): CfPuzzle {
   let fallback: { p: PuzzleSetup; c: PuzzleCheck } | null = null;
   for (let attempt = 0; attempt < 600; attempt++) {
     const seed = hash(`cf-enigme:${day}:${attempt}`);
-    const p = candidate(mulberry(seed), seed);
+    const p = candidate(mulberry(seed), seed, day);
     const c = analyse(p);
     if (!c || c.best <= 0) continue;
     if (interesting(c)) return { day, ...p, best: c.best, bestCards: c.bestCards, solution: c.solution, naive: c.naive };

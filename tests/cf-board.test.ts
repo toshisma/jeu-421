@@ -274,3 +274,16 @@ describe('dés gardés : la sélection reste d’un lancer à l’autre et suit 
     expect(keepAfter([true, false, false], { kind: 'lancer', player: 'b', dice: [1, 2, 3], kept: [false, false, false], text: '' }, 'a')).toEqual([true, false, false]);
   });
 });
+
+describe('0.46 : annonce d’un piège posé sur vous à 3 ou 4', () => {
+  it('« sur vous » et non « sur Vous » (joueur local nommé « Vous »)', () => {
+    let s = newGame({}, [{ id: 'moi', name: 'Vous', deck: deckList(STARTER_DECKS[0].cards) }, { id: 'b', name: 'Bob', deck: deckList(STARTER_DECKS[1].cards) }, { id: 'c', name: 'Cléo', deck: deckList(STARTER_DECKS[1].cards) }], 3);
+    for (const id of ['moi', 'b', 'c']) s = apply(s, id, { type: 'mulligan', cards: [] }).state;
+    const v = viewFor(s, 'moi');
+    const steps = planEvents([{ kind: 'pose', player: 'b', target: 'moi', text: 'Bob pose un piège sur Vous.' }], 'moi', v, v);
+    const a = steps[0].kind === 'ann' ? steps[0].ann : null;
+    expect(a!.title).toBe('Bob pose un piège sur vous');
+    const other = planEvents([{ kind: 'pose', player: 'b', target: 'c', text: 'Bob pose un piège sur Cléo.' }], 'moi', v, v);
+    expect(other[0].kind === 'ann' ? other[0].ann.title : '').toBe('Bob pose un piège sur Cléo');
+  });
+});
