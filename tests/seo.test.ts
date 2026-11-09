@@ -10,6 +10,10 @@ import { canonicalHostRedirect, canonicalPath, isAppPath, serveClient } from '..
 import { cfModeParam } from '../client/src/cfLink';
 import { CARDS } from '../shared/cards/catalog';
 import { DM_TARGETS, kindValue } from '../shared/dixmille/engine';
+import { CARDS as CF_CARDS, CF_RULES, DECK_RULES } from '../shared/cards/catalog';
+import { DEFAULT_CONFIG } from '../shared/config';
+// @ts-expect-error script Node sans déclaration de types
+import { DISCLAIMERS, I18N_GROUPS, V421 } from '../scripts/seo-i18n-common.mjs';
 
 describe('adresses canoniques', () => {
   const exists = (n: string) => n === 'regles-du-421.html';
@@ -252,7 +256,7 @@ describe('pages anglaises', () => {
       expect(h).toContain('Mis à jour le');
     }
     // Les pages françaises sans version anglaise n'ont aucun hreflang, et leur pied ne cite pas les pages anglaises.
-    const other = read('regles-du-421');
+    const other = read('strategie-421');
     expect(other).not.toContain('hreflang');
     expect(other).not.toContain('play-farkle-online');
     expect(other).toContain('<html lang="fr">');
@@ -272,7 +276,6 @@ describe('pages anglaises', () => {
       expect(g.find((x) => x['@type'] === 'Article').inLanguage).toBe('en');
       for (const q of g.find((x) => x['@type'] === 'FAQPage').mainEntity) expect(h).toContain(`<summary>${q.name}</summary>`);
       expect(g.flatMap((x) => (x.aggregateRating || x.review ? [x] : []))).toHaveLength(0);
-      expect(h).toMatch(/Only The Courtier .*is available in English|only The Courtier is in English|Only The Courtier/i);
     }
     const game = ld(read('play-farkle-online')).find((x) => x['@type'] === 'VideoGame');
     expect(game).toMatchObject({ inLanguage: 'en', isAccessibleForFree: true, offers: { price: '0' }, numberOfPlayers: { minValue: 1, maxValue: 6 } });
@@ -300,5 +303,102 @@ describe('pages anglaises', () => {
       expect(sitemap).toContain(`<xhtml:link rel="alternate" hreflang="en" href="${site}/${en}"/>`);
       expect(sitemap).toContain(`<xhtml:link rel="alternate" hreflang="x-default" href="${site}/${fr}"/>`);
     }
+  });
+});
+
+describe('pages traduites (en, de, nl)', () => {
+  const pub = join(process.cwd(), 'client', 'public');
+  const site = 'https://421online.com';
+  const read = (slug: string) => readFileSync(join(pub, `${slug}.html`), 'utf8');
+  const ld = (h: string) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => JSON.parse(m[1])['@graph']);
+  const LANGS = ['en', 'de', 'nl'] as const;
+  type Lang = (typeof LANGS)[number];
+  const groups = I18N_GROUPS as Array<Record<'fr' | Lang, string>>;
+  const OG = { en: 'en_US', de: 'de_DE', nl: 'nl_BE' };
+  const LOC = { en: 'en-US', de: 'de-DE', nl: 'nl-NL' };
+  const FAQ = { en: 'Frequently asked questions', de: 'Häufige Fragen', nl: 'Veelgestelde vragen' };
+  const NOT_OFFICIAL = { en: /not an official/, de: /keine offizielle/, nl: /geen officiële/ };
+  const FARKLE_RULES = { en: 'farkle-rules', de: 'zehntausend-wuerfelspiel-regeln', nl: 'farkle-spelregels' };
+  const STRAIGHT = { en: '1,500', de: '1.500', nl: '1.500' };
+  const slugs = groups.flatMap((g) => LANGS.map((l) => [l, g[l]] as const));
+
+  it('slugs simples, un par langue, uniques ; 8 groupes minimum', () => {
+    expect(groups.length).toBeGreaterThanOrEqual(8);
+    const all = groups.flatMap((g) => Object.values(g));
+    expect(new Set(all).size).toBe(all.length);
+    for (const s of all) expect(s).toMatch(/^[a-z0-9-]+$/);
+  });
+
+  it('hreflang réciproques (fr, en, de, nl), x-default vers le français, et plan du site', () => {
+    const sitemap = readFileSync(join(pub, 'sitemap.xml'), 'utf8');
+    for (const g of groups) {
+      const langs = ['fr', 'en', 'de', 'nl'] as const;
+      for (const l of langs) {
+        const h = read(g[l]);
+        for (const m of langs) expect(h, `${g[l]}→${m}`).toContain(`<link rel="alternate" hreflang="${m}" href="${site}/${g[m]}">`);
+        expect(h).toContain(`<link rel="alternate" hreflang="x-default" href="${site}/${g.fr}">`);
+        expect(sitemap).toContain(`<loc>${site}/${g[l]}</loc>`);
+        expect(sitemap).toContain(`<xhtml:link rel="alternate" hreflang="${l}" href="${site}/${g[l]}"/>`);
+      }
+    }
+  });
+
+  it('titre, description (≤ 165), h1 et canonique uniques, par langue', () => {
+    for (const lang of LANGS) {
+      const seen = { t: new Set<string>(), d: new Set<string>(), h: new Set<string>(), c: new Set<string>() };
+      for (const [l, slug] of slugs) {
+        if (l !== lang) continue;
+        const h = read(slug);
+        const t = /<title>([^<]+)<\/title>/.exec(h)![1]; const d = /name="description" content="([^"]+)"/.exec(h)![1];
+        const h1 = /<h1>([\s\S]*?)<\/h1>/.exec(h)![1]; const c = /rel="canonical" href="([^"]+)"/.exec(h)![1];
+        expect(c).toBe(`${site}/${slug}`); expect(d.length).toBeLessThanOrEqual(165); expect(t.length).toBeLessThanOrEqual(70);
+        for (const [k, v] of [['t', t], ['d', d], ['h', h1], ['c', c]] as const) { expect(seen[k].has(v), v).toBe(false); seen[k].add(v); }
+      }
+    }
+  });
+
+  it('lang, og:locale, JSON-LD inLanguage, FAQ visible, boutons Jouer avec lang, gabarit dans la langue', () => {
+    for (const [lang, slug] of slugs) {
+      const h = read(slug); const g = ld(h);
+      expect(h.startsWith(`<!doctype html>\n<html lang="${lang}">`)).toBe(true);
+      expect(h).toContain(`<meta property="og:locale" content="${OG[lang]}">`);
+      expect(g.find((x) => x['@type'] === 'Article').inLanguage).toBe(lang);
+      expect(h).toContain(`<h2 id="questions">${FAQ[lang]}</h2>`);
+      expect(h).toMatch(new RegExp(`class="cta" href="/\\?(mode=(courtisan|cartes)&amp;)?lang=${lang}" data-play>`));
+      expect(h).toContain(`<a href="/?lang=${lang}">421online</a>`);
+      for (const q of g.find((x) => x['@type'] === 'FAQPage').mainEntity) expect(h).toContain(`<summary>${q.name}</summary>`);
+      expect(g.flatMap((x) => (x.aggregateRating || x.review ? [x] : []))).toHaveLength(0);
+      expect(h).not.toMatch(/Mis à jour|Questions fréquentes|À lire aussi|Sommaire/);
+      expect(h).not.toMatch(/Board\s?Game\s?Arena|CrazyGames|cardgames\.io|Kniffel LIVE/i);
+      if (lang !== 'en') expect(h).not.toMatch(/Frequently asked|Read also/);
+    }
+  });
+
+  it('valeurs Farkle, 421 et Coups Fourrés conformes au moteur', () => {
+    expect(V421).toMatchObject({ pot: DEFAULT_CONFIG.totalTokens, v421: DEFAULT_CONFIG.values.v421, v111: DEFAULT_CONFIG.values.v111, suite: DEFAULT_CONFIG.values.suite, autre: DEFAULT_CONFIG.values.autre, nenette: DEFAULT_CONFIG.values.nenetteMin, throws: DEFAULT_CONFIG.maxThrows, chargeThrows: DEFAULT_CONFIG.chargeThrows });
+    for (const lang of LANGS) {
+      const h = read(FARKLE_RULES[lang]); const loc = LOC[lang];
+      for (const t of DM_TARGETS) expect(h).toContain(t.toLocaleString(loc));
+      for (let f = 1; f <= 6; f++) for (const n of [3, 4, 5, 6]) expect(h).toContain(`<td>${kindValue(f, n).toLocaleString(loc)}</td>`);
+      expect(h).toContain('>500<'); expect(h).toContain('>750<'); expect(h).toContain(STRAIGHT[lang]);
+    }
+    for (const g of groups.filter((x) => x.fr === 'regles-coups-fourres')) for (const lang of LANGS) {
+      const h = read(g[lang]);
+      for (const v of [CF_RULES.startTokens, CF_RULES.startTokensMulti, CF_RULES.deckSize, CF_RULES.maxRounds, DECK_RULES.maxFamilies]) expect(h).toContain(String(v));
+    }
+    expect(CF_CARDS.length).toBeGreaterThan(0);
+  });
+
+  it('Kingdom Come : mention d’indépendance dans la langue partout, aucune image, jamais officiel, aucun nom du jeu vidéo', () => {
+    for (const [lang, slug] of slugs) expect(read(slug)).toContain(DISCLAIMERS[lang]);
+    for (const g of groups.filter((x) => x.fr === 'jeu-de-des-kingdom-come-deliverance-2')) for (const lang of LANGS) {
+      const h = read(g[lang]);
+      expect(h.indexOf('class="disclaimer"')).toBeLessThan(h.indexOf('<h2'));
+      expect(h).not.toMatch(/<img /);
+      expect(h).toMatch(NOT_OFFICIAL[lang]);
+      expect(h).not.toMatch(/Henry|Ottokar|Trosky|Kuttenberg|Hans Capon|Holy Trinity|Painted Die|Weighted Die/);
+    }
+    expect(read('jeu-de-des-kingdom-come-deliverance-2')).not.toContain('French only');
+    expect(read('jeu-de-des-kingdom-come-deliverance-2')).toContain('also available in English, German and Dutch');
   });
 });

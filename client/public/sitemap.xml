@@ -1,34 +1,70 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url><loc>https://421online.com/</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://421online.com/jouer-au-421-en-ligne</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://421online.com/regles-du-421</loc><lastmod>2026-11-05</lastmod></url>
+  <url><loc>https://421online.com/jouer-au-421-en-ligne</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jouer-au-421-en-ligne"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/play-421-dice-game-online"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/421-wuerfelspiel-online"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/421-dobbelspel-online"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/jouer-au-421-en-ligne"/>
+  </url>
+  <url><loc>https://421online.com/regles-du-421</loc><lastmod>2026-11-05</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/regles-du-421"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/421-dice-game-rules"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/421-wuerfelspiel-regeln"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/421-dobbelspel-regels"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-du-421"/>
+  </url>
   <url><loc>https://421online.com/combinaisons-du-421</loc><lastmod>2026-11-05</lastmod></url>
   <url><loc>https://421online.com/strategie-421</loc><lastmod>2026-11-05</lastmod></url>
   <url><loc>https://421online.com/421-entre-amis</loc><lastmod>2026-11-05</lastmod></url>
   <url><loc>https://421online.com/jeu-multijoueur-navigateur</loc><lastmod>2026-11-05</lastmod></url>
   <url><loc>https://421online.com/jeux-entre-amis-a-distance</loc><lastmod>2026-11-07</lastmod></url>
   <url><loc>https://421online.com/jeux-de-des</loc><lastmod>2026-11-07</lastmod></url>
-  <url><loc>https://421online.com/coups-fourres</loc><lastmod>2026-11-08</lastmod></url>
-  <url><loc>https://421online.com/regles-coups-fourres</loc><lastmod>2026-11-08</lastmod></url>
+  <url><loc>https://421online.com/coups-fourres</loc><lastmod>2026-11-08</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/coups-fourres"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/coups-fourres-card-dice-game"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/coups-fourres-karten-wuerfelspiel"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/coups-fourres-kaart-dobbelspel"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/coups-fourres"/>
+  </url>
+  <url><loc>https://421online.com/regles-coups-fourres</loc><lastmod>2026-11-08</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/regles-coups-fourres"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/coups-fourres-rules"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/coups-fourres-regeln"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/coups-fourres-spelregels"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-coups-fourres"/>
+  </url>
   <url><loc>https://421online.com/cartes-coups-fourres</loc><lastmod>2026-11-08</lastmod></url>
   <url><loc>https://421online.com/dix-mille-en-ligne</loc><lastmod>2026-11-09</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/dix-mille-en-ligne"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/play-farkle-online"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/farkle-online-spielen"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/farkle-online-spelen"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/dix-mille-en-ligne"/>
   </url>
   <url><loc>https://421online.com/regles-du-dix-mille</loc><lastmod>2026-11-07</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/regles-du-dix-mille"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/farkle-rules"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/zehntausend-wuerfelspiel-regeln"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/farkle-spelregels"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-du-dix-mille"/>
   </url>
   <url><loc>https://421online.com/strategie-dix-mille</loc><lastmod>2026-11-07</lastmod></url>
   <url><loc>https://421online.com/jeu-de-des-kingdom-come-deliverance-2</loc><lastmod>2026-11-09</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jeu-de-des-kingdom-come-deliverance-2"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/kingdom-come-deliverance-2-dice-game"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/kingdom-come-deliverance-2-wuerfelspiel"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/kingdom-come-deliverance-2-dobbelspel"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/jeu-de-des-kingdom-come-deliverance-2"/>
   </url>
-  <url><loc>https://421online.com/jeu-de-des-entre-amis</loc><lastmod>2026-11-09</lastmod></url>
+  <url><loc>https://421online.com/jeu-de-des-entre-amis</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jeu-de-des-entre-amis"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/online-dice-game-with-friends"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/online-wuerfelspiel-mit-freunden"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/online-dobbelspel-met-vrienden"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/jeu-de-des-entre-amis"/>
+  </url>
   <url><loc>https://421online.com/jeux-de-des-en-ligne</loc><lastmod>2026-11-09</lastmod></url>
   <url><loc>https://421online.com/jeu-de-bistrot-en-ligne</loc><lastmod>2026-11-09</lastmod></url>
   <url><loc>https://421online.com/jouer-au-farkle-en-ligne</loc><lastmod>2026-11-09</lastmod></url>
@@ -36,16 +72,169 @@
   <url><loc>https://421online.com/play-farkle-online</loc><lastmod>2026-11-09</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/dix-mille-en-ligne"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/play-farkle-online"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/farkle-online-spielen"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/farkle-online-spelen"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/dix-mille-en-ligne"/>
   </url>
   <url><loc>https://421online.com/farkle-rules</loc><lastmod>2026-11-09</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/regles-du-dix-mille"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/farkle-rules"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/zehntausend-wuerfelspiel-regeln"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/farkle-spelregels"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-du-dix-mille"/>
   </url>
   <url><loc>https://421online.com/kingdom-come-deliverance-2-dice-game</loc><lastmod>2026-11-09</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jeu-de-des-kingdom-come-deliverance-2"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/kingdom-come-deliverance-2-dice-game"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/kingdom-come-deliverance-2-wuerfelspiel"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/kingdom-come-deliverance-2-dobbelspel"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/jeu-de-des-kingdom-come-deliverance-2"/>
+  </url>
+  <url><loc>https://421online.com/play-421-dice-game-online</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jouer-au-421-en-ligne"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/play-421-dice-game-online"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/421-wuerfelspiel-online"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/421-dobbelspel-online"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/jouer-au-421-en-ligne"/>
+  </url>
+  <url><loc>https://421online.com/421-dice-game-rules</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/regles-du-421"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/421-dice-game-rules"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/421-wuerfelspiel-regeln"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/421-dobbelspel-regels"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-du-421"/>
+  </url>
+  <url><loc>https://421online.com/online-dice-game-with-friends</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jeu-de-des-entre-amis"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/online-dice-game-with-friends"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/online-wuerfelspiel-mit-freunden"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/online-dobbelspel-met-vrienden"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/jeu-de-des-entre-amis"/>
+  </url>
+  <url><loc>https://421online.com/coups-fourres-card-dice-game</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/coups-fourres"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/coups-fourres-card-dice-game"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/coups-fourres-karten-wuerfelspiel"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/coups-fourres-kaart-dobbelspel"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/coups-fourres"/>
+  </url>
+  <url><loc>https://421online.com/coups-fourres-rules</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/regles-coups-fourres"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/coups-fourres-rules"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/coups-fourres-regeln"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/coups-fourres-spelregels"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-coups-fourres"/>
+  </url>
+  <url><loc>https://421online.com/421-wuerfelspiel-online</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jouer-au-421-en-ligne"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/play-421-dice-game-online"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/421-wuerfelspiel-online"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/421-dobbelspel-online"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/jouer-au-421-en-ligne"/>
+  </url>
+  <url><loc>https://421online.com/421-wuerfelspiel-regeln</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/regles-du-421"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/421-dice-game-rules"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/421-wuerfelspiel-regeln"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/421-dobbelspel-regels"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-du-421"/>
+  </url>
+  <url><loc>https://421online.com/online-wuerfelspiel-mit-freunden</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jeu-de-des-entre-amis"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/online-dice-game-with-friends"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/online-wuerfelspiel-mit-freunden"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/online-dobbelspel-met-vrienden"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/jeu-de-des-entre-amis"/>
+  </url>
+  <url><loc>https://421online.com/farkle-online-spielen</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/dix-mille-en-ligne"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/play-farkle-online"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/farkle-online-spielen"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/farkle-online-spelen"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/dix-mille-en-ligne"/>
+  </url>
+  <url><loc>https://421online.com/zehntausend-wuerfelspiel-regeln</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/regles-du-dix-mille"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/farkle-rules"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/zehntausend-wuerfelspiel-regeln"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/farkle-spelregels"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-du-dix-mille"/>
+  </url>
+  <url><loc>https://421online.com/kingdom-come-deliverance-2-wuerfelspiel</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jeu-de-des-kingdom-come-deliverance-2"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/kingdom-come-deliverance-2-dice-game"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/kingdom-come-deliverance-2-wuerfelspiel"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/kingdom-come-deliverance-2-dobbelspel"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/jeu-de-des-kingdom-come-deliverance-2"/>
+  </url>
+  <url><loc>https://421online.com/coups-fourres-karten-wuerfelspiel</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/coups-fourres"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/coups-fourres-card-dice-game"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/coups-fourres-karten-wuerfelspiel"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/coups-fourres-kaart-dobbelspel"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/coups-fourres"/>
+  </url>
+  <url><loc>https://421online.com/coups-fourres-regeln</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/regles-coups-fourres"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/coups-fourres-rules"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/coups-fourres-regeln"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/coups-fourres-spelregels"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-coups-fourres"/>
+  </url>
+  <url><loc>https://421online.com/421-dobbelspel-online</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jouer-au-421-en-ligne"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/play-421-dice-game-online"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/421-wuerfelspiel-online"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/421-dobbelspel-online"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/jouer-au-421-en-ligne"/>
+  </url>
+  <url><loc>https://421online.com/421-dobbelspel-regels</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/regles-du-421"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/421-dice-game-rules"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/421-wuerfelspiel-regeln"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/421-dobbelspel-regels"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-du-421"/>
+  </url>
+  <url><loc>https://421online.com/online-dobbelspel-met-vrienden</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jeu-de-des-entre-amis"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/online-dice-game-with-friends"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/online-wuerfelspiel-mit-freunden"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/online-dobbelspel-met-vrienden"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/jeu-de-des-entre-amis"/>
+  </url>
+  <url><loc>https://421online.com/farkle-online-spelen</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/dix-mille-en-ligne"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/play-farkle-online"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/farkle-online-spielen"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/farkle-online-spelen"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/dix-mille-en-ligne"/>
+  </url>
+  <url><loc>https://421online.com/farkle-spelregels</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/regles-du-dix-mille"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/farkle-rules"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/zehntausend-wuerfelspiel-regeln"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/farkle-spelregels"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-du-dix-mille"/>
+  </url>
+  <url><loc>https://421online.com/kingdom-come-deliverance-2-dobbelspel</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jeu-de-des-kingdom-come-deliverance-2"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/kingdom-come-deliverance-2-dice-game"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/kingdom-come-deliverance-2-wuerfelspiel"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/kingdom-come-deliverance-2-dobbelspel"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/jeu-de-des-kingdom-come-deliverance-2"/>
+  </url>
+  <url><loc>https://421online.com/coups-fourres-kaart-dobbelspel</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/coups-fourres"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/coups-fourres-card-dice-game"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/coups-fourres-karten-wuerfelspiel"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/coups-fourres-kaart-dobbelspel"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/coups-fourres"/>
+  </url>
+  <url><loc>https://421online.com/coups-fourres-spelregels</loc><lastmod>2026-11-09</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/regles-coups-fourres"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/coups-fourres-rules"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/coups-fourres-regeln"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/coups-fourres-spelregels"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-coups-fourres"/>
   </url>
 </urlset>
