@@ -85,7 +85,7 @@ Captures mobiles : scripts `puppeteer-core` dans `scripts/` (Chrome : `/usr/bin/
 - Charge rapide, mode spectateur, alerte d'onglet « À toi de jouer » (faits). Pas de musique : Sam l'a fait retirer.
 
 ## État au 9 novembre 2026 (reprise dans une nouvelle conversation)
-Dernière version publiée : **0.50** (corrections des triches, parties en ligne, petits défauts). Rapport d'inspection du 6/11 : https://claude.ai/artifact/FYnn23Wm4AkVZRDc1m3tyd (maquettes : https://claude.ai/artifact/2XXM8TngZ4mazyeyTBpUZt).
+Dernière version publiée : **0.51** (référencement renforcé ; 0.50 : corrections des triches, parties en ligne, petits défauts). Rapport d'inspection du 6/11 : https://claude.ai/artifact/FYnn23Wm4AkVZRDc1m3tyd (maquettes : https://claude.ai/artifact/2XXM8TngZ4mazyeyTBpUZt).
 
 ### Limites connues après la 0.50
 - Solo 421 et Courtisan contre l'ordinateur : victoire, place et jetons restent annoncés par le téléphone (combinaisons plafonnées, patron vérifié au départ, plus rien dans le fil d'actualité). Seul un rejeu serveur réglerait le fond.
