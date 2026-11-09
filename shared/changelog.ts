@@ -7,6 +7,16 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.50', date: '2026-11-09T12:00:00+01:00', title: 'Des parties plus justes', items: [
+    'Égalité en Mort subite ou aux points : la meilleure combinaison départage, sinon la cagnotte est partagée. L’hôte n’est plus avantagé.',
+    'Fin de la charge : les joueurs sortis en même temps sont classés par leur combinaison, plus par leur place à table.',
+    'Un joueur qui abandonne une partie ou un tournoi à mise ne touche plus de gains, et les mises sont rendues si tout le monde quitte la table.',
+    'Une page rechargée après avoir rejoint par un lien d’invitation vous rend votre place.',
+    'Le cadeau et les défis du jour changent désormais à minuit, heure de Bruxelles, pour tout le monde.',
+    'Amis : les demandes reçues apparaissent dans l’écran Amis, et les demandes répétées sont limitées.',
+    'Coups Fourrés : vos 30 secondes commencent quand l’écran a fini ses animations, et le chrono s’arrête pendant les explications du parcours.',
+    'Nombreuses petites corrections : textes coupés, boutons plus faciles à toucher, tournures et heures harmonisées.',
+  ] },
   { version: '0.49', date: '2026-11-08T20:10:00+01:00', title: 'Un cadeau pour les nouveaux comptes', items: [
     'Créez un compte gratuit : 3 sacs de dés et 3 boosters Coups Fourrés vous sont offerts, à ouvrir dès votre arrivée.',
     'Sans compte, une petite fenêtre vous le rappelle à la fin de vos parties (fermez-la d’un geste avec la croix ou « Plus tard »).',

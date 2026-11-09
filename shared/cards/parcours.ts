@@ -37,7 +37,7 @@ export const PARCOURS: ParcoursStep[] = [
   },
   {
     step: 4, title: 'Ripostes et Derniers mots', types: ['coup', 'piege', 'habitue', 'riposte', 'dernier-mot'],
-    intro: 'Nouveau : les Ripostes, qui annulent une carte adverse au moment où elle est jouée (vous avez 15 secondes), et les Derniers mots, qui se jouent juste avant les comptes, quand toutes les combinaisons sont posées.',
+    intro: 'Nouveau : les Ripostes, qui annulent une carte adverse au moment où elle est jouée (un compte à rebours vous laisse le temps de choisir), et les Derniers mots, qui se jouent juste avant les comptes, quand toutes les combinaisons sont posées.',
     cards: { 'tournee-patron': 2, 'coup-coude': 2, 'coup-pouce': 2, 'calcul-mental': 1, 'retour-envoyeur': 1, 'mise-bouche': 1, engrenage: 2, 'vieux-marcel': 1, pilier: 1, josiane: 1, 'ticket-caisse': 2, 'reaction-chaine': 1, 'note-salee': 1, addition: 1, recompter: 1 },
   },
 ];

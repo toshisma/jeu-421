@@ -173,7 +173,7 @@ const SEASON_LOOKS: [string, string, string, string, DicePattern][] = [
 export function seasonDie(season: string): CollectionDie {
   const m = Number(season.slice(5, 7)) - 1;
   const [body, body2, pip, accent, pattern] = SEASON_LOOKS[((m % 12) + 12) % 12];
-  return { id: `ds-${season}`, name: `Saison de ${MONTHS[m]} ${season.slice(0, 4)}`, rarity: 'epique', body, body2, pip, accent, pattern,
+  return { id: `ds-${season}`, name: `Saison ${/^[aeo]/.test(MONTHS[m]) ? 'd’' : 'de '}${MONTHS[m]} ${season.slice(0, 4)}`, rarity: 'epique', body, body2, pip, accent, pattern,
     roughness: 0.2, metalness: 0.1, clearcoat: 1, flavor: 'Donné à la fin de la saison classée. Introuvable ensuite.' };
 }
 /** Saisons pour lesquelles un dé existe (de novembre 2026 à fin 2029). */

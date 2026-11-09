@@ -68,7 +68,7 @@ export function EndOverlay({ reward, state, meta, meId, canRematch, online, onRe
                 <span className="rk">{last ? '🍺' : MEDALS[place(i)] ?? `${place(i) + 1}.`}</span>
                 <span className="av">{m(id)?.avatar}</span>
                 <span className="nm">{m(id)?.name ?? p.name}</span>
-                <span className="sc">{points ? `${p.score} pts` : last || !p.out ? `${p.tokens} jetons` : 'sorti'}</span>
+                <span className="sc">{points ? `${p.score} pt${p.score > 1 ? 's' : ''}` : last || !p.out ? `${p.tokens} jeton${p.tokens > 1 ? 's' : ''}` : 'sorti'}</span>
               </li>
             );
           })}

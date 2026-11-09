@@ -168,7 +168,7 @@ export function Home(props: {
           {!STANDALONE && <button onClick={props.onLeaderboard}><Icon name="trophy" /><span>Classement</span></button>}
           {!STANDALONE && <button onClick={props.onClub}><Icon name="club" /><span>Club</span></button>}
           {!STANDALONE && <button onClick={props.onFriends}><Icon name="user" /><span>Amis</span></button>}
-          {!STANDALONE && <button onClick={props.onDuels} className="tile-coll"><Icon name="dice" /><span>Défis</span>{(notifs?.toPlay.filter((d) => !d.sent).length ?? 0) > 0 && <i className="tile-badge">{notifs!.toPlay.filter((d) => !d.sent).length}</i>}</button>}
+          {!STANDALONE && <button onClick={props.onDuels} className="tile-coll"><Icon name="dice" /><span>Défis entre amis</span>{(notifs?.toPlay.filter((d) => !d.sent).length ?? 0) > 0 && <i className="tile-badge">{notifs!.toPlay.filter((d) => !d.sent).length}</i>}</button>}
           <button onClick={props.onRecap}><Icon name="chart" /><span>Récap</span></button>
           {!STANDALONE && <button onClick={props.onStats}><Icon name="stats" /><span>Statistiques</span></button>}
           <button onClick={props.onRules}><Icon name="rules" /><span>Règles</span></button>

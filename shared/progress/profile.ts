@@ -765,6 +765,8 @@ export function claimPassTier(p: Profile, tier: number, day = today()): { profil
 
 const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 export const monthName = (season: string) => `${MONTHS[Number(season.slice(5, 7)) - 1]} ${season.slice(0, 4)}`;
+/** « de novembre 2026 », « d’octobre 2026 » (élision devant avril, août, octobre). */
+export const ofMonth = (season: string) => (/^[aeo]/.test(monthName(season)) ? `d’${monthName(season)}` : `de ${monthName(season)}`);
 export const LEAGUES = ['Bronze', 'Argent', 'Or', 'Saphir', 'Rubis', 'Diamant'];
 /** Ligues : groupes de 20, les 3 premiers montent (et sont récompensés), les 3 derniers descendent. */
 export const LEAGUE_SIZE = 20;
@@ -792,10 +794,10 @@ export function titleLabel(id: string | undefined): string | null {
   if (!id) return null;
   if (id.startsWith('patron:')) return `Tombeur de ${BOSSES.find((b) => b.id === id.slice(7))?.name ?? 'patron'}`;
   if (id === 'album:complet') return 'Collectionneur de combinaisons';
-  if (id.startsWith('pass:')) return `Champion de ${monthName(id.slice(5))}`;
+  if (id.startsWith('pass:')) return `Champion ${ofMonth(id.slice(5))}`;
   if (id.startsWith('ligue:')) return `Ligue ${id.slice(6)}`;
   if (id.startsWith('serie:')) return SERIES.find((x) => x.id === id.slice(6))?.title ?? null;
-  if (id.startsWith('saison:')) { const [season, div] = id.slice(7).split('_'); return `${DIVISIONS.find((d) => d.id === div)?.name ?? 'Classé'} de ${monthName(season)}`; }
+  if (id.startsWith('saison:')) { const [season, div] = id.slice(7).split('_'); return `${DIVISIONS.find((d) => d.id === div)?.name ?? 'Classé'} ${ofMonth(season)}`; }
   return ACHIEVEMENTS.find((a) => a.id === id)?.name ?? null;
 }
 export function setTitle(p: Profile, id: string | null): Profile | null {

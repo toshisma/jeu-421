@@ -85,7 +85,7 @@ export function ClassicMenu(props: ClassicMenuProps) {
   const events = [
     ...(!STANDALONE ? [{ id: 'tournoi', title: 'Tournoi', art: <TrophyArt size={46} />, tone: 'blue', hot: t.open && t.registered,
       tag: t.registered ? (t.open ? 'Go !' : 'Inscrit') : t.label, tagGold: !t.registered,
-      sub: t.open ? `salon ouvert${t.count != null ? ` · ${t.count} joueurs` : ''}` : inTime(t.minutes),
+      sub: t.open ? `salon ouvert${t.count != null ? ` · ${t.count} joueur${t.count > 1 ? 's' : ''}` : ''}` : inTime(t.minutes),
       go: () => (props.onJoinScheduled ? setSheet('tournoi') : props.onTournaments()) }] : []),
     { id: 'patron', title: 'Patron', art: <TopHatArt size={46} />, tone: 'felt', hot: false, tag: bossBeaten ? 'Battu' : undefined, tagGold: false,
       sub: bossBeaten ? `${boss.name} · battu` : `${boss.name} · à battre`, go: () => setSheet('patron') },
@@ -96,7 +96,7 @@ export function ClassicMenu(props: ClassicMenuProps) {
   return (
     <div className="home2 v2 classic-menu">
       <ModeBar tone="classique" title="421 classique" onBack={props.onBack}>
-        {online !== null && <ModeChip onClick={props.onStats} label={`${online} joueurs en ligne, voir les statistiques`}><i className="live-dot" aria-hidden />{online}</ModeChip>}
+        {online !== null && <ModeChip onClick={props.onStats} label={`${online} joueur${online > 1 ? 's' : ''} en ligne, voir les statistiques`}><i className="live-dot" aria-hidden />{online}</ModeChip>}
         {acc && <FriendsButton pa={pa} onOpen={props.onFriends} />}
         <button className="icon-btn mode-rules" onClick={props.onRules} aria-label="Règles du 421"><Icon name="rules" size={20} /></button>
       </ModeBar>

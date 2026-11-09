@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
 import { getItem } from '../../../shared/progress/catalog';
-import { monthName } from '../../../shared/progress/profile';
+import { ofMonth } from '../../../shared/progress/profile';
 import type { Division } from '../../../shared/season';
 import { DieCube } from './DiceCollection';
 
@@ -30,7 +30,7 @@ export function SeasonView({ pa, onOpen }: { pa: ProfileApi; onOpen: (username: 
       <section className="season-card" style={{ '--dc': DIV_COLOR[cur.id] } as CSSProperties}>
         <div className="season-top">
           <div>
-            <small className="muted">Saison de {monthName(s.season)}, encore {days} jour{days > 1 ? 's' : ''}</small>
+            <small className="muted">Saison {ofMonth(s.season)}, encore {days} jour{days > 1 ? 's' : ''}</small>
             <b className="season-div">{cur.name}</b>
             <span>{pts} points{s.me?.rank ? `, ${s.me.rank}e` : ''}{s.me ? ` · ${s.me.wins} victoire${s.me.wins > 1 ? 's' : ''} en ${s.me.games} partie${s.me.games > 1 ? 's' : ''}` : ''}</span>
           </div>
@@ -56,7 +56,7 @@ export function SeasonView({ pa, onOpen }: { pa: ProfileApi; onOpen: (username: 
             <span>
               {[d.bags ? `${d.bags} sac${d.bags > 1 ? 's' : ''}` : null,
                 i >= s.divisions.findIndex((x) => x.id === s.dieFrom) ? 'le dé de saison' : null,
-                i >= s.divisions.findIndex((x) => x.id === s.titleFrom) ? `le titre « ${d.name} de ${monthName(s.season)} »` : null].filter(Boolean).join(', ') || 'rien, mais l’honneur'}
+                i >= s.divisions.findIndex((x) => x.id === s.titleFrom) ? `le titre « ${d.name} ${ofMonth(s.season)} »` : null].filter(Boolean).join(', ') || 'rien, mais l’honneur'}
             </span>
           </li>
         ))}

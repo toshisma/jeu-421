@@ -43,7 +43,7 @@ function useAdmin<T>(path: string | null, token: string | null, every = 0) {
 }
 
 function Kpi({ value, label, hint }: { value: string; label: string; hint?: string }) {
-  return <div className="stat-counter" title={hint}><b>{value}</b><span>{label}</span></div>;
+  return <div className="stat-counter" title={hint}><b className={value.length >= 8 ? 'long' : undefined}>{value}</b><span>{label}</span></div>;
 }
 
 // --- Graphiques (SVG, sans dépendance) ---------------------------------------------------------
@@ -449,7 +449,7 @@ function EconomyTab({ token, coins }: { token: string | null; coins: number | nu
       <div className="stat-row">
         <Kpi value={coins == null ? '…' : nf(coins)} label="pièces en circulation" hint="Somme des pièces de tous les comptes" />
         <Kpi value={`+${nf(earned)}`} label="pièces gagnées" />
-        <Kpi value={`−${nf(spent)}`} label="pièces dépensées" />
+        <Kpi value={spent ? `−${nf(spent)}` : '0'} label="pièces dépensées" />
         <Kpi value={`${earned - spent >= 0 ? '+' : '−'}${nf(Math.abs(earned - spent))}`} label="solde de la période" />
       </div>
       <section className="adm-card">

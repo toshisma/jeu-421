@@ -64,7 +64,7 @@ export function QuestsPanel({ profile, onClaim }: { profile: Profile; onClaim: (
  * `onRegistered` : après la création du compte et le code de récupération, retour là où l'on était
  * (par exemple le menu du jeu, depuis l'invitation de fin de partie).
  */
-export function AccountScreen({ pa, onBack, onPrivacy, onRegistered, initial = 'register' }: { pa: ProfileApi; onBack: () => void; onPrivacy?: () => void; onRegistered?: () => void; initial?: 'login' | 'register' }) {
+export function AccountScreen({ pa, onBack, onPrivacy, onRegistered, initial = 'register', forCf = false }: { pa: ProfileApi; onBack: () => void; onPrivacy?: () => void; onRegistered?: () => void; initial?: 'login' | 'register'; forCf?: boolean }) {
   const [tab, setTab] = useState<'login' | 'register' | 'recover'>(initial);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -199,7 +199,9 @@ export function AccountScreen({ pa, onBack, onPrivacy, onRegistered, initial = '
           <ul className="acct-perks">
             <li><Icon name="check" size={18} />Progression sauvegardée sur tous vos appareils</li>
             <li><Icon name="check" size={18} />Classements, ligues, clubs et amis</li>
-            <li><Icon name="check" size={18} />Tables avec mise et tournois de 11 h et 21 h</li>
+            {forCf
+              ? <li><Icon name="check" size={18} />Coups Fourrés : vos cartes, vos decks, des boosters offerts, parties classées</li>
+              : <li><Icon name="check" size={18} />Tables avec mise et tournois de 11 h et 21 h</li>}
           </ul>
         )}
         {tab === 'recover' && <p className="k-hint">Entrez votre pseudo, le code de récupération reçu à l'inscription et un nouveau mot de passe.</p>}

@@ -550,7 +550,7 @@ function CfMenu(p: CfModeProps & {
           <button className="cf-tile" onClick={p.onMissions}>
             {st && st.missions.some((m) => m.done) && missionsDone < st.missions.length && <span className="cf-badge green">{missionsDone}</span>}
             <span className="cf-tile-art dots" aria-hidden>{(st?.missions ?? [0, 1, 2]).map((m, i) => <i key={i} className={typeof m === 'object' && m.done ? 'on' : ''} />)}</span>
-            <b>Missions</b><small>{st ? `${missionsDone} sur ${st.missions.length}` : 'Du jour'}</small>
+            <b>Missions du jour</b><small>{st ? `${missionsDone} sur ${st.missions.length}` : 'Avec un compte'}</small>
           </button>
           <button className="cf-tile" onClick={p.onLeague}>
             <span className="cf-tile-art" aria-hidden><Icon name="chart" size={28} /></span>

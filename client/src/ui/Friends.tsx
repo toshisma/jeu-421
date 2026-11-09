@@ -17,11 +17,11 @@ interface Friend {
 export function seenAgo(t: number, now = Date.now()): string {
   if (!t) return 'Jamais vu en ligne';
   const m = Math.max(1, Math.round((now - t) / 60_000));
-  if (m < 60) return `En ligne il y a ${m} min`;
+  if (m < 60) return `Vu il y a ${m} min`;
   const h = Math.round(m / 60);
-  if (h < 24) return `En ligne il y a ${h} h`;
+  if (h < 24) return `Vu il y a ${h} h`;
   const d = Math.round(h / 24);
-  return d < 30 ? `En ligne il y a ${d} jour${d > 1 ? 's' : ''}` : 'En ligne il y a plus d’un mois';
+  return d < 30 ? `Vu il y a ${d} jour${d > 1 ? 's' : ''}` : 'Vu il y a plus d’un mois';
 }
 
 /** Écran Amis : qui est en ligne, qui joue, rejoindre son salon d'un clic, voir son profil. */

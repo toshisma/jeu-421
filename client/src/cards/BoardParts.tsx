@@ -487,7 +487,10 @@ export function RespondPanel({ v, legal, pending, onAct, deadline, focus, tuto }
   const [start] = useState(Date.now());
   useEffect(() => { if (!deadline) return; const t = setInterval(() => setNow(Date.now()), 200); return () => clearInterval(t); }, [deadline]);
   const pct = deadline ? Math.max(0, Math.min(100, (100 * (deadline - now)) / Math.max(1, deadline - start))) : 100;
-  const kicker = !top ? `${who} agit` : top.kind === 'keep' ? `${who} garde des dés` : top.cardId ? `${who} joue une carte contre vous` : `${who} pose un piège`;
+  // « contre vous » seulement si la carte vous vise vraiment (cible, Habitué, piège, ou Riposte sur votre carte).
+  const aimedAtMe = top?.kind === 'card' && (top.params.target === me.id || me.habitues.some((h) => h.uid === top.params.habitue)
+    || v.traps.some((t) => t.uid === top.params.trap && t.owner === me.id) || (!!top.cardId && def(top.cardId)?.type === 'riposte'));
+  const kicker = !top ? `${who} agit` : top.kind === 'keep' ? `${who} garde des dés` : top.cardId ? `${who} joue une carte${aimedAtMe ? ' contre vous' : ''}` : `${who} pose un piège`;
   return (
     <div className="cfn-resp" role="dialog" aria-modal="true" aria-label="Fenêtre de riposte">
       <div className="cfn-resp-in">
@@ -543,7 +546,7 @@ export function Fiche({ t, v, legal, snapLegal, pending, discard, onAct, onClose
   const trapsAgainst = v.traps.filter((x) => x.target === me.id && x.owner !== me.id).length;
   const verb = d.type === 'piege' ? 'Poser le piège' : d.type === 'habitue' ? 'Installer' : 'Jouer';
   let now: ReactNode;
-  if (t.owner && t.owner !== me.id) now = <><b>En jeu chez {nameIn(v, t.owner)}.</b> {d.type === 'habitue' ? 'Il reste devant lui et agit à chaque manche. « Fermeture ! » peut le renvoyer dans sa main.' : ''}</>;
+  if (t.owner && t.owner !== me.id) now = <><b>En jeu chez {nameIn(v, t.owner)}.</b> {d.type === 'habitue' ? 'Il reste devant lui et agit à chaque manche. « Fermeture ! » peut le renvoyer chez lui (défaussé).' : ''}</>;
   else if (t.trapUid) now = <><b>Votre piège, posé face cachée.</b> Il se déclenchera tout seul quand sa condition arrivera chez {opps.length === 1 ? opps[0].name : 'sa cible'}.</>;
   else if (!mineInHand) now = null;
   else if (discard) now = <><b>Main pleine :</b> défaussez cette carte pour revenir à {v.rules.handMax} cartes.</>;
@@ -870,6 +873,8 @@ export function ChoiceWindow({ v, legal, pending, onAct, focus, tuto }: { v: CfV
 export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, onBags, bot, guest, rewarded, ranked, spectator, onShare, sharing, againLabel }: { againLabel?: string; onBags?: () => void; snap: CfSnapshot; v: CfView; me: string; onExit: () => void; onAgain?: () => void; onAccount: () => void; bot: boolean; guest: boolean; rewarded: boolean; ranked: boolean; spectator: boolean; onShare?: () => void; sharing?: boolean }) {
   const standings = snap.finished?.standings ?? v.ranking;
   const won = standings[0] === me;
+  // Fin à la dernière manche : le premier n’est pas forcément déchargé.
+  const unloaded = (v.players.find((p) => p.id === standings[0])?.tokens ?? 0) === 0;
   const abandon = (snap.finished as { abandon?: string | null } | null)?.abandon;
   const reward = (snap.finished?.reward ?? null) as Record<string, unknown> | null;
   const num = (k: string) => (reward && typeof reward[k] === 'number' ? (reward[k] as number) : null);
@@ -887,12 +892,12 @@ export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, onBags, bot
         <span className="cf-end-rays" aria-hidden />
         {spectator ? <h2>{nameIn(v, standings[0])} gagne</h2> : <h2>{won ? 'Victoire !' : standings.length > 2 && standings.indexOf(me) > 0 ? `${standings.indexOf(me) + 1}e place` : 'Défaite'}</h2>}
         {abandon && <p>{abandon}</p>}
-        <p>{won ? 'Plus un seul jeton : le comptoir est à vous.' : `${nameIn(v, standings[0])} s’est déchargé le premier.`} {v.round} manche{v.round > 1 ? 's' : ''}.</p>
+        <p>{abandon ? '' : unloaded ? (won ? 'Plus un seul jeton : le comptoir est à vous.' : `${nameIn(v, standings[0])} s’est déchargé le premier.`) : (won ? 'Le bistrot ferme : vous avez le moins de jetons, le comptoir est à vous.' : `Le bistrot ferme : ${nameIn(v, standings[0])} a le moins de jetons.`)} {v.round} manche{v.round > 1 ? 's' : ''}.</p>
         <ol className="cf-standings">
           {standings.map((id, i) => <li key={id} className={id === me ? 'me' : ''}><span>{i + 1}</span><b>{nameIn(v, id)}</b><small>{plural(v.players.find((p) => p.id === id)?.tokens ?? 0, 'jeton')}</small></li>)}
         </ol>
         <div className="cf-gains">
-          {capsules !== null && <span className="cf-gain"><b>+{capsules}</b><CapsuleIcon size={22} /> <small>capsule{capsules > 1 ? 's' : ''}</small></span>}
+          {capsules !== null && capsules > 0 && <span className="cf-gain"><b>+{capsules}</b><CapsuleIcon size={22} /> <small>capsule{capsules > 1 ? 's' : ''}</small></span>}
           {coins !== null && coins > 0 && <span className="cf-gain coins"><b>+{coins}</b><CoinArt size={22} /> <small>pièce{coins > 1 ? 's' : ''}</small></span>}
           {bags > 0 && <span className="cf-gain bag"><b>+{bags}</b><BagIcon size={26} /> <small>sac de dés{bags > 1 ? ' (×' + bags + ')' : ''}</small>{onBags && <button className="cf-btn small gold" onClick={onBags}>Ouvrir</button>}</span>}
           {points !== null && <span className="cf-gain"><b>{points > 0 ? `+${points}` : points}</b> <small>points de ligue</small></span>}

@@ -116,7 +116,7 @@ export function nextSlots(now: number, count = 2, graceMs = SCHED_LOBBY_MS): Slo
 }
 
 /** « 21h00 » */
-export const hourLabel = (hour: number) => `${hour}h00`;
+export const hourLabel = (hour: number) => `${hour} h`;
 /** Délai lisible : « 2 h 14 », « 14 min », « 45 s ». */
 export function formatDelay(ms: number): string {
   const s = Math.max(0, Math.ceil(ms / 1000));

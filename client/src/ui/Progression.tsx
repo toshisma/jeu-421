@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { activeEvent, coinBoost, eventEnd, happyHour, shortDate } from '../../../shared/progress/events';
 import { getItem } from '../../../shared/progress/catalog';
 import {
-  DAILY_REWARDS, PASS_TIERS, passProgress, passThreshold, availableTitles, dailyStatus, monthName, passReward, seasonOf, titleLabel,
+  DAILY_REWARDS, PASS_TIERS, passProgress, passThreshold, availableTitles, dailyStatus, ofMonth, passReward, seasonOf, titleLabel,
 } from '../../../shared/progress/profile';
 import { today } from '../../../shared/progress/quests';
 import { BOSS_COINS, bossOfWeek, weekKey } from '../../../shared/progress/boss';
@@ -86,7 +86,7 @@ export function PassSummary({ pa, onOpen }: { pa: ProfileApi; onOpen: () => void
   return (
     <button className="pass-summary" onClick={onOpen}>
       <span className="ps-left">
-        <b>Pass de {monthName(s.id).split(' ')[0]}</b>
+        <b>Pass {ofMonth(s.id).replace(/ \d+$/, '')}</b>
         <span className="muted small">Palier {tier} sur {PASS_TIERS}{ready ? `, ${ready} récompense${ready > 1 ? 's' : ''} à récupérer` : ''}</span>
         <span className="q-bar"><i style={{ width: `${(100 * into) / need}%` }} /></span>
       </span>
@@ -118,7 +118,7 @@ export function PassScreen({ pa, onBack }: { pa: ProfileApi; onBack: () => void 
   };
   const claimAll = async () => { for (const t of ready) { const err = await pa.claimPass(t); if (err) { showToast(err, 'err'); return; } } sound.chips(6); showToast(`${ready.length} récompense${ready.length > 1 ? 's' : ''} récupérée${ready.length > 1 ? 's' : ''} !`); };
   return (
-    <Shell title={`Pass de ${monthName(s.id)}`} onBack={onBack} icon="ticket" sub="Gratuit · repart à zéro le 1er du mois"
+    <Shell title={`Pass ${ofMonth(s.id)}`} onBack={onBack} icon="ticket" sub="Gratuit · repart à zéro le 1er du mois"
       foot={ready.length > 0 ? <BigAction icon="gift" tone="gold" label={ready.length > 1 ? `Tout récupérer (${ready.length})` : `Récupérer le palier ${ready[0]}`} sub={rewardText(passReward(ready[0], s.id))} onClick={() => void claimAll()} /> : undefined}>
       <div className="pass-hero">
         <span className="pass-tier"><small>Palier</small><b>{tier}</b><small>sur {PASS_TIERS}</small></span>

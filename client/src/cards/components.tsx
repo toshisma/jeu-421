@@ -121,7 +121,7 @@ function CardFace({ def, shiny, isNew, count, gloss }: { def: CardDef; shiny?: b
   return (
     <>
       {shiny && <span className="cf-tag cf-tag-shiny">Brillante</span>}
-      {isNew && <span className="cf-tag cf-tag-new">Nouveau</span>}
+      {isNew && <span className="cf-tag cf-tag-new">Nouvelle</span>}
       <div className="cf-top">
         <CostBadge cost={def.cost} />
         <h3 className={cx('cf-name', def.name.length > 15 && 'cf-name-long')}>{def.name}</h3>
@@ -207,7 +207,7 @@ export function MiniCard({ id, playable, selected, disabled, shiny, isNew, width
           playable && 'cf-playable', selected && 'cf-selected', disabled && 'cf-disabled', shiny && 'cf-shiny')}
         style={scale === 1 ? undefined : { transform: `scale(${scale})` }}
       >
-        {isNew && <span className="cf-mini-new">Nouveau</span>}
+        {isNew && <span className="cf-mini-new">Nouvelle</span>}
         <span className="cf-mini-cost">{def.cost}</span>
         <span className="cf-mini-art"><CardArt id={def.id} /></span>
         <b className={cx('cf-mini-name', def.name.length > 14 && 'cf-mini-name-long')}>{def.name}</b>

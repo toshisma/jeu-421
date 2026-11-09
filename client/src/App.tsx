@@ -385,7 +385,7 @@ export function App() {
     case 'shop':
       return <ShopScreen profile={profile} settings={settings} onBuy={pa.buyItem} onEquip={pa.equipItem} onBack={backTo(screen.from)} />;
     case 'account':
-      return <AccountScreen key={screen.tab ?? 'register'} initial={screen.tab} pa={pa} onBack={screen.back ? backTo(screen.back) : home}
+      return <AccountScreen key={screen.tab ?? 'register'} initial={screen.tab} pa={pa} forCf={screen.back === 'cf'} onBack={screen.back ? backTo(screen.back) : home}
         onRegistered={screen.back ? backTo(screen.back) : undefined} onPrivacy={() => setScreen({ name: 'legal', back: { name: 'account' } })} />;
     case 'tutorial':
       return <TutorialScreen controller={screen.controller} settings={settings} onSettings={setSettings} onExit={classic} appearance={profile.equipped} pa={pa} />;
@@ -422,7 +422,7 @@ export function App() {
     case 'cf':
       return <CfMode key={`${JSON.stringify(screen.pending ?? null)}${screen.reset ?? ''}`} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
         onHome={home} onFriends={() => setScreen({ name: 'friends', from: 'cf' })} onBags={() => setScreen({ name: 'collection', from: 'cf', open: true })}
-        onAccount={() => setScreen({ name: 'account' })} onLogin={() => setScreen({ name: 'account', tab: 'login' })} />;
+        onAccount={() => setScreen({ name: 'account', back: 'cf' })} onLogin={() => setScreen({ name: 'account', tab: 'login', back: 'cf' })} />;
     case 'friends':
       return <FriendsScreen pa={pa} onBack={backTo(screen.from)}
         onCfChallenge={(u) => setScreen({ name: 'cf', pending: { challenge: u } })}

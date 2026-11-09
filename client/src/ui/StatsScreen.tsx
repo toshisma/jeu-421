@@ -32,7 +32,7 @@ function duration(sec: number): string {
   return `${m} min`;
 }
 const dayLabel = (d: string, long = false) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-BE', long ? { weekday: 'long', day: 'numeric', month: 'long' } : { day: 'numeric', month: 'short', timeZone: 'UTC' });
-const dateTime = (t: number) => new Date(t).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const dateTime = (t: number) => new Date(t).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace(/(\d{1,2}):(\d{2})/, '$1 h $2');
 
 /** Statistiques rafraîchies toutes les 12 secondes, en pause quand l'onglet est caché. */
 function usePolling<T>(path: string, token?: string | null, every = REFRESH_MS) {

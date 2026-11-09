@@ -223,7 +223,7 @@ describe('Coups Fourrés en ligne', () => {
   beforeAll(async () => {
     srv = await startServer({
       port: 0, dbPath: ':memory:', accounts: { authAttempts: 1000 }, stats: { adminUsers: ['Patron'] },
-      cf: { windowMs: 40, keepWindowMs: 25, decisionMs: 1500, reserveMs: 500, disconnectMs: 700, botOfferMs: 300, matchTickMs: 40, autoplayMs: 10, presenceMs: 400 },
+      cf: { windowMs: 40, keepWindowMs: 25, decisionMs: 1500, reserveMs: 500, disconnectMs: 700, botOfferMs: 300, matchTickMs: 40, autoplayMs: 10, presenceMs: 400, animGraceMs: 400 },
     });
     url = `http://localhost:${srv.port}`;
     api = apiOf(url);
@@ -345,6 +345,11 @@ describe('Coups Fourrés en ligne', () => {
     expect(A.last!.ranked).toBe(false);
     expect(A.last!.snap.seats.map((s) => s.name).sort()).toEqual(['Ana', 'Bob']);
     expect(A.last!.snap.deadline).toBeGreaterThan(Date.now() - 2000);
+    // Le minuteur ne part qu'une fois les animations finies : cf:ready le fait partir tout de suite.
+    const before = A.last!.snap.deadline!;
+    expect(before).toBeGreaterThan(Date.now() + 1500);
+    await emit(A, 'cf:ready', { id: gameId });
+    await until(() => A.last!.snap.deadline! < before, 2000, 'minuteur lancé par cf:ready');
     expect(Object.values(A.last!.snap.reserve)).toEqual([0.5, 0.5].map(Math.ceil));
     // Présence « en partie » et regardable ; un ami de joueur peut regarder, pas un inconnu.
     const fc = await api('/cf/friends', undefined, cleo.token);
@@ -512,7 +517,7 @@ describe('Coups Fourrés en ligne', () => {
     const g2 = J.last!.id;
     J.auto = false;
     J.s.disconnect();
-    await until(() => K.notices.some((n) => /déconnecté/.test(n)), 3000, 'avis de déconnexion');
+    await until(() => K.notices.some((n) => /perdu la connexion/.test(n)), 3000, 'avis de déconnexion');
     J = await client(jo);
     expect(J.hello!.game).toMatchObject({ id: g2, mode: 'classee', ranked: true });
     expect((await emit(J, 'cf:resume', {})).ok).toBe(true);

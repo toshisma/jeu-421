@@ -3044,7 +3044,7 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .cf-detail-btns .cf-btn { flex: 1; min-width: 0; font-size: 15.5px; padding: 0 8px; }
 
 /* Decks */
-.cf-deck { border-radius: 14px; background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.1); overflow: hidden; }
+.cf-deck { flex: none; border-radius: 14px; background: rgba(0,0,0,0.28); border: 1px solid rgba(255,255,255,0.1); overflow: hidden; }
 .cf-deck.active { border-color: rgba(241,204,125,0.7); box-shadow: 0 0 14px rgba(241,204,125,0.2); }
 .cf-deck-head { display: flex; flex-direction: column; gap: 5px; width: 100%; padding: 11px 12px 9px; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
 .cf-deck-name { display: flex; align-items: center; gap: 8px; }
@@ -3063,7 +3063,7 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .cf-deck-list li b { font: 800 15px/1 var(--cond); color: var(--cf-gold); }
 .cf-deck-list.compact { max-height: 34vh; overflow-y: auto; padding: 0; }
 .cf-deck-list.editable { padding: 0; }
-.cf-deck-list.editable button { width: 30px; height: 28px; flex: none; border: 0; border-radius: 8px; background: rgba(0,0,0,0.35); color: #fff; font: 800 18px/1 var(--cond); cursor: pointer; }
+.cf-deck-list.editable button { width: 40px; height: 40px; flex: none; border: 0; border-radius: 8px; background: rgba(0,0,0,0.35); color: #fff; font: 800 18px/1 var(--cond); cursor: pointer; }
 .cf-deck-list.editable button:disabled { opacity: 0.35; }
 .cf-curve { display: flex; align-items: flex-end; gap: 5px; height: 64px; flex: none; }
 .cf-curve-col { width: 20px; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; }
@@ -3084,7 +3084,7 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .cf-alerts li.bloque { background: rgba(214,166,255,0.1); border-left-color: var(--cf-violet); color: #ead6ff; }
 .cf-pool { display: flex; flex-direction: column; gap: 4px; }
 .cf-pool-bar { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
-.cf-pool-bar button { width: 30px; height: 26px; border: 0; border-radius: 8px; background: rgba(255,255,255,0.1); color: #fff; font: 800 17px/1 var(--cond); display: grid; place-items: center; cursor: pointer; }
+.cf-pool-bar button { width: 36px; height: 36px; border: 0; border-radius: 8px; background: rgba(255,255,255,0.1); color: #fff; font: 800 17px/1 var(--cond); display: grid; place-items: center; cursor: pointer; }
 .cf-pool-bar button:disabled { opacity: 0.3; }
 .cf-pool-bar span { font: 800 14px/1 var(--cond); color: var(--cf-lilac); }
 .cf-pool.in .cf-pool-bar span { color: var(--cf-gold); }
@@ -3487,8 +3487,8 @@ span.cfn-hab { cursor: default; }
 .cfn-hc .a { flex: none; height: 52px; border-radius: 5px; overflow: hidden; }
 .cfn-hc.small .a { height: 44px; }
 .cfn-hc .a svg { display: block; width: 100%; height: 100%; }
-.cfn-hc b { font: 400 11px/1.05 'Alfa Slab One', Rockwell, serif; color: #fbf6e9; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.cfn-hc .fx { font: 600 10.5px/1.15 Barlow, sans-serif; color: #f6ead0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.cfn-hc b { flex: none; font: 400 11px/1.05 'Alfa Slab One', Rockwell, serif; color: #fbf6e9; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.cfn-hc .fx { flex: 0 1 auto; min-height: 0; font: 600 10.5px/1.15 Barlow, sans-serif; color: #f6ead0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 .cfn-hc.ok .fx { color: #ffe6a6; font-weight: 800; }
 .cfn-hc.small .fx { font-size: 9.5px; }
 .cfn-hc.small b { font-size: 10px; }
@@ -4506,3 +4506,29 @@ button.mode-chip { cursor: pointer; }
   .gi-offer { margin: 2px 0 8px; font-size: 0.9375rem; }
   .gi-fine { margin-top: 6px; }
 }
+
+/* Défauts de l'inspection du 6/11 : textes coupés, petites zones tactiles, chiffres admin. */
+.cfn-hc.small .fx { -webkit-line-clamp: 2; }
+.phase span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-counter { min-width: 0; }
+.stat-counter b { overflow-wrap: anywhere; }
+.stat-counter b.long, .adm-kpis .stat-counter b.long { font-size: 1.45rem; line-height: 1.1; }
+@media (min-width: 700px) { .tabs.adm-tabs { flex-wrap: wrap; overflow: visible; } }
+@media (max-width: 480px) {
+  .phase { flex-wrap: wrap; align-content: center; column-gap: 4px; row-gap: 1px; padding: 0 8px; font-size: 12.5px; line-height: 1.15; overflow: hidden; }
+  .phase .logo-mini, .phase .ph-long { display: none; }
+  .phase .ph-short { display: inline; flex-basis: 100%; font-weight: 700; }
+  .phase span { white-space: normal; }
+}
+@media (max-width: 480px) and (max-height: 700px) {
+  .pcard.v2 { padding: 7px 8px 6px; gap: 2px; }
+  .pcard.v2 .avatar { width: 28px; height: 28px; font-size: 15px; }
+  .pcard.v2 .pc-score b { font-size: 22px; }
+  .pcard.v2 .pc-name { font-size: 12.5px; }
+  .pcard.v2 .pc-sub { font-size: 10px; }
+}
+.ph-short { display: none; }
+.cfn-me-name { padding: 12px 8px; margin: -12px -8px; }
+.cfn-cmd { min-height: 28px; display: inline-flex; align-items: center; }
+.cfn-ttl:has(.cfn-cmd) { height: auto; min-height: 38px; padding-top: 2px; padding-bottom: 2px; }
+.cfn-keep button { padding: 8px; min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
