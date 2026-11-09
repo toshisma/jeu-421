@@ -7,6 +7,9 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.51', date: '2026-11-09T12:30:00+01:00', title: 'De nouvelles pages d’aide', items: [
+    'Nouvelles pages pour découvrir le site et inviter vos amis : jeu de dés entre amis, jeux de dés en ligne, jeu de bistrot, Farkle, apéro à distance.',
+  ] },
   { version: '0.50', date: '2026-11-09T11:58:00+01:00', title: 'Des parties plus justes', items: [
     'Égalité en Mort subite ou aux points : la meilleure combinaison départage, sinon la cagnotte est partagée. L’hôte n’est plus avantagé.',
     'Fin de la charge : les joueurs sortis en même temps sont classés par leur combinaison, plus par leur place à table.',
