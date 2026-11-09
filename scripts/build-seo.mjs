@@ -14,6 +14,9 @@
  * scripts/seo-courtisan-pages.mjs ; boutons « Jouer » vers /?mode=courtisan ; chiffres calculés par
  * scripts/courtisan-probas.ts ; images : scripts/shots-courtisan-seo.mjs.
  * Le catalogue des cartes (.ts) est lu directement : Node 22.18 ou plus récent (sinon : node --import tsx).
+ * Pages traduites (en, de, nl) : scripts/seo-en-pages.mjs, seo-de-pages.mjs, seo-nl-pages.mjs, groupes hreflang dans
+ * scripts/seo-i18n-common.mjs. NOTE GELÉE : tant que le jeu complet n'est pas publié traduit, ces pages ne partent pas
+ * seules (elles sortent avec le jeu traduit, voir la note en tête de seo-i18n-common.mjs).
  *
  * Mesure : chaque page note la visite (même suivi anonyme que le jeu, /api/visit, avec la vraie provenance,
  * ex. google.com) et le clic sur « Jouer » (/api/visit/event, étape guide_play). Les liens vers le jeu n'ont
@@ -24,7 +27,10 @@ import { join } from 'node:path';
 import { cfPages } from './seo-cf-pages.mjs';
 import { courtisanPages, CT_OG } from './seo-courtisan-pages.mjs';
 import { growthPages } from './seo-growth-pages.mjs';
-import { enPages, EN_ALTERNATES, EN_DISCLAIMER } from './seo-en-pages.mjs';
+import { enPages } from './seo-en-pages.mjs';
+import { dePages } from './seo-de-pages.mjs';
+import { nlPages } from './seo-nl-pages.mjs';
+import { DISCLAIMERS, I18N_GROUPS } from './seo-i18n-common.mjs';
 
 const SITE = 'https://421online.com';
 const OUT = join(process.cwd(), 'client', 'public');
@@ -563,7 +569,10 @@ ${play('Jouer au 421 en ligne', 'Le jeu de dés du comptoir, gratuit')}
 // Gabarit -----------------------------------------------------------------------------------------
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const strip = (s) => s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-const bySlug = Object.fromEntries([...pages, ...enPages].map((p) => [p.slug, p]));
+const foreignPages = [...enPages, ...dePages, ...nlPages];
+const allPages = [...pages, ...foreignPages];
+const bySlug = Object.fromEntries(allPages.map((p) => [p.slug, p]));
+const pagesOf = { en: enPages, de: dePages, nl: nlPages };
 const HEADER_NAV = ['jouer-au-421-en-ligne', 'regles-du-421', 'strategie-421', '421-entre-amis', 'jeu-de-des-entre-amis', 'jeux-de-des-en-ligne', 'coups-fourres', 'dix-mille-en-ligne'];
 const ORG = { '@type': 'Organization', '@id': `${SITE}/#organisation`, name: '421online', url: `${SITE}/`, logo: `${SITE}/icons/icon-512.png` };
 
@@ -595,27 +604,45 @@ const CT_GAME = {
   image: `${SITE}${CT_OG}`, screenshot: `${SITE}/img/partie-courtisan.webp`,
   publisher: { '@id': `${SITE}/#organisation` }, isPartOf: { '@id': `${SITE}/#jeu` },
 };
-/** Version anglaise : le même jeu, décrit en anglais, sur la page anglaise principale. Aucune note ni avis. */
-const FARKLE_EN_ID = `${SITE}/play-farkle-online#game`;
-const FARKLE_EN = {
-  ...CT_GAME, '@id': FARKLE_EN_ID, name: 'The Courtier', alternateName: ['Farkle', 'Ten Thousand'], url: `${SITE}/play-farkle-online`,
-  description: 'The traditional six-dice game of Farkle, free in the browser: set aside the dice that score, roll again or bank. Against the computer (1 to 3 opponents) or online with 2 to 6 players.',
-  inLanguage: 'en', genre: ['Dice game', 'Board game'], gamePlatform: ['Web browser'], operatingSystem: 'Any device with a recent browser (Android, iOS, Windows, macOS, Linux)', isPartOf: undefined,
+/** Versions traduites des fiches de jeu (une par langue, sur la page principale de chaque mode). Aucune note ni avis. */
+const FARKLE_L = {
+  en: { slug: 'play-farkle-online', name: 'The Courtier', alt: ['Farkle', 'Ten Thousand'], description: 'The traditional six-dice game of Farkle, free in the browser: set aside the dice that score, roll again or bank. Against the computer (1 to 3 opponents) or online with 2 to 6 players.', genre: ['Dice game', 'Board game'], platform: 'Web browser', os: 'Any device with a recent browser (Android, iOS, Windows, macOS, Linux)' },
+  de: { slug: 'farkle-online-spielen', name: 'Der Höfling', alt: ['Farkle', 'Zehntausend', '10000'], description: 'Das traditionelle Würfelspiel Farkle (Zehntausend) mit sechs Würfeln, kostenlos im Browser: punktende Würfel beiseitelegen, weiterwürfeln oder sichern. Gegen den Computer (1 bis 3 Gegner) oder online mit 2 bis 6 Spielern.', genre: ['Würfelspiel', 'Gesellschaftsspiel'], platform: 'Webbrowser', os: 'Jedes Gerät mit aktuellem Browser (Android, iOS, Windows, macOS, Linux)' },
+  nl: { slug: 'farkle-online-spelen', name: 'De Hoveling', alt: ['Farkle', 'Tienduizend', '10.000'], description: 'Het traditionele dobbelspel Farkle (Tienduizend) met zes stenen, gratis in de browser: scorende stenen apart leggen, opnieuw gooien of vastzetten. Tegen de computer (1 tot 3 tegenstanders) of online met 2 tot 6 spelers.', genre: ['Dobbelspel', 'Bordspel'], platform: 'Webbrowser', os: 'Elk apparaat met een recente browser (Android, iOS, Windows, macOS, Linux)' },
 };
-const ABOUT = { cf: CF_ID, courtisan: CT_ID, 'farkle-en': FARKLE_EN_ID };
-/** Pages traduites (hreflang) : slug → { fr, en, de?, nl? }. Ajouter de/nl : une entrée dans chaque groupe d'EN_ALTERNATES et un bloc LOCALE_UI. */
-const ALT = Object.fromEntries(EN_ALTERNATES.flatMap(([fr, en]) => [[fr, { fr, en }], [en, { fr, en }]]));
+const CF_L = {
+  en: { slug: 'coups-fourres-card-dice-game', description: 'A free dice and card game in the browser: the hands of 421, a 20-card deck per player, traps and bluffing. Against the computer, with friends (2 to 4), in a ranked league or in a tournament.', genre: ['Card game', 'Dice game', 'Collectible card game', 'Strategy game'], platform: 'Web browser', os: 'Any device with a recent browser (Android, iOS, Windows, macOS, Linux)' },
+  de: { slug: 'coups-fourres-karten-wuerfelspiel', description: 'Kostenloses Karten- und Würfelspiel im Browser: die Kombinationen des 421, ein Deck mit 20 Karten pro Spieler, Fallen und Bluff. Gegen den Computer, mit Freunden (2 bis 4), in der Rangliga oder im Turnier.', genre: ['Kartenspiel', 'Würfelspiel', 'Sammelkartenspiel', 'Strategiespiel'], platform: 'Webbrowser', os: 'Jedes Gerät mit aktuellem Browser (Android, iOS, Windows, macOS, Linux)' },
+  nl: { slug: 'coups-fourres-kaart-dobbelspel', description: 'Gratis kaart- en dobbelspel in de browser: de combinaties van 421, een deck van 20 kaarten per speler, vallen en bluf. Tegen de computer, met vrienden (2 tot 4), in een ranked liga of een toernooi.', genre: ['Kaartspel', 'Dobbelspel', 'Verzamelkaartspel', 'Strategiespel'], platform: 'Webbrowser', os: 'Elk apparaat met een recente browser (Android, iOS, Windows, macOS, Linux)' },
+};
+const GAME_LD = {}; const ABOUT = { cf: CF_ID, courtisan: CT_ID };
+for (const [lang, g] of Object.entries(FARKLE_L)) {
+  const id = `${SITE}/${g.slug}#game`;
+  GAME_LD[g.slug] = { ...CT_GAME, '@id': id, name: g.name, alternateName: g.alt, url: `${SITE}/${g.slug}`, description: g.description, inLanguage: lang, genre: g.genre, gamePlatform: [g.platform], operatingSystem: g.os, isPartOf: undefined };
+  ABOUT[`farkle-${lang}`] = id;
+}
+for (const [lang, g] of Object.entries(CF_L)) {
+  const id = `${SITE}/${g.slug}#game`;
+  GAME_LD[g.slug] = { ...CF_GAME, '@id': id, url: `${SITE}/${g.slug}`, description: g.description, alternateName: undefined, inLanguage: lang, genre: g.genre, gamePlatform: [g.platform], operatingSystem: g.os, isPartOf: undefined };
+  ABOUT[`cf-${lang}`] = id;
+}
+/** Pages traduites (hreflang) : slug → { fr, en, de, nl }. */
+const ALT = Object.fromEntries(I18N_GROUPS.flatMap((g) => Object.values(g).map((s) => [s, g])));
 const OG_LOCALE = { fr: 'fr_BE', en: 'en_US', de: 'de_DE', nl: 'nl_BE' };
 const DATE_LOCALE = { fr: 'fr-BE', en: 'en-US', de: 'de-DE', nl: 'nl-BE' };
 /** Gabarit des pages traduites (français : textes d'origine, dans le gabarit ci-dessous). */
-const LOCALE_UI = { en: {
-  play: 'Play', logo: '421online: open the game', helpNav: 'Help pages', crumbs: 'Breadcrumb', updated: 'Updated', faq: 'Frequently asked questions',
-  relatedAria: 'Read also', relatedTitle: 'Read also', footLinks: 'All help pages', privacy: 'Privacy and legal notice',
-  foot: `<a href="/play-farkle-online">The Courtier</a> is the traditional six-dice game of Farkle, free online on 421online.com. Only The Courtier is in English; the rest of the site is in French. Groschen and the game’s other currencies are play money, no real money: they can’t be bought.`,
-} };
+const LOCALE_UI = {
+  en: { play: 'Play', logo: '421online: open the game', helpNav: 'Help pages', crumbs: 'Breadcrumb', updated: 'Updated', faq: 'Frequently asked questions', relatedAria: 'Read also', relatedTitle: 'Read also', footLinks: 'All help pages', privacy: 'Privacy and legal notice',
+    foot: `<a href="/?lang=en" data-play>421online.com</a>: 421, the classic French dice game, free online, alone or with friends, along with <a href="/coups-fourres-card-dice-game">Coups Fourrés</a>, 421 with cards, and <a href="/play-farkle-online">The Courtier</a>, six-dice Farkle. Coins, capsules and Groschen in the game are play money, no real money: they can’t be bought.` },
+  de: { play: 'Spielen', logo: '421online: Spiel öffnen', helpNav: 'Hilfeseiten', crumbs: 'Brotkrümelnavigation', updated: 'Aktualisiert am', faq: 'Häufige Fragen', relatedAria: 'Mehr lesen', relatedTitle: 'Mehr lesen', footLinks: 'Alle Hilfeseiten', privacy: 'Datenschutz und Impressum',
+    foot: `<a href="/?lang=de" data-play>421online.com</a>: 421, das klassische französische Würfelspiel, kostenlos online, allein oder mit Freunden, dazu <a href="/coups-fourres-karten-wuerfelspiel">Coups Fourrés</a>, 421 mit Karten, und <a href="/farkle-online-spielen">Der Höfling</a>, Farkle mit sechs Würfeln. Münzen, Kapseln und Groschen im Spiel sind Spielgeld, kein echtes Geld: Sie lassen sich nicht kaufen.` },
+  nl: { play: 'Spelen', logo: '421online: open het spel', helpNav: 'Hulppagina’s', crumbs: 'Kruimelpad', updated: 'Bijgewerkt op', faq: 'Veelgestelde vragen', relatedAria: 'Lees ook', relatedTitle: 'Lees ook', footLinks: 'Alle hulppagina’s', privacy: 'Privacy en wettelijke vermeldingen',
+    foot: `<a href="/?lang=nl" data-play>421online.com</a>: 421, het klassieke Franse dobbelspel, gratis online, alleen of met vrienden, samen met <a href="/coups-fourres-kaart-dobbelspel">Coups Fourrés</a>, 421 met kaarten, en <a href="/farkle-online-spelen">De Hoveling</a>, Farkle met zes stenen. Munten, capsules en Groschen in het spel zijn speelgeld, geen echt geld: je kunt ze niet kopen.` },
+};
 
-for (const p of [...pages, ...enPages]) {
+for (const p of allPages) {
   const lang = p.lang ?? 'fr'; const en = lang !== 'fr'; const UI = LOCALE_UI[lang];
+  const homeHref = en ? `/?lang=${lang}` : '/';
   const url = `${SITE}/${p.slug}`;
   const playHref = p.play ?? '/';
   const og = p.og ?? '/og-421.png';
@@ -631,7 +658,7 @@ for (const p of [...pages, ...enPages]) {
       },
       ...(p.slug === 'coups-fourres' ? [CF_GAME] : []),
       ...(p.slug === 'dix-mille-en-ligne' ? [CT_GAME] : []),
-      ...(p.slug === 'play-farkle-online' ? [FARKLE_EN] : []),
+      ...(GAME_LD[p.slug] ? [GAME_LD[p.slug]] : []),
       { '@type': 'FAQPage', '@id': `${url}#faq`, mainEntity: p.faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) },
       { '@type': 'BreadcrumbList', itemListElement: crumbs.map(([name, item], i) => ({ '@type': 'ListItem', position: i + 1, name, item })) },
     ],
@@ -673,12 +700,12 @@ ${hreflang}<meta name="robots" content="index, follow, max-image-preview:large">
 <body>
 <header class="top">
   <a class="logo" href="${en ? playHref : '/'}" aria-label="${en ? UI.logo : '421online : ouvrir le jeu'}"><span>421</span></a>
-  <nav aria-label="${en ? UI.helpNav : 'Pages d’aide'}">${(en ? enPages.map((x) => x.slug) : HEADER_NAV).map((s) => `<a href="/${s}"${s === p.slug ? ' aria-current="page"' : ''}>${bySlug[s].nav}</a>`).join('')}</nav>
+  <nav aria-label="${en ? UI.helpNav : 'Pages d’aide'}">${(en ? pagesOf[lang].map((x) => x.slug) : HEADER_NAV).map((s) => `<a href="/${s}"${s === p.slug ? ' aria-current="page"' : ''}>${bySlug[s].nav}</a>`).join('')}</nav>
   <a class="cta small" href="${playHref}" data-play>${en ? UI.play : 'Jouer'}</a>
 </header>
 <main>
 <article>
-<nav class="crumbs" aria-label="${en ? UI.crumbs : 'Fil d’Ariane'}"><a href="/">421online</a> <span aria-hidden="true">›</span> ${parent ? `<a href="/${parent.slug}">${parent.short}</a> <span aria-hidden="true">›</span> ` : ''}<span>${p.short}</span></nav>
+<nav class="crumbs" aria-label="${en ? UI.crumbs : 'Fil d’Ariane'}"><a href="${homeHref}">421online</a> <span aria-hidden="true">›</span> ${parent ? `<a href="/${parent.slug}">${parent.short}</a> <span aria-hidden="true">›</span> ` : ''}<span>${p.short}</span></nav>
 <h1>${p.h1}</h1>
 <p class="lead">${p.lead}</p>
 <p class="meta">${en ? UI.updated : 'Mis à jour le'} <time datetime="${p.updated}">${new Date(`${p.updated}T12:00:00Z`).toLocaleDateString(DATE_LOCALE[lang], { day: 'numeric', month: 'long', year: 'numeric' })}</time></p>
@@ -691,8 +718,8 @@ ${p.faq.map(([q, a]) => `<details><summary>${q}</summary><p>${a}</p></details>`)
 <aside class="related" aria-label="${en ? UI.relatedAria : 'À lire aussi'}"><h2>${en ? UI.relatedTitle : 'À lire aussi'}</h2><div>${related}</div></aside>
 </main>
 <footer>
-<p>${en ? UI.foot : `<a href="/" data-play>421online.com</a> : le 421, jeu de dés de comptoir, gratuit en ligne, seul ou entre amis, <a href="/coups-fourres">Coups Fourrés</a>, le 421 aux cartes, et <a href="/dix-mille-en-ligne">Le Courtisan</a>, le Dix mille à six dés. Les pièces, les capsules et les Groschen du jeu sont des monnaies virtuelles, sans argent réel : elles ne s’achètent pas.`}</p>
-<nav class="links" aria-label="${en ? UI.footLinks : 'Toutes les pages d’aide'}">${(en ? enPages : pages).map((x) => `<a href="/${x.slug}">${x.short}</a>`).join('')}<a href="/confidentialite">${en ? UI.privacy : 'Confidentialité et mentions légales'}</a></nav>
+${en ? `<p class="note">${DISCLAIMERS[lang]}</p>\n` : ''}<p>${en ? UI.foot : `<a href="/" data-play>421online.com</a> : le 421, jeu de dés de comptoir, gratuit en ligne, seul ou entre amis, <a href="/coups-fourres">Coups Fourrés</a>, le 421 aux cartes, et <a href="/dix-mille-en-ligne">Le Courtisan</a>, le Dix mille à six dés. Les pièces, les capsules et les Groschen du jeu sont des monnaies virtuelles, sans argent réel : elles ne s’achètent pas.`}</p>
+<nav class="links" aria-label="${en ? UI.footLinks : 'Toutes les pages d’aide'}">${(en ? pagesOf[lang] : pages).map((x) => `<a href="/${x.slug}">${x.short}</a>`).join('')}<a href="/confidentialite">${en ? UI.privacy : 'Confidentialité et mentions légales'}</a></nav>
 </footer>
 ${TRACK}
 </body>
@@ -704,7 +731,7 @@ ${TRACK}
   for (const m of html.matchAll(/(?:src|content)="(?:https:\/\/421online\.com)?\/((?:img|og-|icons)[^"]*\.(?:webp|png|jpg))"/g)) if (!existsSync(join(OUT, m[1]))) throw new Error(`Image absente /${m[1]} dans ${p.slug}`);
   for (const m of html.matchAll(/href="#([^"]+)"/g)) if (!html.includes(`id="${m[1]}"`)) throw new Error(`Ancre absente #${m[1]} dans ${p.slug}`);
   if (p.play && !html.includes(`class="cta" href="${p.play}" data-play`)) throw new Error(`Bouton Jouer absent dans ${p.slug}`);
-  if (en && /Kingdom Come/.test(html) && !html.includes(EN_DISCLAIMER)) throw new Error(`Mention d'indépendance absente dans ${p.slug}`);
+  if (en && /Kingdom Come|KCD/.test(html) && !html.includes(DISCLAIMERS[lang])) throw new Error(`Mention d'indépendance absente dans ${p.slug}`);
   writeFileSync(join(OUT, `${p.slug}.html`), html);
 }
 
@@ -712,11 +739,11 @@ writeFileSync(join(OUT, 'robots.txt'), `User-agent: *\nAllow: /\nDisallow: /api/
 writeFileSync(join(OUT, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url><loc>${SITE}/</loc><lastmod>${HOME_UPDATED}</lastmod></url>
-${[...pages, ...enPages].map((p) => {
+${allPages.map((p) => {
   const alt = ALT[p.slug];
   const links = alt ? `\n${Object.entries(alt).map(([l, s]) => `    <xhtml:link rel="alternate" hreflang="${l}" href="${SITE}/${s}"/>\n`).join('')}    <xhtml:link rel="alternate" hreflang="x-default" href="${SITE}/${alt.fr}"/>\n  ` : '';
   return `  <url><loc>${SITE}/${p.slug}</loc><lastmod>${p.updated}</lastmod>${links}</url>`;
 }).join('\n')}
 </urlset>
 `);
-console.log(`${pages.length + enPages.length} pages, robots.txt et sitemap.xml écrits dans client/public`);
+console.log(`${allPages.length} pages, robots.txt et sitemap.xml écrits dans client/public`);

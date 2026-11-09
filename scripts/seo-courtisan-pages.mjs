@@ -340,14 +340,14 @@ ${toc([['origine', 'Un jeu de dés traditionnel'], ['commun', 'Les règles de ba
 <li>en <b>${targets.join(', ').replace(/, ([^,]+)$/, ' ou $1')} points</b>, selon le temps dont vous disposez.</li>
 </ul>
 <p>C’est même de là qu’est venue l’idée du Courtisan : pouvoir rejouer à ces parties de dés avec de vrais amis, à distance, sans lancer le jeu vidéo. Pour <a href="/jouer-au-farkle-en-ligne">jouer au Farkle en ligne</a>, il suffit de créer une table et d’envoyer son code à vos amis.</p>
-<p>Le site et le jeu sont <b>en français</b>.</p>
+<p>Le site et le jeu sont <b>en français</b>, et aussi disponibles en anglais, en allemand et en néerlandais.</p>
 
 <h2 id="entrainer">S’entraîner : les chiffres qui ne changent pas</h2>
 <p>Tant que l’on joue avec des dés ordinaires, les probabilités sont les mêmes partout : avec six dés, on ne rate qu’environ une fois sur 32 ; avec deux dés, presque une fois sur deux ; avec un seul, deux fois sur trois. Ces chiffres, les seuils pour savoir quand s’arrêter et les bons réflexes sont détaillés sur la page <a href="/strategie-dix-mille">stratégie du Dix mille</a>. Ils ne tiennent évidemment pas compte des dés particuliers ni des effets propres au jeu vidéo.</p>
 
 <h2 id="english">In English</h2>
 <div lang="en">
-<p>The dice game in <i>Kingdom Come: Deliverance 2</i> is based on the traditional six-dice game known as Farkle (called “Dix mille” in France). 421online.com is an independent French website, not affiliated with Warhorse Studios, Deep Silver or Plaion. You can play the traditional game for free in your browser, against the computer or with friends online, but <b>the website and the game are in French only</b>. Scoring: a 1 is 100, a 5 is 50, three of a kind is the face × 100 (three 1s: 1,000), each extra matching die doubles it, straights 1–5 = 500, 2–6 = 750, 1–6 = 1,500.</p>
+<p>The dice game in <i>Kingdom Come: Deliverance 2</i> is based on the traditional six-dice game known as Farkle (called “Dix mille” in France). 421online.com is an independent French website, not affiliated with Warhorse Studios, Deep Silver or Plaion. You can play the traditional game for free in your browser, against the computer or with friends online, and <b>the game is also available in English, German and Dutch</b>. Scoring: a 1 is 100, a 5 is 50, three of a kind is the face × 100 (three 1s: 1,000), each extra matching die doubles it, straights 1–5 = 500, 2–6 = 750, 1–6 = 1,500.</p>
 </div>
 ${play('Jouer au Dix mille gratuitement', 'La version traditionnelle, en français, dans le navigateur')}
 `,
