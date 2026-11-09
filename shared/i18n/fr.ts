@@ -15,7 +15,7 @@ export const fr = {
   "common.backHome": "Retour au menu principal",
   "common.menu": "Menu",
   "lang.title": "Langue",
-  "lang.switch": "Langue du Courtisan",
+  "lang.switch": "Langue",
   "lang.note": "L’anglais concerne le mode Le Courtisan (Farkle). Le reste du jeu reste en français.",
   "lang.frenchOnly": "Seul Le Courtisan est en anglais pour l’instant : le 421, Coups Fourrés, la collection et la boutique sont en français.",
   "lang.homeBanner": "Jouer au Courtisan (Farkle) en anglais",
