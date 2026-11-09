@@ -23,11 +23,12 @@ import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { cfPages } from './seo-cf-pages.mjs';
 import { courtisanPages, CT_OG } from './seo-courtisan-pages.mjs';
+import { growthPages } from './seo-growth-pages.mjs';
 
 const SITE = 'https://421online.com';
 const OUT = join(process.cwd(), 'client', 'public');
 /** Date de la dernière modification de l'accueil (index.html). */
-const HOME_UPDATED = '2026-11-05';
+const HOME_UPDATED = '2026-11-09';
 
 // Petits éléments réutilisables -------------------------------------------------------------------
 const dice = (s) => `<span class="dice" role="img" aria-label="${s.split('').join('-')}">${s.split('').map((d) => `<i class="d d${d}"></i>`).join('')}</span>`;
@@ -39,7 +40,7 @@ const pages = [
   {
     slug: 'jouer-au-421-en-ligne', nav: 'Jouer en ligne', short: 'Jouer au 421 en ligne',
     blurb: 'Tous les modes de jeu : contre l’ordinateur, partie rapide, tables privées, tournois.',
-    published: '2026-11-03', updated: '2026-11-07',
+    published: '2026-11-03', updated: '2026-11-09',
     title: 'Jouer au 421 en ligne gratuitement : solo, multijoueur, tournois',
     description: 'Jouez au 421 en ligne, gratuit et sans téléchargement : contre l’ordinateur, en partie rapide, en table privée avec vos amis ou en tournoi. Sur mobile et PC.',
     h1: 'Jouer au 421 en ligne, gratuitement',
@@ -100,7 +101,7 @@ ${play('Jouer au 421 maintenant', 'Gratuit, sans téléchargement')}
       ['Peut-on jouer au 421 contre l’ordinateur ?', 'Oui, contre 1 à 5 adversaires, en niveau facile, normal ou difficile. Le solo marche même sans connexion une fois le jeu ouvert.'],
       ['Combien de joueurs par partie en ligne ?', 'De 2 à 6 joueurs par table. L’hôte peut ajouter des joueurs ordinateur pour compléter.'],
     ],
-    related: ['421-entre-amis', 'regles-du-421', 'dix-mille-en-ligne'],
+    related: ['jeu-de-des-entre-amis', '421-entre-amis', 'jeu-de-bistrot-en-ligne', 'regles-du-421'],
   },
   // ---------------------------------------------------------------------------------------------
   {
@@ -555,13 +556,14 @@ ${play('Jouer au 421 en ligne', 'Le jeu de dés du comptoir, gratuit')}
   },
   ...cfPages,
   ...courtisanPages,
+  ...growthPages,
 ];
 
 // Gabarit -----------------------------------------------------------------------------------------
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const strip = (s) => s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 const bySlug = Object.fromEntries(pages.map((p) => [p.slug, p]));
-const HEADER_NAV = ['jouer-au-421-en-ligne', 'regles-du-421', 'strategie-421', '421-entre-amis', 'jeux-de-des', 'coups-fourres', 'dix-mille-en-ligne'];
+const HEADER_NAV = ['jouer-au-421-en-ligne', 'regles-du-421', 'strategie-421', '421-entre-amis', 'jeu-de-des-entre-amis', 'jeux-de-des-en-ligne', 'coups-fourres', 'dix-mille-en-ligne'];
 const ORG = { '@type': 'Organization', '@id': `${SITE}/#organisation`, name: '421online', url: `${SITE}/`, logo: `${SITE}/icons/icon-512.png` };
 
 // Mesure (même suivi anonyme que le jeu : identifiant d'appareil aléatoire, haché par le serveur, sans cookie).

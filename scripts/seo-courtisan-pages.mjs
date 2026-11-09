@@ -65,8 +65,8 @@ export const courtisanPages = [
   {
     slug: 'dix-mille-en-ligne', nav: 'Le Courtisan', short: 'Le Courtisan (Dix mille)',
     blurb: 'Le jeu de dés du Dix mille (Farkle) gratuit en ligne : 6 dés, seul ou à plusieurs.',
-    ...common, image,
-    title: 'Le Courtisan : jouer au Dix mille (Farkle) en ligne gratuit',
+    ...common, image, updated: '2026-11-09',
+    title: 'Le Courtisan : Dix mille (Farkle) en ligne entre amis, gratuit',
     description: 'Jouez au Dix mille, le jeu à 6 dés aussi appelé Farkle : contre l’ordinateur ou en ligne de 2 à 6 avec vos amis. Gratuit, sans téléchargement.',
     h1: 'Le Courtisan : le Dix mille en ligne, gratuit',
     lead: `<b>Le Courtisan</b> est notre version du <b>Dix mille</b>, le jeu de dés « stop ou encore » que les anglophones appellent <b>Farkle</b> : six dés, des points à mettre de côté, et une question à chaque lancer… relancer pour gagner plus, ou encaisser avant de tout perdre ? Il se joue gratuitement sur <a href="${CT_PLAY}" data-play>421online.com</a>, dans le navigateur, contre l’ordinateur ou contre d’autres joueurs.`,
@@ -120,7 +120,7 @@ ${toc([['principe', 'Le principe en trente secondes'], ['modes', 'Les façons de
 
 <h2 id="noms">Dix mille, Farkle, 5000 : un même jeu</h2>
 <p>Ce jeu de dés porte des noms différents selon les pays et les familles : <b>Dix mille</b> ou <b>10 000</b> en France, <b>5000</b> quand on joue en 5 000 points (parfois avec cinq dés), <b>Farkle</b> ou <b>Zilch</b> en anglais. Le principe ne change pas : mettre de côté des dés qui rapportent et savoir s’arrêter. Seuls les détails varient, comme la valeur des suites ou un minimum de points pour « ouvrir ».</p>
-<p>Vous l’avez découvert dans un jeu vidéo ? Le jeu de dés des tavernes de <a href="/jeu-de-des-kingdom-come-deliverance-2">Kingdom Come: Deliverance 2</a> repose sur le même jeu traditionnel : voyez ce qui est commun et ce qui change.</p>
+<p>Vous l’avez découvert dans un jeu vidéo ? Le Courtisan est né de l’envie de rejouer entre amis au jeu de dés des tavernes de <a href="/jeu-de-des-kingdom-come-deliverance-2">Kingdom Come: Deliverance 2</a>, qui repose sur le même jeu traditionnel : voyez ce qui est commun et ce qui change. Vous cherchez ce jeu sous son nom anglais ? Voici comment <a href="/jouer-au-farkle-en-ligne">jouer au Farkle en ligne</a>. 421online.com est un site indépendant de ce jeu vidéo.</p>
 
 <h2 id="autres">Les autres jeux du site</h2>
 <p>421online, c’est d’abord le <a href="/jouer-au-421-en-ligne">421 en ligne</a>, le jeu de dés de comptoir à trois dés, et <a href="/coups-fourres">Coups Fourrés</a>, le 421 aux cartes. Le même compte gratuit (sans adresse e-mail) sert pour les trois modes, avec les mêmes amis et les mêmes réglages, et les parties du Courtisan contre l’ordinateur rapportent des pièces et de l’expérience, comme le 421.</p>
@@ -134,7 +134,7 @@ ${play('Lancer les six dés', 'Contre l’ordinateur ou entre amis, gratuitement
       ['À combien peut-on jouer ?', 'Contre 1 à 3 adversaires ordinateur, ou de 2 à 6 joueurs à une table en ligne.'],
       ['Combien de temps dure une partie ?', 'À deux joueurs, environ 3 tours chacun en 2 000 points, 6 à 7 en 4 000 et 17 à 18 en 10 000, d’après des parties simulées avec le moteur du jeu.'],
     ],
-    related: ['regles-du-dix-mille', 'strategie-dix-mille', 'jeux-de-des'],
+    related: ['jouer-au-farkle-en-ligne', 'regles-du-dix-mille', 'strategie-dix-mille', 'jeu-de-des-kingdom-come-deliverance-2'],
   },
   // ---------------------------------------------------------------------------------------------
   {
@@ -298,9 +298,9 @@ ${play('Mettre ces conseils en pratique', 'Contre l’ordinateur, du niveau Déb
   {
     slug: 'jeu-de-des-kingdom-come-deliverance-2', nav: 'Dés de KCD2', short: 'Le jeu de dés de Kingdom Come: Deliverance 2', parent: 'dix-mille-en-ligne',
     blurb: 'Le jeu de dés du jeu vidéo et le Dix mille traditionnel : règles communes, où y jouer.',
-    ...common,
-    title: 'Jeu de dés de Kingdom Come: Deliverance 2 : règles, où jouer',
-    description: 'Le jeu de dés de Kingdom Come: Deliverance 2 repose sur le Farkle (Dix mille) : règles communes, différences, et où jouer à la version traditionnelle.',
+    ...common, updated: '2026-11-09',
+    title: 'Jeu de dés de Kingdom Come: Deliverance 2 en ligne entre amis',
+    description: 'Le jeu de dés de Kingdom Come: Deliverance 2 repose sur le Farkle (Dix mille). Ses règles, et où jouer en ligne avec vos amis à la version traditionnelle, gratuite.',
     h1: 'Le jeu de dés de Kingdom Come: Deliverance 2 : les règles de base et où y jouer',
     lead: 'Dans les tavernes de <i>Kingdom Come: Deliverance 2</i>, comme dans le premier épisode, on joue aux dés contre les habitants. Ce jeu n’a pas été inventé pour le jeu vidéo : il repose sur un jeu de dés traditionnel, le <b>Farkle</b> des anglophones, que l’on appelle <b>Dix mille</b> en France. Voici ce qui est commun, ce qui change, et où jouer à la version traditionnelle sans console.',
     body: `
@@ -339,6 +339,7 @@ ${toc([['origine', 'Un jeu de dés traditionnel'], ['commun', 'Les règles de ba
 <li><b>en ligne</b>, de 2 à 6 joueurs, avec vos amis à une table à code ;</li>
 <li>en <b>${targets.join(', ').replace(/, ([^,]+)$/, ' ou $1')} points</b>, selon le temps dont vous disposez.</li>
 </ul>
+<p>C’est même de là qu’est venue l’idée du Courtisan : pouvoir rejouer à ces parties de dés avec de vrais amis, à distance, sans lancer le jeu vidéo. Pour <a href="/jouer-au-farkle-en-ligne">jouer au Farkle en ligne</a>, il suffit de créer une table et d’envoyer son code à vos amis.</p>
 <p>Le site et le jeu sont <b>en français</b>.</p>
 
 <h2 id="entrainer">S’entraîner : les chiffres qui ne changent pas</h2>
@@ -353,9 +354,10 @@ ${play('Jouer au Dix mille gratuitement', 'La version traditionnelle, en frança
     faq: [
       ['Le jeu de dés de Kingdom Come: Deliverance 2 est-il le Farkle ?', 'Il repose sur ce jeu traditionnel, appelé Dix mille en France, et en reprend les règles de base, avec des éléments propres au jeu vidéo en plus. Ce n’est pas exactement le même jeu.'],
       ['Combien vaut une suite au jeu de dés de KCD2 ?', 'Dans sa version de base, d’après les guides de joueurs, les mêmes valeurs que le Dix mille traditionnel : 500 pour 1 à 5, 750 pour 2 à 6 et 1 500 pour 1 à 6.'],
+      ['Peut-on jouer au jeu de dés de Kingdom Come avec des amis ?', 'À sa version traditionnelle, oui : sur 421online.com, créez une table du Courtisan et donnez le code à vos amis, de 2 à 6 joueurs. Le jeu vidéo lui-même, lui, se joue seul.'],
       ['Où jouer au jeu de dés de Kingdom Come en ligne ?', 'La version traditionnelle, le Dix mille, se joue gratuitement sur 421online.com, contre l’ordinateur ou entre amis. Ce n’est pas le jeu de Kingdom Come: Deliverance, mais le jeu de dés dont il s’inspire.'],
       ['421online est-il lié à Kingdom Come: Deliverance ?', 'Non. 421online.com est un site indépendant, sans lien avec Warhorse Studios, Deep Silver ou Plaion.'],
     ],
-    related: ['dix-mille-en-ligne', 'regles-du-dix-mille', 'strategie-dix-mille'],
+    related: ['jouer-au-farkle-en-ligne', 'dix-mille-en-ligne', 'regles-du-dix-mille'],
   },
 ];
