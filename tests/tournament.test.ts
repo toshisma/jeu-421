@@ -143,11 +143,12 @@ describe('tournoi', () => {
     expect(t.rounds.length).toBe(2);
     expect(t.standings!.length).toBe(5);
     expect(new Set(t.standings).size).toBe(5);
-    // Gains : 60/30/10 % de 125 pièces, versés aux trois premiers.
+    // Tout le monde a abandonné : personne ne touche de gain, les droits d'entrée (25) sont rendus.
     const balances = await Promise.all(accts.map((a) => api('/me', undefined, a.token)));
     const total = balances.reduce((s, b) => s + b.profile.stats.tournaments, 0);
     expect(total).toBe(5);
-    expect(balances.filter((b) => b.profile.stats.tournamentWins === 1).length).toBe(1);
+    expect(balances.filter((b) => b.profile.stats.tournamentWins === 1).length).toBe(0);
+    expect(balances.map((b) => b.profile.coins)).toEqual([65, 65, 65, 65, 65]); // 60 + 5 du succès « premier tournoi »
     for (const c of cs) c.s.disconnect();
   }, 40000);
 });

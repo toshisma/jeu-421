@@ -24,6 +24,16 @@ import { usePresenceLayer } from '../presence';
 export type OnlineMode = { kind: 'create'; invite?: string } | { kind: 'join'; code?: string; auto?: boolean } | { kind: 'resume' } | { kind: 'quick' };
 type Mode = OnlineMode;
 
+/** Table rejointe : le code d'invitation quitte l'adresse (sinon recharger la page le réutiliserait). */
+function clearInviteParam() {
+  try {
+    const u = new URL(location.href);
+    if (!u.searchParams.has('rejoindre')) return;
+    u.searchParams.delete('rejoindre');
+    history.replaceState(history.state, '', u.pathname + u.search + u.hash);
+  } catch { /* aperçu intégré : rien à nettoyer */ }
+}
+
 function useSession(session: OnlineSession | null) {
   const [, force] = useState(0);
   useEffect(() => {
@@ -62,7 +72,12 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
     s.dice = pa.profile.equipped.dice;
     try {
       if (kind === 'create') await s.create(name.trim(), avatar, DEFAULT_CONFIG, table);
-      else if (kind === 'join') await s.join(code.trim().toUpperCase(), name.trim(), avatar);
+      else if (kind === 'join') {
+        // Page rechargée avec ?rejoindre=CODE : si c'est notre table, on reprend notre place (jeton de session).
+        const c = code.trim().toUpperCase();
+        const saved = loadSession();
+        await s.join(c, name.trim() || settings.name || 'Joueur', avatar, saved && !saved.tournament && saved.code === c ? saved.token : undefined);
+      }
       else if (kind === 'quick') await s.quick(name.trim() || 'Joueur', avatar);
       else {
         const saved = loadSession();
@@ -71,6 +86,7 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
       }
       if (kind !== 'resume' && kind !== 'quick') onSettings({ ...settings, name: name.trim(), avatar });
       setSession(s);
+      clearInviteParam();
       // Table créée pour inviter un ami : l'invitation part dès que la table existe.
       if (kind === 'create' && mode.kind === 'create' && mode.invite && pa.token) {
         await api('/invites', { token: pa.token, body: { username: mode.invite } }).catch((e) => setError((e as Error).message));
@@ -88,7 +104,7 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
       if (name.trim()) void connect('create');
     }
     else if (mode.kind === 'quick') void connect('quick');
-    else if (mode.kind === 'join' && mode.auto && name.trim() && code.length === 5) void connect('join');
+    else if (mode.kind === 'join' && code.length === 5 && ((mode.auto && name.trim()) || loadSession()?.code === code)) void connect('join');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const controller = useMemo(() => (session ? new OnlineController(session) : null), [session]);

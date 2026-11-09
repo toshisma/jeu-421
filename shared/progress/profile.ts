@@ -141,12 +141,11 @@ export function settledPlace(state: GameState, meId: string): number | null {
 export function finalPlace(state: GameState, meId: string): number {
   const early = settledPlace(state, meId);
   if (early != null) return early;
-  if (state.config.variant === 'manches') {
-    const me = state.players.find((p) => p.id === meId);
-    return me ? 1 + state.players.filter((p) => p.score > me.score).length : state.players.length;
-  }
   const i = state.ranking.indexOf(meId);
-  return i < 0 ? state.players.length : i + 1;
+  if (i < 0) return state.players.length;
+  // Vrais ex æquo : même place (la meilleure du groupe).
+  const group = state.tieGroups?.find((g) => g.includes(meId));
+  return (group ? Math.min(...group.map((id) => state.ranking.indexOf(id))) : i) + 1;
 }
 /**
  * XP nécessaire pour passer du niveau L au niveau L+1 : de plus en plus long.
@@ -364,12 +363,12 @@ export interface Reward {
   lines: { label: string; xp: number; coins: number }[];
 }
 
-/** Victoire d'un joueur dans une partie terminée (aux points : les ex æquo en tête gagnent tous). */
+/** Victoire d'un joueur dans une partie terminée (les vrais ex æquo en tête gagnent tous). */
 export function didWin(state: GameState, meId: string): boolean {
   const me = state.players.find((p) => p.id === meId);
   if (!me) return false;
   if (state.phase !== 'fini') return settledPlace(state, meId) === 1; // sorti le premier : gagné, même si les autres jouent encore
-  if (state.config.variant === 'manches') return me.score === Math.max(...state.players.map((p) => p.score));
+  if (state.tiedWinners?.length) return state.tiedWinners.includes(meId);
   return state.ranking[0] === meId;
 }
 
