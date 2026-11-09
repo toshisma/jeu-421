@@ -1003,7 +1003,6 @@ export function DixMilleSetup({ onBack, onStart, onRules, onOnline, pa, groschen
   const saved = loadDmSession();
   const right = (
     <>
-      <LangSwitch />
       {bal != null && <span className="dm-wallet" aria-label={`${bal} Groschen`}><GroschenIcon size={18} /><b>{fmt(bal)}</b></span>}
       <button className="icon-btn" onClick={onRules} aria-label={tr('dm.rulesTitle')}><Icon name="rules" /></button>
     </>
