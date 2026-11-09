@@ -1,3 +1,4 @@
+import { getLang, tr } from '../i18n/lang';
 /**
  * Coups Fourrés : mots techniques en couleur dans le texte des cartes (0.39, demande de Sam).
  * Toucher le mot ouvre une petite explication. Utilisé sur les grandes cartes (fiche, collection,
@@ -12,26 +13,34 @@ interface Term { re: RegExp; title: string; text: string }
 const R = CF_RULES;
 /** Ordre : les expressions longues d'abord (« Dernier mot » avant « mot »…). */
 export const TERMS: Term[] = [
-  { re: /dernier mot/i, title: 'Dernier mot', text: 'Carte qui se joue à la toute fin de la manche, quand toutes les combinaisons sont posées, juste avant les comptes.' },
-  { re: /commande du comptoir/i, title: 'Commande du comptoir', text: 'Une règle bonus tirée au début de chaque manche, la même pour tous, écrite en haut de l’écran.' },
-  { re: /tournées?/i, title: 'Tournée', text: `Ce que coûtent les cartes (le chiffre dans le petit verre), à ne pas confondre avec les jetons. ${R.tourneesPerRound} de plus à chaque manche (${R.tourneesPerRound + R.tourneesLoserBonus} pour le perdant de la manche d’avant), ${R.tourneesMax} au plus.` },
-  { re: /habitués?/i, title: 'Habitué', text: `Carte qui s’installe devant vous et agit toute seule pendant ${R.habitueRounds} manches, puis rentre chez lui. ${R.maxHabitues} au plus, jamais deux fois le même.` },
-  { re: /pièges?/i, title: 'Piège', text: `Posé face cachée devant un adversaire, il se déclenche tout seul quand sa condition arrive. L’adversaire voit qu’il y a un piège, pas lequel. ${R.maxTrapsOn} au plus devant un même joueur, et ${R.maxTraps} posés au plus par joueur.` },
-  { re: /ripostes?/i, title: 'Riposte', text: 'Carte jouée en réponse à une carte adverse, au moment où elle est jouée (15 secondes en ligne, 30 contre l’ordinateur).' },
-  { re: /\bCoups?\b/, title: 'Coup', text: 'Carte jouée pendant votre tour, avant ou après un lancer, puis défaussée.' },
-  { re: /meneur/i, title: 'Meneur', text: 'Celui qui joue en premier dans la manche. Son nombre de lancers fixe le maximum des autres.' },
-  { re: /combinaisons?/i, title: 'Combinaison', text: 'Vos 3 dés une fois arrêtés : 4-2-1, trois as, brelan, suite… Elle vaut des jetons : le gagnant de la manche en donne autant au perdant.' },
-  { re: /nénettes?/i, title: 'Nénette', text: 'Le 2-2-1, la plus petite combinaison : celui qui perd avec une nénette reçoit au moins 2 jetons.' },
-  { re: /brelans?/i, title: 'Brelan', text: 'Trois dés identiques (sauf trois as) : vaut la valeur du dé, par exemple 5 pour 5-5-5.' },
-  { re: /\bsuites?\b/i, title: 'Suite', text: 'Trois dés qui se suivent (3-2-1, 6-5-4…) : vaut 2 jetons.' },
-  { re: /\bmanches?\b/i, title: 'Manche', text: 'Chacun lance ses dés à son tour ; la meilleure combinaison gagne et donne des jetons au perdant. Puis on recommence.' },
-  { re: /jetons?/i, title: 'Jetons', text: `On en a ${R.startTokens} au départ (${R.startTokensMulti} à 3 ou 4) : le premier à n’en avoir plus aucun gagne la partie.` },
-  { re: /défauss(?:ez|ée|é|e)s?/i, title: 'Défausser', text: 'Mettre une carte de côté, face visible : elle ne sert plus pour cette partie (sauf carte qui la reprend).' },
-  { re: /pioch(?:ez|e|er)/i, title: 'Piocher', text: 'Prendre la carte du dessus de votre deck et l’ajouter à votre main.' },
+  { re: /dernier mot/i, get title() { return tr('cf.boardparts.dernier_mot'); }, get text() { return tr('cf.gloss.carte_qui_se_joue_a_la'); } },
+  { re: /commande du comptoir/i, get title() { return tr('cf.boardparts.commande_du_comptoir'); }, get text() { return tr('cf.gloss.une_regle_bonus_tiree_au_debut'); } },
+  { re: /tournées?/i, get title() { return tr('cf.game.tournee'); }, get text() { return tr('cf.gloss.ce_que_coutent_les_cartes_le', { tourneesPerRound: R.tourneesPerRound, a: R.tourneesPerRound + R.tourneesLoserBonus, tourneesMax: R.tourneesMax }); } },
+  { re: /habitués?/i, get title() { return tr('cf.learn.habitue'); }, get text() { return tr('cf.gloss.carte_qui_s_installe_devant_vous', { habitueRounds: R.habitueRounds, maxHabitues: R.maxHabitues }); } },
+  { re: /pièges?/i, get title() { return tr('cf.boardparts.piege'); }, get text() { return tr('cf.gloss.pose_face_cachee_devant_un_adversair', { maxTrapsOn: R.maxTrapsOn, maxTraps: R.maxTraps }); } },
+  { re: /ripostes?/i, get title() { return tr('cf.learn.riposte'); }, get text() { return tr('cf.gloss.carte_jouee_en_reponse_a_une'); } },
+  { re: /\bCoups?\b/, get title() { return tr('cf.learn.coup'); }, get text() { return tr('cf.gloss.carte_jouee_pendant_votre_tour_avant'); } },
+  { re: /meneur/i, get title() { return tr('cf.learn.meneur'); }, get text() { return tr('cf.gloss.celui_qui_joue_en_premier_dans'); } },
+  { re: /combinaisons?/i, get title() { return tr('cf.gloss.combinaison'); }, get text() { return tr('cf.gloss.vos_3_des_une_fois_arretes'); } },
+  { re: /nénettes?/i, get title() { return tr('cf.gloss.nenette'); }, get text() { return tr('cf.gloss.le_2_2_1_la_plus'); } },
+  { re: /brelans?/i, get title() { return tr('cf.gloss.brelan'); }, get text() { return tr('cf.gloss.trois_des_identiques_sauf_trois_as'); } },
+  { re: /\bsuites?\b/i, get title() { return tr('cf.info.suite'); }, get text() { return tr('cf.gloss.trois_des_qui_se_suivent_3'); } },
+  { re: /\bmanches?\b/i, get title() { return tr('cf.gloss.manche'); }, get text() { return tr('cf.gloss.chacun_lance_ses_des_a_son'); } },
+  { re: /jetons?/i, get title() { return tr('cf.boardparts.jetons'); }, get text() { return tr('cf.gloss.on_en_a_au_depart_a', { startTokens: R.startTokens, startTokensMulti: R.startTokensMulti }); } },
+  { re: /défauss(?:ez|ée|é|e)s?/i, get title() { return tr('cf.boardparts.defausser'); }, get text() { return tr('cf.gloss.mettre_une_carte_de_cote_face'); } },
+  { re: /pioch(?:ez|e|er)/i, get title() { return tr('cf.gloss.piocher'); }, get text() { return tr('cf.gloss.prendre_la_carte_du_dessus_de'); } },
 ];
 
-const ANY = new RegExp(TERMS.map((t) => t.re.source).join('|'), 'gi');
-const termOf = (word: string) => TERMS.find((t) => new RegExp(`^(?:${t.re.source})$`, t.re.flags.includes('i') ? 'i' : '').test(word)) ?? null;
+/** Mêmes termes, même ordre, dans les autres langues. */
+const FOREIGN_RE: Record<'en' | 'de' | 'nl', string[]> = {
+  en: ['last words?', 'bar orders?', 'pints?', 'regulars?', 'traps?', 'ripostes?', 'tricks?', 'leaders?', 'combos?', 'nénettes?', 'three of a kinds?', 'straights?', 'rounds?', 'chips?', 'discard', 'draw'],
+  de: ['letzte[sn]? worte?', 'thekenansagen?', 'biere?', 'stammg(?:ast|äste)', 'fallen?', 'konter', 'streich(?:e|en)?', 'anführer', 'kombinationen?', 'nénetten?', 'drillinge?', 'straßen?', 'runden?', 'chips?', 'ablegen', 'ziehen'],
+  nl: ['laatste woord(?:en)?', 'barbestelling(?:en)?', 'biertjes?', 'stamgast(?:en)?', 'vallen|val', 'replieken|repliek', 'streken|streek', 'leiders?', 'combinaties?', 'nénettes?', 'drie gelijke', 'straten|straat', 'rondes?|ronden', 'fiches?', 'afleggen', 'trekken'],
+};
+const FR_SOURCES = TERMS.map((t) => t.re.source);
+const sources = () => { const l = getLang(); return l === 'fr' ? FR_SOURCES : FOREIGN_RE[l]; };
+const anyRe = () => new RegExp(sources().join('|'), 'gi');
+const termOf = (word: string) => { const s = sources(); const i = s.findIndex((src) => new RegExp(`^(?:${src})$`, 'i').test(word)); return i < 0 ? null : TERMS[i]; };
 
 /**
  * Texte avec les mots techniques en couleur et touchables (la première fois seulement, pour ne pas
@@ -49,13 +58,13 @@ export function GlossText({ text, bold, plain }: { text: string; bold?: string; 
     src.split(/(«[^»]*»)/).forEach((chunk, ci) => {
       if (chunk.startsWith('«')) { out.push(chunk); return; }
       let last = 0;
-      for (const m of chunk.matchAll(ANY)) {
+      for (const m of chunk.matchAll(anyRe())) {
         const t = termOf(m[0]);
         if (!t || seen.has(t.title)) continue;
         seen.add(t.title);
         if (m.index! > last) out.push(chunk.slice(last, m.index));
         out.push(
-          <button key={`${key}-${ci}-${m.index}`} type="button" className="cf-term" aria-label={`${m[0]} : explication`}
+          <button key={`${key}-${ci}-${m.index}`} type="button" className="cf-term" aria-label={tr('cf.gloss.explication', { a: m[0] })}
             onClick={(e) => { e.stopPropagation(); e.preventDefault(); setOpen(t); }}>{m[0]}</button>,
         );
         last = m.index! + m[0].length;
@@ -74,7 +83,7 @@ export function GlossText({ text, bold, plain }: { text: string; bold?: string; 
           <div className="cf-term-box" onClick={(e) => e.stopPropagation()}>
             <b>{open.title}</b>
             <p>{open.text}</p>
-            <button type="button" className="cf-btn gold" onClick={() => setOpen(null)}>Compris</button>
+            <button type="button" className="cf-btn gold" onClick={() => setOpen(null)}>{tr('cf.boardparts.compris')}</button>
           </div>
         </div>,
         document.body,

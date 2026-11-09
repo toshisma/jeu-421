@@ -1,3 +1,4 @@
+import { tr } from '../i18n/lang';
 /**
  * Coups Fourrés : fonctions pures du plateau de partie (aucun DOM ; testées dans tests/cf-board.test.ts).
  *
@@ -8,19 +9,20 @@
  * - planEvents : la file des annonces (une par une, au centre) à partir des événements du moteur.
  * - threatLine : ce que la carte adverse va vous faire (fenêtre de riposte).
  */
-import { CARDS, CARD_BY_ID, FAMILY_LABEL, type CardFamily, type CardType } from '../../../shared/cards/catalog';
+import { type CardFamily, type CardType } from '../../../shared/cards/catalog';
+import { CARDS, CARD_BY_ID, FAMILY_LABEL, cfText, comboLabel } from './i18n';
 import { ADDITION_MIN, ARDOISE_EXTRA, PLAT_TOURNEES, FERMETURE_TOURNEES, PEAU_MIN, TOURNEE_PATRON_GAIN, LEURRE_DRAW, LEURRE_TOURNEES, VESTE_MIN, commandeOf, echoSource, evalPlayer, maxTrapsOn, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView } from '../../../shared/cards/engine';
 import { comboOf, comboWith, costNow, isTurnOf, meOf, nameIn, playOptions, playerOf, playsAfter, plural } from './describe';
 import { FAMILY_SHORT } from './meta';
 import { TYPE_META } from './cardTypes';
 
 const def = (id: string | null | undefined) => (id ? CARD_BY_ID[id] : undefined);
-export const cardName = (id: string | null | undefined) => def(id)?.name ?? 'une carte';
+export const cardName = (id: string | null | undefined) => def(id)?.name ?? tr('cf.board.une_carte');
 
 /** « 421 » → « 4-2-1 », « 6-1-1 (deux as) » → « 6-1-1 ». */
 export function shortCombo(label: string): string {
   if (label === '421') return '4-2-1';
-  return label.replace(/ \(deux as\)$/, '');
+  return comboLabel(label).replace(/ \((deux as|two aces|zwei Asse|twee azen)\)$/, '');
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -52,64 +54,64 @@ function playableLabel(v: CfView, legal: CfAction[], uid: string, id: string): s
   const opts = playOptions(legal, uid);
   const d = def(id)!;
   switch (id) {
-    case 'tete-tourne': return bestDice(v, p, opts, (o) => 7 - p.r.dice[o.die!]) ?? 'Retourner un dé';
-    case 'coup-pouce': case 'recompter': return bestDice(v, p, opts, (o) => p.r.dice[o.die!] + (o.delta ?? 0)) ?? '±1 à un dé';
-    case 'bon-numero': { const b = bestDice(v, p, opts, (o) => o.face!); return b ? `→ ${b.split(' : ')[1]}` : 'Choisir une face'; }
-    case 'fouine': return opts.some((o) => o.trap) ? 'Défausser son piège' : 'Piocher 1 carte';
-    case 'tournee-patron': return `+${TOURNEE_PATRON_GAIN} Tournées`;
-    case 'cul-sec': return '+1 lancer, 1 carte';
-    case 'coup-coude': return 'Piocher 1 carte';
-    case 'mise-bouche': return '1 carte, suivante −2';
-    case 'calcul-mental': return 'Garder 1 sur 3';
-    case 'pari-comptoir': return 'Pari ±2 jetons';
-    case 'double-tournee': return 'Gain doublé';
-    case 'de-sous-table': return opts.length && opts.every((o) => o.target === p.id) ? 'Relancer votre dé' : 'Relancer son dé';
-    case 'tournee-generale': return 'Tout relancer';
-    case 'domino': { const o = v.players.find((x) => x.id === opts[0]?.target); const n = o ? o.tournees : 0; return `Lui ôter ${plural(n, 'Tournée')}`; }
-    case 'fermeture': return v.players.some((o) => o.id !== p.id && o.habitues.length) ? 'Chasser un Habitué' : `+${FERMETURE_TOURNEES} Tournées`;
-    case 'grand-enchainement': return p.r.lastCoup ? 'Rejouer le Coup' : 'Piocher 2 cartes';
-    case 'note-salee': return '+2 jetons donnés';
-    case 'ticket-caisse': case 'reaction-chaine': case 'pot-aux-roses': return 'Annuler sa carte';
-    case 'pourboire': return p.tokens <= 1 ? 'Dernier jeton : gagné !' : '1 jeton donné, 1 carte';
-    case 'coup-etrier': return 'Relancer un de vos dés';
-    case 'yeux-piquent': return 'Annuler son coup de dés';
-    case 'efface-tout': return 'Ne recevoir qu’un jeton';
-    case 'trinquer': return 'Échanger un dé';
+    case 'tete-tourne': return bestDice(v, p, opts, (o) => 7 - p.r.dice[o.die!]) ?? tr('cf.board.retourner_un_de');
+    case 'coup-pouce': case 'recompter': return bestDice(v, p, opts, (o) => p.r.dice[o.die!] + (o.delta ?? 0)) ?? tr('cf.board.1_a_un_de');
+    case 'bon-numero': { const b = bestDice(v, p, opts, (o) => o.face!); return b ? `→ ${b.split(' : ')[1]}` : tr('cf.board.choisir_une_face'); }
+    case 'fouine': return opts.some((o) => o.trap) ? tr('cf.board.defausser_son_piege') : tr('cf.board.piocher_1_carte');
+    case 'tournee-patron': return tr('cf.board.tournees', { TOURNEE_PATRON_GAIN: TOURNEE_PATRON_GAIN });
+    case 'cul-sec': return tr('cf.board.1_lancer_1_carte');
+    case 'coup-coude': return tr('cf.board.piocher_1_carte');
+    case 'mise-bouche': return tr('cf.board.1_carte_suivante_2');
+    case 'calcul-mental': return tr('cf.board.garder_1_sur_3');
+    case 'pari-comptoir': return tr('cf.board.pari_2_jetons');
+    case 'double-tournee': return tr('cf.board.gain_double');
+    case 'de-sous-table': return opts.length && opts.every((o) => o.target === p.id) ? tr('cf.board.relancer_votre_de') : tr('cf.board.relancer_son_de');
+    case 'tournee-generale': return tr('cf.board.tout_relancer');
+    case 'domino': { const o = v.players.find((x) => x.id === opts[0]?.target); const n = o ? o.tournees : 0; return tr('cf.board.lui_oter', { tournees: plural(n, 'Tournée') }); }
+    case 'fermeture': return v.players.some((o) => o.id !== p.id && o.habitues.length) ? tr('cf.board.chasser_un_habitue') : tr('cf.board.tournees_2', { FERMETURE_TOURNEES: FERMETURE_TOURNEES });
+    case 'grand-enchainement': return p.r.lastCoup ? tr('cf.board.rejouer_le_coup') : tr('cf.board.piocher_2_cartes');
+    case 'note-salee': return tr('cf.board.2_jetons_donnes');
+    case 'ticket-caisse': case 'reaction-chaine': case 'pot-aux-roses': return tr('cf.board.annuler_sa_carte');
+    case 'pourboire': return p.tokens <= 1 ? tr('cf.board.dernier_jeton_gagne') : tr('cf.board.1_jeton_donne_1_carte');
+    case 'coup-etrier': return tr('cf.board.relancer_un_de_vos_des');
+    case 'yeux-piquent': return tr('cf.board.annuler_son_coup_de_des');
+    case 'efface-tout': return tr('cf.board.ne_recevoir_qu_un_jeton');
+    case 'trinquer': return tr('cf.board.echanger_un_de');
     case 'verre-offert': {
       const o = v.players.find((x) => x.id === opts[0]?.target);
-      return o && !o.r.done && v.order.indexOf(o.id) > v.order.indexOf(p.id) ? 'Un lancer pour lui' : 'Un lancer, manche suivante';
+      return o && !o.r.done && v.order.indexOf(o.id) > v.order.indexOf(p.id) ? tr('cf.board.un_lancer_pour_lui') : tr('cf.board.un_lancer_manche_suivante');
     }
-    case 'vide-poches': return 'Lui prendre 1 Tournée';
+    case 'vide-poches': return tr('cf.board.lui_prendre_1_tournee');
     case 'tant-qu-on-y-est': return `+${plural(Math.min(v.rules.tourneesMax - p.tournees + costNow(v, id), p.r.played + 2), 'Tournée')}`;
-    case 'petite-soeur': return 'Reprendre un Coup';
+    case 'petite-soeur': return tr('cf.board.reprendre_un_coup');
     // 0.46
-    case 'cafe-serre': return p.habitues.length ? '1 carte, +1 Tournée' : 'Piocher 1 carte';
-    case 'plat-du-jour': return `+${PLAT_TOURNEES} Tournées ensuite`;
-    case 'boule-de-neige': return `Piocher ${plural(Math.min(3, p.r.played), 'carte')}`;
-    case 'effet-papillon': return '1 carte, suivantes −1';
-    case 'addition': return `Au moins ${ADDITION_MIN} si gagné`;
-    case 'sante': return '+1 jeton au gagnant';
+    case 'cafe-serre': return p.habitues.length ? tr('cf.board.1_carte_1_tournee') : tr('cf.board.piocher_1_carte');
+    case 'plat-du-jour': return tr('cf.board.tournees_ensuite', { PLAT_TOURNEES: PLAT_TOURNEES });
+    case 'boule-de-neige': return tr('cf.board.piocher', { cartes: plural(Math.min(3, p.r.played), 'carte') });
+    case 'effet-papillon': return tr('cf.board.1_carte_suivantes_1');
+    case 'addition': return tr('cf.board.au_moins_si_gagne', { ADDITION_MIN: ADDITION_MIN });
+    case 'sante': return tr('cf.board.1_jeton_au_gagnant');
     case 'compte-rond': return `+${plural(Math.min(3, p.r.played), 'Tournée')}`;
-    case 'petit-dernier': return 'Relancer un dé';
-    case 'calva': return bestDice(v, p, opts, (o) => 7 - p.r.dice[o.die!]) ?? 'Retourner un dé';
-    case 'miroir': return bestDice(v, p, opts, (o) => o.face!) ?? 'Copier un dé';
-    case 'derniere-maille': { const b = bestDice(v, p, opts, (o) => o.face!); return b ? `→ ${b.split(' : ')[1]}` : 'Choisir une face'; }
-    case 'ricochet': return bestDice(v, p, opts, (o) => p.r.dice[o.die!] + (o.delta ?? 0)) ?? '±1 à un dé';
-    case 'fee-verte': return 'Viser une face';
-    case 'verres-echanges': return 'Échanger vos dés';
-    case 'debauchage': return opts.some((o) => o.habitue) ? 'Débaucher un Habitué' : 'Piocher 2 cartes';
-    case 'retrouvailles': return 'Rappeler un Habitué';
-    case 'boucle': return 'Reprendre 2 cartes';
-    case 'passe-passe': return 'Reprendre un piège, +1 Tournée';
-    case 'denonciation': return 'Défausser son piège';
-    case 'embuscade': return 'Poser vos pièges';
-    case 'echo': { const src = echoSource(v, p.id); return src ? `Rejouer ${cardName(src).split(' ')[0]}` : 'Rejouer'; }
-    case 'table-reservee': case 'retour-envoyeur': case 'flagrant-delit': return 'Annuler sa carte';
-    case 'a-la-votre': return 'Annuler sa Riposte';
+    case 'petit-dernier': return tr('cf.board.relancer_un_de');
+    case 'calva': return bestDice(v, p, opts, (o) => 7 - p.r.dice[o.die!]) ?? tr('cf.board.retourner_un_de');
+    case 'miroir': return bestDice(v, p, opts, (o) => o.face!) ?? tr('cf.board.copier_un_de');
+    case 'derniere-maille': { const b = bestDice(v, p, opts, (o) => o.face!); return b ? `→ ${b.split(' : ')[1]}` : tr('cf.board.choisir_une_face'); }
+    case 'ricochet': return bestDice(v, p, opts, (o) => p.r.dice[o.die!] + (o.delta ?? 0)) ?? tr('cf.board.1_a_un_de');
+    case 'fee-verte': return tr('cf.board.viser_une_face');
+    case 'verres-echanges': return tr('cf.board.echanger_vos_des');
+    case 'debauchage': return opts.some((o) => o.habitue) ? tr('cf.board.debaucher_un_habitue') : tr('cf.board.piocher_2_cartes');
+    case 'retrouvailles': return tr('cf.board.rappeler_un_habitue');
+    case 'boucle': return tr('cf.board.reprendre_2_cartes');
+    case 'passe-passe': return tr('cf.board.reprendre_un_piege_1_tournee');
+    case 'denonciation': return tr('cf.board.defausser_son_piege');
+    case 'embuscade': return tr('cf.board.poser_vos_pieges');
+    case 'echo': { const src = echoSource(v, p.id); return src ? tr('cf.board.rejouer', { a: cardName(src).split(' ')[0] }) : tr('cf.boardparts.rejouer'); }
+    case 'table-reservee': case 'retour-envoyeur': case 'flagrant-delit': return tr('cf.board.annuler_sa_carte');
+    case 'a-la-votre': return tr('cf.board.annuler_sa_riposte');
   }
-  if (d.type === 'piege') return 'Poser face cachée';
-  if (d.type === 'habitue') return 'Installer';
-  return 'Jouable';
+  if (d.type === 'piege') return tr('cf.boardparts.poser_face_cachee');
+  if (d.type === 'habitue') return tr('cf.boardparts.installer');
+  return tr('cf.boardparts.jouable');
 }
 
 /** Ce que dit l'étiquette d'une carte en main : jouable (raison) ou pas (moment / ce qui manque). */
@@ -117,56 +119,56 @@ export function cardHint(v: CfView, legal: CfAction[], k: { uid: string; id: str
   const d = def(k.id);
   const type: CardType = d?.type ?? 'coup';
   if (!d) return { playable: false, label: '?', tone: 'wait', type };
-  if (discard) return { playable: true, label: 'Défausser', tone: 'ok', type };
+  if (discard) return { playable: true, label: tr('cf.boardparts.defausser'), tone: 'ok', type };
   if (playOptions(legal, k.uid).length) return { playable: true, label: playableLabel(v, legal, k.uid, k.id), tone: 'ok', type };
   const p = meOf(v);
   const cost = costNow(v, k.id);
   const short = cost > p.tournees ? { playable: false, label: plural(cost, 'Tournée'), tone: 'cost' as const, type } : null;
   const moment = (label: string) => ({ playable: false, label, tone: 'moment' as const, type });
   const wait = (label: string) => ({ playable: false, label, tone: 'wait' as const, type });
-  if (v.phase === 'mulligan') return wait('Main de départ');
-  if (v.phase === 'over') return wait('Partie finie');
+  if (v.phase === 'mulligan') return wait(tr('cf.boardparts.main_de_depart'));
+  if (v.phase === 'over') return wait(tr('cf.board.partie_finie'));
   if (d.type === 'riposte') {
-    if (v.decision === 'respond' && v.waiting.includes(p.id)) return short ?? wait('Pas contre ça');
-    return moment('Tour adverse');
+    if (v.decision === 'respond' && v.waiting.includes(p.id)) return short ?? wait(tr('cf.board.pas_contre_ca'));
+    return moment(tr('cf.board.tour_adverse'));
   }
   if (d.type === 'dernier-mot') {
-    if (v.phase !== 'lastword') return moment('Dernier mot');
+    if (v.phase !== 'lastword') return moment(tr('cf.boardparts.dernier_mot'));
     if (short) return short;
-    if ((k.id === 'recompter' || k.id === 'compte-rond') && p.r.played < 1) return wait('1 carte jouée');
-    if (k.id === 'derniere-maille' && p.r.played < 2) return wait('2 cartes jouées');
-    if (k.id === 'denonciation') return wait('Aucun piège');
-    return wait('Attendez');
+    if ((k.id === 'recompter' || k.id === 'compte-rond') && p.r.played < 1) return wait(tr('cf.board.1_carte_jouee'));
+    if (k.id === 'derniere-maille' && p.r.played < 2) return wait(tr('cf.board.2_cartes_jouees'));
+    if (k.id === 'denonciation') return wait(tr('cf.board.aucun_piege'));
+    return wait(tr('cf.board.attendez'));
   }
-  if (v.phase === 'lastword' || v.phase === 'discard') return moment('Votre tour');
-  if (!isTurnOf(v, p.id)) return moment('Votre tour');
-  if (v.decision !== 'turn') return wait('Patientez');
+  if (v.phase === 'lastword' || v.phase === 'discard') return moment(tr('cf.board.votre_tour'));
+  if (!isTurnOf(v, p.id)) return moment(tr('cf.board.votre_tour'));
+  if (v.decision !== 'turn') return wait(tr('cf.board.patientez'));
   if (short) return short;
   // Partie guidée : une seule action permise à la fois, les autres cartes attendent.
-  if (tuto) return wait('Plus tard');
-  if (d.type === 'habitue' && p.habitues.some((h) => h.id === k.id)) return wait('Déjà en jeu');
-  if (d.type === 'habitue' && p.habitues.length >= v.rules.maxHabitues) return wait(`${v.rules.maxHabitues} Habitués max`);
-  if (p.r.locked) return wait('Bloqué ce tour');
-  if (d.type === 'piege' && v.traps.filter((t) => t.owner === p.id).length >= v.rules.maxTraps) return wait(`${v.rules.maxTraps} pièges max`);
-  if (d.type === 'piege') return wait(`${maxTrapsOn(v)} pièges devant lui`);
+  if (tuto) return wait(tr('cf.challengebanner.plus_tard'));
+  if (d.type === 'habitue' && p.habitues.some((h) => h.id === k.id)) return wait(tr('cf.board.deja_en_jeu'));
+  if (d.type === 'habitue' && p.habitues.length >= v.rules.maxHabitues) return wait(tr('cf.board.habitues_max', { maxHabitues: v.rules.maxHabitues }));
+  if (p.r.locked) return wait(tr('cf.board.bloque_ce_tour'));
+  if (d.type === 'piege' && v.traps.filter((t) => t.owner === p.id).length >= v.rules.maxTraps) return wait(tr('cf.board.pieges_max', { maxTraps: v.rules.maxTraps }));
+  if (d.type === 'piege') return wait(tr('cf.board.pieges_devant_lui', { a: maxTrapsOn(v) }));
   const second = playsAfter(v, p.id);
   switch (k.id) {
-    case 'tete-tourne': case 'coup-pouce': case 'bon-numero': return wait('Après un lancer');
-    case 'de-sous-table': case 'tournee-generale': return wait('Après un lancer');
-    case 'fermeture': return wait('Protégés par le Patron');
-    case 'grand-enchainement': return wait('Après un Coup');
-    case 'petite-soeur': case 'boucle': return wait('Aucun Coup défaussé');
-    case 'petit-dernier': case 'miroir': case 'fee-verte': return wait('Après un lancer');
-    case 'ricochet': return wait(p.r.played < 1 ? 'Après une carte' : 'Après un lancer');
-    case 'verres-echanges': return wait(second ? 'Après un lancer' : 'En second');
-    case 'debauchage': return wait('Aucun Habitué');
-    case 'retrouvailles': return wait('Aucun Habitué défaussé');
-    case 'passe-passe': return wait('Aucun piège posé');
-    case 'embuscade': return wait('Aucun piège en main');
-    case 'echo': return wait('Après son Coup');
-    case 'vide-poches': return wait('Ni Tournée ni carte à lui prendre');
+    case 'tete-tourne': case 'coup-pouce': case 'bon-numero': return wait(tr('cf.board.apres_un_lancer'));
+    case 'de-sous-table': case 'tournee-generale': return wait(tr('cf.board.apres_un_lancer'));
+    case 'fermeture': return wait(tr('cf.board.proteges_par_le_patron'));
+    case 'grand-enchainement': return wait(tr('cf.board.apres_un_coup'));
+    case 'petite-soeur': case 'boucle': return wait(tr('cf.board.aucun_coup_defausse'));
+    case 'petit-dernier': case 'miroir': case 'fee-verte': return wait(tr('cf.board.apres_un_lancer'));
+    case 'ricochet': return wait(p.r.played < 1 ? tr('cf.board.apres_une_carte') : tr('cf.board.apres_un_lancer'));
+    case 'verres-echanges': return wait(second ? tr('cf.board.apres_un_lancer') : tr('cf.board.en_second'));
+    case 'debauchage': return wait(tr('cf.board.aucun_habitue'));
+    case 'retrouvailles': return wait(tr('cf.board.aucun_habitue_defausse'));
+    case 'passe-passe': return wait(tr('cf.board.aucun_piege_pose'));
+    case 'embuscade': return wait(tr('cf.board.aucun_piege_en_main'));
+    case 'echo': return wait(tr('cf.board.apres_son_coup'));
+    case 'vide-poches': return wait(tr('cf.board.ni_tournee_ni_carte_a_lui'));
   }
-  return wait('Pas maintenant');
+  return wait(tr('cf.board.pas_maintenant'));
 }
 
 /** Étiquettes de toute la main et nombre de cartes jouables maintenant. */
@@ -199,61 +201,61 @@ export function toBeat(v: CfView): { label: string; who: string } | null {
 
 /** « Bébert : 4-2-1 en 2 lancers » (bandeau pendant et après le tour adverse). */
 export function rollLine(name: string, label: string, throws: number): string {
-  return `${name} : ${shortCombo(label)} en ${plural(throws, 'lancer')}`;
+  return tr('cf.board.en', { name: name, a: shortCombo(label), lancers: plural(throws, 'lancer') });
 }
 
 export function decisionBanner(v: CfView, legal: CfAction[], spectator = false): Banner {
   const mine = !spectator && legal.length > 0;
   const who = nameIn(v, v.waiting[0]);
   const wait = (text: string): Banner => ({ mine: false, title: '', text, tone: 'wait' });
-  if (v.phase === 'over') return wait('Partie terminée');
+  if (v.phase === 'over') return wait(tr('cf.game.partie_terminee'));
   // C'est à moi, mais l'écran finit d'animer : jamais « Vous réfléchit… ».
-  if (!mine && !spectator && v.waiting.includes(v.you)) return wait('À vous dans un instant…');
+  if (!mine && !spectator && v.waiting.includes(v.you)) return wait(tr('cf.board.a_vous_dans_un_instant'));
   switch (v.decision) {
     case 'mulligan':
-      return mine ? { mine, title: 'Votre main', text: `Choisissez jusqu’à ${plural(v.rules.mulligan, 'carte')} à changer`, tone: 'gold' } : wait(`${who} choisit sa main… attendez`);
+      return mine ? { mine, title: tr('cf.board.votre_main'), text: tr('cf.board.choisissez_jusqu_a_a_changer', { cartes: plural(v.rules.mulligan, 'carte') }), tone: 'gold' } : wait(tr('cf.board.choisit_sa_main_attendez', { who: who }));
     case 'turn': {
       if (!mine) {
-        if (!spectator && v.waiting[0] === v.you) return wait('À vous dans un instant…');
+        if (!spectator && v.waiting[0] === v.you) return wait(tr('cf.board.a_vous_dans_un_instant'));
         // Ce que l'adversaire a sur le tapis (les dés affichés) : même phrase qu'à la fin de son lancer.
         const tp = playerOf(v, v.waiting[0]);
         const c = tp && tp.r.throwsUsed > 0 ? comboOf(v, tp) : null;
-        return wait(tp && c ? rollLine(tp.name, c.label, tp.r.throwsUsed) : `${who} joue…`);
+        return wait(tp && c ? rollLine(tp.name, c.label, tp.r.throwsUsed) : tr('cf.board.joue', { who: who }));
       }
       const p = meOf(v);
       const lim = p.throwLimit ?? v.rules.maxThrows;
       const beat = toBeat(v);
-      const lead = beat ? `Battez ${beat.label}` : v.order[0] === p.id ? 'Vous menez' : 'À vous de lancer';
-      if (p.r.throwsUsed === 0) return { mine, title: 'À vous !', text: `${lead} · ${plural(lim, 'lancer')} au plus`, tone: 'gold' };
+      const lead = beat ? tr('cf.board.battez', { label: beat.label }) : v.order[0] === p.id ? tr('cf.board.vous_menez') : tr('cf.board.a_vous_de_lancer');
+      if (p.r.throwsUsed === 0) return { mine, title: tr('cf.board.a_vous'), text: tr('cf.board.au_plus', { lead: lead, lancers: plural(lim, 'lancer') }), tone: 'gold' };
       const left = lim - p.r.throwsUsed;
       const c = comboOf(v, p);
-      const have = c ? `Vous avez ${shortCombo(c.label)} · ` : '';
+      const have = c ? tr('cf.board.vous_avez', { a: shortCombo(c.label) }) : '';
       // Déjà devant (ou à égalité) : on ne demande plus de « battre » une combinaison déjà battue.
       const myRank = evalPlayer({ values: v.values }, p).rank;
       const bestRank = beat ? Math.max(...v.players.filter((o) => o.id !== p.id && !o.out && o.r.done && v.order.includes(o.id)).map((o) => evalPlayer({ values: v.values }, o).rank)) : -Infinity;
-      const lead2 = !have ? lead : beat && myRank > bestRank ? 'vous menez' : beat && myRank === bestRank ? `égalité avec ${beat.label}` : lead.replace(/^Battez/, 'battez').replace(/^Vous menez/, 'vous menez').replace(/^À vous de lancer$/, '');
+      const lead2 = !have ? lead : beat && myRank > bestRank ? tr('cf.board.vous_menez_2') : beat && myRank === bestRank ? tr('cf.board.egalite_avec', { label: beat.label }) : lead.replace(/^Battez/, 'battez').replace(/^Vous menez/, tr('cf.board.vous_menez_2')).replace(/^À vous de lancer$/, '');
       const head = `${have}${lead2}`.replace(/ · $/, '');
-      return { mine, title: 'À vous !', text: left > 0 ? `${head} · encore ${plural(left, 'lancer')} sur ${lim}` : `${head} · plus de lancer : une carte, ou arrêtez-vous`, tone: 'gold' };
+      return { mine, title: tr('cf.board.a_vous'), text: left > 0 ? tr('cf.board.encore_sur', { head: head, lancers: plural(left, 'lancer'), lim: lim }) : tr('cf.board.plus_de_lancer_une_carte_ou', { head: head }), tone: 'gold' };
     }
     case 'respond': {
       const top = v.stack[v.stack.length - 1];
-      return mine ? { mine, title: 'Riposte ?', text: `Répondez à ${top ? nameIn(v, top.owner) : 'l’adversaire'}`, tone: 'riposte' } : wait(`${who} peut répondre…`);
+      return mine ? { mine, title: tr('cf.board.riposte'), text: tr('cf.board.repondez_a', { a: top ? nameIn(v, top.owner) : tr('cf.board.l_adversaire') }), tone: 'riposte' } : wait(tr('cf.board.peut_repondre', { who: who }));
     }
     case 'choice':
-      return mine ? { mine, title: 'À vous', text: 'Faites votre choix', tone: 'gold' } : wait(`${who} choisit…`);
+      return mine ? { mine, title: tr('cf.board.a_vous_2'), text: tr('cf.board.faites_votre_choix'), tone: 'gold' } : wait(tr('cf.board.choisit', { who: who }));
     case 'lastword': {
-      if (!mine) return wait(`Dernier mot : ${who} réfléchit…`);
+      if (!mine) return wait(tr('cf.board.dernier_mot_reflechit', { who: who }));
       const me = meOf(v);
       const c = comboOf(v, me);
       const beat = toBeat(v);
       const meE = evalPlayer({ values: v.values }, me);
       const best = Math.max(...v.players.filter((p) => p.id !== me.id && v.order.includes(p.id)).map((p) => evalPlayer({ values: v.values }, p).rank));
-      const state = c && beat ? (meE.rank > best ? `vous gagnez avec ${shortCombo(c.label)}` : meE.rank < best ? `vous perdez ${shortCombo(c.label)} contre ${beat.label}` : `égalité à ${shortCombo(c.label)}`) : '';
-      return { mine, title: 'Dernier mot', text: `${state ? `${state} · ` : ''}jouez une carte ou passez`, tone: 'lastword' };
+      const state = c && beat ? (meE.rank > best ? tr('cf.board.vous_gagnez_avec', { a: shortCombo(c.label) }) : meE.rank < best ? tr('cf.board.vous_perdez_contre', { a: shortCombo(c.label), label: beat.label }) : tr('cf.board.egalite_a', { a: shortCombo(c.label) })) : '';
+      return { mine, title: tr('cf.boardparts.dernier_mot'), text: tr('cf.board.jouez_une_carte_ou_passez', { a: state ? `${state} · ` : '' }), tone: 'lastword' };
     }
     case 'discard': {
       const n = (meOf(v).hand?.length ?? 0) - v.rules.handMax;
-      return mine ? { mine, title: 'Main pleine', text: `Défaussez jusqu’à ${v.rules.handMax} cartes (encore ${n})`, tone: 'violet' } : wait(`${who} défausse…`);
+      return mine ? { mine, title: tr('cf.board.main_pleine'), text: tr('cf.board.defaussez_jusqu_a_cartes_encore', { handMax: v.rules.handMax, n: n }), tone: 'violet' } : wait(tr('cf.board.defausse', { who: who }));
     }
   }
   return wait('');
@@ -270,10 +272,10 @@ const firstName = (n: string) => { const w = n.split(/\s+/)[0] ?? n; return w.le
 export function friseSteps(v: CfView, me: string | null, stage?: 'comptes' | null): FriseStep[] {
   const order = v.order.length ? v.order : v.players.filter((p) => !p.out).map((p) => p.id);
   const keys: { key: string; label: string }[] = [
-    { key: 'service', label: 'Service' },
-    ...order.map((id) => ({ key: id, label: id === me ? 'Vous' : firstName(nameIn(v, id)) })),
-    { key: 'lastword', label: 'Dernier mot' },
-    { key: 'comptes', label: 'Comptes' },
+    { key: 'service', label: tr('cf.info.service') },
+    ...order.map((id) => ({ key: id, label: id === me ? tr('cf.boardparts.vous') : firstName(nameIn(v, id)) })),
+    { key: 'lastword', label: tr('cf.boardparts.dernier_mot') },
+    { key: 'comptes', label: tr('cf.boardparts.comptes') },
   ];
   let on: number;
   if (stage === 'comptes' || v.phase === 'discard') on = keys.length - 1;
@@ -297,51 +299,51 @@ export function familiesLabel(families: CardFamily[]): string {
 
 /** Quand un piège se déclenche (pour la victime, 2e personne). */
 export const TRAP_WHEN: Record<string, string> = {
-  'gueule-bois': 'quand vous perdez une manche : un seul lancer à la suivante',
-  leurre: 'jamais : il ne fait rien (son poseur gagne 1 Tournée et pioche s’il est découvert)',
-  'verre-de-trop': 'quand vous faites un 2e lancer dans votre tour : vous recevez 1 jeton',
-  'courant-air': 'quand vous installez un Habitué ou jouez une Riposte : la carte est défaussée sans effet',
-  engrenage: 'quand vous jouez votre 2e carte de la manche : elle est annulée',
-  'croche-patte': 'quand vous finissez votre tour : un de vos dés est relancé au hasard',
-  'main-sac': 'quand vous jouez un Coup qui coûte 1 ou plus : ce Coup est annulé',
-  'ardoise-piegee': `quand vous jouez un Coup : ${ARDOISE_EXTRA} Tournées de plus, sinon le Coup est annulé`,
-  'faux-421': 'quand vous finissez sur 4-2-1 : il ne vaut plus que 2',
-  'coup-nenette': 'quand vous devriez gagner avec une combinaison qui vaut 1 ou 2 : elle devient une nénette',
-  'retournement-veste': `quand vous devriez lui donner ${VESTE_MIN} jetons ou plus : c’est lui qui les reçoit`,
-  mouchard: 'quand vous jouez un Coup : son poseur gagne 1 Tournée et pioche 2 cartes',
-  'pique-assiette': 'quand vous gagnez des Tournées grâce à une carte : c’est son poseur qui les gagne',
-  hoquet: 'quand vous relancez en gardant des dés : un des dés gardés est relancé aussi',
-  'der-des-ders': 'quand vous perdez une manche : vous recevez 1 jeton de plus',
-  'mot-de-trop': 'quand vous jouez un Dernier mot : il est annulé',
-  'peau-banane': `quand vous vous arrêtez sur une combinaison qui vaut ${PEAU_MIN} ou plus : un de vos dés est relancé au hasard`,
-  'attrape-nigaud': 'quand vous posez un piège devant son poseur : votre piège est défaussé',
-  'lot-consolation': 'quand vous gagnez une manche : son poseur gagne 1 Tournée et pioche 2 cartes',
-  souriciere: 'quand vous jouez votre 1re carte de la manche : plus aucune autre ensuite',
-  'noeud-coulant': 'quand vous jouez votre 2e carte de la manche : 1 jeton, et plus aucune autre carte',
+  get 'gueule-bois'() { return tr('cf.board.quand_vous_perdez_une_manche_un'); },
+  get leurre() { return tr('cf.board.jamais_il_ne_fait_rien_son'); },
+  get 'verre-de-trop'() { return tr('cf.board.quand_vous_faites_un_2e_lancer'); },
+  get 'courant-air'() { return tr('cf.board.quand_vous_installez_un_habitue_ou'); },
+  get engrenage() { return tr('cf.board.quand_vous_jouez_votre_2e_carte'); },
+  get 'croche-patte'() { return tr('cf.board.quand_vous_finissez_votre_tour_un'); },
+  get 'main-sac'() { return tr('cf.board.quand_vous_jouez_un_coup_qui'); },
+  get 'ardoise-piegee'() { return tr('cf.board.quand_vous_jouez_un_coup_tournees', { ARDOISE_EXTRA: ARDOISE_EXTRA }); },
+  get 'faux-421'() { return tr('cf.board.quand_vous_finissez_sur_4_2'); },
+  get 'coup-nenette'() { return tr('cf.board.quand_vous_devriez_gagner_avec_une'); },
+  get 'retournement-veste'() { return tr('cf.board.quand_vous_devriez_lui_donner_jetons', { VESTE_MIN: VESTE_MIN }); },
+  get mouchard() { return tr('cf.board.quand_vous_jouez_un_coup_son'); },
+  get 'pique-assiette'() { return tr('cf.board.quand_vous_gagnez_des_tournees_grace'); },
+  get hoquet() { return tr('cf.board.quand_vous_relancez_en_gardant_des'); },
+  get 'der-des-ders'() { return tr('cf.board.quand_vous_perdez_une_manche_vous'); },
+  get 'mot-de-trop'() { return tr('cf.board.quand_vous_jouez_un_dernier_mot'); },
+  get 'peau-banane'() { return tr('cf.board.quand_vous_vous_arretez_sur_une', { PEAU_MIN: PEAU_MIN }); },
+  get 'attrape-nigaud'() { return tr('cf.board.quand_vous_posez_un_piege_devant'); },
+  get 'lot-consolation'() { return tr('cf.board.quand_vous_gagnez_une_manche_son'); },
+  get souriciere() { return tr('cf.board.quand_vous_jouez_votre_1re_carte'); },
+  get 'noeud-coulant'() { return tr('cf.board.quand_vous_jouez_votre_2e_carte_2'); },
 };
 export const TRAP_TIP: Record<string, string> = {
-  'faux-421': 'Astuce : la « Fouine » défausse un piège avant que vous vous arrêtiez.',
-  'croche-patte': 'Astuce : la Fouine défausse le piège avant ; après coup, « Recompter » peut encore rattraper le dé relancé.',
-  'gueule-bois': 'Astuce : avec un seul lancer, les cartes qui changent un dé deviennent précieuses.',
-  'main-sac': 'Astuce : quand un piège traîne, commencez par un Coup gratuit (0 Tournée).',
-  'ardoise-piegee': 'Astuce : la Fouine défausse un piège avant que vous jouiez.',
-  'coup-nenette': 'Astuce : une petite combinaison qui vaut 1 est fragile quand un piège est posé.',
-  'retournement-veste': 'Astuce : méfiez-vous des gros gains quand un piège est posé devant vous.',
-  mouchard: 'Astuce : la Fouine défausse un piège avant que vous jouiez vos Coups.',
-  'verre-de-trop': 'Astuce : quand un piège est posé, un bon premier lancer vaut parfois mieux qu’une relance.',
-  'courant-air': 'Astuce : la Fouine défausse un piège avant que vous installiez un Habitué ou ripostiez.',
-  engrenage: 'Astuce : quand un piège est posé, jouez d’abord une carte bon marché pour le déclencher.',
-  'pique-assiette': 'Astuce : la Fouine défausse un piège avant que vous jouiez une carte qui rapporte des Tournées.',
-  hoquet: 'Astuce : quand un piège est posé, relancer les trois dés ne craint rien.',
-  'der-des-ders': 'Astuce : « On efface tout » ou le Pilier de comptoir limitent ce que vous recevez.',
-  'mot-de-trop': 'Astuce : jouez vos cartes pendant votre tour quand un piège traîne devant vous.',
-  'peau-banane': 'Astuce : la Fouine défausse un piège avant que vous vous arrêtiez sur une belle combinaison.',
-  'attrape-nigaud': 'Astuce : la Fouine ou la Dénonciation le retirent avant que vous posiez vos pièges.',
-  'lot-consolation': 'Astuce : gagner reste le but ; ce piège ne fait que consoler son poseur.',
-  souriciere: 'Astuce : quand un piège est posé, jouez d’abord votre meilleure carte.',
-  'noeud-coulant': 'Astuce : quand un piège est posé, choisissez bien votre seule carte de la manche.',
+  get 'faux-421'() { return tr('cf.board.astuce_la_fouine_defausse_un_piege'); },
+  get 'croche-patte'() { return tr('cf.board.astuce_la_fouine_defausse_le_piege'); },
+  get 'gueule-bois'() { return tr('cf.board.astuce_avec_un_seul_lancer_les'); },
+  get 'main-sac'() { return tr('cf.board.astuce_quand_un_piege_traine_commenc'); },
+  get 'ardoise-piegee'() { return tr('cf.board.astuce_la_fouine_defausse_un_piege_2'); },
+  get 'coup-nenette'() { return tr('cf.board.astuce_une_petite_combinaison_qui_va'); },
+  get 'retournement-veste'() { return tr('cf.board.astuce_mefiez_vous_des_gros_gains'); },
+  get mouchard() { return tr('cf.board.astuce_la_fouine_defausse_un_piege_3'); },
+  get 'verre-de-trop'() { return tr('cf.board.astuce_quand_un_piege_est_pose'); },
+  get 'courant-air'() { return tr('cf.board.astuce_la_fouine_defausse_un_piege_4'); },
+  get engrenage() { return tr('cf.board.astuce_quand_un_piege_est_pose_2'); },
+  get 'pique-assiette'() { return tr('cf.board.astuce_la_fouine_defausse_un_piege_5'); },
+  get hoquet() { return tr('cf.board.astuce_quand_un_piege_est_pose_3'); },
+  get 'der-des-ders'() { return tr('cf.board.astuce_on_efface_tout_ou_le'); },
+  get 'mot-de-trop'() { return tr('cf.board.astuce_jouez_vos_cartes_pendant_votr'); },
+  get 'peau-banane'() { return tr('cf.board.astuce_la_fouine_defausse_un_piege_6'); },
+  get 'attrape-nigaud'() { return tr('cf.board.astuce_la_fouine_ou_la_denonciation'); },
+  get 'lot-consolation'() { return tr('cf.board.astuce_gagner_reste_le_but_ce'); },
+  get souriciere() { return tr('cf.board.astuce_quand_un_piege_est_pose_4'); },
+  get 'noeud-coulant'() { return tr('cf.board.astuce_quand_un_piege_est_pose_5'); },
 };
-const TIP_DEFAULT = 'Astuce : la Fouine défausse un piège adverse ; le Videur annule le premier piège de chaque manche.';
+const TIP_DEFAULT = tr('cf.board.astuce_la_fouine_defausse_un_piege_7');
 
 // ------------------------------------------------------------------------------------------------
 // Annonces
@@ -372,23 +374,23 @@ export interface Announce {
 
 /** La manche en bref, à partir des événements de la manche (ordre du journal). */
 export function roundRecap(events: CfEvent[], v: CfView, me: string): string[] {
-  const nm = (id: string) => (id === me ? 'Vous' : nameIn(v, id));
+  const nm = (id: string) => (id === me ? tr('cf.boardparts.vous') : nameIn(v, id));
   const played = new Map<string, string[]>();
   const traps: string[] = [];
   const cancels: string[] = [];
   for (const e of events) {
     if (!e.player) continue;
     if (e.kind === 'carte' && e.card) played.set(e.player, [...(played.get(e.player) ?? []), cardName(e.card)]);
-    else if (e.kind === 'pose') played.set(e.player, [...(played.get(e.player) ?? []), e.player === me && e.card ? `${cardName(e.card)} (piège)` : 'un piège']);
+    else if (e.kind === 'pose') played.set(e.player, [...(played.get(e.player) ?? []), e.player === me && e.card ? tr('cf.board.piege', { a: cardName(e.card) }) : tr('cf.board.un_piege')]);
     else if (e.kind === 'piege-revele' && e.card) traps.push(`${cardName(e.card)} (${nm(e.player)})`);
     else if (e.kind === 'annule' && e.card) cancels.push(cardName(e.card));
   }
   const out: string[] = [];
   const who = [...played].map(([id, cs]) => `${nm(id)} : ${cs.join(', ')}`);
-  if (who.length) out.push(`Cartes · ${who.join(' — ')}`);
-  else out.push('Aucune carte jouée cette manche');
-  if (traps.length) out.push(`Pièges déclenchés · ${traps.join(', ')}`);
-  if (cancels.length) out.push(`Annulés · ${cancels.join(', ')}`);
+  if (who.length) out.push(tr('cf.board.cartes', { a: who.join(' — ') }));
+  else out.push(tr('cf.board.aucune_carte_jouee_cette_manche'));
+  if (traps.length) out.push(tr('cf.board.pieges_declenches', { a: traps.join(', ') }));
+  if (cancels.length) out.push(tr('cf.board.annules', { a: cancels.join(', ') }));
   return out.slice(0, 3);
 }
 /**
@@ -434,10 +436,10 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
       case 'lancer': {
         const kept = (e.dice ?? []).filter((_, j) => e.kept?.[j]);
         if (mine) {
-          out.push({ kind: 'dice', ev: e, strip: strip(kept.length ? `Vous gardez ${kept.join('-')} et relancez ${plural(3 - kept.length, 'dé')}` : 'Vous lancez les dés', 'info', 0) });
+          out.push({ kind: 'dice', ev: e, strip: strip(kept.length ? tr('cf.board.vous_gardez_et_relancez', { a: kept.join('-'), des: plural(3 - kept.length, 'dé') }) : tr('cf.board.vous_lancez_les_des'), 'info', 0) });
           continue;
         }
-        const t = kept.length ? `${n} garde ${kept.join('-')} et relance ${plural(3 - kept.length, 'dé')}` : `${n} lance les dés`;
+        const t = kept.length ? tr('cf.board.garde_et_relance', { n: n, a: kept.join('-'), des: plural(3 - kept.length, 'dé') }) : tr('cf.board.lance_les_des', { n: n });
         const pl = playerOf(next, e.player!);
         const after = pl && e.dice ? strip(rollLine(n, comboWith(next, pl, e.dice).label, e.throwIndex ?? pl.r.throwsUsed), 'info', 900) : undefined;
         out.push({ kind: 'dice', ev: e, strip: strip(t, 'info', 0), after });
@@ -447,9 +449,9 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
         const pv = prev ? playerOf(prev, e.player!) : undefined;
         const c = e.dice ? shortCombo(comboWith(next, playerOf(next, e.player!)!, e.dice).label) : '';
         // Mon arrêt : réponse immédiate dans le bandeau (courte), puis l'adversaire enchaîne.
-        if (mine) { if (c) out.push({ kind: 'ann', ev: e, ann: strip(`Vous vous arrêtez sur ${c}`, 'info', 700) }); continue; }
+        if (mine) { if (c) out.push({ kind: 'ann', ev: e, ann: strip(tr('cf.board.vous_vous_arretez_sur', { c: c }), 'info', 700) }); continue; }
         const k = pv?.r.throwsUsed;
-        out.push({ kind: 'ann', ev: e, ann: strip(`${n} s’arrête sur ${c}${k ? ` (${plural(k, 'lancer')})` : ''}`, 'info', 1300) });
+        out.push({ kind: 'ann', ev: e, ann: strip(tr('cf.board.s_arrete_sur', { n: n, c: c, a: k ? ` (${plural(k, 'lancer')})` : '' }), 'info', 1300) });
         continue;
       }
       case 'pose': {
@@ -461,9 +463,9 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
         // Correctif 0.46 : « sur vous » (et non « sur Vous ») quand le piège vous vise.
         const on = e.target ? (e.target === me ? 'vous' : nameIn(next, e.target)) : null;
         out.push({ kind: 'ann', ev: e, ann: {
-          style: 'trap', tone: 'piege', kicker: 'Piège posé', card: null, ms: ANN_MS.trap, list,
-          title: next.players.length === 2 ? `${n} pose un piège face cachée` : on ? `${n} pose un piège sur ${on}` : noDot(e.text),
-          text: `${onMe && me ? 'Il se déclenchera tout seul si sa condition arrive pendant votre tour.' : 'Il se déclenchera tout seul quand sa condition arrivera.'}${list.length ? ` Avec un deck ${familiesLabel(fams.filter((f) => CARDS.some((c) => c.family === f && c.type === 'piege')))}, ça peut être : ${list.slice(0, 3).join(', ')}${list.length > 3 ? '…' : ''}` : ''}`,
+          style: 'trap', tone: 'piege', kicker: tr('cf.board.piege_pose'), card: null, ms: ANN_MS.trap, list,
+          title: next.players.length === 2 ? tr('cf.board.pose_un_piege_face_cachee', { n: n }) : on ? tr('cf.board.pose_un_piege_sur', { n: n, on: on }) : noDot(e.text),
+          text: `${onMe && me ? tr('cf.board.il_se_declenchera_tout_seul_si') : tr('cf.board.il_se_declenchera_tout_seul_quand')}${list.length ? tr('cf.board.avec_un_deck_ca_peut_etre', { a: familiesLabel(fams.filter((f) => CARDS.some((c) => c.family === f && c.type === 'piege'))), b: list.slice(0, 3).join(', '), c: list.length > 3 ? '…' : '' }) : ''}`,
         } });
         continue;
       }
@@ -477,10 +479,10 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
             skip.add(j);
             const victim = events[j];
             out.push({ kind: 'ann', ev: e, ann: {
-              style: 'reveal', tone: 'riposte', kicker: 'Riposte', card: e.card, ms: ANN_MS.reveal, block: true,
-              title: `${n} riposte avec ${cardName(e.card)} !`,
-              conseq: `Votre carte « ${cardName(victim.card)} » est annulée : elle ne fait rien.`,
-              hint: 'Les Tournées payées sont perdues. Astuce : gardez vous aussi une Riposte pour répondre à ses cartes.',
+              style: 'reveal', tone: 'riposte', kicker: tr('cf.learn.riposte'), card: e.card, ms: ANN_MS.reveal, block: true,
+              title: tr('cf.board.riposte_avec', { n: n, a: cardName(e.card) }),
+              conseq: tr('cf.board.votre_carte_est_annulee_elle_ne', { a: cardName(victim.card) }),
+              hint: tr('cf.board.les_tournees_payees_sont_perdues_ast'),
             } });
             continue;
           }
@@ -488,7 +490,7 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
         // Carte adverse : en grand au centre (illustration, nom, ce qu'elle fait), le temps de la lire.
         out.push({ kind: 'ann', ev: e, ann: {
           style: 'big', tone: t, card: e.card, ms: readMs(def(e.card)?.text, 2800, 4600, 1600, 18), from: e.player,
-          kicker: t === 'habitue' ? 'Habitué installé' : `${TYPE_META[t].label}`,
+          kicker: t === 'habitue' ? tr('cf.board.habitue_installe') : `${TYPE_META[t].label}`,
           title: noDot(e.text), text: def(e.card)?.text,
         } });
         continue;
@@ -507,7 +509,7 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
           conseq = nx.text; victim = nx.kind === 'piege' ? undefined : nx.player; skip.add(ci);
           // L'Engrenage : l'annulation qui suit est déjà dite dans la conséquence.
           if (nx.kind === 'engrenage' || nx.kind === 'courant-air' || nx.kind === 'mot-de-trop') { const j = events.findIndex((x, idx) => idx > ci && x.kind === 'annule' && x.card === nx.card); if (j > 0) skip.add(j); }
-          if (nx.dice && nx.rolled?.length) diceAfter = { kind: 'dice', ev: nx, strip: strip(noDot(nx.player === me ? nx.text.replace(/^Croche-patte : /, 'Croche-patte : ') : nx.text), 'piege', 1300) };
+          if (nx.dice && nx.rolled?.length) diceAfter = { kind: 'dice', ev: nx, strip: strip(noDot(nx.player === me ? nx.text.replace(/^Croche-patte : /, tr('cf.board.croche_patte')) : nx.text), 'piege', 1300) };
         }
         if (!victim) {
           const posed = prev?.traps.find((t) => t.owner === owner && (t.id === e.card || t.id === null));
@@ -516,14 +518,14 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
         if (me && victim === me && owner !== me) {
           out.push({ kind: 'ann', ev: e, ann: {
             style: 'reveal', tone: 'piege', card: e.card, ms: ANN_MS.reveal, block: true,
-            title: `Le piège de ${n} se déclenche !`,
-            conseq: conseq ?? `Il se déclenche ${TRAP_WHEN[e.card ?? ''] ?? 'quand sa condition arrive'}.`,
+            title: tr('cf.board.le_piege_de_se_declenche', { n: n }),
+            conseq: conseq ?? tr('cf.board.il_se_declenche', { a: TRAP_WHEN[e.card ?? ''] ?? tr('cf.board.quand_sa_condition_arrive') }),
             hint: TRAP_TIP[e.card ?? ''] ?? TIP_DEFAULT,
           } });
         } else {
           out.push({ kind: 'ann', ev: e, ann: {
-            style: 'big', tone: 'piege', card: e.card, ms: ANN_MS.big, kicker: owner === me ? 'Votre piège' : 'Piège révélé',
-            title: owner === me ? `Votre piège se déclenche : ${cardName(e.card)} !` : `Le piège de ${n} se déclenche !`,
+            style: 'big', tone: 'piege', card: e.card, ms: ANN_MS.big, kicker: owner === me ? tr('cf.board.votre_piege') : tr('cf.board.piege_revele'),
+            title: owner === me ? tr('cf.board.votre_piege_se_declenche', { a: cardName(e.card) }) : tr('cf.board.le_piege_de_se_declenche', { n: n }),
             text: conseq ?? def(e.card)?.text,
           } });
         }
@@ -533,44 +535,44 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
       case 'annule': {
         if (mine) {
           out.push({ kind: 'ann', ev: e, ann: {
-            style: 'reveal', tone: 'riposte', kicker: 'Annulée', card: e.card, ms: ANN_MS.reveal, block: true,
-            title: `« ${cardName(e.card)} » est annulée`, conseq: noDot(e.text) + '.', hint: 'Les Tournées payées sont perdues.',
+            style: 'reveal', tone: 'riposte', kicker: tr('cf.board.annulee'), card: e.card, ms: ANN_MS.reveal, block: true,
+            title: tr('cf.board.est_annulee', { a: cardName(e.card) }), conseq: noDot(e.text) + '.', hint: tr('cf.board.les_tournees_payees_sont_perdues'),
           } });
-        } else out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'riposte', kicker: 'Annulée', card: e.card, ms: 2200, title: noDot(e.text) } });
+        } else out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'riposte', kicker: tr('cf.board.annulee'), card: e.card, ms: 2200, title: noDot(e.text) } });
         continue;
       }
       case 'fouine': {
         if (next.choice && next.choice.kind === 'fouine' && next.choice.player === me) continue; // la fenêtre de choix la montre en grand
         out.push({ kind: 'ann', ev: e, ann: {
-          style: 'reveal', tone: 'piege', kicker: 'Fouine', card: e.card, ms: ANN_MS.reveal, block: !!me,
-          title: 'La Fouine vous montre le piège', conseq: `${cardName(e.card)} : il se déclenche ${TRAP_WHEN[e.card ?? ''] ?? 'quand sa condition arrive'}.`,
-          hint: 'Vous savez maintenant ce qui vous attend : jouez en conséquence.',
+          style: 'reveal', tone: 'piege', kicker: tr('cf.boardparts.fouine'), card: e.card, ms: ANN_MS.reveal, block: !!me,
+          title: tr('cf.board.la_fouine_vous_montre_le_piege'), conseq: tr('cf.board.il_se_declenche_2', { a: cardName(e.card), b: TRAP_WHEN[e.card ?? ''] ?? tr('cf.board.quand_sa_condition_arrive') }),
+          hint: tr('cf.board.vous_savez_maintenant_ce_qui_vous'),
         } });
         continue;
       }
       case 'fouine-public':
         if (mine) continue;
-        out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'coup', kicker: 'Fouine', card: 'fouine', ms: ANN_MS.big, title: noDot(e.text), text: 'Il connaît maintenant ce piège et peut payer 1 Tournée pour le défausser.' } });
+        out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'coup', kicker: tr('cf.boardparts.fouine'), card: 'fouine', ms: ANN_MS.big, title: noDot(e.text), text: tr('cf.board.il_connait_maintenant_ce_piege_et') } });
         continue;
       case 'fouine-defausse':
         // 0.40 : la Fouine défausse directement ; celui qui la joue découvre le piège (« Compris »).
         out.push({ kind: 'ann', ev: e, ann: mine ? {
-          style: 'reveal', tone: 'piege', kicker: 'Fouine', card: e.card, ms: ANN_MS.reveal, block: true,
-          title: 'La Fouine défausse le piège', conseq: `C’était ${cardName(e.card)} : il se serait déclenché ${TRAP_WHEN[e.card ?? ''] ?? 'quand sa condition arrivait'}.`,
-          hint: 'Un piège de moins devant vous.',
-        } : { style: 'big', tone: 'piege', kicker: 'Piège défaussé', card: e.card, ms: ANN_MS.big, title: noDot(e.text) } });
+          style: 'reveal', tone: 'piege', kicker: tr('cf.boardparts.fouine'), card: e.card, ms: ANN_MS.reveal, block: true,
+          title: tr('cf.board.la_fouine_defausse_le_piege'), conseq: tr('cf.board.c_etait_il_se_serait_declenche', { a: cardName(e.card), b: TRAP_WHEN[e.card ?? ''] ?? tr('cf.board.quand_sa_condition_arrivait') }),
+          hint: tr('cf.board.un_piege_de_moins_devant_vous'),
+        } : { style: 'big', tone: 'piege', kicker: tr('cf.board.piege_defausse'), card: e.card, ms: ANN_MS.big, title: noDot(e.text) } });
         continue;
       case 'leurre':
-        out.push({ kind: 'ann', ev: e, ann: mine ? strip(e.text, 'piege') : { style: 'big', tone: 'piege', kicker: 'Leurre', card: 'leurre', ms: ANN_MS.big, title: 'C’était un Leurre !', text: `Il ne fait rien… et ${n} gagne ${plural(LEURRE_TOURNEES, 'Tournée')} et pioche ${plural(LEURRE_DRAW, 'carte')}.` } });
+        out.push({ kind: 'ann', ev: e, ann: mine ? strip(e.text, 'piege') : { style: 'big', tone: 'piege', kicker: tr('cf.board.leurre'), card: 'leurre', ms: ANN_MS.big, title: tr('cf.board.c_etait_un_leurre'), text: tr('cf.board.il_ne_fait_rien_et_gagne', { n: n, tournees: plural(LEURRE_TOURNEES, 'Tournée'), cartes: plural(LEURRE_DRAW, 'carte') }) } });
         continue;
       case 'videur':
-        out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'habitue', kicker: 'Le Videur', card: 'videur', ms: ANN_MS.big, title: noDot(e.text) } });
+        out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'habitue', kicker: tr('cf.board.le_videur'), card: 'videur', ms: ANN_MS.big, title: noDot(e.text) } });
         continue;
       case 'ardoise':
-        out.push({ kind: 'ann', ev: e, ann: mine || !/prend/.test(e.text) ? strip(e.text, 'info') : { style: 'big', tone: 'info', kicker: 'L’ardoise', ms: 2400, title: `${n} prend l’ardoise`, text: 'Il emprunte 3 Tournées tout de suite, mais ne recevra rien à la prochaine manche.' } });
+        out.push({ kind: 'ann', ev: e, ann: mine || !/prend/.test(e.text) ? strip(e.text, 'info') : { style: 'big', tone: 'info', kicker: tr('cf.board.l_ardoise'), ms: 2400, title: tr('cf.board.prend_l_ardoise', { n: n }), text: tr('cf.board.il_emprunte_3_tournees_tout_de') } });
         continue;
       case 'yeux-piquent':
-        out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'riposte', kicker: 'Riposte', card: 'yeux-piquent', ms: 2400, title: noDot(e.text) } });
+        out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'riposte', kicker: tr('cf.learn.riposte'), card: 'yeux-piquent', ms: 2400, title: noDot(e.text) } });
         continue;
       case 'manche': case 'tirage':
         out.push({ kind: 'ann', ev: e, ann: strip(e.text, 'manche', readMs(e.text, 2600, 4200)) });
@@ -579,28 +581,28 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
         // Commande du comptoir : annoncée en grand au début de la manche (elle reste écrite en haut).
         const k = commandeOf(next.commande);
         // 0.46 : deux fois plus longue au moins, selon la longueur du texte (touchez pour passer).
-        if (k) { const text = `${k.text} Pour tout le monde, cette manche seulement.`; out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'info', kicker: 'Commande du comptoir', ms: readMs(k.title + text, 5600, 10000, 2400, 55), title: k.title, text, hint: 'Elle reste écrite en haut de l’écran : touchez-la pour la relire.' } }); }
+        if (k) { const text = tr('cf.board.pour_tout_le_monde_cette_manche', { text: cfText(k.text) }); out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'info', kicker: tr('cf.boardparts.commande_du_comptoir'), ms: readMs(k.title + text, 5600, 10000, 2400, 55), title: k.title, text, hint: tr('cf.board.elle_reste_ecrite_en_haut_de') } }); }
         continue;
       }
       case 'comptes': {
         const lr = next.lastRound;
         const w = lr?.winner ?? null;
         const l = lr?.loser ?? null;
-        const title = !w ? 'Égalité : personne ne donne' : w === me ? 'Vous gagnez la manche' : `${name(w)} gagne la manche`;
+        const title = !w ? tr('cf.board.egalite_personne_ne_donne') : w === me ? tr('cf.board.vous_gagnez_la_manche') : tr('cf.board.gagne_la_manche', { a: name(w) });
         let text = e.text;
         const effaced = !!lr?.detail?.some((d) => d.label === 'On efface tout');
         if (w && l && lr && effaced) {
-          text = l === me ? 'Vous effacez tout : vous ne recevez qu’un jeton.' : w === me ? `${name(l)} efface tout : vous ne lui donnez qu’un jeton.` : `${name(l)} efface tout : il ne reçoit qu’un jeton.`;
+          text = l === me ? tr('cf.board.vous_effacez_tout_vous_ne_recevez') : w === me ? tr('cf.board.efface_tout_vous_ne_lui_donnez', { a: name(l) }) : tr('cf.board.efface_tout_il_ne_recoit_qu', { a: name(l) });
         } else if (w && l && lr) {
           if (lr.reversed) text = noDot(e.text);
-          else if (w === me) text = `Vous donnez ${plural(lr.amount, 'jeton')} à ${name(l)} : c’est le but, vous vous déchargez !`;
-          else if (l === me) text = `${name(w)} vous donne ${plural(lr.amount, 'jeton')}.`;
-          else text = `${name(w)} donne ${plural(lr.amount, 'jeton')} à ${name(l)}.`;
+          else if (w === me) text = tr('cf.board.vous_donnez_a_c_est_le', { jetons: plural(lr.amount, 'jeton'), a: name(l) });
+          else if (l === me) text = tr('cf.board.vous_donne', { a: name(w), jetons: plural(lr.amount, 'jeton') });
+          else text = tr('cf.board.donne_a', { a: name(w), jetons: plural(lr.amount, 'jeton'), b: name(l) });
           // Détail du calcul dès qu'une carte l'a changé (Note salée, Pilier, Double tournée…), et plafond éventuel.
-          if (!lr.reversed && lr.detail && lr.detail.length > 1) text += ` Calcul : ${lr.detail.map((d, i) => (i === 0 ? `${d.label} ${d.delta}` : `${d.label} ${d.delta >= 0 ? '+' : '−'}${Math.abs(d.delta)}`)).join(' · ')}.`;
-          if (!lr.reversed && lr.cappedFrom) text += ` ${w === me ? 'Vous n’aviez' : `${name(w)} n’avait`} que ${plural(lr.amount, 'jeton')} : ${lr.cappedFrom} prévus.`;
+          if (!lr.reversed && lr.detail && lr.detail.length > 1) text += tr('cf.board.calcul', { a: lr.detail.map((d, i) => (i === 0 ? `${cfText(d.label)} ${d.delta}` : `${cfText(d.label)} ${d.delta >= 0 ? '+' : '−'}${Math.abs(d.delta)}`)).join(' · ') });
+          if (!lr.reversed && lr.cappedFrom) text += tr('cf.board.que_prevus', { a: w === me ? tr('cf.board.vous_n_aviez') : tr('cf.board.n_avait', { a: name(w) }), jetons: plural(lr.amount, 'jeton'), cappedFrom: lr.cappedFrom });
         }
-        out.push({ kind: 'ann', ev: e, ann: { style: 'comptes', tone: 'comptes', kicker: 'Comptes', ms: ANN_MS.comptes, title, text } });
+        out.push({ kind: 'ann', ev: e, ann: { style: 'comptes', tone: 'comptes', kicker: tr('cf.boardparts.comptes'), ms: ANN_MS.comptes, title, text } });
         continue;
       }
       case 'sortie':
@@ -612,8 +614,18 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
     if (e.kind === 'defausse' && mine) continue;
     out.push({ kind: 'ann', ev: e, ann: strip(e.text, e.card ? typeOf(e.card) : e.who === me && me ? 'bad' : 'info', stripMs(e.text)) });
   }
-  return out;
+  return out.map(localizeStep);
 }
+/** Le moteur écrit en français : on traduit ici ce qui en vient (bandeaux et annonces). */
+function localizeAnn<T extends Announce>(a: T): T {
+  return { ...a, title: a.title ? cfText(a.title) : a.title, text: a.text ? cfText(a.text) : a.text, conseq: a.conseq ? cfText(a.conseq) : a.conseq };
+}
+function localizeStep(p: PlanStep): PlanStep {
+  if (p.kind === 'ann') return { ...p, ann: localizeAnn(p.ann) };
+  if (p.kind === 'dice' && p.strip) return { ...p, strip: localizeAnn(p.strip) };
+  return p;
+}
+
 
 // ------------------------------------------------------------------------------------------------
 // Dés gardés (comme au 421 classique : la sélection reste d'un lancer à l'autre)
@@ -638,12 +650,12 @@ export function threatLine(v: CfView): string {
   const top = v.stack[v.stack.length - 1];
   if (!top) return '';
   const o = playerOf(v, top.owner);
-  const n = o?.name ?? 'L’adversaire';
+  const n = o?.name ?? tr('cf.boardparts.l_adversaire');
   if (top.kind === 'keep') {
     const kept = (o?.r.dice ?? []).filter((_, i) => top.keep[i]);
-    return `${n} garde ${kept.join('-')} et va relancer le reste.`;
+    return tr('cf.board.garde_et_va_relancer_le_reste', { n: n, a: kept.join('-') });
   }
-  if (!top.cardId) return 'Un piège va être posé face cachée devant vous.';
+  if (!top.cardId) return tr('cf.board.un_piege_va_etre_pose_face');
   const pr = top.params;
   const me = meOf(v);
   const dieOf = (p: CfPlayerView | undefined, i?: number) => (p && i !== undefined ? p.r.dice[i] : 0);
@@ -651,77 +663,77 @@ export function threatLine(v: CfView): string {
     case 'de-sous-table': {
       const t = playerOf(v, pr.target ?? me.id) ?? me;
       const face = dieOf(t, pr.die) === 1 ? 'as' : dieOf(t, pr.die);
-      if (t.id === top.owner) return `Ici : personne n’a fini son tour, il relance son ${face} sans utiliser de lancer.`;
-      if (t.id !== me.id) return `Ici : il relance le ${face} de ${t.name}.`;
+      if (t.id === top.owner) return tr('cf.board.ici_personne_n_a_fini_son', { face: face });
+      if (t.id !== me.id) return tr('cf.board.ici_il_relance_le_de', { face: face, name: t.name });
       const c = comboOf(v, t);
-      return `Ici : il relance votre ${face}${c ? ` → votre ${shortCombo(c.label)} est menacé` : ''}.`;
+      return tr('cf.board.ici_il_relance_votre', { face: face, a: c ? tr('cf.board.votre_est_menace', { a: shortCombo(c.label) }) : '' });
     }
     case 'tete-tourne': case 'coup-pouce': case 'recompter': case 'bon-numero': {
       if (!o || pr.die === undefined) break;
       const from = dieOf(o, pr.die);
       const to = top.cardId === 'tete-tourne' ? 7 - from : top.cardId === 'bon-numero' ? pr.face! : from + (pr.delta ?? 0);
       const dice = [...o.r.dice]; dice[pr.die] = to;
-      return `Ici : son ${from} devient un ${to} → il passe à ${shortCombo(comboWith(v, o, dice).label)}.`;
+      return tr('cf.board.ici_son_devient_un_il_passe', { from: from, to: to, a: shortCombo(comboWith(v, o, dice).label) });
     }
     case 'tournee-generale': {
-      if (!pr.target) return 'Ici : personne n’a fini son tour, il relance tous ses dés sans utiliser de lancer.';
-      if (pr.target !== me.id) return `Ici : ${nameIn(v, pr.target)} et lui relancent tous leurs dés, puis il peut encore en relancer un.`;
-      return 'Ici : vous relancez tous vos dés, lui aussi, puis il peut encore en relancer un.';
+      if (!pr.target) return tr('cf.board.ici_personne_n_a_fini_son_2');
+      if (pr.target !== me.id) return tr('cf.board.ici_et_lui_relancent_tous_leurs', { a: nameIn(v, pr.target) });
+      return tr('cf.board.ici_vous_relancez_tous_vos_des');
     }
-    case 'domino': return `Ici : vous perdez toutes vos Tournées (${me.tournees}).`;
-    case 'fermeture': { if (!pr.habitue) return `Ici : il gagne ${FERMETURE_TOURNEES} Tournées.`; const h = v.players.flatMap((p) => p.habitues).find((x) => x.uid === pr.habitue); return `Ici : ${cardName(h?.id)} rentre chez lui (défaussé).`; }
-    case 'double-tournee': return 'Ici : s’il gagne la manche, sa combinaison vaut le double.';
-    case 'pari-comptoir': return 'Ici : le perdant de la manche recevra 2 jetons de plus.';
-    case 'note-salee': return 'Ici : s’il gagne, vous recevrez 2 jetons de plus.';
-    case 'cul-sec': return 'Ici : il gagne un lancer de plus ce tour.';
-    case 'tournee-patron': return `Ici : il gagne ${TOURNEE_PATRON_GAIN} Tournées.`;
-    case 'fouine': return 'Ici : il défausse un de vos pièges.';
-    case 'verre-offert': return pr.target === me.id ? `Ici : vous n’aurez qu’un seul lancer à votre prochain tour${!me.r.done && v.order.indexOf(me.id) > v.order.indexOf(top.owner) ? ' (celui-ci)' : ''}.` : 'Ici : son adversaire n’aura qu’un seul lancer.';
-    case 'vide-poches': return pr.target === me.id ? 'Ici : on vous prend 1 Tournée et vous défaussez une carte de votre main au hasard.' : 'Ici : 1 Tournée prise et une carte de main défaussée au hasard.';
-    case 'tant-qu-on-y-est': return `Ici : il gagne ${plural((o?.r.played ?? 0) + 1, 'Tournée')}.`;
+    case 'domino': return tr('cf.board.ici_vous_perdez_toutes_vos_tournees', { tournees: me.tournees });
+    case 'fermeture': { if (!pr.habitue) return tr('cf.board.ici_il_gagne_tournees', { FERMETURE_TOURNEES: FERMETURE_TOURNEES }); const h = v.players.flatMap((p) => p.habitues).find((x) => x.uid === pr.habitue); return tr('cf.board.ici_rentre_chez_lui_defausse', { a: cardName(h?.id) }); }
+    case 'double-tournee': return tr('cf.board.ici_s_il_gagne_la_manche');
+    case 'pari-comptoir': return tr('cf.board.ici_le_perdant_de_la_manche');
+    case 'note-salee': return tr('cf.board.ici_s_il_gagne_vous_recevrez');
+    case 'cul-sec': return tr('cf.board.ici_il_gagne_un_lancer_de');
+    case 'tournee-patron': return tr('cf.board.ici_il_gagne_tournees_2', { TOURNEE_PATRON_GAIN: TOURNEE_PATRON_GAIN });
+    case 'fouine': return tr('cf.board.ici_il_defausse_un_de_vos');
+    case 'verre-offert': return pr.target === me.id ? tr('cf.board.ici_vous_n_aurez_qu_un', { a: !me.r.done && v.order.indexOf(me.id) > v.order.indexOf(top.owner) ? tr('cf.board.celui_ci') : '' }) : tr('cf.board.ici_son_adversaire_n_aura_qu');
+    case 'vide-poches': return pr.target === me.id ? tr('cf.board.ici_on_vous_prend_1_tournee') : tr('cf.board.ici_1_tournee_prise_et_une');
+    case 'tant-qu-on-y-est': return tr('cf.board.ici_il_gagne', { tournees: plural((o?.r.played ?? 0) + 1, 'Tournée') });
     case 'pot-aux-roses': case 'ticket-caisse': case 'reaction-chaine': {
       const under = v.stack[v.stack.length - 2];
-      const what = under && under.kind === 'card' && under.cardId ? `« ${cardName(under.cardId)} »` : 'la carte';
-      return `Ici : il annule ${what}${under && under.owner === me.id ? ', votre carte' : ''}.`;
+      const what = under && under.kind === 'card' && under.cardId ? `« ${cardName(under.cardId)} »` : tr('cf.board.la_carte');
+      return tr('cf.board.ici_il_annule', { what: what, a: under && under.owner === me.id ? tr('cf.board.votre_carte') : '' });
     }
-    case 'pourboire': return pr.target === me.id ? `Ici : il vous donne 1 de ses jetons${o && o.tokens <= 1 ? ' : son dernier, il gagnerait la partie' : ''}.` : 'Ici : il donne 1 de ses jetons.';
-    case 'coup-etrier': return `Ici : il relance son ${dieOf(o, pr.die) === 1 ? 'as' : dieOf(o, pr.die)} au hasard.`;
-    case 'petite-soeur': { const t = o ? [...o.discard].reverse().find(petiteSoeurOk) : undefined; return `Ici : il reprend en main ${t ? `« ${cardName(t.id)} »` : 'une carte de sa défausse'}.`; }
-    case 'efface-tout': return 'Ici : s’il perd la manche, il ne recevra qu’un jeton.';
-    case 'trinquer': return pr.target === me.id ? 'Ici : un de vos dés et un des siens, pris au hasard, changent de camp.' : 'Ici : un de ses dés et un dé de son adversaire changent de camp.';
+    case 'pourboire': return pr.target === me.id ? tr('cf.board.ici_il_vous_donne_1_de', { a: o && o.tokens <= 1 ? tr('cf.board.son_dernier_il_gagnerait_la_partie') : '' }) : tr('cf.board.ici_il_donne_1_de_ses');
+    case 'coup-etrier': return tr('cf.board.ici_il_relance_son_au_hasard', { a: dieOf(o, pr.die) === 1 ? 'as' : dieOf(o, pr.die) });
+    case 'petite-soeur': { const t = o ? [...o.discard].reverse().find(petiteSoeurOk) : undefined; return tr('cf.board.ici_il_reprend_en_main', { a: t ? `« ${cardName(t.id)} »` : tr('cf.board.une_carte_de_sa_defausse') }); }
+    case 'efface-tout': return tr('cf.board.ici_s_il_perd_la_manche');
+    case 'trinquer': return pr.target === me.id ? tr('cf.board.ici_un_de_vos_des_et') : tr('cf.board.ici_un_de_ses_des_et');
     // 0.46
     case 'miroir': case 'derniere-maille': case 'calva': case 'ricochet': {
       if (!o || pr.die === undefined) break;
       const from = dieOf(o, pr.die);
       const to = top.cardId === 'calva' ? 7 - from : top.cardId === 'ricochet' ? from + (pr.delta ?? 0) : pr.face!;
       const dice = [...o.r.dice]; dice[pr.die] = to;
-      return `Ici : son ${from} devient un ${to} → il passe à ${shortCombo(comboWith(v, o, dice).label)}.`;
+      return tr('cf.board.ici_son_devient_un_il_passe', { from: from, to: to, a: shortCombo(comboWith(v, o, dice).label) });
     }
-    case 'petit-dernier': return `Ici : il relance son ${dieOf(o, pr.die) === 1 ? 'as' : dieOf(o, pr.die)} au hasard.`;
-    case 'fee-verte': return `Ici : il relance son ${dieOf(o, pr.die) === 1 ? 'as' : dieOf(o, pr.die)} jusqu’à 3 fois pour faire un ${pr.face}.`;
-    case 'verres-echanges': { const c = comboOf(v, me); return pr.target === me.id ? `Ici : il prend vos dés${c ? ` (${shortCombo(c.label)})` : ''} et vous donne les siens.` : 'Ici : il échange ses dés avec ceux de son adversaire.'; }
-    case 'debauchage': { if (!pr.habitue) return 'Ici : il pioche 2 cartes.'; const h = v.players.flatMap((p) => p.habitues).find((x) => x.uid === pr.habitue); return `Ici : ${cardName(h?.id)} passe de son côté du comptoir.`; }
-    case 'retrouvailles': return 'Ici : un Habitué de sa défausse revient s’installer devant lui, et il pioche 1 carte.';
-    case 'embuscade': return pr.target === me.id ? 'Ici : il pose devant vous tous les pièges de sa main, gratuitement.' : 'Ici : il pose tous les pièges de sa main, gratuitement.';
-    case 'effet-papillon': return 'Ici : il pioche 1 carte et ses cartes coûtent 1 Tournée de moins cette manche.';
-    case 'echo': { const src = o ? echoSource(v, o.id) : null; return `Ici : il rejoue gratuitement ${src ? `« ${cardName(src)} »` : 'votre dernier Coup'}.`; }
-    case 'boucle': return 'Ici : il reprend en main les 2 dernières cartes de sa défausse.';
-    case 'cafe-serre': return `Ici : il pioche 1 carte${o?.habitues.length ? ' et gagne 1 Tournée' : ''}.`;
-    case 'plat-du-jour': return `Ici : il recevra ${PLAT_TOURNEES} Tournées de plus à la prochaine manche.`;
-    case 'boule-de-neige': return `Ici : il pioche ${plural(Math.max(1, Math.min(3, (o?.r.played ?? 2) - 1)), 'carte')}.`;
-    case 'passe-passe': return 'Ici : il reprend un de ses pièges posés, gagne 1 Tournée et pioche 1 carte.';
-    case 'addition': return `Ici : s’il gagne, sa combinaison vaudra au moins ${ADDITION_MIN}.`;
-    case 'sante': return 'Ici : s’il perd, le gagnant recevra aussi 1 jeton.';
-    case 'compte-rond': return 'Ici : il gagne des Tournées pour les cartes déjà jouées.';
-    case 'denonciation': return 'Ici : il défausse un de vos pièges, pioche 1 carte et gagne 1 Tournée.';
+    case 'petit-dernier': return tr('cf.board.ici_il_relance_son_au_hasard', { a: dieOf(o, pr.die) === 1 ? 'as' : dieOf(o, pr.die) });
+    case 'fee-verte': return tr('cf.board.ici_il_relance_son_jusqu_a', { a: dieOf(o, pr.die) === 1 ? 'as' : dieOf(o, pr.die), face: (pr.face)!});
+    case 'verres-echanges': { const c = comboOf(v, me); return pr.target === me.id ? tr('cf.board.ici_il_prend_vos_des_et', { a: c ? ` (${shortCombo(c.label)})` : '' }) : tr('cf.board.ici_il_echange_ses_des_avec'); }
+    case 'debauchage': { if (!pr.habitue) return tr('cf.board.ici_il_pioche_2_cartes'); const h = v.players.flatMap((p) => p.habitues).find((x) => x.uid === pr.habitue); return tr('cf.board.ici_passe_de_son_cote_du', { a: cardName(h?.id) }); }
+    case 'retrouvailles': return tr('cf.board.ici_un_habitue_de_sa_defausse');
+    case 'embuscade': return pr.target === me.id ? tr('cf.board.ici_il_pose_devant_vous_tous') : tr('cf.board.ici_il_pose_tous_les_pieges');
+    case 'effet-papillon': return tr('cf.board.ici_il_pioche_1_carte_et');
+    case 'echo': { const src = o ? echoSource(v, o.id) : null; return tr('cf.board.ici_il_rejoue_gratuitement', { a: src ? `« ${cardName(src)} »` : tr('cf.board.votre_dernier_coup') }); }
+    case 'boucle': return tr('cf.board.ici_il_reprend_en_main_les');
+    case 'cafe-serre': return tr('cf.board.ici_il_pioche_1_carte', { a: o?.habitues.length ? tr('cf.board.et_gagne_1_tournee') : '' });
+    case 'plat-du-jour': return tr('cf.board.ici_il_recevra_tournees_de_plus', { PLAT_TOURNEES: PLAT_TOURNEES });
+    case 'boule-de-neige': return tr('cf.board.ici_il_pioche', { cartes: plural(Math.max(1, Math.min(3, (o?.r.played ?? 2) - 1)), 'carte') });
+    case 'passe-passe': return tr('cf.board.ici_il_reprend_un_de_ses');
+    case 'addition': return tr('cf.board.ici_s_il_gagne_sa_combinaison', { ADDITION_MIN: ADDITION_MIN });
+    case 'sante': return tr('cf.board.ici_s_il_perd_le_gagnant');
+    case 'compte-rond': return tr('cf.board.ici_il_gagne_des_tournees_pour');
+    case 'denonciation': return tr('cf.board.ici_il_defausse_un_de_vos_2');
     case 'table-reservee': case 'retour-envoyeur': case 'flagrant-delit': case 'a-la-votre': {
       const under = v.stack[v.stack.length - 2];
-      const what = under && under.kind === 'card' && under.cardId ? `« ${cardName(under.cardId)} »` : 'la carte';
-      return `Ici : il annule ${what}${under && under.owner === me.id ? ', votre carte' : ''}${top.cardId === 'retour-envoyeur' ? ' (elle retourne dans votre main)' : ''}.`;
+      const what = under && under.kind === 'card' && under.cardId ? `« ${cardName(under.cardId)} »` : tr('cf.board.la_carte');
+      return tr('cf.board.ici_il_annule_2', { what: what, a: under && under.owner === me.id ? tr('cf.board.votre_carte') : '', b: top.cardId === 'retour-envoyeur' ? tr('cf.board.elle_retourne_dans_votre_main') : '' });
     }
   }
   const d = def(top.cardId);
-  if (d?.type === 'habitue') return `Ici : ${d.name} s’installe devant lui pour ${plural(v.rules.habitueRounds ?? 3, 'manche')}.`;
+  if (d?.type === 'habitue') return tr('cf.board.ici_s_installe_devant_lui_pour', { name: d.name, manches: plural(v.rules.habitueRounds ?? 3, 'manche') });
   return d?.text ?? '';
 }
 

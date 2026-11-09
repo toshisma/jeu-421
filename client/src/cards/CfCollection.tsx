@@ -1,3 +1,6 @@
+import { plural } from './i18n';
+import { cfText } from './i18n';
+import { tr } from '../i18n/lang';
 /**
  * Coups Fourrés : ouverture des boosters (prototype CFBooster) et collection de toutes les cartes
  * (possédées / manquantes, filtres, détail, éclats de verre, fabrication, recyclage).
@@ -5,7 +8,8 @@
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { appHeight } from '../ui/navGuard';
-import { CARDS, FAMILY_LABEL, RARITY_LABEL, SHARDS, TYPE_LABEL, cardDef, type CardFamily, type CardRarity, type CardType } from '../../../shared/cards/catalog';
+import { SHARDS, type CardFamily, type CardRarity, type CardType } from '../../../shared/cards/catalog';
+import { CARDS, FAMILY_LABEL, RARITY_LABEL, TYPE_LABEL, cardDef } from './i18n';
 import { cfMaxUseful, type CfOpenedCard } from '../../../shared/cards/progress';
 import { ApiError } from '../account/api';
 import { sound } from '../audio/sound';
@@ -27,7 +31,7 @@ export function ShardIcon({ size = 18 }: { size?: number }) {
     </svg>
   );
 }
-export const Shards = ({ n }: { n: number }) => <span className="cf-caps shards" aria-label={`${n} éclats de verre`}><ShardIcon />{n.toLocaleString('fr-BE')}</span>;
+export const Shards = ({ n }: { n: number }) => <span className="cf-caps shards" aria-label={tr('cf.collection.eclats_de_verre', { n: n })}><ShardIcon />{n.toLocaleString('fr-BE')}</span>;
 
 // ------------------------------------------------------------------------------------------------
 // Ouverture d'un booster
@@ -57,7 +61,7 @@ export function BoosterOpening({ token, state, onState, onDone, onCollection, on
       setShown(r.cards.map(() => false));
       setFocus(null);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : 'Ouverture impossible.');
+      setErr(e instanceof Error ? cfText(e.message) : tr('cf.collection.ouverture_impossible'));
     } finally { setTearing(false); }
   };
 
@@ -76,7 +80,7 @@ export function BoosterOpening({ token, state, onState, onDone, onCollection, on
   const allShown = !!cards && shown.every(Boolean);
   const big = cards && focus !== null ? cards[focus] : null;
   const hidden = cards ? cards.map((c, i) => (!shown[i] ? c.rarity : null)) : [];
-  const hint = hidden.includes('legendaire') ? 'Une carte brille d’or : une légendaire vous attend !' : hidden.includes('epique') ? 'Une carte brille en violet : une épique vous attend.' : null;
+  const hint = hidden.includes('legendaire') ? tr('cf.collection.une_carte_brille_d_or_une') : hidden.includes('epique') ? tr('cf.collection.une_carte_brille_en_violet_une') : null;
   const count = cards ? shown.filter(Boolean).length : 0;
   const bigW = Math.min(210, Math.round(appHeight() * 0.32));
 
@@ -84,20 +88,20 @@ export function BoosterOpening({ token, state, onState, onDone, onCollection, on
     <div className="cf-booster">
       <span className="cf-booster-glow" aria-hidden />
       <header className="cf-booster-head">
-        <span><b>Booster · premier set</b><small>{cards ? `Carte ${Math.max(1, count)} sur ${cards.length}` : `${left} booster${left > 1 ? 's' : ''} à ouvrir`}</small></span>
-        {cards && !allShown ? <button className="cf-pill" onClick={revealAll}>Tout retourner</button> : <button className="cf-pill" onClick={onDone}>Fermer</button>}
+        <span><b>{tr('cf.collection.booster_premier_set')}</b><small>{cards ? tr('cf.collection.carte_sur', { a: Math.max(1, count), length: cards.length }) : tr('cf.collection.booster_a_ouvrir', { left: left, s: left > 1 ? 's' : '' })}</small></span>
+        {cards && !allShown ? <button className="cf-pill" onClick={revealAll}>{tr('cf.collection.tout_retourner')}</button> : <button className="cf-pill" onClick={onDone}>{tr('cf.boardparts.fermer')}</button>}
       </header>
 
       {!cards ? (
         <div className="cf-pack-stage">
           {left > 0 ? (
             <>
-              <button className={`cf-pack-btn${tearing ? ' tearing' : ''}`} onClick={() => void open()} aria-label="Ouvrir le booster">
+              <button className={`cf-pack-btn${tearing ? ' tearing' : ''}`} onClick={() => void open()} aria-label={tr('cf.collection.ouvrir_le_booster')}>
                 <BoosterPack width={168} />
               </button>
-              <p>Touchez le booster pour l’ouvrir.</p>
+              <p>{tr('cf.collection.touchez_le_booster_pour_l_ouvrir')}</p>
             </>
-          ) : <p>Plus aucun booster à ouvrir. Achetez-en avec vos capsules, ou gagnez-en en partie.</p>}
+          ) : <p>{tr('cf.collection.plus_aucun_booster_a_ouvrir_achetez')}</p>}
           {err && <p className="cf-err">{err}</p>}
         </div>
       ) : (
@@ -109,25 +113,25 @@ export function BoosterOpening({ token, state, onState, onDone, onCollection, on
                 {(big.rarity === 'legendaire' || big.rarity === 'epique') && <span className={`cf-rar-tag ${big.rarity}`}>{RARITY_LABEL[big.rarity]} !</span>}
                 <CardView id={big.id} width={bigW} shiny={big.shiny} isNew={big.isNew} />
               </div>
-            ) : <div className="cf-reveal-wait"><CardBack width={bigW * 0.62} /><p>Touchez une carte pour la retourner.</p></div>}
+            ) : <div className="cf-reveal-wait"><CardBack width={bigW * 0.62} /><p>{tr('cf.collection.touchez_une_carte_pour_la_retourner')}</p></div>}
           </div>
           <div className="cf-reveal-row">
             {cards.map((c, i) => (
               <button key={i} className={`cf-flip${shown[i] ? ' up' : ''}${!shown[i] && c.rarity === 'epique' ? ' pre-epique' : ''}${!shown[i] && c.rarity === 'legendaire' ? ' pre-legendaire' : ''}${focus === i ? ' focus' : ''}`}
-                onClick={() => reveal(i)} aria-label={shown[i] ? `${cardDef(c.id)?.name}${c.isNew ? ', nouvelle' : ''}` : `Carte ${i + 1}, face cachée`}>
+                onClick={() => reveal(i)} aria-label={shown[i] ? `${cardDef(c.id)?.name}${c.isNew ? tr('cf.collection.nouvelle') : ''}` : tr('cf.collection.carte_face_cachee', { a: i + 1 })}>
                 <span className="cf-flip-in">
                   <span className="cf-flip-back"><CardBack width={58} /></span>
-                  <span className="cf-flip-front"><CardView id={c.id} width={58} shiny={c.shiny} zoom="press" />{c.isNew && <em className="cf-new">Nouvelle</em>}</span>
+                  <span className="cf-flip-front"><CardView id={c.id} width={58} shiny={c.shiny} zoom="press" />{c.isNew && <em className="cf-new">{tr('cf.collection.nouvelle_2')}</em>}</span>
                 </span>
               </button>
             ))}
           </div>
-          <p className="cf-reveal-hint">{hint ?? (allShown ? 'Un doublon de trop ? Il se recycle en éclats de verre pour fabriquer la carte de votre choix.' : 'Touchez les cartes pour les retourner.')}</p>
+          <p className="cf-reveal-hint">{hint ?? (allShown ? tr('cf.collection.un_doublon_de_trop_il_se') : tr('cf.collection.touchez_les_cartes_pour_les_retourne'))}</p>
           {allShown && (
             <div className="cf-booster-btns">
-              {left > 0 ? <button className="cf-btn gold big" onClick={() => { setCards(null); void open(); }}>Ouvrir le suivant ({left})</button>
-                : onAutoDeck && <button className="cf-btn gold big" onClick={onAutoDeck}>Mes decks</button>}
-              <button className="cf-btn ghost big" onClick={onCollection}>Voir ma collection</button>
+              {left > 0 ? <button className="cf-btn gold big" onClick={() => { setCards(null); void open(); }}>{tr('cf.collection.ouvrir_le_suivant')}{left})</button>
+                : onAutoDeck && <button className="cf-btn gold big" onClick={onAutoDeck}>{tr('cf.collection.mes_decks')}</button>}
+              <button className="cf-btn ghost big" onClick={onCollection}>{tr('cf.collection.voir_ma_collection')}</button>
             </div>
           )}
         </>
@@ -176,31 +180,31 @@ export function CollectionScreen({ token, state, onState, onBack, onAccount }: {
 
   const recycleAll = async () => {
     if (!token || !extras.copies) return;
-    if (!(await askConfirm(`Recycler ${extras.copies} exemplaire${extras.copies > 1 ? 's' : ''} en trop (${extras.cards} carte${extras.cards > 1 ? 's' : ''}) contre ${extras.shards} éclats de verre ? Vous gardez le maximum utile de chaque carte.`, 'Recycler'))) return;
+    if (!(await askConfirm(tr('cf.collection.recycler_exemplaire_en_trop_carte_co', { copies: extras.copies, s: extras.copies > 1 ? 's' : '', cards: extras.cards, shards: extras.shards }), tr('cf.collection.recycler')))) return;
     setBusy(true);
-    try { const r = await cfRecycleExtras(token); onState(r.state); sound.chips(3); show(`+${r.gained} éclats de verre`); }
-    catch (e) { show(e instanceof Error ? e.message : 'Recyclage impossible.', 'err'); }
+    try { const r = await cfRecycleExtras(token); onState(r.state); sound.chips(3); show(tr('cf.collection.eclats_de_verre_2', { gained: r.gained })); }
+    catch (e) { show(e instanceof Error ? cfText(e.message) : tr('cf.collection.recyclage_impossible'), 'err'); }
     finally { setBusy(false); }
   };
 
   return (
-    <CfShell title="Collection" sub={state ? `${ownedN}/${CARDS.length} cartes${shinyN ? ` · ${shinyN} brillante${shinyN > 1 ? 's' : ''}` : ''}` : `Les ${CARDS.length} cartes du jeu`} onBack={onBack}
+    <CfShell title={tr('cf.collection.collection')} sub={state ? tr('cf.collection.cartes', { ownedN: ownedN, length: CARDS.length, a: shinyN ? tr('cf.collection.brillante', { shinyN: shinyN, s: shinyN > 1 ? 's' : '' }) : '' }) : tr('cf.collection.les_cartes_du_jeu', { length: CARDS.length })} onBack={onBack}
       right={state ? <Shards n={state.shards} /> : undefined}>
-      {!state && <button className="cf-guest-card" onClick={onAccount}><b>Collectionnez les cartes</b><small>Avec un compte gratuit : 2 decks de départ, 3 boosters offerts, et vos cartes gardées pour toujours.</small><em>Créer un compte</em></button>}
+      {!state && <button className="cf-guest-card" onClick={onAccount}><b>{tr('cf.collection.collectionnez_les_cartes')}</b><small>{tr('cf.collection.avec_un_compte_gratuit_2_decks')}</small><em>{tr('cf.collection.creer_un_compte')}</em></button>}
       {state && extras.copies > 0 && (
         <button className="cf-recycle-all" disabled={busy} onClick={() => void recycleAll()}>
-          <ShardIcon size={22} /><span><b>Recycler tous les doublons en trop</b><small>{extras.copies} exemplaire{extras.copies > 1 ? 's' : ''} · +{extras.shards} éclats</small></span>
+          <ShardIcon size={22} /><span><b>{tr('cf.collection.recycler_tous_les_doublons_en_trop')}</b><small>{extras.copies}{tr('cf.collection.exemplaire')}{extras.copies > 1 ? 's' : ''} · +{extras.shards}{tr('cf.collection.eclats')}</small></span>
         </button>
       )}
       <div className="cf-filters">
-        <div className="cf-seg" role="radiogroup" aria-label="Possession">
-          {(['toutes', 'possedees', 'manquantes'] as Own[]).map((o) => <button key={o} role="radio" aria-checked={own === o} className={own === o ? 'on' : ''} onClick={() => setOwn(o)} disabled={!state && o !== 'toutes'}>{o === 'toutes' ? 'Toutes' : o === 'possedees' ? 'Possédées' : 'Manquantes'}</button>)}
+        <div className="cf-seg" role="radiogroup" aria-label={tr('cf.collection.possession')}>
+          {(['toutes', 'possedees', 'manquantes'] as Own[]).map((o) => <button key={o} role="radio" aria-checked={own === o} className={own === o ? 'on' : ''} onClick={() => setOwn(o)} disabled={!state && o !== 'toutes'}>{o === 'toutes' ? tr('cf.collection.toutes') : o === 'possedees' ? tr('cf.collection.possedees') : tr('cf.collection.manquantes')}</button>)}
         </div>
         <div className="cf-selects">
-          <select value={fam} onChange={(e) => setFam(e.target.value as CardFamily | '')} aria-label="Famille"><option value="">Famille</option>{FAMS.map((f) => <option key={f} value={f}>{FAMILY_LABEL[f]}</option>)}</select>
-          <select value={type} onChange={(e) => setType(e.target.value as CardType | '')} aria-label="Type"><option value="">Type</option>{TYPES.map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}</select>
-          <select value={rar} onChange={(e) => setRar(e.target.value as CardRarity | '')} aria-label="Rareté"><option value="">Rareté</option>{RARS.map((r) => <option key={r} value={r}>{RARITY_LABEL[r]}</option>)}</select>
-          <select value={cost} onChange={(e) => setCost(Number(e.target.value))} aria-label="Coût"><option value={-1}>Coût</option>{[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n === 4 ? '4 et +' : n}</option>)}</select>
+          <select value={fam} onChange={(e) => setFam(e.target.value as CardFamily | '')} aria-label={tr('cf.collection.famille')}><option value="">{tr('cf.collection.famille')}</option>{FAMS.map((f) => <option key={f} value={f}>{FAMILY_LABEL[f]}</option>)}</select>
+          <select value={type} onChange={(e) => setType(e.target.value as CardType | '')} aria-label={tr('cf.collection.type')}><option value="">{tr('cf.collection.type')}</option>{TYPES.map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}</select>
+          <select value={rar} onChange={(e) => setRar(e.target.value as CardRarity | '')} aria-label={tr('cf.collection.rarete')}><option value="">{tr('cf.collection.rarete')}</option>{RARS.map((r) => <option key={r} value={r}>{RARITY_LABEL[r]}</option>)}</select>
+          <select value={cost} onChange={(e) => setCost(Number(e.target.value))} aria-label={tr('cf.collection.cout')}><option value={-1}>{tr('cf.collection.cout')}</option>{[0, 1, 2, 3, 4].map((n) => <option key={n} value={n}>{n === 4 ? tr('cf.collection.4_et') : n}</option>)}</select>
         </div>
       </div>
       {list.length ? (
@@ -210,7 +214,7 @@ export function CollectionScreen({ token, state, onState, onBack, onAccount }: {
             return <CardView key={c.id} id={c.id} width={w} zoom="press" dimmed={!!state && n === 0} count={n} shiny={(col[c.id]?.shiny ?? 0) > 0} onClick={() => setOpen(c.id)} />;
           })}
         </div>
-      ) : <p className="cf-empty">Aucune carte avec ces filtres.</p>}
+      ) : <p className="cf-empty">{tr('cf.collection.aucune_carte_avec_ces_filtres')}</p>}
       {open && <CardDetail id={open} token={token} state={state} onState={onState} onClose={() => setOpen(null)} show={show}
         onNav={(d) => { const i = list.findIndex((c) => c.id === open); const n = list[(i + d + list.length) % list.length]; if (n) setOpen(n.id); }} />}
       {toast}
@@ -235,10 +239,10 @@ function CardDetail({ id, token, state, onState, onClose, show, onNav }: { id: s
 
   const doCraft = async () => {
     if (!token) return;
-    if (!(await askConfirm(`Fabriquer « ${d.name} » pour ${craft} éclats de verre ?`, 'Fabriquer'))) return;
+    if (!(await askConfirm(tr('cf.collection.fabriquer_pour_eclats_de_verre', { name: d.name, craft: craft }), tr('cf.collection.fabriquer')))) return;
     setBusy(true);
-    try { const r = await cfCraft(token, id); onState(r.state); sound.bagReveal(Math.min(3, RARITY_TIER[d.rarity])); show(`« ${d.name} » ajoutée à votre collection.`); }
-    catch (e) { show(e instanceof Error ? e.message : 'Fabrication impossible.', 'err'); }
+    try { const r = await cfCraft(token, id); onState(r.state); sound.bagReveal(Math.min(3, RARITY_TIER[d.rarity])); show(tr('cf.collection.ajoutee_a_votre_collection', { name: d.name })); }
+    catch (e) { show(e instanceof Error ? cfText(e.message) : tr('cf.collection.fabrication_impossible'), 'err'); }
     finally { setBusy(false); }
   };
   const doRecycle = async () => {
@@ -250,35 +254,35 @@ function CardDetail({ id, token, state, onState, onClose, show, onNav }: { id: s
       catch (e) {
         // 409 « Confirmez » : l'exemplaire est utile en deck, on demande d'abord.
         if (e instanceof ApiError && e.status === 409 && /Confirmez/.test(e.message)) {
-          const ok = await askConfirm(`${e.message.replace(/ Confirmez.*$/, '')} Recycler quand même un exemplaire de « ${d.name} » (+${recycle} éclats) ?`, 'Recycler quand même');
+          const ok = await askConfirm(tr('cf.collection.recycler_quand_meme_un_exemplaire_de', { a: cfText(e.message.replace(/ Confirmez.*$/, '')), name: d.name, recycle: recycle }), tr('cf.collection.recycler_quand_meme'));
           if (!ok) return;
           r = await cfRecycle(token, id, 1, true);
         } else throw e;
       }
-      onState(r.state); sound.chips(2); show(`+${r.gained} éclats de verre`);
-    } catch (e) { show(e instanceof Error ? e.message : 'Recyclage impossible.', 'err'); }
+      onState(r.state); sound.chips(2); show(tr('cf.collection.eclats_de_verre_2', { gained: r.gained }));
+    } catch (e) { show(e instanceof Error ? cfText(e.message) : tr('cf.collection.recyclage_impossible'), 'err'); }
     finally { setBusy(false); }
   };
 
   const w = Math.min(250, (typeof window !== 'undefined' ? window.innerWidth : 360) - 96, Math.round(appHeight() * 0.42));
   return (
     <div className="cf-detail" role="dialog" aria-modal="true" aria-label={d.name} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <button className="cf-ib cf-detail-x" onClick={onClose} aria-label="Fermer"><Icon name="close" size={20} /></button>
+      <button className="cf-ib cf-detail-x" onClick={onClose} aria-label={tr('cf.boardparts.fermer')}><Icon name="close" size={20} /></button>
       <div className="cf-detail-card">
-        <button className="cf-nav" onClick={() => onNav(-1)} aria-label="Carte précédente"><Icon name="back" size={22} /></button>
+        <button className="cf-nav" onClick={() => onNav(-1)} aria-label={tr('cf.collection.carte_precedente')}><Icon name="back" size={22} /></button>
         <CardView id={id} width={w} shiny={(own?.shiny ?? 0) > 0} dimmed={!!state && n === 0} />
-        <button className="cf-nav next" onClick={() => onNav(1)} aria-label="Carte suivante"><Icon name="back" size={22} /></button>
+        <button className="cf-nav next" onClick={() => onNav(1)} aria-label={tr('cf.collection.carte_suivante')}><Icon name="back" size={22} /></button>
       </div>
       <div className="cf-detail-info">
         {state ? (
           <>
-            <p><b>{n === 0 ? 'Pas encore dans votre collection' : `${n} exemplaire${n > 1 ? 's' : ''}`}</b>{own?.shiny ? ` · dont ${own.shiny} brillante${own.shiny > 1 ? 's' : ''}` : ''}</p>
-            <small>{max} au plus par deck{extra > 0 ? ` · ${extra} en trop` : ''}{inDecks.length ? ` · dans ${inDecks.map((x) => `« ${x} »`).join(', ')}` : ''}</small>
+            <p><b>{n === 0 ? tr('cf.collection.pas_encore_dans_votre_collection') : plural(n, 'exemplaire')}</b>{own?.shiny ? tr('cf.collection.dont_brillante', { shiny: own.shiny, s: own.shiny > 1 ? 's' : '' }) : ''}</p>
+            <small>{max}{tr('cf.collection.au_plus_par_deck')}{extra > 0 ? tr('cf.collection.en_trop', { extra: extra }) : ''}{inDecks.length ? tr('cf.collection.dans', { a: inDecks.map((x) => `« ${x} »`).join(', ') }) : ''}</small>
             <div className="cf-detail-btns">
-              <button className="cf-btn violet" disabled={busy || n >= max || state.shards < craft} onClick={() => void doCraft()}>Fabriquer · {craft} <ShardIcon size={16} /></button>
-              <button className="cf-btn ghost" disabled={busy || n === 0} onClick={() => void doRecycle()}>Recycler · +{recycle} <ShardIcon size={16} /></button>
+              <button className="cf-btn violet" disabled={busy || n >= max || state.shards < craft} onClick={() => void doCraft()}>{tr('cf.collection.fabriquer_2')}{craft} <ShardIcon size={16} /></button>
+              <button className="cf-btn ghost" disabled={busy || n === 0} onClick={() => void doRecycle()}>{tr('cf.collection.recycler_2')}{recycle} <ShardIcon size={16} /></button>
             </div>
-            {n < max && state.shards < craft && <small className="cf-muted">Il vous manque {craft - state.shards} éclats pour la fabriquer.</small>}
+            {n < max && state.shards < craft && <small className="cf-muted">{tr('cf.collection.il_vous_manque')}{craft - state.shards}{tr('cf.collection.eclats_pour_la_fabriquer')}</small>}
           </>
         ) : <p>{TYPE_LABEL[d.type]} · {RARITY_LABEL[d.rarity]} · {FAMILY_LABEL[d.family]}</p>}
       </div>

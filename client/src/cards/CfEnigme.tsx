@@ -1,3 +1,5 @@
+import { cfText, plural } from './i18n';
+import { getLang, tr } from '../i18n/lang';
 /**
  * Coups Fourrés : « L'énigme du jour » (entrée dans le menu du mode + écran).
  *
@@ -10,7 +12,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiError, api } from '../account/api';
 import { legalActions, viewFor, evalPlayer, type CfAction } from '../../../shared/cards/engine';
-import { cardDef } from '../../../shared/cards/catalog';
+import { cardDef } from './i18n';
 import {
   ENIGME_CAPSULES, ENIGME_ME, dailyPuzzle, describeLine, enigmeDay, enigmeShareText, enigmeStreak, puzzleScore, replayPuzzle, type CfPuzzle,
 } from '../../../shared/cards/puzzles';
@@ -67,22 +69,22 @@ function useEnigmeStatus(token: Tok, acc: boolean): { done: boolean; score?: num
 export function EnigmeEntry({ token, acc, onOpen }: { token: Tok; acc: boolean; onOpen: () => void }) {
   const st = useEnigmeStatus(token, acc);
   const sub = st?.done
-    ? `Résolue : ${st.score} jeton${(st.score ?? 0) > 1 ? 's' : ''} sur ${st.best}${st.streak > 1 ? ` · série de ${st.streak} jours` : ''}`
-    : `Une fin de tour à résoudre, sans hasard${acc ? ` · jusqu’à ${ENIGME_CAPSULES.best} capsules` : ''}`;
+    ? tr('cf.enigme.resolue_jeton_sur', { score: (st.score)!, s: (st.score ?? 0) > 1 ? 's' : '', best: (st.best)!, a: st.streak > 1 ? tr('cf.enigme.serie_de_jours', { streak: st.streak }) : '' })
+    : tr('cf.enigme.une_fin_de_tour_a_resoudre', { a: acc ? tr('cf.enigme.jusqu_a_capsules', { best: ENIGME_CAPSULES.best }) : '' });
   return (
     <button className={`cf-enigme-entry${st?.done ? ' done' : ''}`} onClick={onOpen}>
       <span className="cf-enigme-entry-ic" aria-hidden><Pip v={4} size={22} /><Pip v={2} size={22} /><Pip v={1} size={22} /><i>?</i></span>
-      <span className="cf-enigme-entry-tx"><b>L’énigme du jour</b><small>{sub}</small></span>
-      {st?.done ? <em className="ok">✓</em> : <em>Jouer</em>}
+      <span className="cf-enigme-entry-tx"><b>{tr('cf.enigme.l_enigme_du_jour')}</b><small>{sub}</small></span>
+      {st?.done ? <em className="ok">✓</em> : <em>{tr('cf.boardparts.jouer')}</em>}
     </button>
   );
 }
 
 // --- Écran -------------------------------------------------------------------------------------------
 
-const MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const MONTHS = ['janvier', tr('cf.enigme.fevrier'), 'mars', 'avril', 'mai', 'juin', 'juillet', tr('cf.enigme.aout'), 'septembre', 'octobre', 'novembre', tr('cf.enigme.decembre')];
 const longDay = (day: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day); return m ? `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]}` : day; };
-const jetons = (n: number) => `${n} jeton${n > 1 ? 's' : ''}`;
+const jetons = (n: number) => plural(n, 'jeton');
 
 interface Validated { score: number; best: number; cards: number; capsules: number; rank?: number; total?: number; streak: number; actions: CfAction[] }
 
@@ -115,7 +117,7 @@ export function EnigmeScreen({ token, acc, onBack, onAccount }: { token: Tok; ac
         }
       }, 30);
     };
-    if (acc) cfEnigmeBoard(token).then((b) => open(b.day, b)).catch(() => { setErr('Serveur injoignable : votre réponse ne pourra pas être validée pour l’instant.'); open(enigmeDay(), null); });
+    if (acc) cfEnigmeBoard(token).then((b) => open(b.day, b)).catch(() => { setErr(tr('cf.enigme.serveur_injoignable_votre_reponse_ne')); open(enigmeDay(), null); });
     else open(enigmeDay(), null);
     return () => { stop = true; };
   }, [token, acc]);
@@ -146,7 +148,7 @@ export function EnigmeScreen({ token, acc, onBack, onAccount }: { token: Tok; ac
       }
       if (score >= puzzle.best) sound.treasure?.(); else sound.chips?.(2);
     } catch (e) {
-      setMsg(e instanceof ApiError || e instanceof Error ? e.message : 'Validation impossible.');
+      setMsg(e instanceof ApiError || e instanceof Error ? cfText(e.message) : tr('cf.enigme.validation_impossible'));
       if (e instanceof ApiError && e.status === 409) void cfEnigmeBoard(token).then((b) => { setBoard(b); if (b.mine) { setDone({ ...b.mine, streak: b.streak }); setActions(b.mine.actions); } }).catch(() => {});
     } finally { setBusy(false); }
   };
@@ -155,12 +157,12 @@ export function EnigmeScreen({ token, acc, onBack, onAccount }: { token: Tok; ac
     if (!done || !puzzle) return;
     const text = enigmeShareText(puzzle.day, done.score, done.best, done.cards, done.streak);
     const nav = navigator as Navigator & { share?: (d: { text: string }) => Promise<void> };
-    if (typeof nav.share === 'function') { try { await nav.share({ text }); setShared('Partagé !'); return; } catch { /* annulé : on copie */ } }
-    try { await navigator.clipboard.writeText(text); setShared('Copié : collez-le où vous voulez !'); } catch { setShared(text); }
+    if (typeof nav.share === 'function') { try { await nav.share({ text }); setShared(tr('cf.enigme.partage')); return; } catch { /* annulé : on copie */ } }
+    try { await navigator.clipboard.writeText(text); setShared(tr('cf.enigme.copie_collez_le_ou_vous_voulez')); } catch { setShared(text); }
   };
 
   if (!puzzle || !v || !s) {
-    return <CfShell title="L’énigme du jour" onBack={onBack} className="cf-enigme"><p className="cf-enigme-wait">Le patron prépare l’énigme…</p></CfShell>;
+    return <CfShell title={tr('cf.enigme.l_enigme_du_jour')} onBack={onBack} className="cf-enigme"><p className="cf-enigme-wait">{tr('cf.enigme.le_patron_prepare_l_enigme')}</p></CfShell>;
   }
 
   const me = v.players[1], opp = v.players[0];
@@ -180,27 +182,26 @@ export function EnigmeScreen({ token, acc, onBack, onAccount }: { token: Tok; ac
   const trapsShown = s.traps.map((t) => t.id);
 
   return (
-    <CfShell title="L’énigme du jour" sub={`${longDay(puzzle.day)} · la même pour tout le monde`} onBack={onBack} className="cf-enigme">
+    <CfShell title={tr('cf.enigme.l_enigme_du_jour')} sub={tr('cf.enigme.la_meme_pour_tout_le_monde', { a: longDay(puzzle.day) })} onBack={onBack} className="cf-enigme">
       <p className="cf-enigme-goal">
-        <b>{puzzle.oppName}</b> a fini sur <b>{puzzle.oppDice.join('-')}</b>. Vos dés font <b>{puzzle.dice.join('-')}</b>, plus de lancer.
-        Gagnez la manche en donnant <b>le plus de jetons possible</b> à {puzzle.oppName}.
+        <b>{puzzle.oppName}</b>{tr('cf.enigme.a_fini_sur')}<b>{puzzle.oppDice.join('-')}</b>{tr('cf.enigme.vos_des_font')}<b>{puzzle.dice.join('-')}</b>{tr('cf.enigme.plus_de_lancer_gagnez_la_manche')}<b>{tr('cf.enigme.le_plus_de_jetons_possible')}</b>{tr('cf.enigme.a')}{puzzle.oppName}.
       </p>
       {err && <p className="cf-enigme-err">{err}</p>}
 
-      <section className="cf-enigme-table" aria-label="La table">
+      <section className="cf-enigme-table" aria-label={tr('cf.enigme.la_table')}>
         <div className="cf-enigme-row opp">
-          <span className="who"><b>{opp.name}</b><small>a fini son tour</small></span>
+          <span className="who"><b>{opp.name}</b><small>{tr('cf.enigme.a_fini_son_tour')}</small></span>
           <span className="dice">{oppDice.map((x, i) => <Pip key={i} v={x} size={30} />)}</span>
           <span className="combo">{oppLabel}</span>
           {(s.players[0].habitues.length > 0 || trapsShown.length > 0) && (
             <span className="extras">
-              {s.players[0].habitues.map((h) => <button key={h.uid} className="tag hab" onClick={() => setFiche({ id: h.id, owner: opp.id })}>Habitué : {cardDef(h.id)?.name}</button>)}
-              {s.traps.map((t) => <button key={t.uid} className="tag trap" onClick={() => setFiche({ id: t.id, owner: opp.id })}>Piège devant vous : {cardDef(t.id)?.name}</button>)}
+              {s.players[0].habitues.map((h) => <button key={h.uid} className="tag hab" onClick={() => setFiche({ id: h.id, owner: opp.id })}>{tr('cf.enigme.habitue')}{cardDef(h.id)?.name}</button>)}
+              {s.traps.map((t) => <button key={t.uid} className="tag trap" onClick={() => setFiche({ id: t.id, owner: opp.id })}>{tr('cf.enigme.piege_devant_vous')}{cardDef(t.id)?.name}</button>)}
             </span>
           )}
         </div>
         <div className={`cf-enigme-row me${score !== null ? (score > 0 ? ' win' : ' lose') : leading ? ' lead' : ''}`}>
-          <span className="who"><b>Vous</b><small>{phase === 'tour' ? 'plus de lancer' : phase === 'dernier-mot' ? 'Dernier mot' : 'manche finie'}</small></span>
+          <span className="who"><b>{tr('cf.boardparts.vous')}</b><small>{phase === 'tour' ? tr('cf.enigme.plus_de_lancer') : phase === 'dernier-mot' ? tr('cf.boardparts.dernier_mot') : tr('cf.enigme.manche_finie')}</small></span>
           <span className="dice">{myDice.map((x, i) => <Pip key={i} v={x} size={38} on={x !== puzzle.dice[i]} />)}</span>
           <span className="combo">{myLabel}</span>
           <span className="extras">
@@ -213,68 +214,68 @@ export function EnigmeScreen({ token, acc, onBack, onAccount }: { token: Tok; ac
       </section>
 
       {steps.length > 0 && (
-        <ol className="cf-enigme-steps" aria-label="Vos coups">{steps.map((t, i) => <li key={i}>{t}</li>)}</ol>
+        <ol className="cf-enigme-steps" aria-label={tr('cf.enigme.vos_coups')}>{steps.map((t, i) => <li key={i}>{t}</li>)}</ol>
       )}
 
       {score === null && !done && (
         <>
           <p className="cf-enigme-hint">
             {phase === 'tour'
-              ? <>Touchez une carte pour la jouer. {leading ? 'Pour l’instant, vous gagnez la manche.' : 'Pour l’instant, vous perdez la manche.'}{lastwordInHand ? ' Les Derniers mots se jouent après « Finir mon tour ».' : ''}</>
-              : <>Dernier mot : jouez-en un, ou passez pour compter les points.</>}
+              ? <>{tr('cf.enigme.touchez_une_carte_pour_la_jouer')}{leading ? tr('cf.enigme.pour_l_instant_vous_gagnez_la') : tr('cf.enigme.pour_l_instant_vous_perdez_la')}{lastwordInHand ? tr('cf.enigme.les_derniers_mots_se_jouent_apres') : ''}</>
+              : <>{tr('cf.enigme.dernier_mot_jouez_en_un_ou')}</>}
           </p>
           {hand.length > 0 && <Hand cards={hand} hints={hints} onPick={(uid) => setFiche({ uid, id: hand.find((k) => k.uid === uid)!.id, owner: me.id })} />}
           <div className="cf-enigme-acts">
-            <button className="cf-btn ghost" onClick={restart} disabled={!actions.length}>Recommencer</button>
+            <button className="cf-btn ghost" onClick={restart} disabled={!actions.length}>{tr('cf.enigme.recommencer')}</button>
             {phase === 'tour'
-              ? <button className="cf-btn gold" onClick={finishTurn}>Finir mon tour</button>
-              : <button className="cf-btn gold" onClick={pass}>Passer et compter</button>}
+              ? <button className="cf-btn gold" onClick={finishTurn}>{tr('cf.enigme.finir_mon_tour')}</button>
+              : <button className="cf-btn gold" onClick={pass}>{tr('cf.enigme.passer_et_compter')}</button>}
           </div>
         </>
       )}
 
       {score !== null && !done && (
         <div className="cf-enigme-result">
-          <b>{score > 0 ? `Vous gagnez la manche : ${puzzle.oppName} reçoit ${jetons(score)}.` : 'Vous ne gagnez pas la manche : 0 jeton.'}</b>
-          <small>{run!.cards} carte{run!.cards > 1 ? 's' : ''} jouée{run!.cards > 1 ? 's' : ''}. Vous pouvez recommencer autant que vous voulez avant de valider{acc ? '' : ' (invité : résultat gardé sur cet appareil)'}.</small>
+          <b>{score > 0 ? tr('cf.enigme.vous_gagnez_la_manche_recoit', { oppName: puzzle.oppName, a: jetons(score) }) : tr('cf.enigme.vous_ne_gagnez_pas_la_manche')}</b>
+          <small>{run!.cards}{tr('cf.enigme.carte')}{run!.cards > 1 ? 's' : ''}{tr('cf.enigme.jouee')}{run!.cards > 1 ? 's' : ''}{tr('cf.enigme.vous_pouvez_recommencer_autant_que_v')}{acc ? '' : tr('cf.enigme.invite_resultat_garde_sur_cet_appare')}.</small>
           {msg && <p className="cf-enigme-err">{msg}</p>}
           <div className="cf-enigme-acts">
-            <button className="cf-btn ghost" onClick={restart}>Recommencer</button>
-            <button className="cf-btn gold" disabled={busy} onClick={() => void validate()}>{busy ? 'Un instant…' : 'Valider ma réponse'}</button>
+            <button className="cf-btn ghost" onClick={restart}>{tr('cf.enigme.recommencer')}</button>
+            <button className="cf-btn gold" disabled={busy} onClick={() => void validate()}>{busy ? tr('cf.enigme.un_instant') : tr('cf.enigme.valider_ma_reponse')}</button>
           </div>
         </div>
       )}
 
       {done && (
         <div className={`cf-enigme-done${done.score >= done.best ? ' is-best' : ''}`}>
-          <span className="big">{done.score} <small>jeton{done.score > 1 ? 's' : ''} sur {done.best} possible{done.best > 1 ? 's' : ''}</small></span>
-          <b>{done.score >= done.best ? 'Bravo, c’est le meilleur score !' : done.score > 0 ? 'Bien joué, mais on pouvait faire mieux.' : 'Manche perdue : regardez la solution.'}</b>
+          <span className="big">{done.score} <small>{tr('cf.boardparts.jeton')}{done.score > 1 ? 's' : ''}{tr('cf.boardparts.sur')}{done.best}{tr('cf.enigme.possible')}{done.best > 1 ? 's' : ''}</small></span>
+          <b>{done.score >= done.best ? tr('cf.enigme.bravo_c_est_le_meilleur_score') : done.score > 0 ? tr('cf.enigme.bien_joue_mais_on_pouvait_faire') : tr('cf.enigme.manche_perdue_regardez_la_solution')}</b>
           <span className="meta">
-            {done.rank ? <span>{done.rank === 1 ? '1re' : `${done.rank}e`} place sur {done.total}</span> : null}
-            {done.streak > 0 && <span>Série : {done.streak} jour{done.streak > 1 ? 's' : ''} réussi{done.streak > 1 ? 's' : ''}</span>}
+            {done.rank ? <span>{getLang() === 'fr' ? (done.rank === 1 ? '1re' : `${done.rank}e`) : String(done.rank)}{tr('cf.enigme.place_sur')}{done.total}</span> : null}
+            {done.streak > 0 && <span>{tr('cf.enigme.serie')}{done.streak}{tr('cf.enigme.jour')}{done.streak > 1 ? 's' : ''}{tr('cf.enigme.reussi')}{done.streak > 1 ? 's' : ''}</span>}
             {done.capsules > 0 && <span className="caps">+<Capsules n={done.capsules} size={15} /></span>}
           </span>
-          <button className="cf-btn violet" onClick={() => void share()}><Icon name="share" size={18} />Partager sans dévoiler</button>
+          <button className="cf-btn violet" onClick={() => void share()}><Icon name="share" size={18} />{tr('cf.enigme.partager_sans_devoiler')}</button>
           {shared && <small className="shared">{shared}</small>}
           <details className="cf-enigme-sol" open={done.score < done.best}>
-            <summary>La solution ({puzzle.bestCards} carte{puzzle.bestCards > 1 ? 's' : ''})</summary>
-            <ol>{describeLine(puzzle, puzzle.solution).map((t, i) => <li key={i}>{t}</li>)}</ol>
+            <summary>{tr('cf.enigme.la_solution')}{plural(puzzle.bestCards, 'carte')})</summary>
+            <ol>{describeLine(puzzle, puzzle.solution).map((t, i) => <li key={i}>{cfText(t)}</li>)}</ol>
           </details>
-          {!acc && <p className="cf-enigme-note">Invité : pas de classement ni de capsules. <button className="cf-link" onClick={onAccount}>Créer un compte</button></p>}
-          <p className="cf-enigme-note">Nouvelle énigme demain (minuit, heure de Bruxelles).</p>
+          {!acc && <p className="cf-enigme-note">{tr('cf.enigme.invite_pas_de_classement_ni_de')}<button className="cf-link" onClick={onAccount}>{tr('cf.collection.creer_un_compte')}</button></p>}
+          <p className="cf-enigme-note">{tr('cf.enigme.nouvelle_enigme_demain_minuit_heure_')}</p>
         </div>
       )}
 
       {acc && board && (board.top.length > 0 || done) && (
-        <section className="cf-enigme-board" aria-label="Classement du jour">
-          <h3>Classement du jour <small>{board.total} joueur{board.total > 1 ? 's' : ''}</small></h3>
+        <section className="cf-enigme-board" aria-label={tr('cf.enigme.classement_du_jour')}>
+          <h3>{tr('cf.enigme.classement_du_jour_2')}<small>{board.total}{tr('cf.enigme.joueur')}{board.total > 1 ? 's' : ''}</small></h3>
           <ol>
             {board.top.slice(0, 10).map((r) => (
               <li key={r.rank} className={done?.rank === r.rank ? 'me' : ''}><span>{r.rank}</span><b>{r.username}</b><em>{jetons(r.score)}</em></li>
             ))}
           </ol>
-          {done?.rank && done.rank > 10 && <p className="cf-enigme-note">Votre place : {done.rank}e sur {done.total}.</p>}
-          {!done && <p className="cf-enigme-note">Meilleur score d’abord, puis le plus tôt validé.</p>}
+          {done?.rank && done.rank > 10 && <p className="cf-enigme-note">{tr('cf.enigme.votre_place')}{done.rank}{tr('cf.enigme.e_sur')}{done.total}.</p>}
+          {!done && <p className="cf-enigme-note">{tr('cf.enigme.meilleur_score_d_abord_puis_le')}</p>}
         </section>
       )}
 
@@ -283,7 +284,7 @@ export function EnigmeScreen({ token, acc, onBack, onAccount }: { token: Tok; ac
           ? <Fiche t={fiche} v={v} legal={legal} snapLegal={legal} pending={false} discard={false} onAct={act} onClose={() => setFiche(null)} />
           : <div className="cfn-fiche-back" onClick={() => setFiche(null)}>
               <div className="cfn-fiche" role="dialog" aria-modal="true" aria-label={cardDef(fiche.id)?.name} onClick={(e) => e.stopPropagation()}>
-                <div className="cfn-fiche-top"><i className="cfn-grip" aria-hidden /><button className="cfn-x" onClick={() => setFiche(null)} aria-label="Fermer"><Icon name="close" size={18} /></button></div>
+                <div className="cfn-fiche-top"><i className="cfn-grip" aria-hidden /><button className="cfn-x" onClick={() => setFiche(null)} aria-label={tr('cf.boardparts.fermer')}><Icon name="close" size={18} /></button></div>
                 <BigCard id={fiche.id} width={Math.min(250, (typeof window !== 'undefined' ? window.innerWidth : 360) - 60)} />
               </div>
             </div>

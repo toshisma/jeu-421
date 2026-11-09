@@ -1,3 +1,4 @@
+import { tr, useLang } from '../i18n/lang';
 /**
  * Coups Fourrés : bandeau « X vous défie à Coups Fourrés » partout hors du mode (comme les
  * invitations du 421 classique). Léger : seulement l'API, chargé avec l'accueil. Dans le mode,
@@ -8,6 +9,7 @@ import type { ProfileApi } from '../account/useProfile';
 import { api } from '../account/api';
 
 export function CfChallengeBanner({ pa, onOpen }: { pa: ProfileApi; onOpen: () => void }) {
+  useLang();
   const [list, setList] = useState<{ id: string; from: string }[]>([]);
   const [hidden, setHidden] = useState<string[]>([]);
   useEffect(() => {
@@ -26,9 +28,9 @@ export function CfChallengeBanner({ pa, onOpen }: { pa: ProfileApi; onOpen: () =
   return (
     <div className="invite-banner cf-duel-banner" role="alert">
       <span aria-hidden>🃏</span>
-      <span className="ib-text"><b>{c.from}</b> vous défie à Coups Fourrés</span>
-      <button className="btn primary small" onClick={onOpen}>Voir</button>
-      <button className="btn ghost small" onClick={() => setHidden((h) => [...h, c.id])}>Plus tard</button>
+      <span className="ib-text"><b>{c.from}</b>{tr('cf.challengebanner.vous_defie_a_coups_fourres')}</span>
+      <button className="btn primary small" onClick={onOpen}>{tr('cf.tournament.voir')}</button>
+      <button className="btn ghost small" onClick={() => setHidden((h) => [...h, c.id])}>{tr('cf.challengebanner.plus_tard')}</button>
     </div>
   );
 }

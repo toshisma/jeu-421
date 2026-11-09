@@ -1,3 +1,4 @@
+import { tr } from '../i18n/lang';
 /**
  * Coups Fourrés : choisir son deck AVANT chaque partie (demande de Sam, novembre : « il faut qu'on puisse
  * choisir son deck avant que la partie se lance, peu importe le type de partie »).
@@ -9,7 +10,8 @@
  * - `DeckBadge` : petit rappel du deck choisi (salle d'attente, salon de la table).
  */
 import { useMemo, useState } from 'react';
-import { CARD_BY_ID, FAMILY_LABEL, type CardFamily } from '../../../shared/cards/catalog';
+import { type CardFamily } from '../../../shared/cards/catalog';
+import { CARD_BY_ID, FAMILY_LABEL, cfText } from './i18n';
 import { Sheet } from '../ui/kit';
 import { FAMILY_STYLE } from './meta';
 import { CardArt } from './art';
@@ -37,7 +39,7 @@ export function deckSummary(cards: Record<string, number>): { families: CardFami
 }
 
 /** Rappel compact d'un deck : petite illustration, nom, familles. */
-export function DeckBadge({ deck, label = 'Votre deck' }: { deck: { name: string; cards?: Record<string, number> } | null; label?: string }) {
+export function DeckBadge({ deck, label = tr('cf.mode.votre_deck') }: { deck: { name: string; cards?: Record<string, number> } | null; label?: string }) {
   if (!deck) return null;
   const s = deck.cards ? deckSummary(deck.cards) : null;
   return (
@@ -51,9 +53,9 @@ export function DeckBadge({ deck, label = 'Votre deck' }: { deck: { name: string
 export function DeckPicker({ decks, value, active, onChange }: { decks: DeckOption[]; value: string | null; active: string | null; onChange: (id: string) => void }) {
   // Jouables d'abord, le deck actif en tête.
   const list = useMemo(() => [...decks].sort((a, b) => Number(b.valid) - Number(a.valid) || Number(b.id === active) - Number(a.id === active)), [decks, active]);
-  if (!decks.length) return <p className="cf-muted">Aucun deck : construisez-en un dans « Mes decks ».</p>;
+  if (!decks.length) return <p className="cf-muted">{tr('cf.deckpicker.aucun_deck_construisez_en_un_dans')}</p>;
   return (
-    <div className="cf-decklist" role="radiogroup" aria-label="Votre deck pour cette partie">
+    <div className="cf-decklist" role="radiogroup" aria-label={tr('cf.deckpicker.votre_deck_pour_cette_partie')}>
       {list.map((d) => {
         const s = deckSummary(d.cards);
         const on = d.id === value;
@@ -64,8 +66,8 @@ export function DeckPicker({ decks, value, active, onChange }: { decks: DeckOpti
             </span>
             <span className="cf-decktile-tx">
               <b>{d.name}{d.id === active && <em className="cf-decktile-act">actif</em>}</b>
-              <small>{s.families.length ? s.families.map((f) => FAMILY_LABEL[f]).join(' · ') : 'Vide'}{s.legend ? ` · ★ ${CARD_BY_ID[s.legend]?.name}` : ''}</small>
-              {!d.valid && <small className="cf-decktile-why">Pas jouable : {d.problems.join(' ')}</small>}
+              <small>{s.families.length ? s.families.map((f) => FAMILY_LABEL[f]).join(' · ') : tr('cf.deckpicker.vide')}{s.legend ? ` · ★ ${CARD_BY_ID[s.legend]?.name}` : ''}</small>
+              {!d.valid && <small className="cf-decktile-why">{tr('cf.decks.pas_jouable')}{cfText(d.problems.join(' '))}</small>}
             </span>
             <i className="cf-decktile-dot" aria-hidden />
           </button>
@@ -88,8 +90,8 @@ export function DeckChoiceSheet({ st, title, intro, confirm, onConfirm, onClose,
       <div className="cf-deckchoice">
         {intro && <p className="cf-sheet-note">{intro}</p>}
         <DeckPicker decks={decks} value={id} active={st?.activeDeck ?? null} onChange={setId} />
-        {onDecks && <button className="cf-link" onClick={onDecks}>Modifier mes decks</button>}
-        <button className="cf-btn gold big" disabled={!chosen} onClick={() => chosen && onConfirm(chosen.id)}>{chosen ? `${confirm} avec « ${chosen.name} »` : 'Choisissez un deck jouable'}</button>
+        {onDecks && <button className="cf-link" onClick={onDecks}>{tr('cf.deckpicker.modifier_mes_decks')}</button>}
+        <button className="cf-btn gold big" disabled={!chosen} onClick={() => chosen && onConfirm(chosen.id)}>{chosen ? tr('cf.deckpicker.avec', { confirm: confirm, name: chosen.name }) : tr('cf.deckpicker.choisissez_un_deck_jouable')}</button>
       </div>
     </Sheet>
   );

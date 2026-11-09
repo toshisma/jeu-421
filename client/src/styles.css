@@ -2702,6 +2702,8 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .cf-txt.cf-txt-long { padding-top: 6px; gap: 2px; }
 .cf-txt.cf-txt-long p { font-size: 11.6px; line-height: 1.24; }
 .cf-txt.cf-txt-long em { font-size: 10.2px; }
+.cf-txt.cf-txt-xl p { font-size: 10.4px; line-height: 1.18; }
+.cf-txt.cf-txt-xl em { font-size: 9.2px; line-height: 1.15; }
 .cf-foot { display: flex; align-items: center; justify-content: center; height: 12px; font: 700 9.5px/1 Barlow, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: rgba(251,246,233,.75); }
 .cf-tag { position: absolute; top: -10px; right: 12px; z-index: 2; padding: 4px 8px; border-radius: 999px; font: 800 10px/1 Barlow, sans-serif; letter-spacing: .08em; text-transform: uppercase; box-shadow: 0 2px 6px rgba(0,0,0,.4); }
 .cf-tag-shiny { background: linear-gradient(90deg, #ffd36b, #ff9ad8, #8fd8ff); color: #2a1030; }
@@ -3485,6 +3487,7 @@ span.cfn-hab { cursor: default; }
 .cfn-hand .cfn-hc { bottom: 0; }
 .cfn-hc.small { width: 82px; height: 115px; padding: 4px; }
 .cfn-hc .c { position: absolute; top: -7px; left: -7px; z-index: 2; width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffe9a8, #d4ad2f 60%, #8a6418); font: 800 15px/24px 'Barlow Condensed', sans-serif; color: #2a1a05; text-align: center; box-shadow: 0 2px 0 rgba(0,0,0,.4); }
+.cfn-hc b.cfn-long { font-size: 86%; line-height: 1.05; word-break: break-word; }
 .cfn-hc .a { flex: none; height: 52px; border-radius: 5px; overflow: hidden; }
 .cfn-hc.small .a { height: 44px; }
 .cfn-hc .a svg { display: block; width: 100%; height: 100%; }

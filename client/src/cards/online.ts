@@ -1,3 +1,5 @@
+import { cfText } from './i18n';
+import { tr } from '../i18n/lang';
 /**
  * Coups Fourrés en ligne : connexion au serveur (espace Socket.IO « /cf », comptes seulement) et
  * contrôleur de partie `CfController` (même contrat que la partie contre l'ordinateur).
@@ -79,9 +81,9 @@ export class CfOnlineController implements CfController {
   onEmote(cb: (playerId: string, emote: string) => void) { this.emoteSubs.add(cb); return () => { this.emoteSubs.delete(cb); }; }
 
   async act(action: CfAction): Promise<string | null> {
-    if (this.spectator) return 'Vous regardez la partie : les spectateurs ne jouent pas.';
+    if (this.spectator) return tr('cf.online.vous_regardez_la_partie_les_spectate');
     const a = await this.session.call('cf:act', { id: this.id, action });
-    return a.ok ? null : a.error;
+    return a.ok ? null : cfText(a.error);
   }
   sendChat(text: string) { return this.session.call('cf:chat', { text }); }
   sendEmote(emote: string) { return this.session.call('cf:emote', { emote }); }
@@ -136,7 +138,7 @@ export class CfOnline {
       this.changed();
     });
     s.on('disconnect', () => { this.connected = false; this.changed(); });
-    s.on('connect_error', (e: Error) => { this.connected = false; if (/compte|suspendu/i.test(e.message)) this.alert = e.message; this.changed(); });
+    s.on('connect_error', (e: Error) => { this.connected = false; if (/compte|suspendu/i.test(e.message)) this.alert = cfText(e.message); this.changed(); });
     s.on('cf:hello', (h: CfHelloMsg) => { this.hello = h; this.challenges = h.challenges; this.changed(); });
     s.on('cf:state', (m: CfStateMsg) => {
       let isNew = false;
@@ -145,7 +147,7 @@ export class CfOnline {
       if (isNew) for (const cb of this.gameSubs) cb(this.game);
       this.changed();
     });
-    s.on('cf:notice', ({ text }: { text: string }) => { this.game?.notice(text); this.changed(); });
+    s.on('cf:notice', ({ text }: { text: string }) => { this.game?.notice(cfText(text)); this.changed(); });
     s.on('cf:chat', (m: CfChatMsg) => {
       if (this.game) this.game.addChat(m);
       else if (this.table) this.tableChat = [...this.tableChat.slice(-49), m];
@@ -154,22 +156,22 @@ export class CfOnline {
     s.on('cf:emote', ({ playerId, emote }: { playerId: string; emote: string }) => this.game?.emote(playerId, emote));
     s.on('cf:queue', (q: CfQueueMsg) => { this.queue = q; this.changed(); });
     s.on('cf:table', (t: CfTableMsg) => { if (this.table?.code !== t.code) this.tableChat = []; this.table = t; this.changed(); });
-    s.on('cf:table:kicked', ({ text }: { text: string }) => { this.table = null; this.alert = text; this.changed(); });
+    s.on('cf:table:kicked', ({ text }: { text: string }) => { this.table = null; this.alert = cfText(text); this.changed(); });
     s.on('cf:challenge:incoming', (ch: CfChallengeMsg) => { this.challenges = [...this.challenges.filter((x) => x.id !== ch.id), ch]; this.changed(); });
     s.on('cf:challenge:closed', ({ id, reason }: { id: string; reason: string }) => {
       this.challenges = this.challenges.filter((x) => x.id !== id);
       if (this.sentChallenge?.id === id) this.sentChallenge = { id, closed: reason };
       this.changed();
     });
-    s.on('cf:replaced', ({ text }: { text: string }) => { this.alert = text; this.changed(); });
+    s.on('cf:replaced', ({ text }: { text: string }) => { this.alert = cfText(text); this.changed(); });
     s.on('account:banned', ({ text }: { text: string }) => { window.dispatchEvent(new CustomEvent('421:banned', { detail: text })); this.alert = text; this.changed(); });
   }
 
   /** Commande au serveur, avec accusé (erreur en français prête à afficher). */
   call<T extends object = object>(ev: string, payload: object = {}): Promise<CfAck<T>> {
     return new Promise((resolve) => {
-      if (!this.socket.connected) return resolve({ ok: false, error: 'Connexion au serveur impossible.' });
-      const t = setTimeout(() => resolve({ ok: false, error: 'Le serveur ne répond pas.' }), 8000);
+      if (!this.socket.connected) return resolve({ ok: false, error: tr('cf.online.connexion_au_serveur_impossible') });
+      const t = setTimeout(() => resolve({ ok: false, error: tr('cf.online.le_serveur_ne_repond_pas') }), 8000);
       this.socket.emit(ev, payload, (a: CfAck<T>) => { clearTimeout(t); resolve(a); });
     });
   }
@@ -181,9 +183,9 @@ export class CfOnline {
     });
   }
   private async send<T extends object = object>(ev: string, payload: object = {}): Promise<T> {
-    if (!(await this.waitConnected())) throw new Error('Impossible de joindre le serveur de jeu.');
+    if (!(await this.waitConnected())) throw new Error(tr('cf.online.impossible_de_joindre_le_serveur_de'));
     const a = await this.call<T>(ev, payload);
-    if (!a.ok) throw new Error(a.error);
+    if (!a.ok) throw new Error(cfText(a.error));
     return a;
   }
 
@@ -254,7 +256,7 @@ export class CfOnline {
   private waitGame(id: string): Promise<CfOnlineController> {
     if (this.game?.id === id) return Promise.resolve(this.game);
     return new Promise((resolve, reject) => {
-      const t = setTimeout(() => { off(); reject(new Error('Le serveur ne répond pas.')); }, 8000);
+      const t = setTimeout(() => { off(); reject(new Error(tr('cf.online.le_serveur_ne_repond_pas'))); }, 8000);
       const off = this.onGame((c) => { if (c.id === id) { clearTimeout(t); off(); resolve(c); } });
     });
   }

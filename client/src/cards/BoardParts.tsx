@@ -1,3 +1,5 @@
+import { cfText } from './i18n';
+import { getLang, tr } from '../i18n/lang';
 /**
  * Coups Fourrés : les pièces du plateau de partie (prototypes CFN validés par Sam le 5 novembre :
  * tour adverse, votre tour, riposte, piège déclenché, fiche de carte).
@@ -5,7 +7,8 @@
  */
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { appHeight } from '../ui/navGuard';
-import { CARD_BY_ID, cardDef, type CardType } from '../../../shared/cards/catalog';
+import { type CardType } from '../../../shared/cards/catalog';
+import { CARD_BY_ID, cardDef } from './i18n';
 import { commandeOf, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView, type PlayParams } from '../../../shared/cards/engine';
 import { Avatar } from '../ui/Avatar';
 import { Icon } from '../ui/Icon';
@@ -20,7 +23,7 @@ import { GlossText } from './Gloss';
 import { useLongPress, zoomCard, ZoomBtn } from './zoom';
 
 /** Étiquettes qui ne disent pas ce que fait la carte : on écrit plutôt son effet. */
-const GENERIC_LABEL = new Set(['Installer', 'Poser face cachée', 'Jouer', 'Jouable']);
+const GENERIC_LABEL = new Set([tr('cf.boardparts.installer'), tr('cf.boardparts.poser_face_cachee'), tr('cf.boardparts.jouer'), tr('cf.boardparts.jouable')]);
 import { Pip } from './cfui';
 import { TYPE_META, TypeIcon, TypeLegend } from './cardTypes';
 import type { CfSeat, CfSnapshot } from './controller';
@@ -39,17 +42,17 @@ const vw = () => (typeof window !== 'undefined' ? window.innerWidth : 360);
 /** Tournées : petits verres pleins / vides. */
 export function Glasses({ n, max, label }: { n: number; max: number; label?: boolean }) {
   return (
-    <span className="cfn-glasses" role="img" aria-label={`${plural(n, 'Tournée')} sur ${max}`}>
+    <span className="cfn-glasses" role="img" aria-label={`${plural(n, 'Tournée')} ${tr('cf.w.sur' as never)} ${max}`}>
       {Array.from({ length: max }, (_, i) => <i key={i} className={i < n ? '' : 'off'} />)}
       {/* Écrit en toutes lettres (0.39) : on ne devine plus ce que sont les petits verres. */}
-      {label && <small className="cfn-res-l" aria-hidden>{n} Tournée{n > 1 ? 's' : ''}</small>}
+      {label && <small className="cfn-res-l" aria-hidden>{n}{tr('cf.boardparts.tournee')}{n > 1 ? 's' : ''}</small>}
     </span>
   );
 }
 
 /** Jetons (pastille dorée). */
 export const Tokens = ({ n, refEl, label }: { n: number; refEl?: (el: HTMLElement | null) => void; label?: boolean }) => (
-  <span className={`cfn-chip${label ? ' lab' : ''}`} ref={refEl} aria-label={plural(n, 'jeton')}><i className="cfn-tok" aria-hidden />{n}{label && <small aria-hidden>jeton{n > 1 ? 's' : ''}</small>}</span>
+  <span className={`cfn-chip${label ? ' lab' : ''}`} ref={refEl} aria-label={plural(n, 'jeton')}><i className="cfn-tok" aria-hidden />{n}{label && <small aria-hidden>{tr('cf.boardparts.jeton')}{n > 1 ? 's' : ''}</small>}</span>
 );
 
 /** Effets en attente d'un joueur cette manche (Double tournée, Note salée, Gueule de bois…), écrits en clair. */
@@ -80,7 +83,7 @@ export function BigCard({ id, width = 250, extra, className, zoom }: { id: strin
   const m = TYPE_META[d.type];
   return (
     <div className={`cfn-big${d.rarity === 'legendaire' ? ' leg' : ''}${className ? ` ${className}` : ''}`} style={{ width, background: `linear-gradient(160deg, ${fs.c1}, ${fs.c2})`, ['--e' as string]: fs.edge }}
-      role="group" aria-label={`${d.name}, ${m.label}, coût ${d.cost}`}>
+      role="group" aria-label={tr('cf.boardparts.cout', { name: d.name, label: m.label, cost: d.cost })}>
       <div className="cfn-big-hd"><span className="cfn-coin">{d.cost}</span><h3>{d.name}</h3></div>
       <span className="cfn-big-art"><CardArt id={id} /></span>
       <span className="cfn-big-tl" style={{ color: m.color }}><TypeIcon type={d.type} size={13} />{m.label} · {m.moment}</span>
@@ -111,10 +114,10 @@ export function HandCard({ id, ok, off, sel, focus, style, onClick, small, fx }:
   const Tag = onClick ? 'button' : 'div';
   return (
     <Tag className={`cfn-hc${ok ? ' ok' : ''}${off ? ' off' : ''}${sel ? ' sel' : ''}${focus ? ' cfn-focus' : ''}${small ? ' small' : ''}`} style={{ background: `linear-gradient(160deg, ${fs.c1}, ${fs.c2})`, ...style }}
-      onClick={onClick} aria-label={onClick ? `${d.name}, ${m.label}, coût ${d.cost}` : undefined} type={onClick ? 'button' : undefined} {...press}>
+      onClick={onClick} aria-label={onClick ? tr('cf.boardparts.cout', { name: d.name, label: m.label, cost: d.cost }) : undefined} type={onClick ? 'button' : undefined} {...press}>
       <span className="c">{d.cost}</span>
       <span className="a"><CardArt id={id} /></span>
-      <b>{d.name}</b>
+      <b className={getLang() !== 'fr' && d.name.length > 13 ? 'cfn-long' : undefined}>{d.name}</b>
       {fx && <span className="fx">{fx}</span>}
       <span className="ty" style={{ color: m.color }}><TypeIcon type={d.type} size={11} />{m.label}</span>
     </Tag>
@@ -185,7 +188,7 @@ export const Hand = memo(function Hand({ cards, hints, onPick, sel, focus, quiet
   };
   return (
     <div className={`cfn-hand-wrap${hid[0] ? ' more-l' : ''}${hid[1] ? ' more-r' : ''}`}>
-      <div ref={ref} className={`cfn-hand${small ? ' small' : ''}${focus ? ' cfn-focus-zone' : ''}`} role="list" aria-label={`Votre main : ${plural(cards.length, 'carte')}`}>
+      <div ref={ref} className={`cfn-hand${small ? ' small' : ''}${focus ? ' cfn-focus-zone' : ''}`} role="list" aria-label={tr('cf.boardparts.votre_main', { cartes: plural(cards.length, 'carte') })}>
         {sorted.map((k) => {
           const h = hints[k.uid];
           const ok = !quiet && !!h?.playable;
@@ -199,12 +202,12 @@ export const Hand = memo(function Hand({ cards, hints, onPick, sel, focus, quiet
         })}
       </div>
       {hid[0] > 0 && (
-        <button type="button" className="cfn-hand-arrow l" onClick={() => page(-1)} aria-label={`${plural(hid[0], 'carte')} cachée${hid[0] > 1 ? 's' : ''} à gauche : faire défiler`}>
+        <button type="button" className="cfn-hand-arrow l" onClick={() => page(-1)} aria-label={tr('cf.boardparts.cachee_a_gauche_faire_defiler', { cartes: plural(hid[0], 'carte'), s: hid[0] > 1 ? 's' : '' })}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden><path d="M15 5l-7 7 7 7" /></svg><b>{hid[0]}</b>
         </button>
       )}
       {hid[1] > 0 && (
-        <button type="button" className="cfn-hand-arrow r" onClick={() => page(1)} aria-label={`${plural(hid[1], 'carte')} cachée${hid[1] > 1 ? 's' : ''} à droite : faire défiler`}>
+        <button type="button" className="cfn-hand-arrow r" onClick={() => page(1)} aria-label={tr('cf.boardparts.cachee_a_droite_faire_defiler', { cartes: plural(hid[1], 'carte'), s: hid[1] > 1 ? 's' : '' })}>
           <b>{hid[1]}</b><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden><path d="M9 5l7 7-7 7" /></svg>
         </button>
       )}
@@ -218,7 +221,7 @@ const reducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia
 export function Frise({ steps }: { steps: FriseStep[] }) {
   const on = steps.find((s) => s.state === 'on');
   return (
-    <div className="cfn-frise" role="list" aria-label={`Étapes de la manche${on ? ` : ${on.label} en cours` : ''}`}>
+    <div className="cfn-frise" role="list" aria-label={tr('cf.boardparts.etapes_de_la_manche', { a: on ? tr('cf.boardparts.en_cours', { label: on.label }) : '' })}>
       {steps.map((s) => <span key={s.key} role="listitem" className={`cfn-st ${s.state}`}><i />{s.label}</span>)}
     </div>
   );
@@ -228,9 +231,9 @@ export function Frise({ steps }: { steps: FriseStep[] }) {
 export function TrapBox({ n, seen, sub, onClick, compact }: { n: number; seen: string[]; sub: string; onClick: () => void; compact?: boolean }) {
   if (n <= 0) return null;
   return (
-    <button className={`cfn-trap${compact ? ' compact' : ''}`} onClick={onClick} aria-label={`${n} piège${n > 1 ? 's' : ''} caché${n > 1 ? 's' : ''} : touchez pour les possibilités`}>
+    <button className={`cfn-trap${compact ? ' compact' : ''}`} onClick={onClick} aria-label={tr('cf.boardparts.piege_cache_touchez_pour_les_possibi', { n: n, s: n > 1 ? 's' : '' })}>
       <TrapCard />
-      {compact ? <b>{n}</b> : <span>{plural(n, 'piège')}<br /><small>{seen.length ? `Vu : ${seen.join(', ')}` : 'caché' + (n > 1 ? 's' : '')}</small></span>}
+      {compact ? <b>{n}</b> : <span>{plural(n, 'piège')}<br /><small>{seen.length ? tr('cf.boardparts.vu', { a: seen.join(', ') }) : tr('cf.boardparts.cache') + (n > 1 ? 's' : '')}</small></span>}
     </button>
   );
 }
@@ -240,10 +243,10 @@ export function TrapBox({ n, seen, sub, onClick, compact }: { n: number; seen: s
  * la petite illustration de la carte ; toucher ouvre sa fiche.
  */
 export function HabPin({ id, trap, rounds, onClick }: { id: string | null; trap?: boolean; rounds?: number; onClick: () => void }) {
-  const name = id ? def(id)?.name ?? '' : 'Piège';
-  const left = rounds != null ? `, encore ${rounds} manche${rounds > 1 ? 's' : ''}` : '';
+  const name = id ? def(id)?.name ?? '' : tr('cf.boardparts.piege');
+  const left = rounds != null ? tr('cf.boardparts.encore_manche', { rounds: rounds, s: rounds > 1 ? 's' : '' }) : '';
   return (
-    <button className={`cfn-pin${trap ? ' trap' : ''}`} onClick={onClick} aria-label={trap ? `Votre piège posé : ${name}` : `Habitué : ${name}${left}`} title={`${name}${left}`}>
+    <button className={`cfn-pin${trap ? ' trap' : ''}`} onClick={onClick} aria-label={trap ? tr('cf.boardparts.votre_piege_pose', { name: name }) : tr('cf.boardparts.habitue', { name: name, left: left })} title={`${name}${left}`}>
       {id ? <CardArt id={id} /> : <TypeIcon type="piege" size={12} />}
       {/* Habitué : manches qui lui restent (il rentre chez lui au bout de 3 manches). */}
       {rounds != null ? <b className="cfn-pin-left" aria-hidden>{rounds}</b> : <i aria-hidden><TypeIcon type={trap ? 'piege' : 'habitue'} size={8} /></i>}
@@ -263,16 +266,16 @@ export function OppPanel({ p, v, seat, active, compact, refEl, tokRef, onTrap, o
   const fresh = traps.some((t) => t.posedRound === v.round) && v.order[v.turn] === p.id && v.phase === 'turn';
   // Sous-titre court : niveau de l'ordinateur et familles du deck en abrégé (le détail des pièges
   // possibles est dans l'encadré des pièges).
-  const sub = [seat?.label ? (seat.bot ? `Ordinateur ${seat.label}` : seat.label) : null, p.families.length ? familiesLabel(p.families).replace(/ \/ /g, '/') : null].filter(Boolean).join(' · ');
+  const sub = [seat?.label ? (seat.bot ? tr('cf.boardparts.ordinateur', { label: seat.label }) : seat.label) : null, p.families.length ? familiesLabel(p.families).replace(/ \/ /g, '/') : null].filter(Boolean).join(' · ');
   return (
     <section className={`cfn-opp${active ? ' active' : ''}${p.out ? ' out' : ''}${compact ? ' compact' : ''}${focus ? ' cfn-focus-zone' : ''}`} ref={refEl}
-      aria-label={`${p.name} : ${plural(p.tokens, 'jeton')}, ${plural(p.tournees, 'Tournée')}, ${plural(p.handCount, 'carte')} en main, ${plural(traps.length, 'piège')} posé${traps.length > 1 ? 's' : ''}`}>
+      aria-label={tr('cf.boardparts.en_main_pose', { name: p.name, jetons: plural(p.tokens, 'jeton'), tournees: plural(p.tournees, 'Tournée'), cartes: plural(p.handCount, 'carte'), pieges: plural(traps.length, 'piège'), s: traps.length > 1 ? 's' : '' })}>
       <div className="cfn-row">
         <Avatar photo={seat?.photo} emoji={seat?.avatar ?? '🎲'} size={compact ? 28 : 38} />
         <span className="cfn-opp-name"><b>{p.name}</b>
-          {seat?.left ? <small className="away">A quitté la partie</small> : seat?.away ? <small className="away">Déconnecté : 60 s pour revenir</small> : !compact && sub ? <small>{sub}</small> : null}
+          {seat?.left ? <small className="away">{tr('cf.boardparts.a_quitte_la_partie')}</small> : seat?.away ? <small className="away">{tr('cf.boardparts.deconnecte_60_s_pour_revenir')}</small> : !compact && sub ? <small>{sub}</small> : null}
         </span>
-        {emote && <span className="cfn-emote" aria-label={`Réaction : ${emote}`}>{emote}</span>}
+        {emote && <span className="cfn-emote" aria-label={tr('cf.boardparts.reaction', { emote: emote })}>{emote}</span>}
         <Tokens n={p.tokens} refEl={tokRef} label={!compact} />
       </div>
       <div className="cfn-row">
@@ -280,10 +283,10 @@ export function OppPanel({ p, v, seat, active, compact, refEl, tokRef, onTrap, o
         <span className="cfn-backs" aria-hidden><i className="cfn-bk" /><em>{p.handCount}{compact ? '' : ` carte${p.handCount > 1 ? 's' : ''}`}</em></span>
         {p.habitues.length > 0 && <span className="cfn-pins">{p.habitues.map((h) => <HabPin key={h.uid} id={h.id} rounds={h.rounds} onClick={() => onCard(h.id, p.id)} />)}</span>}
         <span className="cfn-grow" />
-        <TrapBox n={traps.length} seen={seen} sub={fresh ? 'Posé à l’instant' : 'Touchez pour les possibilités'} onClick={onTrap} compact={compact || p.habitues.length > 0} />
+        <TrapBox n={traps.length} seen={seen} sub={fresh ? tr('cf.boardparts.pose_a_l_instant') : tr('cf.boardparts.touchez_pour_les_possibilites')} onClick={onTrap} compact={compact || p.habitues.length > 0} />
       </div>
       <EffectChips list={activeEffects(v, p, false)} onCard={(id) => onCard(id, p.id)} />
-      {last && !compact && <button className="cfn-last" onClick={onLast}><em>Dernier coup</em> {last}</button>}
+      {last && !compact && <button className="cfn-last" onClick={onLast}><em>{tr('cf.boardparts.dernier_coup')}</em> {last}</button>}
     </section>
   );
 }
@@ -306,15 +309,15 @@ export function FrontCard({ id, trap, rounds, onClick, title }: { id: string | n
 export function FrontRow({ p, v, max, onCard, onTrap, onMore }: { p: CfPlayerView; v: CfView; max: number; onCard: (id: string) => void; onTrap: () => void; onMore: () => void }) {
   const traps = v.traps.filter((t) => t.owner === p.id);
   const items = [
-    ...p.habitues.map((h) => ({ key: h.uid, el: <FrontCard key={h.uid} id={h.id} rounds={h.rounds} onClick={() => onCard(h.id)} title={`Habitué : ${cardName(h.id)}, encore ${plural(h.rounds ?? 1, 'manche')}`} /> })),
-    ...traps.map((t) => ({ key: t.uid, el: <FrontCard key={t.uid} id={t.id} trap onClick={onTrap} title={t.id ? `Piège posé : ${cardName(t.id)}` : 'Piège posé face cachée : touchez pour les possibilités'} /> })),
+    ...p.habitues.map((h) => ({ key: h.uid, el: <FrontCard key={h.uid} id={h.id} rounds={h.rounds} onClick={() => onCard(h.id)} title={tr('cf.boardparts.habitue_encore', { a: cardName(h.id), manches: plural(h.rounds ?? 1, 'manche') })} /> })),
+    ...traps.map((t) => ({ key: t.uid, el: <FrontCard key={t.uid} id={t.id} trap onClick={onTrap} title={t.id ? tr('cf.boardparts.piege_pose', { a: cardName(t.id) }) : tr('cf.boardparts.piege_pose_face_cachee_touchez_pour')} /> })),
   ];
   if (!items.length) return null;
   const shown = items.length > max ? items.slice(0, max - 1) : items;
   return (
-    <span className="cfn-front" role="group" aria-label={`Devant ${p.name} : ${plural(p.habitues.length, 'Habitué')}, ${plural(traps.length, 'piège')}`}>
+    <span className="cfn-front" role="group" aria-label={tr('cf.boardparts.devant', { name: p.name, habitues: plural(p.habitues.length, 'Habitué'), pieges: plural(traps.length, 'piège') })}>
       {shown.map((x) => x.el)}
-      {shown.length < items.length && <button type="button" className="cfn-mc plus" onClick={(e) => { e.stopPropagation(); onMore(); }} aria-label="Tout voir">+{items.length - shown.length}</button>}
+      {shown.length < items.length && <button type="button" className="cfn-mc plus" onClick={(e) => { e.stopPropagation(); onMore(); }} aria-label={tr('cf.boardparts.tout_voir')}>+{items.length - shown.length}</button>}
     </span>
   );
 }
@@ -335,21 +338,21 @@ export function PlayerBox({ p, v, seat, active, wide, tokRef, onOpen, onCard, on
   return (
     <div className={`cfn-pbox${active ? ' on' : ''}${p.out ? ' out' : ''}${wide ? ' wide' : ''}${focus ? ' cfn-focus-zone' : ''}`}>
       <button type="button" className="cfn-pbox-main" onClick={onOpen}
-        aria-label={`${p.name} : ${plural(p.tokens, 'jeton')}, ${plural(p.tournees, 'Tournée')}, ${plural(p.handCount, 'carte')} en main, ${plural(traps, 'piège')} posé${traps > 1 ? 's' : ''}, ${plural(p.habitues.length, 'Habitué')}. Touchez pour le détail.`}>
+        aria-label={tr('cf.boardparts.en_main_pose_touchez_pour_le', { name: p.name, jetons: plural(p.tokens, 'jeton'), tournees: plural(p.tournees, 'Tournée'), cartes: plural(p.handCount, 'carte'), pieges: plural(traps, 'piège'), s: traps > 1 ? 's' : '', habitues: plural(p.habitues.length, 'Habitué') })}>
         <span className="nm">
           {wide && <Avatar photo={seat?.photo} emoji={seat?.avatar ?? '🎲'} size={32} />}
           <b>{p.name}</b>
           {emote && <span className="cfn-emote" aria-hidden>{emote}</span>}
-          {seat?.left ? <small className="away">parti</small> : seat?.away ? <small className="away">déconnecté</small> : null}
+          {seat?.left ? <small className="away">{tr('cf.boardparts.parti')}</small> : seat?.away ? <small className="away">{tr('cf.boardparts.deconnecte')}</small> : null}
         </span>
-        <span className="tk" ref={tokRef}><i className="cfn-tok" aria-hidden />{p.tokens}<small>jeton{p.tokens > 1 ? 's' : ''}</small></span>
+        <span className="tk" ref={tokRef}><i className="cfn-tok" aria-hidden />{p.tokens}<small>{tr('cf.boardparts.jeton')}{p.tokens > 1 ? 's' : ''}</small></span>
         <span className="mini" aria-hidden>
-          <span title="Tournées">🍺 {p.tournees}</span>
-          <span title="Cartes en main"><i className="cfn-bk mini" />{p.handCount}</span>
-          {wide && <em>{plural(p.handCount, 'carte')} · touchez pour le détail</em>}
+          <span title={tr('cf.boardparts.tournees')}>🍺 {p.tournees}</span>
+          <span title={tr('cf.boardparts.cartes_en_main')}><i className="cfn-bk mini" />{p.handCount}</span>
+          {wide && <em>{plural(p.handCount, 'carte')}{tr('cf.boardparts.touchez_pour_le_detail')}</em>}
         </span>
         {fx.length > 0 && <span className="cfn-fx-row">{fx.map((e) => <span key={e.card + e.text} className={`cfn-fx ${e.tone}`} style={{ ['--tc' as string]: TYPE_META[e.type].color }}><TypeIcon type={e.type} size={11} />{e.text}</span>)}</span>}
-        {wide && last && <span className="cfn-last"><em>Dernier coup</em> {last}</span>}
+        {wide && last && <span className="cfn-last"><em>{tr('cf.boardparts.dernier_coup')}</em> {last}</span>}
         <i className="more" aria-hidden>›</i>
       </button>
       <FrontRow p={p} v={v} max={wide ? 6 : n >= 3 ? 3 : 4} onCard={onCard} onTrap={onTrap} onMore={onOpen} />
@@ -364,28 +367,28 @@ export function PlayerSheet({ p, v, seat, me, last, onClose, onCard, onTraps }: 
   const traps = v.traps.filter((t) => t.owner === p.id);
   const onMe = traps.filter((t) => t.target !== p.id);
   const fx = activeEffects(v, p, me);
-  const label = seat?.label ? (seat.bot ? `Ordinateur ${seat.label}` : seat.label) : null;
+  const label = seat?.label ? (seat.bot ? tr('cf.boardparts.ordinateur', { label: seat.label }) : seat.label) : null;
   return (
-    <Sheet title={me ? 'Vous' : p.name} onClose={onClose}>
+    <Sheet title={me ? tr('cf.boardparts.vous') : p.name} onClose={onClose}>
       <dl className="cfn-kv">
-        {label && <><dt>Joueur</dt><dd>{label}</dd></>}
-        <dt>Jetons</dt><dd><b>{p.tokens}</b> · le premier à 0 gagne</dd>
-        <dt>Tournées</dt><dd><b>{p.tournees}</b> sur {v.rules.tourneesMax} · elles paient les cartes ({v.rules.tourneesPerRound} de plus à chaque manche)</dd>
-        <dt>Cartes en main</dt><dd><b>{p.handCount}</b>{me ? '' : ', cachées'} · {plural(p.deckCount, 'carte')} dans son deck</dd>
-        <dt>Habitués</dt><dd>{p.habitues.length ? p.habitues.map((h) => <button key={h.uid} className="cfn-kv-link" onClick={() => onCard(h.id)}>{cardName(h.id)} · encore {plural(h.rounds ?? 1, 'manche')}</button>) : 'aucun'}</dd>
-        <dt>Pièges posés</dt><dd>{traps.length ? <button className="cfn-kv-link" onClick={onTraps}>{plural(traps.length, 'piège')}{me ? '' : ' caché' + (traps.length > 1 ? 's' : '')}{v.players.length > 2 && onMe.length ? ` (sur ${[...new Set(onMe.map((t) => nameIn(v, t.target)))].join(', ')})` : ''} · voir</button> : 'aucun'}</dd>
-        <dt>En cours</dt><dd>{fx.length ? fx.map((e) => <button key={e.card + e.text} className="cfn-kv-link" onClick={() => onCard(e.card)}>{e.text}</button>) : 'rien'}</dd>
-        {p.r.throwsUsed > 0 && <><dt>Ses dés</dt><dd>{p.r.dice.join('-')} · {plural(p.r.throwsUsed, 'lancer')}</dd></>}
-        {last && <><dt>Dernier coup</dt><dd>{last}</dd></>}
-        {p.families.length > 0 && <><dt>Son deck</dt><dd>{familiesLabel(p.families)}</dd></>}
-        <dt>Défausse</dt><dd>{p.discard.length ? (
-          <span className="cfn-discard" aria-label={`${plural(p.discard.length, 'carte')} défaussée${p.discard.length > 1 ? 's' : ''}, la plus récente d’abord`}>
+        {label && <><dt>{tr('cf.boardparts.joueur')}</dt><dd>{label}</dd></>}
+        <dt>{tr('cf.boardparts.jetons')}</dt><dd><b>{p.tokens}</b>{tr('cf.boardparts.le_premier_a_0_gagne')}</dd>
+        <dt>{tr('cf.boardparts.tournees')}</dt><dd><b>{p.tournees}</b>{tr('cf.boardparts.sur')}{v.rules.tourneesMax}{tr('cf.boardparts.elles_paient_les_cartes')}{v.rules.tourneesPerRound}{tr('cf.boardparts.de_plus_a_chaque_manche')}</dd>
+        <dt>{tr('cf.boardparts.cartes_en_main')}</dt><dd><b>{p.handCount}</b>{me ? '' : tr('cf.boardparts.cachees')} · {plural(p.deckCount, 'carte')}{tr('cf.boardparts.dans_son_deck')}</dd>
+        <dt>{tr('cf.boardparts.habitues')}</dt><dd>{p.habitues.length ? p.habitues.map((h) => <button key={h.uid} className="cfn-kv-link" onClick={() => onCard(h.id)}>{cardName(h.id)}{tr('cf.boardparts.encore')}{plural(h.rounds ?? 1, 'manche')}</button>) : 'aucun'}</dd>
+        <dt>{tr('cf.boardparts.pieges_poses')}</dt><dd>{traps.length ? <button className="cfn-kv-link" onClick={onTraps}>{plural(traps.length, 'piège')}{me ? '' : tr('cf.boardparts.cache_2') + (traps.length > 1 ? 's' : '')}{v.players.length > 2 && onMe.length ? tr('cf.boardparts.sur', { a: [...new Set(onMe.map((t) => nameIn(v, t.target)))].join(', ') }) : ''}{tr('cf.boardparts.voir')}</button> : 'aucun'}</dd>
+        <dt>{tr('cf.boardparts.en_cours_2')}</dt><dd>{fx.length ? fx.map((e) => <button key={e.card + e.text} className="cfn-kv-link" onClick={() => onCard(e.card)}>{e.text}</button>) : 'rien'}</dd>
+        {p.r.throwsUsed > 0 && <><dt>{tr('cf.boardparts.ses_des')}</dt><dd>{p.r.dice.join('-')} · {plural(p.r.throwsUsed, 'lancer')}</dd></>}
+        {last && <><dt>{tr('cf.boardparts.dernier_coup')}</dt><dd>{last}</dd></>}
+        {p.families.length > 0 && <><dt>{tr('cf.boardparts.son_deck')}</dt><dd>{familiesLabel(p.families)}</dd></>}
+        <dt>{tr('cf.boardparts.defausse')}</dt><dd>{p.discard.length ? (
+          <span className="cfn-discard" aria-label={tr('cf.boardparts.defaussee_la_plus_recente_d_abord', { cartes: plural(p.discard.length, 'carte'), s: p.discard.length > 1 ? 's' : '' })}>
             {[...p.discard].reverse().slice(0, 12).map((k) => (
-              <button key={k.uid} type="button" className="cfn-dc" onClick={() => zoomCard(k.id)} aria-label={`${cardName(k.id)} : lire en grand`}>
+              <button key={k.uid} type="button" className="cfn-dc" onClick={() => zoomCard(k.id)} aria-label={tr('cf.boardparts.lire_en_grand', { a: cardName(k.id) })}>
                 <span className="art" aria-hidden><CardArt id={k.id} /></span><small>{shortName(k.id)}</small>
               </button>
             ))}
-            {p.discard.length > 12 && <em>et {plural(p.discard.length - 12, 'autre')}</em>}
+            {p.discard.length > 12 && <em>{tr('cf.boardparts.et')}{plural(p.discard.length - 12, 'autre')}</em>}
           </span>
         ) : 'vide'}</dd>
       </dl>
@@ -411,7 +414,7 @@ export function AnnounceView({ a, onDone, spectator, me, v, leaving }: { a: Anno
             {a.conseq && <b>{a.conseq}</b>}
             {a.hint && <span>{a.hint}</span>}
           </div>
-          {block ? <button className="cfn-act violet full" onClick={onDone} autoFocus>Compris</button> : bar}
+          {block ? <button className="cfn-act violet full" onClick={onDone} autoFocus>{tr('cf.boardparts.compris')}</button> : bar}
         </div>
       </div>
     );
@@ -440,13 +443,13 @@ export function AnnounceView({ a, onDone, spectator, me, v, leaving }: { a: Anno
           <b>{a.title}</b>
           {lr && <div className="cfn-comptes-rows">{Object.entries(lr.combos).map(([id, c]) => (
             <span key={id} className={`cfn-comptes-row${lr.winner === id ? ' win' : ''}`}>
-              <em>{id === me ? 'Vous' : nameIn(v, id)}</em>
+              <em>{id === me ? tr('cf.boardparts.vous') : nameIn(v, id)}</em>
               <span className="cfn-dice">{c.dice.map((d, i) => <Pip key={i} v={d} size={20} />)}</span>
-              <small>{shortCombo(c.label)} · vaut {c.value}</small>
+              <small>{shortCombo(c.label)}{tr('cf.boardparts.vaut')}{c.value}</small>
             </span>
           ))}</div>}
           <span>{a.text}</span>
-          {a.recap && a.recap.length > 0 && <ul className="cfn-recap" aria-label="La manche en bref">{a.recap.map((r) => <li key={r}>{r}</li>)}</ul>}
+          {a.recap && a.recap.length > 0 && <ul className="cfn-recap" aria-label={tr('cf.boardparts.la_manche_en_bref')}>{a.recap.map((r) => <li key={r}>{r}</li>)}</ul>}
           {bar}
         </div>
       </div>
@@ -467,7 +470,7 @@ export function AnnounceView({ a, onDone, spectator, me, v, leaving }: { a: Anno
         {a.card && a.text && a.text !== def(a.card)?.text && <span className="cfn-ann-text">{a.text}</span>}
         {a.hint && <span className="cfn-ann-hint">{a.hint}</span>}
         {bar}
-        <em className="cfn-skip">Touchez pour passer</em>
+        <em className="cfn-skip">{tr('cf.boardparts.touchez_pour_passer')}</em>
       </div>
     </div>
   );
@@ -482,7 +485,7 @@ export function RespondPanel({ v, legal, pending, onAct, deadline, focus, tuto }
   const uids = [...new Set(plays.map((a) => a.card))];
   const [pick, setPick] = useState<string | null>(uids[0] ?? null);
   const action = plays.find((a) => a.card === pick);
-  const who = top ? nameIn(v, top.owner) : 'L’adversaire';
+  const who = top ? nameIn(v, top.owner) : tr('cf.boardparts.l_adversaire');
   const [now, setNow] = useState(Date.now());
   const [start] = useState(Date.now());
   useEffect(() => { if (!deadline) return; const t = setInterval(() => setNow(Date.now()), 200); return () => clearInterval(t); }, [deadline]);
@@ -490,9 +493,9 @@ export function RespondPanel({ v, legal, pending, onAct, deadline, focus, tuto }
   // « contre vous » seulement si la carte vous vise vraiment (cible, Habitué, piège, ou Riposte sur votre carte).
   const aimedAtMe = top?.kind === 'card' && (top.params.target === me.id || me.habitues.some((h) => h.uid === top.params.habitue)
     || v.traps.some((t) => t.uid === top.params.trap && t.owner === me.id) || (!!top.cardId && def(top.cardId)?.type === 'riposte'));
-  const kicker = !top ? `${who} agit` : top.kind === 'keep' ? `${who} garde des dés` : top.cardId ? `${who} joue une carte${aimedAtMe ? ' contre vous' : ''}` : `${who} pose un piège`;
+  const kicker = !top ? tr('cf.agit' as never, { v: who }) : top.kind === 'keep' ? tr('cf.boardparts.garde_des_des', { who: who }) : top.cardId ? tr('cf.boardparts.joue_une_carte', { who: who, a: aimedAtMe ? tr('cf.boardparts.contre_vous') : '' }) : tr('cf.boardparts.pose_un_piege', { who: who });
   return (
-    <div className="cfn-resp" role="dialog" aria-modal="true" aria-label="Fenêtre de riposte">
+    <div className="cfn-resp" role="dialog" aria-modal="true" aria-label={tr('cf.boardparts.fenetre_de_riposte')}>
       <div className="cfn-resp-in">
         {tuto && <p className="cfn-tuto-inline">{tuto}</p>}
         <small className="cfn-resp-kicker">{kicker}</small>
@@ -507,17 +510,17 @@ export function RespondPanel({ v, legal, pending, onAct, deadline, focus, tuto }
             <button key={uid} className={`cfn-resp-mine${pick === uid ? ' on' : ''}`} onClick={() => setPick(uid)} aria-pressed={pick === uid}>
               <HandCard id={k.id} ok small={vw() < 380} />
               <span className="cfn-resp-tx">
-                <small><TypeIcon type="riposte" size={13} /> Vous pouvez riposter</small>
+                <small><TypeIcon type="riposte" size={13} />{tr('cf.boardparts.vous_pouvez_riposter')}</small>
                 <b>{def(k.id)?.name} : {describeNow(v, k.id)}</b>
-                <span>Coût : {plural(cost, 'Tournée')} (il vous en reste {me.tournees})</span>
+                <span>{tr('cf.boardparts.cout_2')}{plural(cost, 'Tournée')}{tr('cf.boardparts.il_vous_en_reste')}{me.tournees})</span>
               </span>
             </button>
           );
         })}
         {deadline ? <div className="cfn-timebar" aria-hidden><i style={{ width: `${pct}%` }} /></div> : null}
         <div className="cfn-acts">
-          <button className="cfn-act ghost" disabled={pending || !legal.some((a) => a.type === 'pass')} onClick={() => onAct({ type: 'pass' })}>Laisser faire</button>
-          <button className={`cfn-act riposte${focus ? ' cfn-focus' : ''}`} disabled={pending || !action} onClick={() => action && onAct(action)}>Riposter</button>
+          <button className="cfn-act ghost" disabled={pending || !legal.some((a) => a.type === 'pass')} onClick={() => onAct({ type: 'pass' })}>{tr('cf.boardparts.laisser_faire')}</button>
+          <button className={`cfn-act riposte${focus ? ' cfn-focus' : ''}`} disabled={pending || !action} onClick={() => action && onAct(action)}>{tr('cf.boardparts.riposter')}</button>
         </div>
       </div>
     </div>
@@ -544,22 +547,22 @@ export function Fiche({ t, v, legal, snapLegal, pending, discard, onAct, onClose
   const cost = costNow(v, t.id);
   const opps = v.players.filter((p) => p.id !== me.id && !p.out);
   const trapsAgainst = v.traps.filter((x) => x.target === me.id && x.owner !== me.id).length;
-  const verb = d.type === 'piege' ? 'Poser le piège' : d.type === 'habitue' ? 'Installer' : 'Jouer';
+  const verb = d.type === 'piege' ? tr('cf.boardparts.poser_le_piege') : d.type === 'habitue' ? tr('cf.boardparts.installer') : tr('cf.boardparts.jouer');
   let now: ReactNode;
-  if (t.owner && t.owner !== me.id) now = <><b>En jeu chez {nameIn(v, t.owner)}.</b> {d.type === 'habitue' ? 'Il reste devant lui et agit à chaque manche. « Fermeture ! » peut le renvoyer chez lui (défaussé).' : ''}</>;
-  else if (t.trapUid) now = <><b>Votre piège, posé face cachée.</b> Il se déclenchera tout seul quand sa condition arrivera chez {opps.length === 1 ? opps[0].name : 'sa cible'}.</>;
+  if (t.owner && t.owner !== me.id) now = <><b>{tr('cf.boardparts.en_jeu_chez')}{nameIn(v, t.owner)}.</b> {d.type === 'habitue' ? tr('cf.boardparts.il_reste_devant_lui_et_agit') : ''}</>;
+  else if (t.trapUid) now = <><b>{tr('cf.boardparts.votre_piege_pose_face_cachee')}</b>{tr('cf.boardparts.il_se_declenchera_tout_seul_quand')}{opps.length === 1 ? opps[0].name : tr('cf.boardparts.sa_cible')}.</>;
   else if (!mineInHand) now = null;
-  else if (discard) now = <><b>Main pleine :</b> défaussez cette carte pour revenir à {v.rules.handMax} cartes.</>;
-  else if (opts.length) now = <><b>Maintenant :</b> {describeNow(v, t.id, ready ?? chosen, opts)}{trapsAgainst > 0 && !choosing ? ` ${opps.length === 1 ? opps[0].name : 'Un adversaire'} a ${plural(trapsAgainst, 'piège')} caché${trapsAgainst > 1 ? 's' : ''}.` : ''}</>;
-  else now = <><b>Pas maintenant :</b> {tuto ? 'pas à cette étape de la partie guidée.' : whyNot(v, t.id, snapLegal, t.uid!)}</>;
+  else if (discard) now = <><b>{tr('cf.boardparts.main_pleine')}</b>{tr('cf.boardparts.defaussez_cette_carte_pour_revenir_a')}{v.rules.handMax}{tr('cf.boardparts.cartes')}</>;
+  else if (opts.length) now = <><b>{tr('cf.boardparts.maintenant')}</b> {describeNow(v, t.id, ready ?? chosen, opts)}{trapsAgainst > 0 && !choosing ? tr('cf.boardparts.a_cache', { a: opps.length === 1 ? opps[0].name : tr('cf.boardparts.un_adversaire'), pieges: plural(trapsAgainst, 'piège'), s: trapsAgainst > 1 ? 's' : '' }) : ''}</>;
+  else now = <><b>{tr('cf.boardparts.pas_maintenant')}</b> {tuto ? tr('cf.boardparts.pas_a_cette_etape_de_la') : whyNot(v, t.id, snapLegal, t.uid!)}</>;
   const playable = mineInHand && opts.length > 0 && !discard;
   // Carte liée, lisible elle aussi : le Coup que rejouerait le grand enchaînement, celui que reprendrait la petite sœur.
-  const related = !mineInHand ? null : t.id === 'grand-enchainement' ? (me.r.lastCoup ? { id: me.r.lastCoup, label: 'Rejouerait' } : null)
-    : t.id === 'petite-soeur' ? (() => { const k = [...(me.discard ?? [])].reverse().find(petiteSoeurOk); return k ? { id: k.id, label: 'Reprendrait' } : null; })() : null;
+  const related = !mineInHand ? null : t.id === 'grand-enchainement' ? (me.r.lastCoup ? { id: me.r.lastCoup, label: tr('cf.boardparts.rejouerait') } : null)
+    : t.id === 'petite-soeur' ? (() => { const k = [...(me.discard ?? [])].reverse().find(petiteSoeurOk); return k ? { id: k.id, label: tr('cf.boardparts.reprendrait') } : null; })() : null;
   return (
     <div className="cfn-fiche-back" onClick={onClose}>
       <div className="cfn-fiche" role="dialog" aria-modal="true" aria-label={d.name} onClick={(e) => e.stopPropagation()}>
-        <div className="cfn-fiche-top"><i className="cfn-grip" aria-hidden /><button className="cfn-x" onClick={onClose} aria-label="Fermer"><Icon name="close" size={18} /></button></div>
+        <div className="cfn-fiche-top"><i className="cfn-grip" aria-hidden /><button className="cfn-x" onClick={onClose} aria-label={tr('cf.boardparts.fermer')}><Icon name="close" size={18} /></button></div>
         {tuto && <p className="cfn-tuto-inline">{tuto}</p>}
         <BigCard id={t.id} width={Math.min(250, vw() - 60)} zoom />
         {related && <RelatedCard id={related.id} label={related.label} />}
@@ -568,17 +571,17 @@ export function Fiche({ t, v, legal, snapLegal, pending, discard, onAct, onClose
           <ParamChooser k={next} v={v} cardId={t.id === 'grand-enchainement' ? me.r.lastCoup ?? t.id : t.id} opts={opts} chosen={chosen}
             onPick={(k, x) => setChosen((c) => ({ ...c, [k]: x }))} />
         )}
-        {discard && mineInHand && <button className="cfn-act violet full" disabled={pending} onClick={() => onAct({ type: 'discard', card: t.uid! })}>Défausser</button>}
+        {discard && mineInHand && <button className="cfn-act violet full" disabled={pending} onClick={() => onAct({ type: 'discard', card: t.uid! })}>{tr('cf.boardparts.defausser')}</button>}
         {playable && (
           <div className="cfn-acts">
-            {choosing && Object.keys(chosen).length > 0 && <button className="cfn-act ghost" onClick={() => setChosen({})}>Changer</button>}
+            {choosing && Object.keys(chosen).length > 0 && <button className="cfn-act ghost" onClick={() => setChosen({})}>{tr('cf.boardparts.changer')}</button>}
             <button className={`cfn-act play${tuto ? ' cfn-focus' : ''}`} style={{ background: `linear-gradient(180deg, ${FAMILY_STYLE[d.family].c1}, ${FAMILY_STYLE[d.family].c2})` }}
               disabled={pending || (choosing && !ready)}
               onClick={() => {
                 if (ready) onAct({ type: 'play', card: t.uid!, ...ready });
                 else setChoosing(true);
               }}>
-              {choosing && !ready ? 'Choisissez ci-dessus' : `${verb} · ${plural(cost, 'Tournée')}`}
+              {choosing && !ready ? tr('cf.boardparts.choisissez_ci_dessus') : `${verb} · ${plural(cost, 'Tournée')}`}
             </button>
           </div>
         )}
@@ -593,7 +596,7 @@ export function RelatedCard({ id, label }: { id: string; label: string }) {
   const d = def(id);
   if (!d) return null;
   return (
-    <button className="cfn-related" onClick={() => zoomCard(id)} aria-label={`${label} : ${d.name}, lire en grand`}>
+    <button className="cfn-related" onClick={() => zoomCard(id)} aria-label={tr('cf.boardparts.lire_en_grand_2', { label: label, name: d.name })}>
       <span className="cfn-related-art" aria-hidden><CardArt id={id} /></span>
       <span><small>{label}</small><b>{d.name}</b></span>
       <Icon name="search" size={16} />
@@ -610,7 +613,7 @@ function ParamChooser({ k, v, cardId, opts, chosen, onPick }: { k: ParamKey; v: 
   const target = targetId ? v.players.find((p) => p.id === targetId) : undefined;
   const diceOf = cardId === 'de-sous-table' && target ? target.r.dice : me.r.dice;
   const question = k === 'die' && cardId === 'de-sous-table' && target
-    ? (target.id === me.id ? 'Quel de vos dés relancer ?' : `Quel dé de ${target.name} relancer ?`)
+    ? (target.id === me.id ? tr('cf.boardparts.quel_de_vos_des_relancer') : tr('cf.boardparts.quel_de_de_relancer', { name: target.name }))
     : paramQuestion(k, cardId);
   const off = (_x: string | number) => false;
   const on = (_x: string | number) => vals.length === 1;
@@ -622,12 +625,12 @@ function ParamChooser({ k, v, cardId, opts, chosen, onPick }: { k: ParamKey; v: 
           const cls = `${on(x) ? 'cfn-focus' : ''}`;
           switch (k) {
             case 'target': return <button key={x} className={cls} disabled={off(x)} onClick={() => onPick(k, x)}>{nameIn(v, String(x))}</button>;
-            case 'die': return <button key={x} className={`die ${cls}`} disabled={off(x)} onClick={() => onPick(k, x)} aria-label={`Dé ${Number(x) + 1} : ${diceOf[Number(x)]}`}><Pip v={diceOf[Number(x)]} size={36} /></button>;
+            case 'die': return <button key={x} className={`die ${cls}`} disabled={off(x)} onClick={() => onPick(k, x)} aria-label={tr('cf.boardparts.de', { a: Number(x) + 1, b: diceOf[Number(x)] })}><Pip v={diceOf[Number(x)]} size={36} /></button>;
             case 'delta': return <button key={x} className={cls} disabled={off(x)} onClick={() => onPick(k, x)}>{Number(x) > 0 ? '+1' : '−1'} <small>({me.r.dice[chosen.die ?? 0]} → {me.r.dice[chosen.die ?? 0] + Number(x)})</small></button>;
-            case 'face': return <button key={x} className={`die ${cls}`} disabled={off(x)} onClick={() => onPick(k, x)} aria-label={`Face ${x}`}><Pip v={Number(x)} size={32} /></button>;
+            case 'face': return <button key={x} className={`die ${cls}`} disabled={off(x)} onClick={() => onPick(k, x)} aria-label={tr('cf.boardparts.face', { x: x })}><Pip v={Number(x)} size={32} /></button>;
             case 'trap': {
               const t = v.traps.find((y) => y.uid === x);
-              return <button key={x} className={`trap ${cls}`} disabled={off(x)} onClick={() => onPick(k, x)}><TrapCard /><small>de {nameIn(v, t?.owner)}{t ? `, manche ${t.posedRound}` : ''}</small></button>;
+              return <button key={x} className={`trap ${cls}`} disabled={off(x)} onClick={() => onPick(k, x)}><TrapCard /><small>{tr('cf.boardparts.de')}{nameIn(v, t?.owner)}{t ? tr('cf.boardparts.manche', { posedRound: t.posedRound }) : ''}</small></button>;
             }
             case 'habitue': {
               const owner = v.players.find((p) => p.habitues.some((h) => h.uid === x));
@@ -635,7 +638,7 @@ function ParamChooser({ k, v, cardId, opts, chosen, onPick }: { k: ParamKey; v: 
               return (
                 <button key={x} className={`hab ${cls}`} disabled={off(x)} onClick={() => onPick(k, x)}>
                   {h && <span className="hab-art" aria-hidden><CardArt id={h.id} /></span>}
-                  <span className="hab-tx">{def(h?.id)?.name ?? '?'} <small>({owner?.id === me.id ? 'vous' : owner?.name}{h?.rounds != null ? ` · encore ${plural(h.rounds, 'manche')}` : ''})</small></span>
+                  <span className="hab-tx">{def(h?.id)?.name ?? '?'} <small>({owner?.id === me.id ? 'vous' : owner?.name}{h?.rounds != null ? tr('cf.boardparts.encore_2', { manches: plural(h.rounds, 'manche') }) : ''})</small></span>
                   {h && <ZoomBtn id={h.id} className="inline" />}
                 </button>
               );
@@ -655,17 +658,17 @@ export function TrapSheet({ owner, v, onClose, onCard }: { owner: CfPlayerView; 
   const ids = [...new Set(list.map((n) => Object.values(CARD_BY_ID).find((c) => c.name === n)!.id))];
   return (
     <div className="cfn-fiche-back" onClick={onClose}>
-      <div className="cfn-fiche" role="dialog" aria-modal="true" aria-label="Pièges cachés" onClick={(e) => e.stopPropagation()}>
-        <div className="cfn-fiche-top"><i className="cfn-grip" aria-hidden /><button className="cfn-x" onClick={onClose} aria-label="Fermer"><Icon name="close" size={18} /></button></div>
-        <div className="cfn-trapsheet-head"><TrapCard big /><span><b>{plural(traps.length, 'piège')} caché{traps.length > 1 ? 's' : ''} chez {owner.name}</b><small>Posé{traps.length > 1 ? 's' : ''} face cachée. Un piège se déclenche tout seul quand sa condition arrive chez sa cible, puis il est défaussé. Non déclenché en {v.rules.trapReturnRounds} manches, il revient dans la main de son poseur.</small></span></div>
-        {traps.some((t) => t.id) && <p className="cfn-muted">Vous avez vu : {traps.filter((t) => t.id).map((t) => cardName(t.id)).join(', ')}.</p>}
-        <b className="cfn-legend-title">D’après son deck ({familiesLabel(owner.families)}), ça peut être :</b>
+      <div className="cfn-fiche" role="dialog" aria-modal="true" aria-label={tr('cf.boardparts.pieges_caches')} onClick={(e) => e.stopPropagation()}>
+        <div className="cfn-fiche-top"><i className="cfn-grip" aria-hidden /><button className="cfn-x" onClick={onClose} aria-label={tr('cf.boardparts.fermer')}><Icon name="close" size={18} /></button></div>
+        <div className="cfn-trapsheet-head"><TrapCard big /><span><b>{plural(traps.length, 'piège')}{tr('cf.boardparts.cache_2')}{traps.length > 1 ? 's' : ''}{tr('cf.boardparts.chez')}{owner.name}</b><small>{tr('cf.boardparts.pose')}{traps.length > 1 ? 's' : ''}{tr('cf.boardparts.face_cachee_un_piege_se_declenche')}{v.rules.trapReturnRounds}{tr('cf.boardparts.manches_il_revient_dans_la_main')}</small></span></div>
+        {traps.some((t) => t.id) && <p className="cfn-muted">{tr('cf.boardparts.vous_avez_vu')}{traps.filter((t) => t.id).map((t) => cardName(t.id)).join(', ')}.</p>}
+        <b className="cfn-legend-title">{tr('cf.boardparts.d_apres_son_deck')}{familiesLabel(owner.families)}{tr('cf.boardparts.ca_peut_etre')}</b>
         {ids.length ? (
           <div className="cfn-trap-list">
             {ids.map((id) => <button key={id} className="cfn-trap-item" onClick={() => onCard(id)}><TypeIcon type="piege" size={16} /><span><b>{def(id)!.name}</b><small>{def(id)!.text}</small></span></button>)}
           </div>
-        ) : <p className="cfn-muted">Aucun piège dans ses familles de cartes.</p>}
-        <p className="cfn-tip">Astuce : la <b>Fouine</b> défausse un piège adverse de votre choix ; le <b>Videur</b> annule le premier piège de chaque manche.</p>
+        ) : <p className="cfn-muted">{tr('cf.boardparts.aucun_piege_dans_ses_familles_de')}</p>}
+        <p className="cfn-tip">{tr('cf.boardparts.astuce_la')}<b>{tr('cf.boardparts.fouine')}</b>{tr('cf.boardparts.defausse_un_piege_adverse_de_votre')}<b>{tr('cf.boardparts.videur')}</b>{tr('cf.boardparts.annule_le_premier_piege_de_chaque')}</p>
       </div>
     </div>
   );
@@ -677,11 +680,12 @@ export interface LogLine { key: number; round: number; ev: CfEvent }
 
 function LogText({ ev, onCard }: { ev: CfEvent; onCard: (id: string) => void }) {
   const d = def(ev.card);
-  if (!d) return <span>{ev.text}</span>;
-  const i = ev.text.indexOf(d.name);
+  const text = cfText(ev.text);
+  if (!d) return <span>{text}</span>;
+  const i = text.indexOf(d.name);
   const btn = <button className="cfn-log-card" style={{ color: TYPE_META[d.type].color }} onClick={() => onCard(d.id)}>{d.name}</button>;
-  if (i < 0) return <span>{ev.text} {btn}</span>;
-  return <span>{ev.text.slice(0, i)}{btn}{ev.text.slice(i + d.name.length)}</span>;
+  if (i < 0) return <span>{text} {btn}</span>;
+  return <span>{text.slice(0, i)}{btn}{text.slice(i + d.name.length)}</span>;
 }
 
 const LOG_GLYPH: Record<string, string> = { lancer: '🎲', 'fin-tour': '🎲', comptes: '🪙', manche: '★', tirage: '★', ardoise: '🍺', sortie: '🏁', fin: '🏁', pioche: '＋', 'pioche-privee': '＋' };
@@ -691,26 +695,26 @@ export function Journal({ log, v, me, onCard, onClose }: { log: LogLine[]; v: Cf
   const inPlay = v.players.filter((p) => p.habitues.length || v.traps.some((t) => t.owner === p.id));
   return (
     <div className="cfn-fiche-back" onClick={onClose}>
-      <div className="cfn-fiche cfn-journal" role="dialog" aria-modal="true" aria-label="Journal de la manche" onClick={(e) => e.stopPropagation()}>
-        <div className="cfn-sheet-head"><h2>Journal</h2><button className="cfn-x" onClick={onClose} aria-label="Fermer"><Icon name="close" size={18} /></button></div>
+      <div className="cfn-fiche cfn-journal" role="dialog" aria-modal="true" aria-label={tr('cf.boardparts.journal_de_la_manche')} onClick={(e) => e.stopPropagation()}>
+        <div className="cfn-sheet-head"><h2>{tr('cf.boardparts.journal')}</h2><button className="cfn-x" onClick={onClose} aria-label={tr('cf.boardparts.fermer')}><Icon name="close" size={18} /></button></div>
         {inPlay.length > 0 && (
           <section className="cfn-inplay">
-            <b className="cfn-legend-title">En jeu</b>
+            <b className="cfn-legend-title">{tr('cf.boardparts.en_jeu')}</b>
             {inPlay.map((p) => (
               <div key={p.id} className="cfn-inplay-row">
-                <em>{p.id === me ? 'Vous' : p.name}</em>
+                <em>{p.id === me ? tr('cf.boardparts.vous') : p.name}</em>
                 {p.habitues.map((h) => <button key={h.uid} className="cfn-hab" onClick={() => onCard(h.id, p.id)}><TypeIcon type="habitue" size={12} />{shortName(h.id)}</button>)}
                 {v.traps.filter((t) => t.owner === p.id).map((t) => t.id
                   ? <button key={t.uid} className="cfn-hab trap" onClick={() => onCard(t.id!, p.id)}><TypeIcon type="piege" size={12} />{shortName(t.id)}</button>
-                  : <span key={t.uid} className="cfn-hab trap"><TypeIcon type="piege" size={12} />Piège caché</span>)}
+                  : <span key={t.uid} className="cfn-hab trap"><TypeIcon type="piege" size={12} />{tr('cf.boardparts.piege_cache')}</span>)}
               </div>
             ))}
           </section>
         )}
-        {rounds.length === 0 && <p className="cfn-muted">Rien pour l’instant.</p>}
+        {rounds.length === 0 && <p className="cfn-muted">{tr('cf.boardparts.rien_pour_l_instant')}</p>}
         {rounds.map((r) => (
           <section key={r} className="cfn-log-round">
-            <b className="cfn-legend-title">Manche {r}</b>
+            <b className="cfn-legend-title">{tr('cf.boardparts.manche_2')}{r}</b>
             <ol className="cfn-log">
               {log.filter((l) => l.round === r).map((l) => {
                 const d = def(l.ev.card);
@@ -732,31 +736,31 @@ export function Journal({ log, v, me, onCard, onClose }: { log: LogLine[]; v: Cf
 export function HelpSheet({ v, onClose, onRules, onTour }: { v: CfView; onClose: () => void; onRules: () => void; onTour?: () => void }) {
   return (
     <div className="cfn-fiche-back" onClick={onClose}>
-      <div className="cfn-fiche cfn-journal" role="dialog" aria-modal="true" aria-label="Aide" onClick={(e) => e.stopPropagation()}>
-        <div className="cfn-sheet-head"><h2>Aide</h2><button className="cfn-x" onClick={onClose} aria-label="Fermer"><Icon name="close" size={18} /></button></div>
+      <div className="cfn-fiche cfn-journal" role="dialog" aria-modal="true" aria-label={tr('cf.boardparts.aide')} onClick={(e) => e.stopPropagation()}>
+        <div className="cfn-sheet-head"><h2>{tr('cf.boardparts.aide')}</h2><button className="cfn-x" onClick={onClose} aria-label={tr('cf.boardparts.fermer')}><Icon name="close" size={18} /></button></div>
         <section className="cfn-help">
-          {commandeOf(v.commande) && <p className="cfn-help-cmd"><b>Commande du comptoir</b> (cette manche, pour tout le monde) : {commandeOf(v.commande)!.text}</p>}
-          <b className="cfn-legend-title">Ce que vous voyez à l’écran</b>
+          {commandeOf(v.commande) && <p className="cfn-help-cmd"><b>{tr('cf.boardparts.commande_du_comptoir')}</b>{tr('cf.boardparts.cette_manche_pour_tout_le_monde')}{cfText(commandeOf(v.commande)!.text)}</p>}
+          <b className="cfn-legend-title">{tr('cf.boardparts.ce_que_vous_voyez_a_l')}</b>
           <dl className="cfn-kv">
-            <dt>En haut</dt><dd>Une case par adversaire. Le gros chiffre : ses <b>jetons</b> (le premier à 0 gagne). Puis 🍺 ses <b>Tournées</b> (elles paient les cartes), <i className="cfn-bk mini" /> ses <b>cartes en main</b>, <TypeIcon type="piege" size={12} /> ses <b>pièges posés</b>, <TypeIcon type="habitue" size={12} /> ses <b>Habitués</b>. Celui qui joue est encadré en doré. <b>Touchez une case</b> pour tout voir en clair.</dd>
-            <dt>Le bandeau</dt><dd>À qui de jouer et quoi faire ; à plusieurs, la petite ligne dit le dernier coup joué.</dd>
-            <dt>Le bac</dt><dd>Les dés de celui qui joue. À votre tour, touchez un dé pour le garder avant de relancer.</dd>
-            <dt>Vos cartes</dt><dd>Sous chaque nom, ce que fait la carte ; le chiffre dans le petit verre est son coût en Tournées (pas en jetons). Les cartes <b className="cfn-gold">dorées</b> sont jouables maintenant. Touchez une carte pour la lire en grand.</dd>
-            <dt>« Vous »</dt><dd>Vos jetons, vos Tournées, vos Habitués (le chiffre : manches restantes) et vos pièges posés. Touchez « Vous » pour votre fiche.</dd>
-            <dt>Journal</dt><dd>Tout ce qui s’est passé, coup par coup.</dd>
-            <dt>À côté de la manche</dt><dd>La <b>commande du comptoir</b> : une règle bonus tirée à chaque manche, la même pour tous (touchez-la pour la relire).</dd>
+            <dt>{tr('cf.boardparts.en_haut')}</dt><dd>{tr('cf.boardparts.une_case_par_adversaire_le_gros')}<b>{tr('cf.boardparts.jetons')}</b>{tr('cf.boardparts.le_premier_a_0_gagne_puis')}<b>{tr('cf.boardparts.tournees')}</b>{tr('cf.boardparts.elles_paient_les_cartes_2')}<i className="cfn-bk mini" />{tr('cf.boardparts.ses')}<b>{tr('cf.boardparts.cartes_en_main_2')}</b>, <TypeIcon type="piege" size={12} />{tr('cf.boardparts.ses')}<b>{tr('cf.boardparts.pieges_poses_2')}</b>, <TypeIcon type="habitue" size={12} />{tr('cf.boardparts.ses')}<b>{tr('cf.boardparts.habitues')}</b>{tr('cf.boardparts.celui_qui_joue_est_encadre_en')}<b>{tr('cf.boardparts.touchez_une_case')}</b>{tr('cf.boardparts.pour_tout_voir_en_clair')}</dd>
+            <dt>{tr('cf.boardparts.le_bandeau')}</dt><dd>{tr('cf.boardparts.a_qui_de_jouer_et_quoi')}</dd>
+            <dt>{tr('cf.boardparts.le_bac')}</dt><dd>{tr('cf.boardparts.les_des_de_celui_qui_joue')}</dd>
+            <dt>{tr('cf.boardparts.vos_cartes')}</dt><dd>{tr('cf.boardparts.sous_chaque_nom_ce_que_fait')}<b className="cfn-gold">{tr('cf.boardparts.dorees')}</b>{tr('cf.boardparts.sont_jouables_maintenant_touchez_une')}</dd>
+            <dt>{tr('cf.boardparts.vous_2')}</dt><dd>{tr('cf.boardparts.vos_jetons_vos_tournees_vos_habitues')}</dd>
+            <dt>{tr('cf.boardparts.journal')}</dt><dd>{tr('cf.boardparts.tout_ce_qui_s_est_passe')}</dd>
+            <dt>{tr('cf.boardparts.a_cote_de_la_manche')}</dt><dd>{tr('cf.boardparts.la')}<b>{tr('cf.boardparts.commande_du_comptoir_2')}</b>{tr('cf.boardparts.une_regle_bonus_tiree_a_chaque')}</dd>
           </dl>
-          <b className="cfn-legend-title">Une manche</b>
+          <b className="cfn-legend-title">{tr('cf.boardparts.une_manche')}</b>
           <ol>
-            <li>Chacun pioche 1 carte et reçoit {v.rules.tourneesPerRound} Tournée{v.rules.tourneesPerRound > 1 ? 's' : ''} ({v.rules.tourneesPerRound + v.rules.tourneesLoserBonus} pour le perdant de la manche d’avant) : jouer une carte est un choix, économisez pour enchaîner.</li>
-            <li><b>Le meneur</b> lance les dés jusqu’à {v.rules.maxThrows} fois ; son nombre de lancers fixe le maximum des autres. Les autres jouent ensuite, en voyant la combinaison à battre.</li>
-            <li><b>Dernier mot</b> : avant les comptes, les cartes « Dernier mot » peuvent encore tout changer.</li>
-            <li><b>Comptes</b> : le gagnant DONNE au perdant autant de jetons que vaut sa combinaison.</li>
+            <li>{tr('cf.boardparts.chacun_pioche_1_carte_et_recoit')}{v.rules.tourneesPerRound}{tr('cf.boardparts.tournee')}{v.rules.tourneesPerRound > 1 ? 's' : ''} ({v.rules.tourneesPerRound + v.rules.tourneesLoserBonus}{tr('cf.boardparts.pour_le_perdant_de_la_manche')}</li>
+            <li><b>{tr('cf.boardparts.le_meneur')}</b>{tr('cf.boardparts.lance_les_des_jusqu_a')}{v.rules.maxThrows}{tr('cf.boardparts.fois_son_nombre_de_lancers_fixe')}</li>
+            <li><b>{tr('cf.boardparts.dernier_mot')}</b>{tr('cf.boardparts.avant_les_comptes_les_cartes_dernier')}</li>
+            <li><b>{tr('cf.boardparts.comptes')}</b>{tr('cf.boardparts.le_gagnant_donne_au_perdant_autant')}</li>
           </ol>
         </section>
         <TypeLegend />
-        {onTour && <button className="cfn-act gold full" onClick={onTour}>Visite guidée de l’écran</button>}
-        <button className="cfn-act ghost full" onClick={onRules}>Règles complètes</button>
+        {onTour && <button className="cfn-act gold full" onClick={onTour}>{tr('cf.boardparts.visite_guidee_de_l_ecran')}</button>}
+        <button className="cfn-act ghost full" onClick={onRules}>{tr('cf.boardparts.regles_completes')}</button>
       </div>
     </div>
   );
@@ -770,22 +774,22 @@ export function Mulligan({ v, legal, pending, onAct, clock }: { v: CfView; legal
   const max = v.rules.mulligan;
   const action = legal.find((a) => a.type === 'mulligan' && [...a.cards].sort().join() === [...back].sort().join());
   return (
-    <div className="cf-modal" role="dialog" aria-modal="true" aria-label="Main de départ">
+    <div className="cf-modal" role="dialog" aria-modal="true" aria-label={tr('cf.boardparts.main_de_depart')}>
       <div className="cf-modal-card">
-        <h3>Votre main de départ</h3>
-        <p>Choisissez jusqu’à {max} cartes à changer : elles repartent sous le deck et vous en repiochez autant. Une seule fois.{clock ? ` · ${clock}` : ''}</p>
+        <h3>{tr('cf.boardparts.votre_main_de_depart')}</h3>
+        <p>{tr('cf.boardparts.choisissez_jusqu_a')}{max}{tr('cf.boardparts.cartes_a_changer_elles_repartent_sou')}{clock ? ` · ${clock}` : ''}</p>
         <div className="cf-mull-grid">
           {hand.map((k) => {
             const on = back.includes(k.uid);
             return (
               <button key={k.uid} className={`cf-mull${on ? ' out' : ''}`} onClick={() => setBack((b) => (on ? b.filter((x) => x !== k.uid) : b.length < max ? [...b, k.uid] : b))} aria-pressed={on}>
                 <CardView id={k.id} width={Math.min(140, (vw() - 72) / 2)} dimmed={on} />
-                {on && <span className="cf-mull-tag">À changer</span>}
+                {on && <span className="cf-mull-tag">{tr('cf.boardparts.a_changer')}</span>}
               </button>
             );
           })}
         </div>
-        <button className="cf-btn gold big" disabled={pending || !action} onClick={() => action && onAct(action)}>{back.length ? `Changer ${plural(back.length, 'carte')}` : 'Garder ma main'}</button>
+        <button className="cf-btn gold big" disabled={pending || !action} onClick={() => action && onAct(action)}>{back.length ? tr('cf.boardparts.changer_2', { cartes: plural(back.length, 'carte') }) : tr('cf.boardparts.garder_ma_main')}</button>
       </div>
     </div>
   );
@@ -802,13 +806,13 @@ export function PickRow({ id, label, onPick, disabled, focus, sub }: { id: strin
   const [, bold] = splitEmphasis(id, d.text);
   return (
     <div className="cf-pick-row">
-      <span className="cf-pick-card" role="button" tabIndex={0} aria-label={`Lire « ${d.name} » en grand`} onClick={() => zoomCard(id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); zoomCard(id); } }}>
+      <span className="cf-pick-card" role="button" tabIndex={0} aria-label={tr('cf.boardparts.lire_en_grand_3', { name: d.name })} onClick={() => zoomCard(id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); zoomCard(id); } }}>
         <HandCard id={id} small />
         <ZoomBtn id={id} />
       </span>
       <span className="cf-pick-tx">
         <b>{d.name}</b>
-        <small style={{ color: m.color }}><TypeIcon type={d.type} size={11} />{m.label} · coût {d.cost}</small>
+        <small style={{ color: m.color }}><TypeIcon type={d.type} size={11} />{m.label}{tr('cf.boardparts.cout_3')}{d.cost}</small>
         <span className="cf-pick-text"><GlossText text={d.text} bold={bold || undefined} /></span>
         {sub}
         <button className={`cfn-act gold slim${focus ? ' cfn-focus' : ''}`} disabled={disabled} onClick={onPick}>{label}</button>
@@ -827,13 +831,13 @@ export function ChoiceWindow({ v, legal, pending, onAct, focus, tuto }: { v: CfV
     // Lisible d'emblée (Sam : « le choix parmi 3 cartes est illisible ») : une ligne par carte, texte
     // entier ; toucher l'image (ou la loupe) la montre en grand, seul « Garder » choisit.
     return (
-      <div className="cf-modal" role="dialog" aria-modal="true" aria-label="Calcul mental">
+      <div className="cf-modal" role="dialog" aria-modal="true" aria-label={tr('cf.boardparts.calcul_mental')}>
         <div className="cf-modal-card cf-calc">
           {tuto && <p className="cfn-tuto-inline">{tuto}</p>}
-          <h3>Calcul mental</h3>
-          <p>Gardez une carte ; les autres repartent sous votre deck.</p>
+          <h3>{tr('cf.boardparts.calcul_mental')}</h3>
+          <p>{tr('cf.boardparts.gardez_une_carte_les_autres_reparten')}</p>
           <div className="cf-calc-list">
-            {ch.cards.map((k, i) => <PickRow key={k.uid} id={k.id} label="Garder" disabled={pending || !has(i)} focus={focus && i === 0} onPick={() => onAct({ type: 'choose', index: i })} />)}
+            {ch.cards.map((k, i) => <PickRow key={k.uid} id={k.id} label={tr('cf.boardparts.garder')} disabled={pending || !has(i)} focus={focus && i === 0} onPick={() => onAct({ type: 'choose', index: i })} />)}
           </div>
         </div>
       </div>
@@ -841,15 +845,15 @@ export function ChoiceWindow({ v, legal, pending, onAct, focus, tuto }: { v: CfV
   }
   if (ch.kind === 'fouine' && 'cardId' in ch) {
     return (
-      <div className="cfn-reveal" role="dialog" aria-modal="true" aria-label="La Fouine a trouvé un piège">
+      <div className="cfn-reveal" role="dialog" aria-modal="true" aria-label={tr('cf.boardparts.la_fouine_a_trouve_un_piege')}>
         <div className="cfn-reveal-in">
           {tuto && <p className="cfn-tuto-inline">{tuto}</p>}
-          <small className="cfn-reveal-pill"><TypeIcon type="piege" size={14} /> La Fouine vous montre le piège</small>
+          <small className="cfn-reveal-pill"><TypeIcon type="piege" size={14} />{tr('cf.boardparts.la_fouine_vous_montre_le_piege')}</small>
           <BigCard id={ch.cardId} width={Math.min(250, vw() - 80)} />
-          <div className="cfn-reveal-box"><b>Payer 1 Tournée pour le défausser ?</b><span>Vous en avez {me.tournees}. Sinon, il reste posé : au moins, vous savez ce qui vous attend.</span></div>
+          <div className="cfn-reveal-box"><b>{tr('cf.boardparts.payer_1_tournee_pour_le_defausser')}</b><span>{tr('cf.boardparts.vous_en_avez')}{me.tournees}{tr('cf.boardparts.sinon_il_reste_pose_au_moins')}</span></div>
           <div className="cfn-acts">
-            <button className="cfn-act ghost" disabled={pending || lock(0)} onClick={() => onAct({ type: 'choose', index: 0 })}>Le laisser</button>
-            <button className={`cfn-act violet${focus && has(1) ? ' cfn-focus' : ''}`} disabled={pending || !has(1) || lock(1)} onClick={() => onAct({ type: 'choose', index: 1 })}>Défausser · 1 Tournée</button>
+            <button className="cfn-act ghost" disabled={pending || lock(0)} onClick={() => onAct({ type: 'choose', index: 0 })}>{tr('cf.boardparts.le_laisser')}</button>
+            <button className={`cfn-act violet${focus && has(1) ? ' cfn-focus' : ''}`} disabled={pending || !has(1) || lock(1)} onClick={() => onAct({ type: 'choose', index: 1 })}>{tr('cf.boardparts.defausser_1_tournee')}</button>
           </div>
         </div>
       </div>
@@ -857,12 +861,12 @@ export function ChoiceWindow({ v, legal, pending, onAct, focus, tuto }: { v: CfV
   }
   if (ch.kind === 'tournee-generale') {
     return (
-      <div className="cf-modal" role="dialog" aria-modal="true" aria-label="Tournée générale">
+      <div className="cf-modal" role="dialog" aria-modal="true" aria-label={tr('cf.boardparts.tournee_generale')}>
         <div className="cf-modal-card">
-          <h3>Tournée générale</h3>
-          <p>Vous pouvez encore relancer un de vos dés : {comboOf(v, me)?.label}.</p>
-          <div className="cfn-param-row center">{me.r.dice.map((d, i) => <button key={i} className="die" disabled={pending || !has(i)} onClick={() => onAct({ type: 'choose', index: i })} aria-label={`Relancer le ${d}`}><Pip v={d} size={44} /></button>)}</div>
-          <button className="cf-btn ghost" disabled={pending} onClick={() => onAct({ type: 'choose', index: -1 })}>Garder mes dés</button>
+          <h3>{tr('cf.boardparts.tournee_generale')}</h3>
+          <p>{tr('cf.boardparts.vous_pouvez_encore_relancer_un_de')}{comboOf(v, me)?.label}.</p>
+          <div className="cfn-param-row center">{me.r.dice.map((d, i) => <button key={i} className="die" disabled={pending || !has(i)} onClick={() => onAct({ type: 'choose', index: i })} aria-label={tr('cf.boardparts.relancer_le', { d: d })}><Pip v={d} size={44} /></button>)}</div>
+          <button className="cf-btn ghost" disabled={pending} onClick={() => onAct({ type: 'choose', index: -1 })}>{tr('cf.boardparts.garder_mes_des')}</button>
         </div>
       </div>
     );
@@ -884,35 +888,35 @@ export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, onBags, bot
   const points = ranked ? num('points') : null;
   const boosters = num('boosters') ?? (reward?.booster === true ? 1 : null);
   const missions = Array.isArray(reward?.missions) ? (reward!.missions as string[]).length : 0;
-  const error = reward && typeof reward.error === 'string' ? reward.error : null;
-  const note = reward && typeof reward.note === 'string' ? reward.note : null;
+  const error = reward && typeof reward.error === 'string' ? cfText(reward.error) : null;
+  const note = reward && typeof reward.note === 'string' ? cfText(reward.note) : null;
   return (
-    <div className="cf-modal end" role="dialog" aria-modal="true" aria-label={won ? 'Victoire' : 'Défaite'}>
+    <div className="cf-modal end" role="dialog" aria-modal="true" aria-label={won ? tr('cf.boardparts.victoire') : tr('cf.boardparts.defaite')}>
       <div className={`cf-modal-card cf-end${won ? ' win' : ''}`}>
         <span className="cf-end-rays" aria-hidden />
-        {spectator ? <h2>{nameIn(v, standings[0])} gagne</h2> : <h2>{won ? 'Victoire !' : standings.length > 2 && standings.indexOf(me) > 0 ? `${standings.indexOf(me) + 1}e place` : 'Défaite'}</h2>}
+        {spectator ? <h2>{nameIn(v, standings[0])}{tr('cf.boardparts.gagne')}</h2> : <h2>{won ? tr('cf.boardparts.victoire_2') : standings.length > 2 && standings.indexOf(me) > 0 ? tr('cf.boardparts.e_place', { a: standings.indexOf(me) + 1 }) : tr('cf.boardparts.defaite')}</h2>}
         {abandon && <p>{abandon}</p>}
-        <p>{abandon ? '' : unloaded ? (won ? 'Plus un seul jeton : le comptoir est à vous.' : `${nameIn(v, standings[0])} s’est déchargé le premier.`) : (won ? 'Le bistrot ferme : vous avez le moins de jetons, le comptoir est à vous.' : `Le bistrot ferme : ${nameIn(v, standings[0])} a le moins de jetons.`)} {v.round} manche{v.round > 1 ? 's' : ''}.</p>
+        <p>{abandon ? '' : unloaded ? (won ? tr('cf.boardparts.plus_un_seul_jeton_le_comptoir') : tr('cf.boardparts.s_est_decharge_le_premier', { a: nameIn(v, standings[0]) })) : (won ? tr('cf.boardparts.le_bistrot_ferme_vous_avez_le') : tr('cf.boardparts.le_bistrot_ferme_a_le_moins', { a: nameIn(v, standings[0]) }))} {v.round}{tr('cf.boardparts.manche')}{v.round > 1 ? 's' : ''}.</p>
         <ol className="cf-standings">
           {standings.map((id, i) => <li key={id} className={id === me ? 'me' : ''}><span>{i + 1}</span><b>{nameIn(v, id)}</b><small>{plural(v.players.find((p) => p.id === id)?.tokens ?? 0, 'jeton')}</small></li>)}
         </ol>
         <div className="cf-gains">
-          {capsules !== null && capsules > 0 && <span className="cf-gain"><b>+{capsules}</b><CapsuleIcon size={22} /> <small>capsule{capsules > 1 ? 's' : ''}</small></span>}
-          {coins !== null && coins > 0 && <span className="cf-gain coins"><b>+{coins}</b><CoinArt size={22} /> <small>pièce{coins > 1 ? 's' : ''}</small></span>}
-          {bags > 0 && <span className="cf-gain bag"><b>+{bags}</b><BagIcon size={26} /> <small>sac de dés{bags > 1 ? ' (×' + bags + ')' : ''}</small>{onBags && <button className="cf-btn small gold" onClick={onBags}>Ouvrir</button>}</span>}
-          {points !== null && <span className="cf-gain"><b>{points > 0 ? `+${points}` : points}</b> <small>points de ligue</small></span>}
-          {boosters ? <span className="cf-gain"><b>+{boosters}</b> <small>booster{boosters > 1 ? 's' : ''}{won ? ' (première victoire du jour)' : ''}</small></span> : null}
-          {missions > 0 && <span className="cf-gain"><b>✓ {missions}</b> <small>mission{missions > 1 ? 's' : ''} du jour</small></span>}
+          {capsules !== null && capsules > 0 && <span className="cf-gain"><b>+{capsules}</b><CapsuleIcon size={22} /> <small>{tr('cf.boardparts.capsule')}{capsules > 1 ? 's' : ''}</small></span>}
+          {coins !== null && coins > 0 && <span className="cf-gain coins"><b>+{coins}</b><CoinArt size={22} /> <small>{tr('cf.boardparts.piece')}{coins > 1 ? 's' : ''}</small></span>}
+          {bags > 0 && <span className="cf-gain bag"><b>+{bags}</b><BagIcon size={26} /> <small>{tr('cf.boardparts.sac_de_des')}{bags > 1 ? ' (×' + bags + ')' : ''}</small>{onBags && <button className="cf-btn small gold" onClick={onBags}>{tr('cf.boardparts.ouvrir')}</button>}</span>}
+          {points !== null && <span className="cf-gain"><b>{points > 0 ? `+${points}` : points}</b> <small>{tr('cf.boardparts.points_de_ligue')}</small></span>}
+          {boosters ? <span className="cf-gain"><b>+{boosters}</b> <small>{tr('cf.boardparts.booster')}{boosters > 1 ? 's' : ''}{won ? tr('cf.boardparts.premiere_victoire_du_jour') : ''}</small></span> : null}
+          {missions > 0 && <span className="cf-gain"><b>✓ {missions}</b> <small>{tr('cf.boardparts.mission')}{missions > 1 ? 's' : ''}{tr('cf.boardparts.du_jour')}</small></span>}
           {note && <small className="cf-gain-note">{note}</small>}
           {error && <small className="cf-gain-note">{error}</small>}
-          {!reward && rewarded && !spectator && <small className="cf-gain-note">Calcul des gains…</small>}
-          {!reward && !rewarded && bot && <small className="cf-gain-note">{guest ? 'Partie d’essai : aucun gain.' : 'Partie d’entraînement : pas de capsules cette fois.'}</small>}
+          {!reward && rewarded && !spectator && <small className="cf-gain-note">{tr('cf.boardparts.calcul_des_gains')}</small>}
+          {!reward && !rewarded && bot && <small className="cf-gain-note">{guest ? tr('cf.boardparts.partie_d_essai_aucun_gain') : tr('cf.boardparts.partie_d_entrainement_pas_de_capsule')}</small>}
         </div>
-        {guest && bot && <button className="cf-link" onClick={onAccount}>Créer un compte gratuit pour gagner des capsules et des pièces</button>}
-        {onShare && <button className="cf-btn violet" disabled={sharing} onClick={onShare}><Icon name="share" size={18} />Partager mon plus beau coup</button>}
+        {guest && bot && <button className="cf-link" onClick={onAccount}>{tr('cf.boardparts.creer_un_compte_gratuit_pour_gagner')}</button>}
+        {onShare && <button className="cf-btn violet" disabled={sharing} onClick={onShare}><Icon name="share" size={18} />{tr('cf.boardparts.partager_mon_plus_beau_coup')}</button>}
         <div className="cf-modal-btns">
-          <button className="cf-btn ghost" onClick={onExit}>Menu du mode</button>
-          {onAgain && <button className="cf-btn gold" onClick={onAgain}>{againLabel ?? 'Rejouer'}</button>}
+          <button className="cf-btn ghost" onClick={onExit}>{tr('cf.boardparts.menu_du_mode')}</button>
+          {onAgain && <button className="cf-btn gold" onClick={onAgain}>{againLabel ?? tr('cf.boardparts.rejouer')}</button>}
         </div>
       </div>
     </div>

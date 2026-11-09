@@ -1,3 +1,4 @@
+import { tr } from '../i18n/lang';
 /**
  * Coups Fourrés : réglages visuels des cartes (couleurs des familles, raretés, mots mis en gras).
  * Aucune règle de jeu ici : les textes et les chiffres viennent de shared/cards/catalog.ts.
@@ -24,7 +25,7 @@ export const RARITY_COLOR: Record<CardRarity, string> = {
 export const PAPER = { top: '#fbf3df', bottom: '#efe2c4', text: '#2a1d12', flavor: '#6c543a' };
 
 /** Nom de famille court (sans article), pour les petites étiquettes. */
-export const FAMILY_SHORT: Record<CardFamily, string> = { habitues: 'Habitués', ivresse: 'Ivresse', pieges: 'Pièges', chaines: 'Chaînes' };
+export const FAMILY_SHORT: Record<CardFamily, string> = { get habitues() { return tr('cf.boardparts.habitues'); }, get ivresse() { return tr('cf.meta.ivresse'); }, get pieges() { return tr('cf.meta.pieges'); }, get chaines() { return tr('cf.meta.chaines'); } };
 
 /**
  * Le passage du texte de règle mis en gras (comme sur le prototype). Il doit figurer tel quel
