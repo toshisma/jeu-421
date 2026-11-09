@@ -5,8 +5,10 @@ import { DiceRow, MiniDie } from './MiniDie';
 import { getItem, type DiceItem } from '../../../shared/progress/catalog';
 import { RARITY_COLOR, RARITY_LABEL } from '../../../shared/progress/dice-collection';
 import { Avatar } from './Avatar';
+import { tr } from '../i18n/lang';
+import { botName, ord, trCombo } from '../i18n/g421';
 
-const DIFF_LABEL = { facile: 'IA facile', normal: 'IA normale', difficile: 'IA difficile' };
+const DIFF_LABEL = { facile: 'g421.ai.facile', normal: 'g421.ai.normal', difficile: 'g421.ai.difficile' } as const;
 
 interface Props {
   p: PlayerState;
@@ -43,39 +45,39 @@ export function PlayerCard({ p, meta, state, active, thinking, leader, strugglin
   // Étiquette au-dessus de la carte : à qui c'est, sorti, ou la place actuelle.
   const val = (x: PlayerState) => (points ? x.score : x.tokens);
   const allTied = state.players.filter((x) => !x.out).every((x) => val(x) === val(p));
-  const tag = active ? (meta?.isMe ? 'À vous' : 'Joue') : p.out ? 'Sorti' : allTied ? null : `${place}${place === 1 ? 'er' : 'e'}`;
+  const tag = active ? tr(meta?.isMe ? 'g421.pc.you' : 'g421.pc.playing') : p.out ? tr('g421.pc.out') : allTied ? null : ord(place);
   return (
     <div className={`pcard v2${active ? ' active' : ''}${p.out ? ' out' : ''}${meta?.isMe ? ' me' : ''}${onOpen ? ' clickable' : ''}`}
-      ref={cardRef} onClick={onOpen} title={onOpen ? 'Voir le profil' : undefined}
+      ref={cardRef} onClick={onOpen} title={onOpen ? tr('g421.pc.profile') : undefined}
       style={{ ['--pc' as string]: meta?.color ?? '#999' }}>
-      {tag && <span className="pc-rank" title={active || p.out ? undefined : 'Place actuelle'}>{tag}</span>}
-      {leader && <span className="badge lead" title="En tête">👑</span>}
-      {struggling && <span className="badge low" title="En difficulté">⚠</span>}
+      {tag && <span className="pc-rank" title={active || p.out ? undefined : tr('g421.pc.place')}>{tag}</span>}
+      {leader && <span className="badge lead" title={tr('g421.pc.lead')}>👑</span>}
+      {struggling && <span className="badge low" title={tr('g421.pc.low')}>⚠</span>}
       <div className="pc-top">
         <Avatar photo={meta?.photo} emoji={meta?.avatar ?? '🎲'} size={36} color={meta?.color} accessory={meta?.accessory}>
-          <i className={`dot ${meta?.connected === false ? 'off' : 'on'}`} title={meta?.connected === false ? 'Déconnecté' : 'Connecté'} />
+          <i className={`dot ${meta?.connected === false ? 'off' : 'on'}`} title={tr(meta?.connected === false ? 'g421.pc.disc' : 'g421.pc.conn')} />
         </Avatar>
-        <div className="pc-score" title={points ? 'Points' : 'Jetons'}>
-          {p.out ? <><b className="done">✓</b><small>sorti</small></> : <><b>{points ? p.score : p.tokens}</b><small>{points ? 'points' : p.tokens > 1 ? 'jetons' : 'jeton'}</small></>}
+        <div className="pc-score" title={tr(points ? 'g421.points' : 'g421.tokens')}>
+          {p.out ? <><b className="done">✓</b><small>{tr('g421.pc.outLow')}</small></> : <><b>{points ? p.score : p.tokens}</b><small>{points ? tr('g421.pointsLow') : tr(p.tokens > 1 ? 'g421.tokensLow' : 'g421.tokenLow')}</small></>}
         </div>
       </div>
       <div className="pc-name">
-        {meta?.name ?? p.name}{meta?.prestige ? <span className="prestige" title={`Prestige ${meta.prestige}`}>★{meta.prestige}</span> : null}{meta?.isMe && (meta.name !== 'Vous') && <em> (vous)</em>}
+        {botName(meta?.name ?? p.name)}{meta?.prestige ? <span className="prestige" title={`Prestige ${meta.prestige}`}>★{meta.prestige}</span> : null}{meta?.isMe && (meta.name !== 'Vous') && <em> {tr('g421.youParen')}</em>}
       </div>
       <div className="pc-sub">
-        {order != null && !p.out && <span className="order" title="Ordre de jeu dans la manche">#{order}</span>}
+        {order != null && !p.out && <span className="order" title={tr('g421.pc.order')}>#{order}</span>}
         {meta?.title && <span className="pc-title">{meta.title}</span>}
-        {rare && <span className="pc-dice" style={{ '--rc': RARITY_COLOR[rare.rarity!] } as CSSProperties} title={`Ses dés : ${rare.name} (${RARITY_LABEL[rare.rarity!].toLowerCase()})`}>
+        {rare && <span className="pc-dice" style={{ '--rc': RARITY_COLOR[rare.rarity!] } as CSSProperties} title={tr('g421.pc.dice', { name: rare.name, r: RARITY_LABEL[rare.rarity!].toLowerCase() })}>
           <MiniDie value={5} size={14} body={rare.body} pip={rare.pip} />{rare.shiny ? '✦' : ''}</span>}
-        {meta?.isBot && meta.difficulty && <span className="diff">{DIFF_LABEL[meta.difficulty]}</span>}
-        {meta?.botTag && <span className="pc-bot" title="Joueur ordinateur">ordi</span>}
-        {meta?.isHost && <span>Hôte</span>}
-        {meta?.connected === false && <span className="warn">hors ligne</span>}
+        {meta?.isBot && meta.difficulty && <span className="diff">{tr(DIFF_LABEL[meta.difficulty])}</span>}
+        {meta?.botTag && <span className="pc-bot" title={tr('g421.pc.botTitle')}>{tr('g421.pc.bot')}</span>}
+        {meta?.isHost && <span>{tr('g421.host')}</span>}
+        {meta?.connected === false && <span className="warn">{tr('g421.offline')}</span>}
       </div>
       <div className="pc-bottom">
-        {thinking ? <span className="thinking"><i /><i /><i />réfléchit</span>
-          : shown ? <><DiceRow dice={shown.dice} size={15} /><span className="pc-combo">{shown.combo.label}</span></>
-            : <span className="muted">{p.out ? '' : active ? 'joue…' : '—'}</span>}
+        {thinking ? <span className="thinking"><i /><i /><i />{tr('g421.pc.thinking')}</span>
+          : shown ? <><DiceRow dice={shown.dice} size={15} /><span className="pc-combo">{trCombo(shown.combo.label)}</span></>
+            : <span className="muted">{p.out ? '' : active ? tr('g421.pc.playingLow') : '—'}</span>}
       </div>
     </div>
   );

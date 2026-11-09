@@ -1,4 +1,5 @@
 import type { MessageKey } from './fr';
+import { g421Nl } from './zones/jeu421.nl';
 
 /** Textes néerlandais (« je », ton direct). Une clé absente s'affiche en français. */
 export const nl: Partial<Record<MessageKey, string>> = {
@@ -44,4 +45,5 @@ export const nl: Partial<Record<MessageKey, string>> = {
   'dm.statsTitle': 'Je statistieken in De Hoveling', 'dm.st.games': 'Gespeelde potjes', 'dm.st.wins': 'Overwinningen', 'dm.st.best': 'Beste beurt', 'dm.st.pot': 'Grootste pot (Groschen)', 'dm.st.note1': 'Potjes tegen de computer en online', 'dm.st.note2': ' (op dit apparaat; met een account volgen ze je overal)', 'dm.st.note3': '. Elk potje levert ook munten op (de winkelmunt) en soms een dobbelzakje, net als bij 421 en Coups Fourrés.', 'dm.moves': 'Groschen-geschiedenis', 'dm.noMoves': 'Nog geen bewegingen.', 'dm.moveBal': 'saldo {n}', 'dm.moves20': 'De laatste 20 regels. Speelgeld, geen echt geld.',
   'gr.cadeau': 'Dagcadeau', 'gr.mise': 'Inzet', 'gr.gain': 'Pot gewonnen', 'gr.remboursement': 'Inzet terug', 'gr.admin': 'Aanpassing',
   'dm.lv.debutant': 'Beginner', 'dm.lv.habitue': 'Vaste klant', 'dm.lv.fouine': 'Sluwe vos', 'dm.lh.debutant': 'Waagt te veel', 'dm.lh.habitue': 'Speelt verstandig', 'dm.lh.fouine': 'Berekent de kansen',
+  ...g421Nl,
 };

@@ -232,12 +232,12 @@ export function App() {
 
   const startSolo = (cfg: GameConfig, opponents: Opponent[]) => {
     sound.unlock();
-    const c = new LocalController(cfg, opponents, { name: settings.name || pa.session?.username || 'Vous', avatar: settings.avatar, photo: pa.photo, account: pa.session?.username, title: titleLabel(profile.title) ?? undefined, accessory: accessoryEmoji(profile.equipped.accessoire) || undefined });
+    const c = new LocalController(cfg, opponents, { name: settings.name || pa.session?.username || tr('g421.guestName'), avatar: settings.avatar, photo: pa.photo, account: pa.session?.username, title: titleLabel(profile.title) ?? undefined, accessory: accessoryEmoji(profile.equipped.accessoire) || undefined });
     const personas = Object.fromEntries(opponents.map((o, i) => [`ia-${i}`, o.persona]));
     setScreen({ name: 'solo', controller: c, personas });
   };
 
-  const meInfo = () => ({ name: settings.name || pa.session?.username || 'Vous', avatar: settings.avatar, photo: pa.photo, account: pa.session?.username,
+  const meInfo = () => ({ name: settings.name || pa.session?.username || tr('g421.guestName'), avatar: settings.avatar, photo: pa.photo, account: pa.session?.username,
     title: titleLabel(profile.title) ?? undefined, accessory: accessoryEmoji(profile.equipped.accessoire) || undefined });
   const startBoss = () => {
     sound.unlock();
@@ -246,7 +246,7 @@ export function App() {
   };
   const startTutorial = () => {
     sound.unlock();
-    setScreen({ name: 'tutorial', controller: new TutorialController({ name: settings.name || pa.session?.username || 'Vous', avatar: settings.avatar, photo: pa.photo }) });
+    setScreen({ name: 'tutorial', controller: new TutorialController({ name: settings.name || pa.session?.username || tr('g421.guestName'), avatar: settings.avatar, photo: pa.photo }) });
   };
   const resumeGame = () => setScreen(resume?.tournament ? { name: 'tournament', mode: { kind: 'resume' } } : resume ? { name: 'online', mode: { kind: 'resume' } } : { name: 'dixmille', pending: { resume: true } });
   const onJoinScheduled = (code: string, pay: boolean) => setScreen({ name: 'tournament', mode: { kind: 'join', code, pay } });

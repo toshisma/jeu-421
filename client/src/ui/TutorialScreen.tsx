@@ -5,6 +5,7 @@ import { coachMessage, type TutorialController } from '../game/tutorial';
 import type { Settings } from '../settings';
 import type { Appearance } from '../../../shared/progress/catalog';
 import { GameScreen } from './GameScreen';
+import { tr } from '../i18n/lang';
 
 /** Partie guidée : la vraie table de jeu, avec un guide qui commente chaque étape. */
 export function TutorialScreen({ controller, settings, onSettings, onExit, appearance, pa }: {
@@ -24,7 +25,7 @@ export function TutorialScreen({ controller, settings, onSettings, onExit, appea
   return (
     <>
       <GameScreen controller={controller} settings={settings} onSettings={onSettings} onExit={onExit} appearance={appearance} pa={pa} early={false}
-        tableExit={{ label: 'Terminer', note: () => (pa.profile.tutorial && rewarded ? '+50 pièces pour votre première partie !' : 'Partie guidée terminée.') }}
+        tableExit={{ label: tr('g421.tut.finish'), note: () => tr(pa.profile.tutorial && rewarded ? 'g421.tut.bonus' : 'g421.tut.done') }}
         onGameEnd={async () => {
           if (!pa.profile.tutorial) { const err = await pa.finishTutorial(); if (!err) setRewarded(true); }
           return null;

@@ -1,4 +1,7 @@
 import { chestWait } from '../../../shared/progress/profile';
+import { tr } from '../i18n/lang';
+import { botName } from '../i18n/g421';
+import type { MessageKey } from '../../../shared/i18n';
 import { useEffect, useState } from 'react';
 import { activeEvent, coinBoost, eventEnd, happyHour, shortDate } from '../../../shared/progress/events';
 import { getItem } from '../../../shared/progress/catalog';
@@ -176,10 +179,10 @@ export function BossCard({ pa, onPlay }: { pa: ProfileApi; onPlay: () => void })
     <section className="boss-card">
       <span className="boss-face" aria-hidden>{persona?.avatar ?? '🎩'}</span>
       <div>
-        <small>Patron de la semaine</small>
-        <b>{b.name}</b>
-        <span>{b.twist}</span>
-        <span className="boss-prize">{beaten ? 'Battu cette semaine. Revanche possible, sans récompense.' : `Première victoire : ${BOSS_COINS} pièces, un trophée et le titre « ${titleLabel(`patron:${b.id}`)} ».`}</span>
+        <small>{tr('g421.menu.patronW')}</small>
+        <b>{botName(b.name)}</b>
+        <span>{tr(`g421.boss.${b.id}` as MessageKey)}</span>
+        <span className="boss-prize">{beaten ? tr('g421.boss.beaten') : tr('g421.boss.prize', { n: BOSS_COINS, title: titleLabel(`patron:${b.id}`) ?? '' })}</span>
       </div>
       <button className={`btn ${beaten ? '' : 'primary'}`} onClick={onPlay}>Défier</button>
     </section>

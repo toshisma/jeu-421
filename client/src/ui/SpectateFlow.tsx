@@ -9,6 +9,7 @@ import { GameScreen } from './GameScreen';
 import { Chat } from './Chat';
 import { Shell } from './Screens';
 import { Notices } from './OnlineFlow';
+import { tr, trServer } from '../i18n/lang';
 
 /**
  * Mode spectateur : on regarde une partie en ligne en cours (bac 3D, cartes, scores, tchat),
@@ -24,7 +25,7 @@ export function SpectateFlow({ code, settings, onSettings, onExit, pa }: {
   useEffect(() => {
     const s = new OnlineSession(pa.token);
     let alive = true;
-    s.watch(code, settings.name || pa.session?.username || 'Spectateur')
+    s.watch(code, settings.name || pa.session?.username || tr('g421.sp.spectator'))
       .then(() => { if (alive) setSession(s); })
       .catch((e) => { if (alive) setError((e as Error).message); s.socket.disconnect(); });
     return () => { alive = false; s.leave(); };
@@ -38,34 +39,34 @@ export function SpectateFlow({ code, settings, onSettings, onExit, pa }: {
 
   if (error) {
     return (
-      <Shell title="Regarder une partie" onBack={onExit}>
-        <p className="error">{error}</p>
-        <button className="btn primary" onClick={onExit}>Retour</button>
+      <Shell title={tr('g421.sp.title')} onBack={onExit}>
+        <p className="error">{trServer(error)}</p>
+        <button className="btn primary" onClick={onExit}>{tr('common.back')}</button>
       </Shell>
     );
   }
-  if (!session || !controller) return <Shell title="Regarder une partie" onBack={onExit}><p>Connexion à la partie…</p></Shell>;
+  if (!session || !controller) return <Shell title={tr('g421.sp.title')} onBack={onExit}><p>{tr('g421.sp.connecting')}</p></Shell>;
   const room = session.room;
   // Table fermée, ou retour des joueurs au salon (revanche) : plus rien à regarder pour l'instant.
   if (session.watchClosed || (room && room.status === 'lobby' && !session.game)) {
     return (
-      <Shell title="Regarder une partie" onBack={quit}>
-        <p>{session.watchClosed ?? 'La partie est terminée : les joueurs sont retournés au salon. Si une revanche est lancée, vous la verrez ici.'}</p>
-        <button className="btn primary" onClick={quit}>Quitter</button>
+      <Shell title={tr('g421.sp.title')} onBack={quit}>
+        <p>{session.watchClosed ? trServer(session.watchClosed) : tr('g421.sp.ended')}</p>
+        <button className="btn primary" onClick={quit}>{tr('g421.quit')}</button>
       </Shell>
     );
   }
   return (
     <>
       <GameScreen controller={controller} settings={settings} onSettings={onSettings} onExit={onExit} guestInvite={false}
-        appearance={pa.profile.equipped} pa={pa} tableExit={{ label: 'Quitter' }} />
+        appearance={pa.profile.equipped} pa={pa} tableExit={{ label: tr('g421.quit') }} />
       <Notices session={session} />
       <Chat session={session} pa={pa} />
     </>
   );
 }
 
-const ago = (t: number) => { const m = Math.round((Date.now() - t) / 60_000); return m < 1 ? 'à l’instant' : `depuis ${m} min`; };
+const ago = (t: number) => { const m = Math.round((Date.now() - t) / 60_000); return m < 1 ? tr('g421.sp.justNow') : tr('g421.sp.since', { m }); };
 
 /** Liste « Parties en cours » : les parties publiques qu'on peut regarder (rafraîchie toutes les 6 s). */
 export function LiveGames({ onWatch }: { onWatch: (code: string) => void }) {
@@ -79,17 +80,17 @@ export function LiveGames({ onWatch }: { onWatch: (code: string) => void }) {
   if (!games) return null;
   return (
     <section className="live-games">
-      <h3>Parties en cours</h3>
-      {!games.length && <p className="empty">Aucune partie publique en cours pour l'instant.</p>}
+      <h3>{tr('g421.sp.live')}</h3>
+      {!games.length && <p className="empty">{tr('g421.sp.none')}</p>}
       <ul className="list">
         {games.map((g) => (
           <li key={g.code}>
             <div className="l-main">
-              <b>{g.tournament ? `🏆 ${g.tournament}` : g.title}</b>
+              <b>{g.tournament ? `🏆 ${trServer(g.tournament)}` : trServer(g.title)}</b>
               <small className="live-players">{g.players.map((p) => `${p.avatar} ${p.name}`).join(' · ')}</small>
-              <small>Manche {g.round}, {ago(g.startedAt)}{g.spectators ? ` · 👁 ${g.spectators}` : ''}</small>
+              <small>{tr('g421.sp.round', { n: g.round })}, {ago(g.startedAt)}{g.spectators ? ` · 👁 ${g.spectators}` : ''}</small>
             </div>
-            <button className="btn small" onClick={() => onWatch(g.code)}>Regarder</button>
+            <button className="btn small" onClick={() => onWatch(g.code)}>{tr('g421.sp.watch')}</button>
           </li>
         ))}
       </ul>

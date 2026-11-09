@@ -6,6 +6,8 @@ import { levelInfo } from '../../../shared/progress/profile';
 import type { EndReward } from './GameScreen';
 import { CopyReferral } from './Referral';
 import { VictoryBurst } from './illustrations';
+import { tr, trServer } from '../i18n/lang';
+import { botName, rich, trn } from '../i18n/g421';
 
 interface Props {
   reward: EndReward | null;
@@ -53,11 +55,11 @@ export function EndOverlay({ reward, state, meta, meId, canRematch, online, onRe
       </div>
       <div className={`end-card${iWon ? ' won' : ''}`}>
         {iWon && <VictoryBurst />}
-        <h2>{inTie ? 'Égalité !' : iWon ? 'Victoire !' : iLost ? 'Perdu…' : 'Partie terminée'}</h2>
+        <h2>{tr(inTie ? 'g421.end.tie' : iWon ? 'g421.end.win' : iLost ? 'g421.end.lost' : 'g421.over')}</h2>
         <p className="muted">
-          {tie && <>Ex æquo : <b>{coWinners.map((id) => m(id)?.name).join(' et ')}</b>{state.loserId ? '. ' : '.'}</>}
-          {state.loserId ? <>C'est <b>{m(state.loserId)?.name}</b> qui garde les jetons{state.config.variant === 'classique' ? ' et paie la tournée' : ''}.</>
-            : tie ? null : iWon ? <>Vous l'emportez !</> : <>Victoire de <b>{m(winner)?.name}</b>.</>}
+          {tie && <>{rich(tr('g421.end.tied', { names: coWinners.map((id) => botName(m(id)?.name ?? '')).join(` ${tr('g421.and')} `) }))}{state.loserId ? '. ' : '.'}</>}
+          {state.loserId ? rich(tr(state.config.variant === 'classique' ? 'g421.end.loserRound' : 'g421.end.loser', { name: botName(m(state.loserId)?.name ?? '') }))
+            : tie ? null : iWon ? tr('g421.end.youWin') : rich(tr('g421.end.winner', { name: botName(m(winner)?.name ?? '') }))}
         </p>
         <ol className="ranking">
           {state.ranking.map((id, i) => {
@@ -67,8 +69,8 @@ export function EndOverlay({ reward, state, meta, meId, canRematch, online, onRe
               <li key={id} className={`${id === meId ? 'me' : ''}${last ? ' last' : ''}`} style={{ animationDelay: `${0.15 * i}s` }}>
                 <span className="rk">{last ? '🍺' : MEDALS[place(i)] ?? `${place(i) + 1}.`}</span>
                 <span className="av">{m(id)?.avatar}</span>
-                <span className="nm">{m(id)?.name ?? p.name}</span>
-                <span className="sc">{points ? `${p.score} pt${p.score > 1 ? 's' : ''}` : last || !p.out ? `${p.tokens} jeton${p.tokens > 1 ? 's' : ''}` : 'sorti'}</span>
+                <span className="nm">{botName(m(id)?.name ?? p.name)}</span>
+                <span className="sc">{points ? trn('g421.pt', p.score) : last || !p.out ? trn('g421.tok', p.tokens) : tr('g421.pc.outLow')}</span>
               </li>
             );
           })}
@@ -77,14 +79,14 @@ export function EndOverlay({ reward, state, meta, meId, canRematch, online, onRe
         {reward && <RewardBox r={reward} />}
         {iWon && referral && (
           <div className="end-share">
-            <p className="small">Défiez un ami : s'il s'inscrit avec votre lien et joue 10 parties, vous gagnez un sac de dés.</p>
+            <p className="small">{tr('g421.end.referral')}</p>
             <CopyReferral code={referral} />
           </div>
         )}
         <div className="end-buttons">
-          {canRematch && <button className="btn primary" onClick={onRematch}>{online ? 'Revanche (retour au salon)' : 'Rejouer'}</button>}
-          {!canRematch && online && !exitLabel && <p className="muted small">L'hôte peut proposer une revanche.</p>}
-          <button className={`btn${exitLabel ? ' primary' : ''}`} onClick={onExit}>{exitLabel ?? 'Accueil'}</button>
+          {canRematch && <button className="btn primary" onClick={onRematch}>{tr(online ? 'g421.end.rematch' : 'g421.end.replay')}</button>}
+          {!canRematch && online && !exitLabel && <p className="muted small">{tr('g421.end.hostRematch')}</p>}
+          <button className={`btn${exitLabel ? ' primary' : ''}`} onClick={onExit}>{exitLabel ?? tr('g421.home')}</button>
         </div>
       </div>
     </div>
@@ -103,19 +105,19 @@ function RewardBox({ r }: { r: EndReward }) {
     <div className="reward">
       <ul>
         {reward.lines.map((l) => (
-          <li key={l.label}><span>{l.label}</span><span>{l.xp > 0 && <b>+{l.xp} XP</b>}{l.coins > 0 && <b className="c">+{l.coins} pièces</b>}</span></li>
+          <li key={l.label}><span>{trServer(l.label)}</span><span>{l.xp > 0 && <b>+{l.xp} XP</b>}{l.coins > 0 && <b className="c">{trn('g421.plusCoins', l.coins)}</b>}</span></li>
         ))}
-        {!!applied.bagsFound && <li className="lvlup bag-found"><span><BagIcon size="1em" /> {applied.bagsFound > 1 ? `${applied.bagsFound} sacs de dés trouvés !` : 'Sac de dés trouvé !'}</span><span className="muted small">à ouvrir dans Collection</span></li>}
-        {applied.achievementsDone?.map((x) => <li key={x.id} className="lvlup"><span>{x.icon} Succès : {x.name}</span><span><b className="c">+{x.coins} pièces</b></span></li>)}
-        {applied.questsDone?.map((q) => <li key={q.id} className="lvlup"><span>🎯 Défi accompli : {q.text}</span><span className="muted small">à récupérer</span></li>)}
-        {leveled && <li className="lvlup"><span>Niveau {applied.levelAfter} atteint !</span><span><b className="c">+{applied.levelBonusCoins} pièces</b></span></li>}
+        {!!applied.bagsFound && <li className="lvlup bag-found"><span><BagIcon size="1em" /> {applied.bagsFound > 1 ? tr('g421.bagsFound', { n: applied.bagsFound }) : tr('g421.bagFound')}</span><span className="muted small">{tr('g421.openInColl')}</span></li>}
+        {applied.achievementsDone?.map((x) => <li key={x.id} className="lvlup"><span>{x.icon} {tr('g421.achievement')} {x.name}</span><span><b className="c">{trn('g421.plusCoins', x.coins)}</b></span></li>)}
+        {applied.questsDone?.map((q) => <li key={q.id} className="lvlup"><span>🎯 {tr('g421.quest')} {q.text}</span><span className="muted small">{tr('g421.toCollect')}</span></li>)}
+        {leveled && <li className="lvlup"><span>{tr('g421.levelUp', { n: applied.levelAfter })}</span><span><b className="c">{trn('g421.plusCoins', applied.levelBonusCoins)}</b></span></li>}
       </ul>
       <div className="reward-bar">
-        <span>Niv. {after.level}</span>
+        <span>{tr('g421.lvl', { n: after.level })}</span>
         <span className="xpbar big"><i style={{ ['--from' as string]: `${from}%`, ['--to' as string]: `${to}%` }} /></span>
         <span className="muted small">{after.into}/{after.need} XP</span>
       </div>
-      <div className="muted small">Solde : {applied.profile.coins} pièces</div>
+      <div className="muted small">{tr('g421.balance', { n: applied.profile.coins })}</div>
     </div>
   );
 }

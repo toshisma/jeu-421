@@ -12,6 +12,8 @@ import type { Settings } from '../settings';
 import { DiceTray, type DiceTrayHandle } from './DiceTray';
 import { Icon } from './Icon';
 import { DiceRow, MiniDie } from './MiniDie';
+import { tr, trServer } from '../i18n/lang';
+import { ord, trCombo, trn } from '../i18n/g421';
 
 interface Board { top: { username: string; points: number; throws: number }[]; total: number; mine: { points: number; throws: number; rank: number; total: number } | null }
 const NO_KEEP = [false, false, false];
@@ -110,11 +112,11 @@ export function ChallengeScreen({ pa, settings, appearance, onBack, duel }: { pa
   const share = async () => {
     const text = challengeShareText(day, scores.map((s, i) => ({ points: s.value, throws: (decisions[i]?.length ?? 0) + 1 })));
     if (typeof navigator.share === 'function') {
-      try { await navigator.share({ text }); setShared('Partagé !'); return; }
+      try { await navigator.share({ text }); setShared(tr('g421.ch.shared')); return; }
       catch (e) { if ((e as Error).name === 'AbortError') return; }
     }
-    try { await navigator.clipboard.writeText(text); setShared('Copié : collez-le où vous voulez !'); }
-    catch { window.prompt('Copiez votre résultat :', text); }
+    try { await navigator.clipboard.writeText(text); setShared(tr('g421.ch.copied')); }
+    catch { window.prompt(tr('g421.ch.copyPrompt'), text); }
   };
   useEffect(() => { if (!shared) return; const t = setTimeout(() => setShared(null), 3000); return () => clearTimeout(t); }, [shared]);
   return (
@@ -124,75 +126,75 @@ export function ChallengeScreen({ pa, settings, appearance, onBack, duel }: { pa
       <div className="vignette" />
       <div className="top">
         <div className="topbar">
-          <button className="icon-btn" onClick={onBack} aria-label="Retour"><Icon name="back" /></button>
-          <div className="phase"><span className="logo-mini">421</span> {duel ? <>Défi contre {duel.opponent} <span className="muted">mêmes dés pour vous deux</span></> : <>Défi du jour <span className="muted">mêmes dés pour tout le monde</span></>}</div>
+          <button className="icon-btn" onClick={onBack} aria-label={tr('common.back')}><Icon name="back" /></button>
+          <div className="phase"><span className="logo-mini">421</span> {duel ? <>{tr('g421.ch.vs', { o: duel.opponent })} <span className="muted">{tr('g421.ch.sameTwo')}</span></> : <>{tr('g421.menu.defi')} <span className="muted">{tr('g421.ch.sameAll')}</span></>}</div>
         </div>
         <div className="tracker">
           <div className="tr-main">
-            <span>Coup {Math.min(turn + 1, CHALLENGE_TURNS)} sur {CHALLENGE_TURNS}</span>
-            <b className="worst">{total} pt{total > 1 ? 's' : ''}</b>
+            <span>{tr('g421.ch.turn', { a: Math.min(turn + 1, CHALLENGE_TURNS), b: CHALLENGE_TURNS })}</span>
+            <b className="worst">{trn('g421.pt', total)}</b>
           </div>
-          <div className="tr-sub">{scores.map((s, i) => <span key={i} className="ch-chip">{s.label} : {s.value}</span>)}</div>
+          <div className="tr-sub">{scores.map((s, i) => <span key={i} className="ch-chip">{tr('g421.ch.chip', { c: trCombo(s.label), v: s.value })}</span>)}</div>
         </div>
       </div>
 
       {!done ? (
         <div className="actionbar">
           <div className="status">
-            <div className="turn-line"><span className="your-turn">{already && !pa.isAccount && !duel ? 'Entraînement' : 'À vous'}</span></div>
-            <div className="throws">{Array.from({ length: CHALLENGE_THROWS }, (_, i) => <i key={i} className={i < throwIdx ? 'used' : ''} />)}<span>{throwsLeft} lancer{throwsLeft > 1 ? 's' : ''} restant{throwsLeft > 1 ? 's' : ''}</span></div>
+            <div className="turn-line"><span className="your-turn">{tr(already && !pa.isAccount && !duel ? 'g421.ch.training' : 'g421.pc.you')}</span></div>
+            <div className="throws">{Array.from({ length: CHALLENGE_THROWS }, (_, i) => <i key={i} className={i < throwIdx ? 'used' : ''} />)}<span>{trn('g421.ch.left', throwsLeft)}</span></div>
           </div>
           <div className="result">
             {dice[0] > 0 && (
               <div className="keep-row">
                 {dice.map((d, i) => (
                   <button key={i} className={`keep-die${keep[i] && canKeep ? ' on' : ''}`} disabled={!canKeep} onClick={() => toggle(i)}
-                    aria-label={`Dé ${d} : ${keep[i] ? 'gardé' : 'relancé'}`}>
+                    aria-label={tr('g421.pa.dieV', { n: d, v: tr(keep[i] ? 'g421.kept' : 'g421.rerolled') })}>
                     <MiniDie value={d} size={30} kept={keep[i] && canKeep} />
-                    {canKeep && <small>{keep[i] ? 'gardé' : 'relancé'}</small>}
+                    {canKeep && <small>{tr(keep[i] ? 'g421.kept' : 'g421.rerolled')}</small>}
                   </button>
                 ))}
               </div>
             )}
-            {combo && <div className="combo-label">{combo.label}<span>{combo.value} point{combo.value > 1 ? 's' : ''}</span></div>}
-            {throwIdx > 0 && throwsLeft > 0 && <p className="hint center">Touchez les dés à garder, puis relancez, ou gardez ce coup.</p>}
+            {combo && <div className="combo-label">{trCombo(combo.label)}<span>{trn('g421.ptLong', combo.value)}</span></div>}
+            {throwIdx > 0 && throwsLeft > 0 && <p className="hint center">{tr('g421.ch.hint')}</p>}
           </div>
           <div className="buttons">
-            {throwsLeft > 0 && <button className={`btn ${throwIdx === 0 ? 'primary' : ''} big`} disabled={busy} onClick={roll}><Icon name="dice" /> {throwIdx === 0 ? 'Lancer' : 'Relancer'}</button>}
-            {throwIdx > 0 && <button className={`btn ${throwsLeft === 0 ? 'primary' : 'secondary'} big`} disabled={busy} onClick={bank}>Garder ce coup</button>}
+            {throwsLeft > 0 && <button className={`btn ${throwIdx === 0 ? 'primary' : ''} big`} disabled={busy} onClick={roll}><Icon name="dice" /> {tr(throwIdx === 0 ? 'g421.ch.roll' : 'g421.ch.reroll')}</button>}
+            {throwIdx > 0 && <button className={`btn ${throwsLeft === 0 ? 'primary' : 'secondary'} big`} disabled={busy} onClick={bank}>{tr('g421.ch.keepHand')}</button>}
           </div>
         </div>
       ) : (
         <div className="end-overlay">
           <div className="end-card">
-            <h2>{done.points} points</h2>
+            <h2>{trn('g421.ptLong', done.points)}</h2>
             {duel && (
               <p className={outcome?.winner === pa.session?.username ? 'ok' : 'muted'}>
-                {!outcome ? done.error
-                  : !outcome.theirs ? `${duel.opponent} n'a pas encore joué : vous recevrez le résultat dès que c'est fait.`
-                    : outcome.winner === null ? `Égalité avec ${duel.opponent} (${outcome.theirs.points} points) : mises rendues.`
-                      : outcome.winner === pa.session?.username ? `Gagné ! ${duel.opponent} a fait ${outcome.theirs.points} points.${outcome.pot ? ` Vous remportez ${outcome.pot} pièces.` : ''}`
-                        : `Perdu : ${duel.opponent} a fait ${outcome.theirs.points} points.`}
+                {!outcome ? (done.error && trServer(done.error))
+                  : !outcome.theirs ? tr('g421.ch.notYet', { o: duel.opponent })
+                    : outcome.winner === null ? tr('g421.ch.tie', { o: duel.opponent, n: outcome.theirs.points })
+                      : outcome.winner === pa.session?.username ? `${tr('g421.ch.won', { o: duel.opponent, n: outcome.theirs.points })}${outcome.pot ? ` ${tr('g421.ch.pot', { n: outcome.pot })}` : ''}`
+                        : tr('g421.ch.lost', { o: duel.opponent, n: outcome.theirs.points })}
               </p>
             )}
             {!duel && <p className="muted">
-              {done.rank ? `Vous êtes ${done.rank === 1 ? '1er' : `${done.rank}e`} sur ${done.total} joueur${(done.total ?? 0) > 1 ? 's' : ''} aujourd'hui.`
-                : done.error ?? (pa.isAccount ? '' : 'Créez un compte pour figurer au classement du défi.')}
+              {done.rank ? trn('g421.ch.rank', done.total ?? 0, { p: ord(done.rank) })
+                : (done.error ? trServer(done.error) : pa.isAccount ? '' : tr('g421.ch.account'))}
             </p>}
             <ol className="ranking">
               {scores.map((s, i) => (
-                <li key={i}><span className="rk">{i + 1}</span><span className="nm"><DiceRow dice={s.dice} size={18} /> {s.label}</span><span className="sc">{s.value} pt{s.value > 1 ? 's' : ''}</span></li>
+                <li key={i}><span className="rk">{i + 1}</span><span className="nm"><DiceRow dice={s.dice} size={18} /> {trCombo(s.label)}</span><span className="sc">{trn('g421.pt', s.value)}</span></li>
               ))}
             </ol>
-            {!duel && (done.reward ? <p className="ok">+{done.reward.coins} pièces et +{done.reward.xp} XP</p>
-              : <p className="muted small">Récompense déjà reçue aujourd'hui : ce coup était pour l'entraînement.</p>)}
+            {!duel && (done.reward ? <p className="ok">{tr('g421.ch.reward', { c: done.reward.coins, x: done.reward.xp })}</p>
+              : <p className="muted small">{tr('g421.ch.already')}</p>)}
             {board && board.top.length > 0 && (
               <>
-                <h3>Meilleurs scores du jour</h3>
+                <h3>{tr('g421.ch.best')}</h3>
                 <ol className="board">
                   {board.top.slice(0, 10).map((r, i) => (
                     <li key={r.username} className={r.username === pa.session?.username ? 'me' : ''}>
-                      <span className="b-rank">{i + 1}</span><span className="b-name">{r.username}<small>{r.throws} lancers</small></span><span className="b-wins"><b>{r.points}</b> <small>pts</small></span>
+                      <span className="b-rank">{i + 1}</span><span className="b-name">{r.username}<small>{trn('g421.nThrows', r.throws)}</small></span><span className="b-wins"><b>{r.points}</b> <small>{tr('g421.ch.pts')}</small></span>
                     </li>
                   ))}
                 </ol>
@@ -200,8 +202,8 @@ export function ChallengeScreen({ pa, settings, appearance, onBack, duel }: { pa
             )}
             {!duel && shared && <p className="ok ch-shared" role="status">{shared}</p>}
             <div className="end-buttons">
-              {!duel && <button className="btn ch-share" onClick={() => void share()}><Icon name="share" size={18} />Partager</button>}
-              <button className="btn primary" onClick={onBack}>Accueil</button>
+              {!duel && <button className="btn ch-share" onClick={() => void share()}><Icon name="share" size={18} />{tr('g421.ch.share')}</button>}
+              <button className="btn primary" onClick={onBack}>{tr('g421.home')}</button>
             </div>
           </div>
         </div>
@@ -218,8 +220,8 @@ export function ChallengeCard({ onOpen }: { onOpen: () => void }) {
     <button className="challenge-card" onClick={onOpen}>
       <span className="cc-icon"><Icon name="target" size={26} /></span>
       <span className="cc-text">
-        <b>Défi du jour</b>
-        <span>{played ? `Votre score : ${done!.points} points. Rejouez pour vous entraîner.` : '5 coups, les mêmes dés pour tout le monde. Un seul essai compte.'}</span>
+        <b>{tr('g421.menu.defi')}</b>
+        <span>{played ? tr('g421.ch.playedInfo', { n: done!.points }) : tr('g421.ch.info')}</span>
       </span>
       <Icon name="back" size={20} />
     </button>

@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { askConfirm } from './confirm';
 import { useNavGuard } from './navGuard';
-import { describeConfig } from '../../../shared/config';
 import type { GameState } from '../../../shared/engine';
 import type { Appearance } from '../../../shared/progress/catalog';
 import type { RewardContext } from '../../../shared/progress/profile';
 import {
-  DEFAULT_TOURNAMENT, MIN_TOURNAMENT_PLAYERS, STAKES, TABLE_SIZES, TOURNAMENT_SIZES, currentTableOf, prizes, roundName, roundsFor,
+  DEFAULT_TOURNAMENT, MIN_TOURNAMENT_PLAYERS, STAKES, TABLE_SIZES, TOURNAMENT_SIZES, currentTableOf, prizes, roundsFor,
   type PublicTournament, type TournamentSettings,
 } from '../../../shared/tournament';
 import type { EndReward, ProfileApi } from '../account/useProfile';
@@ -23,12 +22,14 @@ import { BigAction, Choices, Section, Shell } from './kit';
 import { ScheduledLobby, ScheduledResults } from './Scheduled';
 import { schedRounds } from '../../../shared/scheduled';
 import { usePresenceLayer } from '../presence';
+import { tr, trServer, fmtNum } from '../i18n/lang';
+import { describeCfg, ord, roundLabel, trn } from '../i18n/g421';
 
 export type TournamentMode = { kind: 'create' } | { kind: 'join'; code: string; pay?: boolean } | { kind: 'resume' };
 /** Nombre de tours prévus (tournoi programmé : format propre, finale de 4 à 6 joueurs). */
 const totalRounds = (t: PublicTournament) => Math.max(t.rounds.length,
   t.sched ? schedRounds(t.sched.starters ?? t.players.length).rounds : roundsFor(t.players.length, t.settings.tableSize));
-const PLACE = (i: number) => (i === 0 ? '1er' : `${i + 1}e`);
+const PLACE = (i: number) => ord(i + 1);
 
 function useSession(session: OnlineSession | null) {
   const [, force] = useState(0);
@@ -56,11 +57,11 @@ export function TournamentFlow({ mode, settings, onSettings, onExit, onCancel, a
   const [session, setSession] = useState<OnlineSession | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [form, setForm] = useState<TournamentSettings>({ ...DEFAULT_TOURNAMENT, title: `Tournoi de ${settings.name || 'mon comptoir'}` });
+  const [form, setForm] = useState<TournamentSettings>({ ...DEFAULT_TOURNAMENT, title: tr('g421.t.defaultTitle', { name: settings.name || tr('g421.t.myBar') }) });
   const [watchBracket, setWatchBracket] = useState(false);
   useSession(session);
 
-  const name = settings.name.trim() || pa.session?.username || 'Joueur';
+  const name = settings.name.trim() || pa.session?.username || tr('g421.on.player');
   const connect = async (kind: 'create' | 'join' | 'resume') => {
     setBusy(true);
     setError(null);
@@ -104,33 +105,33 @@ export function TournamentFlow({ mode, settings, onSettings, onExit, onCancel, a
       const note = (st: GameState) => {
         const rank = st.ranking.indexOf(session.playerId);
         const tb = currentTableOf(t, session.playerId);
-        if (roundIdx === total - 1 || t.rounds[roundIdx].tables.length === 1) return rank === 0 ? 'Vous remportez le tournoi !' : `Finale terminée : vous finissez ${PLACE(rank)}.`;
-        return rank >= 0 && tb && rank < tb.qualified ? `Qualifié pour ${roundName(roundIdx + 1, total).toLowerCase()} !` : 'Éliminé du tournoi. Merci d’avoir joué !';
+        if (roundIdx === total - 1 || t.rounds[roundIdx].tables.length === 1) return rank === 0 ? tr('g421.t.youWin') : tr('g421.t.finalDone', { p: PLACE(rank) });
+        return rank >= 0 && tb && rank < tb.qualified ? tr('g421.t.qualified', { r: roundLabel(roundIdx + 1, total).toLowerCase() }) : tr('g421.t.eliminated');
       };
       // Sorti avant la fin de la table : qualifié (on attend le tour suivant), éliminé ou place de finale acquise (on peut partir).
       const early = (_st: GameState, place: number): EarlyOptions => {
         const tb = currentTableOf(t, session.playerId);
         const final = t.rounds[roundIdx].tables.length === 1;
-        const board = { label: 'Voir le tableau', run: () => setWatchBracket(true) };
-        const quit = { label: 'Empocher et quitter', run: () => { session.tLeave(); onExit(); } };
+        const board = { label: tr('g421.t.seeBoard'), run: () => setWatchBracket(true) };
+        const quit = { label: tr('g421.cashOut'), run: () => { session.tLeave(); onExit(); } };
         if (final) return {
-          title: place === 1 ? 'Vous remportez le tournoi !' : `Vous finissez ${PLACE(place - 1)} du tournoi !`,
-          note: pa.isAccount ? 'Votre place est acquise : votre gain de tournoi vous est déjà versé.' : 'Votre place au tournoi est acquise.', quit, alt: board,
+          title: place === 1 ? tr('g421.t.youWin') : tr('g421.t.youPlace', { p: PLACE(place - 1) }),
+          note: tr(pa.isAccount ? 'g421.t.placeAcq' : 'g421.t.placeAcq2'), quit, alt: board,
         };
         if (tb && place - 1 < tb.qualified) return {
-          title: `Qualifié pour ${roundName(roundIdx + 1, total).toLowerCase()} !`,
-          note: 'Restez dans les parages : le tour suivant commence quand toutes les tables ont fini.', quit: null, alt: board,
+          title: tr('g421.t.qualified', { r: roundLabel(roundIdx + 1, total).toLowerCase() }),
+          note: tr('g421.t.stayAround'), quit: null, alt: board,
         };
         return {
-          title: `Éliminé : ${PLACE(place - 1)} de la table`,
-          note: pa.isAccount ? 'Votre classement final (et votre gain éventuel) vous sera versé à la fin du tournoi.' : 'Merci d’avoir joué ! Vous pouvez partir ou regarder la fin.', quit, alt: board,
+          title: tr('g421.t.elimPlace', { p: PLACE(place - 1) }),
+          note: tr(pa.isAccount ? 'g421.t.elimNote' : 'g421.t.elimNote2'), quit, alt: board,
         };
       };
       return (
         <>
         <GameScreen key={room!.code} controller={controller} settings={settings} onSettings={onSettings} onExit={() => setWatchBracket(true)}
           appearance={appearance} pa={pa} onGameEnd={(st, ctx) => onGameEnd(st, controller.meId, ctx)}
-          tableExit={{ label: 'Voir le tableau', note }} early={early}
+          tableExit={{ label: tr('g421.t.seeBoard'), note }} early={early}
           guestInvite={(st) => {
             // Seulement quand le tournoi est fini pour le joueur (finale jouée ou éliminé), pas entre deux tours.
             const tb = currentTableOf(t, session.playerId);
@@ -148,10 +149,10 @@ export function TournamentFlow({ mode, settings, onSettings, onExit, onCancel, a
 
   if (mode.kind !== 'create' || session) {
     return (
-      <Shell title="Tournoi" onBack={() => { session?.detach(); onExit(); }}>
+      <Shell title={tr('g421.menu.tournoi')} onBack={() => { session?.detach(); onExit(); }}>
         <div className="form">
-          {(busy || session) && !error && <p>Connexion au tournoi…</p>}
-          {error && <><p className="error">{error}</p><button className="btn" onClick={onCancel ?? onExit}>Retour</button></>}
+          {(busy || session) && !error && <p>{tr('g421.t.connecting')}</p>}
+          {error && <><p className="error">{trServer(error)}</p><button className="btn" onClick={onCancel ?? onExit}>{tr('common.back')}</button></>}
         </div>
       </Shell>
     );
@@ -160,30 +161,30 @@ export function TournamentFlow({ mode, settings, onSettings, onExit, onCancel, a
   const set = (patch: Partial<TournamentSettings>) => setForm((f) => ({ ...f, ...patch }));
   const rounds = roundsFor(form.maxPlayers, form.tableSize);
   return (
-    <Shell title="Créer un tournoi" onBack={onCancel ?? onExit} wide icon="trophy" sub={`${form.maxPlayers} joueurs max., tables de ${form.tableSize}`}
-      foot={<>{error && <p className="error">{error}</p>}<BigAction icon="trophy" tone="gold" disabled={busy || !form.title.trim()} onClick={() => void connect('create')}
-        label={busy ? 'Création…' : 'Créer le tournoi'} sub={`${rounds} tour${rounds > 1 ? 's' : ''} une fois complet`} /></>}>
+    <Shell title={tr('g421.t.create')} onBack={onCancel ?? onExit} wide icon="trophy" sub={tr('g421.t.formSub', { n: form.maxPlayers, t: form.tableSize })}
+      foot={<>{error && <p className="error">{trServer(error)}</p>}<BigAction icon="trophy" tone="gold" disabled={busy || !form.title.trim()} onClick={() => void connect('create')}
+        label={tr(busy ? 'g421.t.creating' : 'g421.t.createB')} sub={trn('g421.t.roundsSub', rounds)} /></>}>
       <form className="cols" onSubmit={(e) => { e.preventDefault(); void connect('create'); }}>
         <section className="k-form">
-          <label className="k-field"><span className="k-label">Nom du tournoi</span>
+          <label className="k-field"><span className="k-label">{tr('g421.t.nameL')}</span>
             <input className="k-input" value={form.title} maxLength={32} onChange={(e) => set({ title: e.target.value })} /></label>
-          <div className="k-field"><span className="k-label">Qui peut s'inscrire ?</span>
+          <div className="k-field"><span className="k-label">{tr('g421.t.whoReg')}</span>
             <Choices value={form.visibility} onChange={(v) => set({ visibility: v })}
-              options={[{ v: 'private', label: 'Sur invitation', hint: 'Avec le code ou le lien', icon: 'key' }, { v: 'public', label: 'Tout le monde', hint: 'Visible dans la liste', icon: 'people' }]} />
+              options={[{ v: 'private', label: tr('g421.on.invite'), hint: tr('g421.on.inviteH'), icon: 'key' }, { v: 'public', label: tr('g421.on.everyone'), hint: tr('g421.on.everyoneH'), icon: 'people' }]} />
           </div>
-          <Seg label="Nombre de joueurs maximum" hint={`Le tournoi peut démarrer dès ${MIN_TOURNAMENT_PLAYERS} inscrits ; il démarre seul quand il est complet.`}
+          <Seg label={tr('g421.t.maxPlayers')} hint={tr('g421.t.minHint', { n: MIN_TOURNAMENT_PLAYERS })}
             value={form.maxPlayers} onChange={(v) => set({ maxPlayers: v })} options={TOURNAMENT_SIZES.map((n) => ({ v: n, label: String(n) }))} />
-          <Seg label="Joueurs par table" value={form.tableSize} onChange={(v) => set({ tableSize: v })}
+          <Seg label={tr('g421.t.perTable')} value={form.tableSize} onChange={(v) => set({ tableSize: v })}
             options={TABLE_SIZES.map((n) => ({ v: n, label: String(n) }))} />
-          <p className="k-hint">Complet, ce tournoi se joue en {rounds} tour{rounds > 1 ? 's' : ''} : la meilleure moitié de chaque table se qualifie, jusqu'à la finale.</p>
+          <p className="k-hint">{trn('g421.t.hint', rounds)}</p>
           <StakePicker value={form.stake} onChange={(v) => set({ stake: v })} pa={pa} stakes={STAKES} />
           {form.stake > 0 && (
-            <Seg label="Répartition de la cagnotte" value={form.payout} onChange={(v) => set({ payout: v })}
-              hint={form.payout === 'podium' ? '60 % au vainqueur, 30 % au deuxième, 10 % au troisième.' : 'Le vainqueur prend toute la cagnotte.'}
-              options={[{ v: 'podium', label: 'Podium' }, { v: 'winner', label: 'Tout au vainqueur' }]} />
+            <Seg label={tr('g421.t.split')} value={form.payout} onChange={(v) => set({ payout: v })}
+              hint={tr(form.payout === 'podium' ? 'g421.t.splitPod' : 'g421.t.splitWin')}
+              options={[{ v: 'podium', label: tr('g421.t.podium') }, { v: 'winner', label: tr('g421.t.allWinner') }]} />
           )}
         </section>
-        <Section title="Règles des parties">
+        <Section title={tr('g421.t.gameRules')}>
           <ConfigEditor config={form.config} onChange={(c) => set({ config: c })} />
           <button type="submit" hidden aria-hidden tabIndex={-1} />
         </Section>
@@ -206,49 +207,49 @@ function TournamentView({ session, t, pa, onExit, onBackToTable }: {
   const link = `${publicUrl()}/?tournoi=${t.code}`;
   const copy = async (text: string, what: string) => {
     try { await navigator.clipboard.writeText(text); setCopied(what); setTimeout(() => setCopied(null), 1800); }
-    catch { window.prompt('Copiez :', text); }
+    catch { window.prompt(tr('g421.copyPrompt'), text); }
   };
-  const share = async () => { try { await navigator.share({ title: t.settings.title, text: `Inscris-toi au tournoi de 421 « ${t.settings.title} ». Code : ${t.code}`, url: link }); } catch { /* annulé */ } };
-  const start = async () => { setErr(null); const a = await session.tStart(); if (!a.ok) setErr(a.error); };
+  const share = async () => { try { await navigator.share({ title: trServer(t.settings.title), text: tr('g421.t.shareX', { title: trServer(t.settings.title), code: t.code }), url: link }); } catch { /* annulé */ } };
+  const start = async () => { setErr(null); const a = await session.tStart(); if (!a.ok) setErr(trServer(a.error)); };
   const gains = t.status === 'inscriptions' ? prizes(t.settings.stake * t.players.length, t.players.length, t.settings.payout) : t.prizes;
 
   // Ce que le joueur doit savoir tout de suite.
   let headline: string;
-  if (session.removed) headline = `Vous avez été désinscrit : ${session.removed}`;
-  else if (sched?.cancelled) headline = 'Tournoi annulé : tout le monde est remboursé.';
-  else if (sched && t.status === 'inscriptions') headline = 'Salon ouvert : le tournoi part dans quelques minutes.';
-  else if (t.status === 'inscriptions') headline = countdown != null ? `Complet ! Départ dans ${countdown} s.` : `Inscriptions ouvertes : ${t.players.length} joueur${t.players.length > 1 ? 's' : ''} sur ${t.settings.maxPlayers}.`;
+  if (session.removed) headline = tr('g421.t.removed', { r: trServer(session.removed) });
+  else if (sched?.cancelled) headline = tr('g421.t.hCancelled');
+  else if (sched && t.status === 'inscriptions') headline = tr('g421.t.hSched');
+  else if (t.status === 'inscriptions') headline = countdown != null ? tr('g421.t.hFull', { s: countdown }) : trn('g421.t.hOpen', t.players.length, { max: t.settings.maxPlayers });
   else if (t.status === 'termine') {
     const place = t.standings!.indexOf(session.playerId);
-    headline = place === 0 ? 'Vous remportez le tournoi !' : `Victoire de ${nameOf(t.standings![0])}. Vous finissez ${PLACE(place)}.`;
-  } else if (me?.out != null) headline = `Éliminé au ${roundName(me.out, total).toLowerCase()}. Suivez la suite du tournoi ici.`;
-  else if (countdown != null) headline = `Qualifié ! ${roundName(t.rounds.length, total)} dans ${countdown} s.`;
-  else if (onBackToTable) headline = `Votre partie est en cours (${roundName(t.rounds.length - 1, total).toLowerCase()}).`;
-  else headline = 'Qualifié ! En attente des autres tables.';
+    headline = place === 0 ? tr('g421.t.youWin') : tr('g421.t.hWinner', { name: nameOf(t.standings![0]), p: PLACE(place) });
+  } else if (me?.out != null) headline = tr('g421.t.hElim', { r: roundLabel(me.out, total).toLowerCase() });
+  else if (countdown != null) headline = tr('g421.t.hQualIn', { r: roundLabel(t.rounds.length, total), s: countdown });
+  else if (onBackToTable) headline = tr('g421.t.hPlaying', { r: roundLabel(t.rounds.length - 1, total).toLowerCase() });
+  else headline = tr('g421.t.hQualWait');
 
-  const leaveLabel = sched && t.status === 'inscriptions' ? null : t.status === 'inscriptions' ? 'Me désinscrire' : t.status === 'en-cours' && me?.out == null ? 'Abandonner le tournoi' : null;
+  const leaveLabel = sched && t.status === 'inscriptions' ? null : t.status === 'inscriptions' ? tr('g421.t.unreg') : t.status === 'en-cours' && me?.out == null ? tr('g421.t.abandon') : null;
   const leave = async () => {
-    if (t.status === 'en-cours' && !(await askConfirm('Abandonner le tournoi ? Le serveur jouera vos parties à votre place.', 'Abandonner'))) return;
+    if (t.status === 'en-cours' && !(await askConfirm(tr('g421.t.abandonQ'), tr('g421.t.abandonB')))) return;
     session.tLeave();
     onExit();
   };
 
   return (
-    <Shell title={t.settings.title} onBack={() => { if (t.status === 'inscriptions' && !sched) session.tLeave(); else session.detach(); onExit(); }} wide>
+    <Shell title={trServer(t.settings.title)} onBack={() => { if (t.status === 'inscriptions' && !sched) session.tLeave(); else session.detach(); onExit(); }} wide>
       <div className="t-head">
         <p className="t-headline">{headline}</p>
-        {onBackToTable && <button className="btn primary" onClick={onBackToTable}><Icon name="dice" /> Revenir à ma table</button>}
+        {onBackToTable && <button className="btn primary" onClick={onBackToTable}><Icon name="dice" /> {tr('g421.t.backTable')}</button>}
         {t.status === 'inscriptions' && isHost && !sched && (
           <button className="btn primary" disabled={t.players.length < MIN_TOURNAMENT_PLAYERS} onClick={start}>
-            {t.players.length < MIN_TOURNAMENT_PLAYERS ? `Il faut ${MIN_TOURNAMENT_PLAYERS} inscrits pour lancer` : `Lancer le tournoi (${t.players.length} joueurs)`}
+            {t.players.length < MIN_TOURNAMENT_PLAYERS ? tr('g421.t.needN', { n: MIN_TOURNAMENT_PLAYERS }) : tr('g421.t.startN', { n: t.players.length })}
           </button>
         )}
         {t.status === 'inscriptions' && isHost && !sched && t.settings.stake === 0 && t.players.length < t.settings.maxPlayers && (
-          <button className="btn" onClick={async () => { setErr(null); const a = await session.tFillBots('normal'); if (!a.ok) setErr(a.error); }}>
-            <Icon name="plus" /> Compléter avec des ordinateurs
+          <button className="btn" onClick={async () => { setErr(null); const a = await session.tFillBots('normal'); if (!a.ok) setErr(trServer(a.error)); }}>
+            <Icon name="plus" /> {tr('g421.t.fill')}
           </button>
         )}
-        {t.status === 'inscriptions' && !isHost && !sched && <p className="muted small">L'organisateur lance le tournoi ; il démarre aussi tout seul quand il est complet.</p>}
+        {t.status === 'inscriptions' && !isHost && !sched && <p className="muted small">{tr('g421.t.hostStart')}</p>}
         {err && <p className="error">{err}</p>}
       </div>
 
@@ -260,25 +261,25 @@ function TournamentView({ session, t, pa, onExit, onBackToTable }: {
         <div className="cols">
           <section>
             <div className="code-box">
-              <small>{t.settings.visibility === 'public' ? 'Tournoi public. Code à partager :' : 'Code du tournoi'}</small>
+              <small>{tr(t.settings.visibility === 'public' ? 'g421.t.publicCode' : 'g421.t.codeL')}</small>
               <div className="code">{t.code}</div>
               <div className="code-actions">
-                <button className="btn small" onClick={() => copy(t.code, 'code')}><Icon name="copy" size={18} />{copied === 'code' ? 'Copié' : 'Copier le code'}</button>
+                <button className="btn small" onClick={() => copy(t.code, 'code')}><Icon name="copy" size={18} />{tr(copied === 'code' ? 'g421.on.copied' : 'g421.t.copyCode')}</button>
                 {typeof navigator.share === 'function'
-                  ? <button className="btn small" onClick={share}><Icon name="share" size={18} />Inviter des amis</button>
-                  : <button className="btn small" onClick={() => copy(link, 'lien')}><Icon name="share" size={18} />{copied === 'lien' ? 'Copié' : "Copier le lien d'invitation"}</button>}
+                  ? <button className="btn small" onClick={share}><Icon name="share" size={18} />{tr('g421.on.inviteFriends')}</button>
+                  : <button className="btn small" onClick={() => copy(link, 'lien')}><Icon name="share" size={18} />{tr(copied === 'lien' ? 'g421.on.copied' : 'g421.t.copyLink')}</button>}
               </div>
             </div>
-            <h3>Inscrits ({t.players.length}/{t.settings.maxPlayers})</h3>
+            <h3>{tr('g421.t.registered', { n: t.players.length, max: t.settings.maxPlayers })}</h3>
             <ol className="members">
               {t.players.map((p, i) => (
                 <li key={p.id}>
                   <span className="ord">{i + 1}</span>
                   <Avatar photo={p.photo} emoji={p.avatar} size={36}><i className={`dot ${p.connected ? "on" : "off"}`} /></Avatar>
                   <b>{p.name}</b>
-                  {p.id === t.hostId && <span className="tag">Organisateur</span>}
-                  {p.bot && <span className="tag bot">Ordinateur</span>}
-                  {p.id === session.playerId && <span className="tag">Vous</span>}
+                  {p.id === t.hostId && <span className="tag">{tr('g421.t.organiser')}</span>}
+                  {p.bot && <span className="tag bot">{tr('g421.t.computer')}</span>}
+                  {p.id === session.playerId && <span className="tag">{tr('g421.pc.you')}</span>}
                 </li>
               ))}
             </ol>
@@ -292,41 +293,41 @@ function TournamentView({ session, t, pa, onExit, onBackToTable }: {
           {t.status === 'termine' && sched && <ScheduledResults t={t} meId={session.playerId} />}
           {t.status === 'termine' && t.standings && !sched && (
             <section>
-              <h3>Classement final</h3>
+              <h3>{tr('g421.t.finalRank')}</h3>
               <ol className="ranking t-standings">
                 {t.standings.map((id, i) => (
                   <li key={id} className={id === session.playerId ? 'me' : ''}>
                     <span className="rk">{PLACE(i)}</span>
                     <span className="nm">{nameOf(id)}</span>
-                    {t.prizes[i] ? <span className="sc coins-text">+{t.prizes[i]} pièces</span> : null}
+                    {t.prizes[i] ? <span className="sc coins-text">{trn('g421.plusCoins', t.prizes[i])}</span> : null}
                   </li>
                 ))}
               </ol>
             </section>
           )}
-          <h3>Tableau</h3>
+          <h3>{tr('g421.t.bracket')}</h3>
           <div className="bracket">
             {Array.from({ length: total }, (_, ri) => {
               const rd = t.rounds[ri];
               return (
                 <div className="b-round" key={ri}>
-                  <h4>{roundName(ri, total)}</h4>
+                  <h4>{roundLabel(ri, total)}</h4>
                   {rd ? rd.tables.map((tb, ti) => {
                     const order = tb.ranking ?? tb.ids;
                     const mine = tb.ids.includes(session.playerId);
                     return (
                       <div key={tb.code} className={`b-table${!tb.ranking ? ' live' : ''}${mine ? ' mine' : ''}`}>
-                        <header><span>Table {ti + 1}</span><span>{tb.ranking ? 'Terminée' : 'En cours'}</span></header>
+                        <header><span>{tr('g421.menu.tableN', { code: ti + 1 })}</span><span>{tr(tb.ranking ? 'g421.t.tableDone' : 'g421.sch.running')}</span></header>
                         <ol>
                           {order.map((id, k) => (
                             <li key={id} className={tb.ranking ? (k < tb.qualified ? 'q' : 'x') : ''}>
-                              <span>{nameOf(id)}{id === session.playerId ? ' (vous)' : ''}</span>
+                              <span>{nameOf(id)}{id === session.playerId ? ` ${tr('g421.youParen')}` : ''}</span>
                             </li>
                           ))}
                         </ol>
                       </div>
                     );
-                  }) : <div className="b-table"><ol><li className="tbd">À venir</li></ol></div>}
+                  }) : <div className="b-table"><ol><li className="tbd">{tr('g421.t.tbd')}</li></ol></div>}
                 </div>
               );
             })}
@@ -337,7 +338,7 @@ function TournamentView({ session, t, pa, onExit, onBackToTable }: {
 
       <div className="row left t-actions">
         {leaveLabel && <button className="btn danger" onClick={leave}>{leaveLabel}</button>}
-        {(t.status === 'termine' || sched?.cancelled) && <button className="btn" onClick={() => { session.detach(); onExit(); }}>Retour à l'accueil</button>}
+        {(t.status === 'termine' || sched?.cancelled) && <button className="btn" onClick={() => { session.detach(); onExit(); }}>{tr('g421.on.backHome')}</button>}
       </div>
     </Shell>
   );
@@ -350,21 +351,21 @@ function TournamentRules({ t, gains, pa, compact }: { t: PublicTournament; gains
     <div className={compact ? 't-rules compact' : 't-rules'}>
       {s.stake > 0 && (
         <div className="pot">
-          <span>Cagnotte{t.status === 'inscriptions' ? ' (si le tournoi démarrait maintenant)' : ''}<br />
-            <small className="muted">Entrée {s.stake} pièces par joueur{pa.isAccount ? `, vous avez ${pa.profile.coins.toLocaleString('fr-BE')} pièces` : ''}</small></span>
-          <b>{pot} pièces</b>
+          <span>{tr('g421.t.pot')}{t.status === 'inscriptions' ? ` ${tr('g421.t.ifNow')}` : ''}<br />
+            <small className="muted">{tr('g421.t.entry', { n: s.stake })}{pa.isAccount ? tr('g421.t.youHave', { n: fmtNum(pa.profile.coins) }) : ''}</small></span>
+          <b>{tr('g421.sch.feeCoins', { n: pot })}</b>
         </div>
       )}
       {s.stake > 0 && gains.length > 0 && (
-        <p className="muted">Gains : {gains.map((g, i) => `${PLACE(i)} ${g} pièces`).join(', ')}.</p>
+        <p className="muted">{tr('g421.t.prizes', { list: gains.map((g, i) => `${PLACE(i)} ${tr('g421.sch.feeCoins', { n: g })}`).join(', ') })}</p>
       )}
-      <h3>Format</h3>
+      <h3>{tr('g421.t.format')}</h3>
       <ul className="muted">
-        <li>Tables de {s.tableSize} joueurs ; la meilleure moitié de chaque table se qualifie.</li>
-        <li>{s.stake ? `Droit d'entrée de ${s.stake} pièces, prélevé au départ du tournoi.` : 'Sans mise : on joue pour la gloire (et l’XP).'}</li>
+        <li>{tr('g421.t.tablesOf', { n: s.tableSize })}</li>
+        <li>{s.stake ? tr('g421.t.entryFee', { n: s.stake }) : tr('g421.t.forGlory')}</li>
       </ul>
-      <h3>Règles des parties</h3>
-      <ul className="muted">{describeConfig(s.config).map((l) => <li key={l}>{l}</li>)}</ul>
+      <h3>{tr('g421.t.gameRules')}</h3>
+      <ul className="muted">{describeCfg(s.config).map((l) => <li key={l}>{l}</li>)}</ul>
     </div>
   );
 }

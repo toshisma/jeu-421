@@ -1,4 +1,5 @@
 import type { MessageKey } from './fr';
+import { g421En } from './zones/jeu421.en';
 
 /** Textes anglais. Ton : direct et simple ; vocabulaire de Farkle (farkle, bank, hot dice). */
 export const en: Partial<Record<MessageKey, string>> = {
@@ -353,4 +354,5 @@ export const en: Partial<Record<MessageKey, string>> = {
   "dm.lh.debutant": "Pushes their luck too far",
   "dm.lh.habitue": "Plays sensibly",
   "dm.lh.fouine": "Calculates the odds",
+  ...g421En,
 };

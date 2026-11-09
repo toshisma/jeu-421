@@ -1,4 +1,5 @@
 import type { MessageKey } from './fr';
+import { g421De } from './zones/jeu421.de';
 
 /** Textes allemands (« du », ton direct). Une clé absente s'affiche en français. */
 export const de: Partial<Record<MessageKey, string>> = {
@@ -44,4 +45,5 @@ export const de: Partial<Record<MessageKey, string>> = {
   'dm.statsTitle': 'Deine Statistiken im Höfling', 'dm.st.games': 'Beendete Spiele', 'dm.st.wins': 'Siege', 'dm.st.best': 'Beste Runde', 'dm.st.pot': 'Größter Pott (Groschen)', 'dm.st.note1': 'Spiele gegen den Computer und online', 'dm.st.note2': ' (auf diesem Gerät; mit Konto folgen sie dir überallhin)', 'dm.st.note3': '. Jedes Spiel bringt auch Münzen (die Shop-Währung) und manchmal einen Würfelbeutel, wie bei 421 und Coups Fourrés.', 'dm.moves': 'Groschen-Verlauf', 'dm.noMoves': 'Noch keine Bewegungen.', 'dm.moveBal': 'Guthaben {n}', 'dm.moves20': 'Die letzten 20 Einträge. Spielwährung, kein echtes Geld.',
   'gr.cadeau': 'Tagesgeschenk', 'gr.mise': 'Einsatz', 'gr.gain': 'Pott gewonnen', 'gr.remboursement': 'Einsatz zurück', 'gr.admin': 'Anpassung',
   'dm.lv.debutant': 'Anfänger', 'dm.lv.habitue': 'Stammgast', 'dm.lv.fouine': 'Fuchs', 'dm.lh.debutant': 'Riskiert zu viel', 'dm.lh.habitue': 'Spielt vernünftig', 'dm.lh.fouine': 'Berechnet die Chancen',
+  ...g421De,
 };

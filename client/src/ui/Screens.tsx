@@ -1,13 +1,15 @@
 import { tr } from '../i18n/lang';
+import { botName, describeCfg, rich, trCombo, trn, trTagline } from '../i18n/g421';
 import { LangSwitch } from '../i18n/LangSwitch';
 import { BossCard, DailyStreak, EveningChest, EventBanner, HappyHourBanner, PassSummary } from './Progression';
 import { BagIcon } from './BagIcon';
 import { reportUrl } from '../legal';
+import type { MessageKey } from '../../../shared/i18n';
 import { ChallengeCard } from './ChallengeScreen';
 import { accessoryEmoji } from '../../../shared/progress/catalog';
 import { titleLabel as titleLabelFn } from '../../../shared/progress/profile';
 import { useEffect, useRef, useState } from 'react';
-import { DEFAULT_CONFIG, describeConfig, type GameConfig } from '../../../shared/config';
+import { DEFAULT_CONFIG, type GameConfig } from '../../../shared/config';
 import { comboTable, evaluate } from '../../../shared/combos';
 import type { Difficulty } from '../../../shared/ai';
 import { AVATARS } from '../../../shared/protocol';
@@ -217,33 +219,33 @@ export function SoloSetup({ settings, onBack, onStart }: {
   const [roster, setRoster] = useState(() => [...PERSONAS].sort(() => Math.random() - 0.5));
   const chosen = roster.slice(0, count);
   const DIFFS: { v: Difficulty; label: string; hint: string }[] = [
-    { v: 'facile', label: 'Facile', hint: 'Pour apprendre' },
-    { v: 'normal', label: 'Normal', hint: 'Joue juste' },
-    { v: 'difficile', label: 'Difficile', hint: 'Ne pardonne rien' },
+    { v: 'facile', label: tr('g421.solo.easy'), hint: tr('g421.solo.easyH') },
+    { v: 'normal', label: tr('g421.solo.normal'), hint: tr('g421.solo.normalH') },
+    { v: 'difficile', label: tr('g421.solo.hard'), hint: tr('g421.solo.hardH') },
   ];
   return (
-    <Shell title="Partie solo" onBack={onBack} icon="dice" wide sub={`${count} adversaire${count > 1 ? 's' : ''}, niveau ${diff}`}
-      foot={<BigAction icon="dice" label="S'asseoir à la table" sub={describeConfig(cfg)[0]} onClick={() => onStart(cfg, chosen.map((persona) => ({ persona, difficulty: diff })))} />}>
+    <Shell title={tr('g421.solo.title')} onBack={onBack} icon="dice" wide sub={trn('g421.solo.sub', count, { d: tr(`g421.solo.level.${diff}`) })}
+      foot={<BigAction icon="dice" label={tr('g421.solo.sit')} sub={describeCfg(cfg)[0]} onClick={() => onStart(cfg, chosen.map((persona) => ({ persona, difficulty: diff })))} />}>
       <div className="cols solo">
         <div>
-          <Section title="Adversaires" aside={<button className="btn ghost small" onClick={() => setRoster([...PERSONAS].sort(() => Math.random() - 0.5))}><Icon name="resume" size={18} /> Changer</button>}>
-            <div className="k-pills big" role="radiogroup" aria-label="Nombre d'adversaires">
+          <Section title={tr('g421.solo.opps')} aside={<button className="btn ghost small" onClick={() => setRoster([...PERSONAS].sort(() => Math.random() - 0.5))}><Icon name="resume" size={18} /> {tr('g421.solo.change')}</button>}>
+            <div className="k-pills big" role="radiogroup" aria-label={tr('g421.solo.oppCount')}>
               {[1, 2, 3, 4, 5].map((n) => <button key={n} role="radio" aria-checked={n === count} className={n === count ? 'on' : ''} onClick={() => setCount(n)}>{n}</button>)}
             </div>
             <ul className="solo-roster">
               {chosen.map((p) => (
                 <li key={p.id} style={{ ['--pc' as string]: p.color }}>
                   <span className="avatar"><span>{p.avatar}</span></span>
-                  <b>{p.name}</b><small>{p.tagline}</small>
+                  <b>{botName(p.name)}</b><small>{trTagline(p.id, p.tagline)}</small>
                 </li>
               ))}
             </ul>
           </Section>
-          <Section title="Difficulté">
+          <Section title={tr('g421.solo.diff')}>
             <Choices value={diff} onChange={setDiff} options={DIFFS} />
           </Section>
         </div>
-        <Section title="Règles">
+        <Section title={tr('g421.solo.rules')}>
           <ConfigEditor config={cfg} onChange={setCfg} />
         </Section>
       </div>
@@ -261,49 +263,49 @@ export function RulesContent({ current }: { current?: GameConfig }) {
       <div className="rules">
       {current && (
         <div className="rules-current">
-          <h3>Règles de cette partie</h3>
-          <ul>{describeConfig(current).map((l) => <li key={l}>{l}</li>)}</ul>
+          <h3>{tr('g421.rc.current')}</h3>
+          <ul>{describeCfg(current).map((l) => <li key={l}>{l}</li>)}</ul>
         </div>
       )}
-      <p>On lance trois dés, avec jusqu'à trois lancers par tour. Après un lancer, on peut <b>conserver</b> certains dés en cliquant dessus et relancer les autres, ou <b>valider</b> son tour. Chaque manche, le joueur qui a la plus mauvaise combinaison perd : il reçoit des jetons. Le but est de se débarrasser de tous ses jetons.</p>
-      <h3>Combinaisons (de la meilleure à la plus faible)</h3>
+      <p>{rich(tr('g421.rc.intro'))}</p>
+      <h3>{tr('g421.rc.combos')}</h3>
       <table className="combo-table">
         <tbody>
-          {comboTable(v).map((r) => (
-            <tr key={r.name}><td><DiceRow dice={r.example} size={20} /></td><td>{r.name}</td><td className="val">{r.value}</td></tr>
+          {comboTable(v).map((r, i) => (
+            <tr key={r.name}><td><DiceRow dice={r.example} size={20} /></td><td>{i === 0 ? r.name : tr(`g421.rc.row${i}` as MessageKey)}</td><td className="val">{i === 2 ? tr('g421.rc.valX') : i === 5 ? tr('g421.rc.valNen', { a: v.autre, b: v.nenetteMin }) : r.value}</td></tr>
           ))}
         </tbody>
       </table>
-      <p className="muted small">Les combinaisons ordinaires se comparent dé par dé, du plus fort au plus faible (6-6-5 bat 6-6-4). Exemple : {evaluate([6, 5, 2], v).label} bat {evaluate([6, 4, 3], v).label}.</p>
-      <h3>Variante classique (par défaut)</h3>
+      <p className="muted small">{tr('g421.rc.compare', { a: trCombo(evaluate([6, 5, 2], v).label), b: trCombo(evaluate([6, 4, 3], v).label) })}</p>
+      <h3>{tr('g421.rc.classicH')}</h3>
       <ol>
-        <li><b>La charge.</b> Le pot contient {cfg.totalTokens} jetons. Chaque joueur lance <b>une seule fois</b>. Le perdant de la manche prend dans le pot autant de jetons que vaut la meilleure combinaison de la manche.</li>
-        <li>Quand le pot est vide, les joueurs <b>sans jeton sont sortis</b> : ils ont gagné.</li>
-        <li><b>La décharge.</b> Jusqu'à 3 lancers par tour, mais le premier joueur de la manche fixe le nombre de lancers des suivants. Le meilleur <b>donne</b> au perdant autant de jetons que vaut sa combinaison. Celui qui n'a plus de jeton sort.</li>
-        <li>Le dernier à garder des jetons a perdu la partie. Le perdant de chaque manche commence la suivante.</li>
-        <li><b>Égalités :</b> si plusieurs joueurs ont la plus mauvaise combinaison, ils font un <b>barrage</b> (un lancer chacun), départagé <b>{cfg.rolloffMode === 'addition' ? 'à l’addition : le plus petit total des trois dés perd' : 'à la figure : la plus faible combinaison perd'}</b> (réglable : figure ou addition). Pour la meilleure combinaison, le premier à l'avoir obtenue l'emporte.</li>
-          <li><b>Temps :</b> {cfg.turnSeconds ? `${cfg.turnSeconds} secondes pour jouer à chaque fois ; passé ce délai, le jeu lance (si besoin) puis valide votre tour.` : 'pas de limite de temps dans cette partie.'}</li>
-          <li><b>Garder des dés :</b> touchez un dé pour le garder, il est posé au bord du bac ; seuls les autres sont relancés.</li>
-        <li><b>Nénette</b> (2-2-1) : la plus faible combinaison ; le perdant qui l'a faite prend au minimum {v.nenetteMin} jetons.</li>
+        <li>{rich(tr('g421.rc.load', { n: cfg.totalTokens }))}</li>
+        <li>{rich(tr('g421.rc.empty'))}</li>
+        <li>{rich(tr('g421.rc.unload'))}</li>
+        <li>{tr('g421.rc.lastLoses')}</li>
+        <li>{rich(tr('g421.rc.ties', { how: tr(cfg.rolloffMode === 'addition' ? 'g421.rc.tieAdd' : 'g421.rc.tieFig') }))}</li>
+          <li>{rich(tr(cfg.turnSeconds ? 'g421.rc.time' : 'g421.rc.noTime', { n: cfg.turnSeconds }))}</li>
+          <li>{rich(tr('g421.rc.keep'))}</li>
+        <li>{rich(tr('g421.rc.nen', { n: v.nenetteMin }))}</li>
       </ol>
-      <h3>Autres variantes proposées</h3>
+      <h3>{tr('g421.rc.others')}</h3>
       <ul>
-        <li><b>Décharge seule :</b> chaque joueur reçoit des jetons au départ, on joue directement la décharge.</li>
-        <li><b>Aux points :</b> un nombre fixe de manches ; chaque joueur marque la valeur de sa combinaison ; le meilleur total gagne.</li>
+        <li>{rich(tr('g421.rc.varDech'))}</li>
+        <li>{rich(tr('g421.rc.varPts'))}</li>
       </ul>
-      <p>Tout est réglable avant chaque partie : variante, nombre de lancers, jetons, sens de rotation, règle des égalités, valeurs des combinaisons. Réglages par défaut :</p>
-      <ul className="muted">{describeConfig(DEFAULT_CONFIG).map((l) => <li key={l}>{l}</li>)}</ul>
-      <h3>Raccourcis</h3>
-      <p className="muted">Pour lancer, glissez le doigt sur le bac ou secouez le téléphone. Touchez un dé pour le garder. Au clavier : Espace pour lancer, Entrée pour valider.</p>
-      <h3>Suivi de la manche</h3>
-      <p className="muted">Le bandeau en haut indique la plus mauvaise combinaison du moment et ce qu'elle coûte, par exemple « 5-2-1 pour 6 jetons » : le joueur qui l'a faite prendrait 6 jetons si la manche s'arrêtait là.</p>
+      <p>{tr('g421.rc.adjust')}</p>
+      <ul className="muted">{describeCfg(DEFAULT_CONFIG).map((l) => <li key={l}>{l}</li>)}</ul>
+      <h3>{tr('g421.rc.shortcuts')}</h3>
+      <p className="muted">{tr('g421.rc.shortcutsT')}</p>
+      <h3>{tr('g421.rc.tracker')}</h3>
+      <p className="muted">{tr('g421.rc.trackerT')}</p>
     </div>
   );
 }
 
 export function RulesScreen({ onBack }: { onBack: () => void }) {
   return (
-    <Shell title="Règles du jeu" onBack={onBack} icon="rules" sub="Le 421 en 2 minutes">
+    <Shell title={tr('g421.rules')} onBack={onBack} icon="rules" sub={tr('g421.rc.sub')}>
       <RulesContent />
     </Shell>
   );

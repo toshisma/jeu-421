@@ -1,7 +1,10 @@
 import { ALBUM, ALBUM_FULL_COINS, monthName, type MonthRecap } from '../../../shared/progress/profile';
 import type { ProfileApi } from '../account/useProfile';
 import { DiceRow } from './MiniDie';
+import type { MessageKey } from '../../../shared/i18n';
 import { Empty, Shell } from './kit';
+import { tr } from '../i18n/lang';
+import { trn } from '../i18n/g421';
 
 /** Album des combinaisons : chaque combinaison réussie au moins une fois se colle dans l'album. */
 export function AlbumScreen({ pa, onBack }: { pa: ProfileApi; onBack: () => void }) {
@@ -9,17 +12,17 @@ export function AlbumScreen({ pa, onBack }: { pa: ProfileApi; onBack: () => void
   const pages = new Set(pa.profile.albumPages ?? []);
   const total = ALBUM.reduce((n, a) => n + a.keys.length, 0);
   return (
-    <Shell title="Album" onBack={onBack} icon="album" sub={`${have.size} combinaison${have.size > 1 ? 's' : ''} sur ${total}`}>
+    <Shell title={tr('g421.menu.album')} onBack={onBack} icon="album" sub={trn('g421.al.count', have.size, { t: total })}>
       <div className="pass-hero">
-        <span className="pass-tier"><b>{have.size}</b><small>sur {total}</small></span>
+        <span className="pass-tier"><b>{have.size}</b><small>{tr('g421.al.of', { t: total })}</small></span>
         <div className="pass-hero-main">
           <span className="pv-lvl-bar gold"><i style={{ width: `${(100 * have.size) / total}%` }} /></span>
-          <small className="k-hint">Réussissez chaque combinaison au moins une fois, en solo ou en ligne (pas en mort subite). Chaque page complète rapporte des pièces ; l'album complet : dés « Collectionneur », un titre et {ALBUM_FULL_COINS} pièces.</small>
+          <small className="k-hint">{tr('g421.al.hint', { n: ALBUM_FULL_COINS })}</small>
         </div>
       </div>
       {ALBUM.map((page) => (
         <section key={page.id} className={`album-page${pages.has(page.id) ? ' done' : ''}`}>
-          <header><h3>{page.name}</h3><span>{pages.has(page.id) ? 'Complète' : `${page.keys.filter((k) => have.has(k)).length} sur ${page.keys.length}`}, {page.coins} pièces</span></header>
+          <header><h3>{tr(`g421.al.page.${page.id}` as MessageKey)}</h3><span>{pages.has(page.id) ? tr('g421.al.done') : tr('g421.al.pageOf', { a: page.keys.filter((k) => have.has(k)).length, b: page.keys.length })}, {tr('g421.sch.feeCoins', { n: page.coins })}</span></header>
           <ul>
             {page.keys.map((k) => (
               <li key={k} className={have.has(k) ? 'got' : ''}>

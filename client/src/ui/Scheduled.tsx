@@ -5,7 +5,7 @@
 import { BagIcon } from './BagIcon';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  BAG_TIERS, SCHED_FEE, SCHED_MAX, SCHED_MIN, bagPrizes, bagsLabel, brusselsDay, formatClock, formatDelay, hourLabel, nextTier,
+  BAG_TIERS, SCHED_FEE, SCHED_MAX, SCHED_MIN, bagPrizes, brusselsDay, formatClock, formatDelay, nextTier,
   type ProgrammeView, type SlotView,
 } from '../../../shared/scheduled';
 import type { PublicTournament } from '../../../shared/tournament';
@@ -14,8 +14,12 @@ import type { ProfileApi } from '../account/useProfile';
 import { pushActive, pushSupported, enablePush } from '../push';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
+import { tr, trServer } from '../i18n/lang';
+import { hourTr, ord, trn } from '../i18n/g421';
 
-export const placeLabel = (i: number) => (i === 0 ? '1er' : `${i + 1}e`);
+export const placeLabel = (i: number) => ord(i + 1);
+const bagsL = (n: number) => trn('g421.sch.bags', n);
+const hourL = (h: number) => hourTr(h);
 
 /** Horloge locale recalée sur celle du serveur, rafraîchie toutes les `ms`. */
 export function useServerNow(serverNow: number | undefined, ms = 1000) {
@@ -33,19 +37,19 @@ export function useServerNow(serverNow: number | undefined, ms = 1000) {
 function whenLabel(s: SlotView, now: number) {
   const d = brusselsDay(s.startsAt), today = brusselsDay(now);
   const tomorrow = brusselsDay(now + 86400_000);
-  return `${d === today ? '' : d === tomorrow ? 'demain ' : `le ${d.slice(8)}/${d.slice(5, 7)} `}${hourLabel(s.hour)}`;
+  return `${d === today ? '' : d === tomorrow ? tr('g421.sch.tomorrow') : tr('g421.sch.onDate', { d: d.slice(8), m: d.slice(5, 7) })}${hourL(s.hour)}`;
 }
 
 /** Barème des gains, avec le palier actuel mis en avant. */
 export function BagTable({ players, compact }: { players: number; compact?: boolean }) {
   const cur = BAG_TIERS.find((t) => players >= t.from && players <= t.to);
   return (
-    <table className={`bag-table${compact ? ' compact' : ''}`} aria-label="Gains en sacs de dés selon le nombre de joueurs">
-      <thead><tr><th>Joueurs</th><th>1er</th><th>2e</th><th>3e</th><th>4e</th></tr></thead>
+    <table className={`bag-table${compact ? ' compact' : ''}`} aria-label={tr('g421.sch.tableA')}>
+      <thead><tr><th>{tr('g421.pa.players')}</th><th>{ord(1)}</th><th>{ord(2)}</th><th>{ord(3)}</th><th>{ord(4)}</th></tr></thead>
       <tbody>
         {BAG_TIERS.map((t) => (
           <tr key={t.from} className={t === cur ? 'on' : ''}>
-            <th>{t.from === t.to ? t.from : `${t.from} à ${t.to}`}</th>
+            <th>{t.from === t.to ? t.from : tr('g421.sch.range', { a: t.from, b: t.to })}</th>
             {[0, 1, 2, 3].map((i) => <td key={i}>{t.bags[i] ? <><BagIcon size="1em" /> {t.bags[i]}</> : '·'}</td>)}
           </tr>
         ))}
@@ -85,7 +89,7 @@ export function ScheduledCard({ pa, onJoin, onAccount, compact }: {
       const r = await api<ProgrammeView & { profile: unknown }>(path, { body: { slot }, token: pa.token });
       setProg(r);
       if (r.profile) pa.onServerProfile(r.profile as never);
-    } catch (e) { setErr((e as Error).message); }
+    } catch (e) { setErr(trServer((e as Error).message)); }
     setBusy(false);
   };
   const seen = async () => { if (prog.last) { await api('/tournois/vu', { body: { slot: prog.last.slot }, token: pa.token }).catch(() => {}); void load(); } };
@@ -96,29 +100,29 @@ export function ScheduledCard({ pa, onJoin, onAccount, compact }: {
     const full = s.count >= SCHED_MAX;
     const salon = s.status === 'salon' || (toOpen <= 0 && toStart > 0 && s.status === 'a-venir');
     let state: string;
-    if (s.status === 'en-cours') state = 'En cours';
-    else if (s.status === 'annule') state = 'Annulé';
-    else if (s.status === 'termine') state = 'Terminé';
-    else if (salon) state = `Salon ouvert · départ dans ${formatClock(toStart)}`;
-    else state = `dans ${formatDelay(toOpen)}`;
+    if (s.status === 'en-cours') state = tr('g421.sch.running');
+    else if (s.status === 'annule') state = tr('g421.sch.cancelled');
+    else if (s.status === 'termine') state = tr('g421.sch.done');
+    else if (salon) state = tr('g421.sch.salonStart', { c: formatClock(toStart) });
+    else state = tr('g421.sch.inDelay', { d: formatDelay(toOpen) });
     let action: React.ReactNode = null;
-    if (!pa.isAccount) action = main ? <button className="btn small" onClick={onAccount}>Créer un compte pour jouer</button> : null;
+    if (!pa.isAccount) action = main ? <button className="btn small" onClick={onAccount}>{tr('g421.sch.account')}</button> : null;
     else if (s.status === 'en-cours' || s.status === 'termine' || s.status === 'annule') action = null;
-    else if (salon && s.registered && s.code) action = <button className="btn primary small" onClick={() => onJoin(s.code!, false)}><Icon name="trophy" size={18} /> Rejoindre le salon</button>;
+    else if (salon && s.registered && s.code) action = <button className="btn primary small" onClick={() => onJoin(s.code!, false)}><Icon name="trophy" size={18} /> {tr('g421.sch.joinLobby')}</button>;
     else if (salon && !s.registered) action = <button className="btn primary small" disabled={busy || full || coins < SCHED_FEE} onClick={() => act('/tournois/inscription', s.id)}>
-      {full ? 'Complet' : coins < SCHED_FEE ? 'Pas assez de pièces' : `S'inscrire (${SCHED_FEE} pièces)`}</button>;
-    else if (salon) action = <span className="tag">Ouverture…</span>;
+      {full ? tr('g421.sch.full') : coins < SCHED_FEE ? tr('g421.hub.noCoins') : tr('g421.sch.regFee', { n: SCHED_FEE })}</button>;
+    else if (salon) action = <span className="tag">{tr('g421.sch.opening')}</span>;
     else if (s.registered) action = <span className="sc-reg">
-      <span className="tag ok"><Icon name="check" size={16} /> Inscrit</span>
-      <button className="btn ghost small" disabled={busy} onClick={() => act('/tournois/desinscription', s.id)}>Se désinscrire</button>
+      <span className="tag ok"><Icon name="check" size={16} /> {tr('g421.menu.registered')}</span>
+      <button className="btn ghost small" disabled={busy} onClick={() => act('/tournois/desinscription', s.id)}>{tr('g421.sch.unreg')}</button>
     </span>;
     else action = <button className="btn primary small" disabled={busy || full || coins < SCHED_FEE} onClick={() => act('/tournois/inscription', s.id)}>
-      {full ? 'Complet' : coins < SCHED_FEE ? 'Pas assez de pièces' : "S'inscrire"}</button>;
+      {full ? tr('g421.sch.full') : coins < SCHED_FEE ? tr('g421.hub.noCoins') : tr('g421.hub.register')}</button>;
     return (
       <div key={s.id} className={`sc-row${main ? ' main' : ''}${salon ? ' live' : ''}`}>
         <div className="sc-info">
-          {main ? <b className="sc-title">{salon ? 'Tournoi' : 'Prochain tournoi'} {whenLabel(s, now)}</b> : <b>Ensuite : {whenLabel(s, now)}</b>}
-          <small><span className={salon ? 'sc-live' : ''}>{state}</span> · {s.count} inscrit{s.count > 1 ? 's' : ''}{full ? ' (complet)' : `/${SCHED_MAX}`} · {SCHED_FEE} pièces</small>
+          {main ? <b className="sc-title">{tr(salon ? 'g421.menu.tournoi' : 'g421.sch.next')} {whenLabel(s, now)}</b> : <b>{tr('g421.sch.then')} {whenLabel(s, now)}</b>}
+          <small><span className={salon ? 'sc-live' : ''}>{state}</span> · {trn('g421.sch.regd', s.count)}{full ? ` ${tr('g421.sch.fullParen')}` : `/${SCHED_MAX}`} · {tr('g421.sch.feeCoins', { n: SCHED_FEE })}</small>
         </div>
         {action}
       </div>
@@ -130,20 +134,20 @@ export function ScheduledCard({ pa, onJoin, onAccount, compact }: {
     <section className={`sched-card${compact ? ' compact' : ''}`} aria-live="polite">
       <header>
         <Icon name="trophy" />
-        <span><b>Tournois de 11 h et 21 h</b><small>Rendez-vous quotidien, heure de Bruxelles</small></span>
+        <span><b>{tr('g421.sch.header')}</b><small>{tr('g421.sch.daily')}</small></span>
       </header>
       {last && (
         <div className={`sc-last ${last.status}`}>
           <p>{last.status === 'joue'
-            ? `Tournoi de ${hourLabel(last.hour)} : vous finissez ${placeLabel(last.place ?? 0)}${last.players ? ` sur ${last.players}` : ''}${last.bags ? `, ${bagsLabel(last.bags)} de dés gagné${last.bags > 1 ? 's' : ''} !` : '.'}`
-            : `${last.reason ?? `Tournoi de ${hourLabel(last.hour)} annulé.`} ${last.refunded} pièces remboursées.`}</p>
+            ? tr('g421.sch.lastPlayed', { h: hourL(last.hour), p: placeLabel(last.place ?? 0), of: last.players ? tr('g421.sch.ofN', { n: last.players }) : '', b: last.bags ? trn('g421.sch.bagsWon', last.bags) : '' })
+            : tr('g421.sch.lastCancelled', { r: last.reason ? trServer(last.reason) : tr('g421.sch.cancelledH', { h: hourL(last.hour) }), n: last.refunded })}</p>
           <button className="btn ghost small" onClick={seen}>OK</button>
         </div>
       )}
       {prog.playing && (
         <div className="sc-row main live">
-          <div className="sc-info"><b className="sc-title">Tournoi de {hourLabel(prog.playing.hour)} en cours</b><small>Vous êtes en lice.</small></div>
-          <button className="btn primary small" onClick={() => onJoin(prog.playing!.code, false)}>Revenir au tournoi</button>
+          <div className="sc-info"><b className="sc-title">{tr('g421.sch.playing', { h: hourL(prog.playing.hour) })}</b><small>{tr('g421.sch.inRace')}</small></div>
+          <button className="btn primary small" onClick={() => onJoin(prog.playing!.code, false)}>{tr('g421.sch.back')}</button>
         </div>
       )}
       {first && row(first, true)}
@@ -151,23 +155,23 @@ export function ScheduledCard({ pa, onJoin, onAccount, compact }: {
       {err && <p className="error">{err}</p>}
       {pa.isAccount && !pushOn && pushSupported() && prog.slots.some((s) => s.registered) && (
         <button className="btn ghost small" onClick={async () => { const e = await enablePush(pa.token!); setErr(e); setPushOn(!e); }}>
-          <Icon name="bell" size={18} /> Me prévenir 5 minutes avant
+          <Icon name="bell" size={18} /> {tr('g421.sch.notify')}
         </button>
       )}
       {first && <p className="sc-prize"><BagIcon size="1em" /> {first.count >= SCHED_MIN
-        ? <>À {first.count} joueur{first.count > 1 ? 's' : ''} : {bagPrizes(first.count).map((b, i) => `${placeLabel(i)} ${bagsLabel(b)}`).join(', ')}{nextTier(first.count) ? `. Dès ${first.count + nextTier(first.count)!.missing} : ${bagsLabel(nextTier(first.count)!.bags[0])} au 1er` : ''}.</>
-        : <>Gains en sacs de dés : de 1 sac (4 joueurs) à 5 sacs au 1er (16 joueurs).</>}</p>}
+        ? <>{trn('g421.sch.atN', first.count)}{bagPrizes(first.count).map((b, i) => `${placeLabel(i)} ${bagsL(b)}`).join(', ')}{nextTier(first.count) ? tr('g421.sch.nextTier', { n: first.count + nextTier(first.count)!.missing, b: bagsL(nextTier(first.count)!.bags[0]), first: placeLabel(0) }) : ''}.</>
+        : <>{tr('g421.sch.prizeInfo')}</>}</p>}
       <button className="btn ghost small sc-toggle" aria-expanded={showBag} onClick={() => setShowBag((v) => !v)}>
-        {showBag ? 'Masquer' : 'Voir'} les gains et le déroulé
+        {tr(showBag ? 'g421.sch.hide' : 'g421.sch.show')}
       </button>
       {showBag && (
         <div className="sc-rules">
           <BagTable players={first?.count ?? 0} compact />
           <ul className="muted small">
-            <li>Inscription : {SCHED_FEE} pièces, à l'avance ou pendant les 5 minutes d'ouverture du salon. Désinscription remboursée jusqu'à l'ouverture.</li>
-            <li>À l'heure dite, le salon ouvre ; le tournoi part 5 minutes après, de {SCHED_MIN} à {SCHED_MAX} joueurs.</li>
-            <li>Inscrit mais absent du salon au départ : vous êtes retiré et remboursé. Moins de {SCHED_MIN} présents : tournoi annulé, tout le monde est remboursé.</li>
-            <li>Les gains dépendent du nombre de joueurs au départ ; le contenu des sacs reste une surprise.</li>
+            <li>{tr('g421.sch.r1', { n: SCHED_FEE })}</li>
+            <li>{tr('g421.sch.r2', { a: SCHED_MIN, b: SCHED_MAX })}</li>
+            <li>{tr('g421.sch.r3', { a: SCHED_MIN })}</li>
+            <li>{tr('g421.sch.r4')}</li>
           </ul>
         </div>
       )}
@@ -186,32 +190,32 @@ export function ScheduledLobby({ t, meId }: { t: PublicTournament; meId: string 
   const absent = Math.max(0, s.registered - n);
   return (
     <div className="sched-lobby">
-      <div className="sl-clock" role="timer" aria-label={`Départ dans ${formatDelay(left)}`}>
-        <small>Départ dans</small>
+      <div className="sl-clock" role="timer" aria-label={tr('g421.sch.startIn', { d: formatDelay(left) })}>
+        <small>{tr('g421.sch.startInLbl')}</small>
         <b>{formatClock(left)}</b>
-        <small>{left > 0 ? `à ${s.hour} h 05` : 'Départ…'}</small>
+        <small>{left > 0 ? tr('g421.sch.atH', { h: s.hour }) : tr('g421.sch.starting')}</small>
       </div>
       <p className="sl-status">
         {n < SCHED_MIN
-          ? `${n} joueur${n > 1 ? 's' : ''} dans le salon : il en faut au moins ${SCHED_MIN}, sinon le tournoi est annulé et remboursé.`
-          : `${n} joueur${n > 1 ? 's' : ''} dans le salon. À gagner : ${bags.map((b, i) => `${placeLabel(i)} ${bagsLabel(b)}`).join(', ')}.`}
-        {next && n >= SCHED_MIN ? ` Encore ${next.missing} joueur${next.missing > 1 ? 's' : ''} et le 1er gagne ${bagsLabel(next.bags[0])}.` : ''}
+          ? trn('g421.sch.tooFew', n, { min: SCHED_MIN })
+          : trn('g421.sch.prizes', n, { list: bags.map((b, i) => `${placeLabel(i)} ${bagsL(b)}`).join(', ') })}
+        {next && n >= SCHED_MIN ? ` ${trn('g421.sch.more', next.missing, { b: bagsL(next.bags[0]) })}` : ''}
       </p>
-      {absent > 0 && <p className="muted small">{absent} inscrit{absent > 1 ? 's' : ''} pas encore là. Absent au départ = retiré et remboursé.</p>}
-      <h3>Dans le salon ({n}/{SCHED_MAX})</h3>
+      {absent > 0 && <p className="muted small">{trn('g421.sch.absent', absent)}</p>}
+      <h3>{tr('g421.sch.inLobby', { n, max: SCHED_MAX })}</h3>
       <ol className="members">
         {t.players.map((p, i) => (
           <li key={p.id}>
             <span className="ord">{i + 1}</span>
             <Avatar photo={p.photo} emoji={p.avatar} size={36}><i className={`dot ${p.connected ? 'on' : 'off'}`} /></Avatar>
             <b>{p.name}</b>
-            {p.id === meId && <span className="tag">Vous</span>}
+            {p.id === meId && <span className="tag">{tr('g421.pc.you')}</span>}
           </li>
         ))}
       </ol>
-      <h3>Gains selon le nombre de joueurs</h3>
+      <h3>{tr('g421.sch.prizesH')}</h3>
       <BagTable players={n} />
-      <p className="muted small">Restez sur cet écran : au départ, vous êtes installé à votre table. Si vous êtes coupé pendant une partie, le serveur joue à votre place jusqu'à votre retour.</p>
+      <p className="muted small">{tr('g421.sch.stay')}</p>
     </div>
   );
 }
@@ -222,23 +226,23 @@ export function ScheduledResults({ t, meId }: { t: PublicTournament; meId: strin
   const nameOf = (id: string) => t.players.find((p) => p.id === id)?.name ?? '?';
   if (s.cancelled) return (
     <div className="sched-results cancelled">
-      <p className="sr-big">Tournoi annulé</p>
-      <p>{s.cancelled}</p>
-      <p className="muted">Vos {SCHED_FEE} pièces vous ont été rendues. Rendez-vous au prochain tournoi !</p>
+      <p className="sr-big">{tr('g421.sch.cancelledT')}</p>
+      <p>{trServer(s.cancelled)}</p>
+      <p className="muted">{tr('g421.sch.refundNote', { n: SCHED_FEE })}</p>
     </div>
   );
   const standings = t.standings ?? [];
   const mine = standings.indexOf(meId);
   return (
     <div className="sched-results">
-      {mine >= 0 && <p className="sr-big">{mine === 0 ? 'Vous remportez le tournoi !' : `Vous finissez ${placeLabel(mine)} sur ${standings.length}`}</p>}
-      {mine >= 0 && s.bags[mine] ? <p className="sr-bags"><BagIcon size="1em" /> {bagsLabel(s.bags[mine])} de dés gagné{s.bags[mine] > 1 ? 's : ouvrez-les' : ' : ouvrez-le'} dans votre collection.</p> : null}
+      {mine >= 0 && <p className="sr-big">{mine === 0 ? tr('g421.t.youWin') : tr('g421.sch.youFinished', { p: placeLabel(mine), n: standings.length })}</p>}
+      {mine >= 0 && s.bags[mine] ? <p className="sr-bags"><BagIcon size="1em" /> {trn('g421.sch.bagsWonOpen', s.bags[mine])}</p> : null}
       <ol className="ranking t-standings">
         {standings.map((id, i) => (
           <li key={id} className={id === meId ? 'me' : ''}>
             <span className="rk">{placeLabel(i)}</span>
             <span className="nm">{nameOf(id)}</span>
-            {s.bags[i] ? <span className="sc bag-text"><BagIcon size="1em" /> {bagsLabel(s.bags[i])}</span> : null}
+            {s.bags[i] ? <span className="sc bag-text"><BagIcon size="1em" /> {bagsL(s.bags[i])}</span> : null}
           </li>
         ))}
       </ol>

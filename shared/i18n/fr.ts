@@ -1,6 +1,8 @@
 /**
  * Textes français : LA liste des clés. Toute nouvelle chaîne s'ajoute d'abord ici (mode d'emploi : shared/i18n/index.ts).
  */
+import { g421Fr } from "./zones/jeu421.fr";
+
 export const fr = {
   "common.back": "Retour",
   "common.close": "Fermer",
@@ -353,5 +355,6 @@ export const fr = {
   "dm.lh.debutant": "Tente trop sa chance",
   "dm.lh.habitue": "Joue raisonnablement",
   "dm.lh.fouine": "Calcule ses risques",
+  ...g421Fr,
 };
 export type MessageKey = keyof typeof fr;

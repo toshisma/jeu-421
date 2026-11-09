@@ -9,6 +9,7 @@ import type { ProfileApi } from '../account/useProfile';
 import type { ProgrammeView } from '../../../shared/scheduled';
 import type { CfState } from '../../../shared/cards/progress';
 import { STANDALONE } from './Screens';
+import { tr } from '../i18n/lang';
 
 /** Prochain tournoi programmé (11 h et 21 h, heure de Bruxelles) : heure affichée et minutes restantes. */
 export function nextTournamentSlot(now = Date.now()): { label: string; minutes: number } {
@@ -18,7 +19,7 @@ export function nextTournamentSlot(now = Date.now()): { label: string; minutes: 
   for (const slot of [11 * 60, 21 * 60]) if (cur < slot + 5) return { label: `${slot / 60} h`, minutes: slot - cur };
   return { label: '11 h', minutes: 24 * 60 - cur + 11 * 60 };
 }
-export const inTime = (min: number) => (min <= 0 ? 'salon ouvert !' : min < 60 ? `dans ${min} min` : `dans ${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`);
+export const inTime = (min: number) => (min <= 0 ? tr('g421.time.open') : min < 60 ? tr('g421.time.min', { m: min }) : tr('g421.time.hm', { h: Math.floor(min / 60), m: String(min % 60).padStart(2, '0') }));
 
 /** Prochain tournoi programmé vu par le serveur (sinon l'horaire calculé ici). */
 export function tournamentInfo(prog: ProgrammeView | null, now: number) {

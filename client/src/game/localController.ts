@@ -1,3 +1,4 @@
+import { tr } from '../i18n/lang';
 import type { GameConfig } from '../../../shared/config';
 import { createGame, currentPlayerId, rollAction, stopAction, type GameState } from '../../../shared/engine';
 import { decide, type Difficulty } from '../../../shared/ai';
@@ -33,7 +34,7 @@ export class LocalController implements GameController {
 
   constructor(private config: GameConfig, private opponents: Opponent[], me: { name: string; avatar: string; photo?: string | null; account?: string; title?: string; accessory?: string }) {
     this.meta = [
-      { id: this.meId, name: me.name || 'Vous', avatar: me.avatar, color: '#d9a441', isBot: false, connected: true, isMe: true, photo: me.photo, account: me.account, title: me.title, accessory: me.accessory },
+      { id: this.meId, name: me.name || tr('g421.guestName'), avatar: me.avatar, color: '#d9a441', isBot: false, connected: true, isMe: true, photo: me.photo, account: me.account, title: me.title, accessory: me.accessory },
       ...opponents.map((o, i) => ({
         id: `ia-${i}`, name: o.persona.name, avatar: o.persona.avatar, color: o.persona.color, isBot: true,
         difficulty: o.difficulty, tagline: o.persona.tagline, connected: true, isMe: false, dice: PERSONA_DICE[o.persona.id] ?? 'dice-ivoire',

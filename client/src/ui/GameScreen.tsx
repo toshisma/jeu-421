@@ -38,6 +38,8 @@ import type { ComboKind } from '../../../shared/combos';
 
 export type { EndReward } from '../account/useProfile';
 import type { EndReward } from '../account/useProfile';
+import { tr, trServer } from '../i18n/lang';
+import { botName, ord, trCombo, trLine, trn, trPhrase } from '../i18n/g421';
 
 interface Props {
   controller: GameController;
@@ -78,7 +80,7 @@ export interface EarlyOptions {
   alt?: { label: string; run: () => void };
 }
 
-const placeLabel = (n: number) => (n === 1 ? '1er' : `${n}e`);
+const placeLabel = (n: number) => ord(n);
 
 const NO_KEEP = [false, false, false];
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -110,7 +112,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   useEffect(() => controller.subscribeEmotes((pid, e) => {
     if (blockedRef.current?.(controller.getMeta().find((m) => m.id === pid)?.account)) return;
     // Phrase rapide : une bulle au-dessus du joueur ; émoji : il s'envole.
-    if (PHRASES.includes(e)) { sayRef.current(pid, e); sound.click(); return; }
+    if (PHRASES.includes(e)) { sayRef.current(pid, trPhrase(e)); sound.click(); return; }
     const k = Date.now() + Math.random();
     setEmotes((m) => ({ ...m, [pid]: { e, k } }));
     sound.click();
@@ -154,7 +156,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
     const m = meta.find((x) => x.id === id);
     return m && m.photo && pa?.isBlocked(m.account) ? { ...m, photo: null } : m;
   }, [meta, pa]);
-  const nameOf = (id: string) => metaOf(id)?.name ?? shown?.players.find((p) => p.id === id)?.name ?? '?';
+  const nameOf = (id: string) => botName(metaOf(id)?.name ?? shown?.players.find((p) => p.id === id)?.name ?? '?');
   // Dés de chaque joueur : quand quelqu'un lance, le bac montre ses dés à lui.
   const metaRef = useRef(meta);
   const anyRoll = useRef(false);
@@ -182,9 +184,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
     if (!known.length) return;
     const m = known[Math.floor(Math.random() * known.length)];
     const { w, l } = rec[m.name];
-    const line = l > w ? `Encore toi ? ${l} à ${w} pour moi, je te rappelle.`
-      : w > l ? `${w} à ${l} pour toi… mais ce soir, c'est ma tournée !`
-        : `${w} partout entre nous. On se départage ?`;
+    const line = l > w ? tr('g421.vs.ahead', { l, w }) : w > l ? tr('g421.vs.behind', { l, w }) : tr('g421.vs.tied', { w });
     const t = setTimeout(() => say(m.id, line), 1400);
     return () => clearTimeout(t);
   }, [controller]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -271,11 +271,11 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
           const fete = fxOf(ev.roll.playerId, 'fete');
           // Le texte, le son et la célébration dans le bac partent ensemble.
           tray.current?.celebrate(fxDef(fete)?.kind === 'fete' ? fete! : null);
-          setBigShot({ text: ev.roll.combo.kind === '421' ? '4-2-1 !' : 'Trois as !', who: ev.roll.playerId, id: ev.roll.seq, fete });
+          setBigShot({ text: tr(ev.roll.combo.kind === '421' ? 'g421.big.421' : 'g421.big.111'), who: ev.roll.playerId, id: ev.roll.seq, fete });
           await wait(900);
         }
         const p = personas?.[ev.roll.playerId];
-        if (p) say(ev.roll.playerId, reaction(p, ev.roll.combo, ev.roll.throwIndex >= ev.roll.throwLimit));
+        if (p) say(ev.roll.playerId, trLine(reaction(p, ev.roll.combo, ev.roll.throwIndex >= ev.roll.throwLimit)));
       } else if (ev.state.dice.some((d) => d > 0)) {
         tray.current?.showValues(ev.state.dice);
       }
@@ -284,7 +284,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
         sound.validate();
         const who = currentPlayerId(prev);
         const p = who ? personas?.[who] : undefined;
-        if (p && who && ev.state.results[who]) say(who, reaction(p, ev.state.results[who].combo, true));
+        if (p && who && ev.state.results[who]) say(who, trLine(reaction(p, ev.state.results[who].combo, true)));
       }
       // Suivi pour les succès : manches perdues, maximum de jetons détenus.
       const meP = ev.state.players.find((x) => x.id === controller.meId);
@@ -295,7 +295,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
       setShown(ev.state);
       const sum = ev.state.lastSummary;
       if (prev && sum && sum.seq !== prev.lastSummary?.seq) {
-        setToast({ text: sum.text, kind: sum.barrage ? 'barrage' : 'round', id: sum.seq });
+        setToast({ text: trServer(sum.text), kind: sum.barrage ? 'barrage' : 'round', id: sum.seq });
         if (!sum.barrage && sum.amount > 0) sound.chips(sum.amount);
         // Les jetons passent du pot (charge) ou du gagnant (décharge) au perdant.
         if (!sum.barrage && sum.amount > 0 && sum.loserId && ev.state.config.variant !== 'manches') {
@@ -411,7 +411,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
     setPending(true);
     const err = kind === 'roll' ? await controller.roll(s.throwsUsed === 0 ? NO_KEEP : keep, s.version, gesture) : await controller.stop(s.version);
     setPending(false);
-    if (err) setToast({ text: err, kind: 'error', id: Date.now() });
+    if (err) setToast({ text: trServer(err), kind: 'error', id: Date.now() });
   }, [s, pending, myTurn, controller, keep]);
 
   const rerollCount = keep.filter((k) => !k).length;
@@ -484,7 +484,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   // Sorti avant la fin : sa place est acquise, partir n'est pas un abandon (pas de confirmation).
   const myPlace = s && earlyOk ? settledPlace(s, controller.meId) : null;
   /** Confirmation avant de quitter (bouton Quitter, ou barre du bas). */
-  const okToLeave = async () => !(s && s.phase !== 'fini' && !tableExit && myPlace == null && !(await askConfirm(controller.mode === 'online' ? 'Quitter la partie en cours ? Le serveur jouera à votre place, et vous pourrez revenir à la table depuis l’accueil (« Reprendre la partie »).' : 'Quitter la partie en cours ?', 'Quitter')));
+  const okToLeave = async () => !(s && s.phase !== 'fini' && !tableExit && myPlace == null && !(await askConfirm(tr(controller.mode === 'online' ? 'g421.leaveOnline' : 'g421.leave'), tr('g421.quit'))));
   const leave = async () => {
     if (!(await okToLeave())) return;
     controller.leave();
@@ -495,18 +495,18 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   // Écran de fin affiché : invitation à créer un compte (invités ; App décide).
   useGuestInviteAtEnd('421', !!s && s.phase === 'fini' && !animating && guestInvite !== false && (!guestInvite || guestInvite(s)));
 
-  const phaseLabel = !s ? '' : s.phase === 'fini' ? 'Partie terminée' : s.isRolloff ? 'Barrage'
-    : s.phase === 'charge' ? `Charge, ${s.pot} jeton${s.pot > 1 ? 's' : ''} au pot`
-      : s.phase === 'decharge' ? 'Décharge'
-        : s.phase === 'manche' ? `Manche ${s.round}/${s.config.rounds}` : 'Partie terminée';
-  const phaseShort = s?.phase === 'charge' && !s.isRolloff ? `Charge · ${s.pot}` : phaseLabel;
+  const phaseLabel = !s ? '' : s.phase === 'fini' ? tr('g421.over') : s.isRolloff ? tr('g421.barrage')
+    : s.phase === 'charge' ? trn('g421.phase.charge', s.pot)
+      : s.phase === 'decharge' ? tr('g421.decharge')
+        : s.phase === 'manche' ? tr('g421.phase.manche', { n: s.round, total: s.config.rounds }) : tr('g421.over');
+  const phaseShort = s?.phase === 'charge' && !s.isRolloff ? tr('g421.phase.chargeShort', { n: s.pot }) : phaseLabel;
   const currentCombo = s && s.throwsUsed > 0 ? evaluate(s.dice, s.config.values) : null;
   // Ce que le joueur actif doit battre (la plus mauvaise main de la manche), ou le meilleur coup aux points.
   const target = useMemo(() => {
     if (!s || s.phase === 'fini' || !currentId) return null;
     const rs = roundStatus(s);
-    if (rs.points) return rs.best ? `meilleur : ${rs.best.combo.label}` : null;
-    if (rs.worst && !rs.worst.ids.includes(currentId)) return `doit battre ${rs.addition ? `total ${rs.worst.combo.dice.reduce((x, y) => x + y, 0)}` : rs.worst.combo.label}`;
+    if (rs.points) return rs.best ? tr('g421.target.best', { c: trCombo(rs.best.combo.label) }) : null;
+    if (rs.worst && !rs.worst.ids.includes(currentId)) return tr('g421.target.beat', { c: rs.addition ? tr('g421.totalN', { n: rs.worst.combo.dice.reduce((x, y) => x + y, 0) }) : trCombo(rs.worst.combo.label) });
     return null;
   }, [s, currentId]);
 
@@ -517,41 +517,41 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
 
       <div className="top" ref={topRef}>
         <div className="topbar">
-          <button className="icon-btn" onClick={leave} aria-label="Quitter la partie"><Icon name="back" /></button>
+          <button className="icon-btn" onClick={leave} aria-label={tr('g421.leaveAria')}><Icon name="back" /></button>
           <div className="phase">
             <span className={`logo-mini${bigShot ? " neon" : ""}`}>421</span>
             <span className="ph-long">{phaseLabel}</span><span className="ph-short">{phaseShort}</span>
-            {s && s.phase !== 'manche' && s.phase !== 'fini' && <span className="muted">manche {s.round}</span>}
+            {s && s.phase !== 'manche' && s.phase !== 'fini' && <span className="muted">{tr('g421.mancheN', { n: s.round })}</span>}
           </div>
           <div className="top-actions">
-            <button className="icon-btn hide-desktop" onClick={() => setHistoryOpen((o) => !o)} aria-label="Historique"><Icon name="history" /></button>
+            <button className="icon-btn hide-desktop" onClick={() => setHistoryOpen((o) => !o)} aria-label={tr('g421.history')}><Icon name="history" /></button>
             {!spectator && <div className="emote-wrap" ref={emoteRef}>
-              <button className="icon-btn" aria-label="Réagir" onClick={() => setEmoteOpen((o) => !o)}><Icon name="react" /></button>
+              <button className="icon-btn" aria-label={tr('g421.react')} onClick={() => setEmoteOpen((o) => !o)}><Icon name="react" /></button>
               {emoteOpen && (
-                <FloatingPop anchor={emoteRef} onClose={closeEmote} className="emote-pop" label="Réactions">
+                <FloatingPop anchor={emoteRef} onClose={closeEmote} className="emote-pop" label={tr('g421.reactions')}>
                   <div className="emote-grid">
                     {EMOTES.map((e) => <button key={e} onClick={() => { controller.sendEmote(e); setEmoteOpen(false); }}>{e}</button>)}
                   </div>
                   <div className="phrase-list">
-                    {PHRASES.map((p) => <button key={p} onClick={() => { controller.sendEmote(p); setEmoteOpen(false); }}>{p}</button>)}
+                    {PHRASES.map((p) => <button key={p} onClick={() => { controller.sendEmote(p); setEmoteOpen(false); }}>{trPhrase(p)}</button>)}
                   </div>
                 </FloatingPop>
               )}
             </div>}
-            <button className="icon-btn" onClick={() => setRulesOpen(true)} aria-label="Règles du jeu"><Icon name="rules" /></button>
+            <button className="icon-btn" onClick={() => setRulesOpen(true)} aria-label={tr('g421.rules')}><Icon name="rules" /></button>
             <VolumeControl settings={settings} onSettings={onSettings} />
           </div>
         </div>
         {spectator ? (
           <div className="spectate-banner" role="status">
-            <span>👁 Vous regardez la partie{watchers > 1 ? ` (${watchers} spectateurs)` : ''}</span>
-            {controller.watchLink && <button className="icon-btn small" aria-label="Copier le lien pour regarder" title="Copier le lien pour regarder"
-              onClick={() => { const l = controller.watchLink!(); navigator.clipboard?.writeText(l).then(() => setToast({ text: 'Lien copié : envoyez-le pour faire regarder la partie.', kind: 'round', id: Date.now() }), () => window.prompt('Copiez :', l)); }}>
+            <span>👁 {tr('g421.watching')}{watchers > 1 ? ` ${tr('g421.watchersN', { n: watchers })}` : ''}</span>
+            {controller.watchLink && <button className="icon-btn small" aria-label={tr('g421.copyWatch')} title={tr('g421.copyWatch')}
+              onClick={() => { const l = controller.watchLink!(); navigator.clipboard?.writeText(l).then(() => setToast({ text: tr('g421.linkCopied'), kind: 'round', id: Date.now() }), () => window.prompt(tr('g421.copyPrompt'), l)); }}>
               <Icon name="share" size={18} /></button>}
-            <button className="btn small primary" onClick={leave}>Quitter</button>
+            <button className="btn small primary" onClick={leave}>{tr('g421.quit')}</button>
           </div>
         ) : watchers > 0 && (
-          <div className="spectators-count" aria-label={`${watchers} spectateur${watchers > 1 ? 's' : ''}`}>👁 {watchers} spectateur{watchers > 1 ? 's' : ''}</div>
+          <div className="spectators-count" aria-label={trn('g421.spec', watchers)}>👁 {trn('g421.spec', watchers)}</div>
         )}
         {s && (
           <PlayersRow count={s.players.length} activeIndex={s.players.findIndex((p) => p.id === currentId)}>
@@ -571,19 +571,19 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
 
       <aside className={`side${historyOpen ? ' open' : ''}`} ref={sideRef}>
         <div className="side-head">
-          <h3>Historique</h3>
-          <button className="icon-btn hide-desktop" onClick={() => setHistoryOpen(false)} aria-label="Fermer"><Icon name="close" /></button>
+          <h3>{tr('g421.history')}</h3>
+          <button className="icon-btn hide-desktop" onClick={() => setHistoryOpen(false)} aria-label={tr('common.close')}><Icon name="close" /></button>
         </div>
         <ol className="feed">
           {feed.map((it) => it.kind === 'roll' ? (
             <li key={it.seq} className="f-roll">
               <span className="f-name" style={{ color: metaOf(it.h.playerId)?.color }}>{nameOf(it.h.playerId)}</span>
-              <span className="f-meta">{it.h.rolloff ? 'barrage' : `${it.h.throwIndex}/${it.h.throwLimit}`}</span>
+              <span className="f-meta">{it.h.rolloff ? tr('g421.barrageLow') : `${it.h.throwIndex}/${it.h.throwLimit}`}</span>
               <DiceRow dice={it.h.dice} size={15} kept={it.h.kept} />
-              <span className="f-combo">{it.h.combo.label}</span>
+              <span className="f-combo">{trCombo(it.h.combo.label)}</span>
             </li>
           ) : (
-            <li key={it.seq} className={`f-log ${it.l.kind}`}>{it.l.text}</li>
+            <li key={it.seq} className={`f-log ${it.l.kind}`}>{trServer(it.l.text)}</li>
           ))}
         </ol>
       </aside>
@@ -596,14 +596,14 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
           <>
             <div className="ab-head">
               <span className="ab-who">
-                <small className="your-turn">À vous de jouer</small>
+                <small className="your-turn">{tr('g421.yourTurn')}</small>
                 {currentCombo && !animating
-                  ? <b className="combo-label">{currentCombo.label}<span>vaut {currentCombo.value} {s.config.variant === 'manches' ? 'point' : 'jeton'}{currentCombo.value > 1 ? 's' : ''}</span></b>
-                  : <b className="combo-label">{animating ? 'Les dés roulent…' : 'Lancez les dés !'}</b>}
+                  ? <b className="combo-label">{trCombo(currentCombo.label)}<span>{trn(s.config.variant === 'manches' ? 'g421.worthPts' : 'g421.worthTok', currentCombo.value)}</span></b>
+                  : <b className="combo-label">{tr(animating ? 'g421.rolling' : 'g421.rollDice')}</b>}
               </span>
               <ThrowPips used={s.throwsUsed} limit={s.throwLimit} mine />
               {secondsLeft != null && turnSecs > 0 && (
-                <span className={`ab-clock${secondsLeft <= 10 ? ' low' : ''}`} title="Temps pour jouer"
+                <span className={`ab-clock${secondsLeft <= 10 ? ' low' : ''}`} title={tr('g421.timeToPlay')}
                   style={{ ['--p' as string]: `${(100 * secondsLeft) / turnSecs}%` }}><span>{secondsLeft} s</span></span>
               )}
             </div>
@@ -612,9 +612,9 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
                 <div className="keep-row">
                   {s.dice.map((d, i) => (
                     <button key={i} className={`keep-die${keep[i] && canKeepNow ? ' on' : ''}`} disabled={!canKeepNow}
-                      onClick={() => toggleDie(i)} title={canKeepNow ? (keep[i] ? 'Conservé : cliquer pour relancer' : 'Cliquer pour conserver') : ''}>
+                      onClick={() => toggleDie(i)} title={canKeepNow ? tr(keep[i] ? 'g421.keptClick' : 'g421.clickKeep') : ''}>
                       <MiniDie value={d} size={40} />
-                      {canKeepNow && <small>{keep[i] ? 'gardé' : 'relancé'}</small>}
+                      {canKeepNow && <small>{tr(keep[i] ? 'g421.kept' : 'g421.rerolled')}</small>}
                     </button>
                   ))}
                 </div>
@@ -623,17 +623,17 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
             )}
             <div className="buttons">
               {s.throwsUsed === 0 && (
-                <button className="btn primary big ab-roll" disabled={pending} onClick={() => act('roll')}><Icon name="dice" /> Lancer les dés</button>
+                <button className="btn primary big ab-roll" disabled={pending} onClick={() => act('roll')}><Icon name="dice" /> {tr('g421.rollBtn')}</button>
               )}
               {s.throwsUsed > 0 && s.throwsUsed < s.throwLimit && (
                 <button className="btn primary ab-roll" disabled={pending || rerollCount === 0} onClick={() => act('roll')}>
-                  {rerollCount === 0 ? 'Tout est gardé' : rerollCount === 3 ? 'Relancer les dés (3)' : `Relancer ${s.dice.filter((_, i) => !keep[i]).map((v) => `le ${v}`).join(' et ')}`}
+                  {rerollCount === 0 ? tr('g421.allKept') : rerollCount === 3 ? tr('g421.rerollAll') : tr('g421.reroll', { list: s.dice.filter((_, i) => !keep[i]).map((v) => tr('g421.rerollItem', { v })).join(` ${tr('g421.and')} `) })}
                 </button>
               )}
               {s.throwsUsed > 0 && (
-                <button className="btn ab-keep" disabled={pending} onClick={() => act('stop')}>✓ {s.throwsUsed < s.throwLimit ? <>Garder<span className="sr-only"> : valider mon tour</span></> : 'Valider mon tour'}</button>
+                <button className="btn ab-keep" disabled={pending} onClick={() => act('stop')}>✓ {s.throwsUsed < s.throwLimit ? <>{tr('g421.keep')}<span className="sr-only"> {tr('g421.validateSr')}</span></> : tr('g421.validate')}</button>
               )}
-              {canThrowNow && <p className="hint">{canKeepNow ? 'Touchez un dé pour le garder · ' : ''}Glissez sur le bac{settings.shake ? ' ou secouez le téléphone' : ''} pour lancer</p>}
+              {canThrowNow && <p className="hint">{canKeepNow ? tr('g421.hintKeep') : ''}{tr(settings.shake ? 'g421.hintSwipeShake' : 'g421.hintSwipe')}</p>}
             </div>
           </>
         ) : (
@@ -641,14 +641,14 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
             <div className="ab-head">
               {currentId && <span className="ab-avatar"><Avatar photo={metaOf(currentId)?.photo} emoji={metaOf(currentId)?.avatar ?? '🎲'} size={50} color={metaOf(currentId)?.color} /></span>}
               <span className="ab-who">
-                <small>Au tour de</small>
+                <small>{tr('g421.turnOf')}</small>
                 <b>{nameOf(currentId ?? '')}</b>
-                <span className="ab-line">{animating ? 'les dés roulent…' : thinking === currentId ? 'réfléchit…' : currentCombo ? `${currentCombo.label} pour l'instant` : 'va lancer'}{target ? ` · ${target}` : ''}</span>
+                <span className="ab-line">{animating ? tr('g421.rollingLow') : thinking === currentId ? tr('g421.thinking') : currentCombo ? tr('g421.soFar', { c: trCombo(currentCombo.label) }) : tr('g421.willRoll')}{target ? ` · ${target}` : ''}</span>
               </span>
               <ThrowPips used={s.throwsUsed} limit={s.throwLimit} />
             </div>
             {secondsLeft != null && turnSecs > 0 && (
-              <div className={`ab-timebar${secondsLeft <= 10 ? ' low' : ''}`} title="Temps pour jouer"><i style={{ width: `${(100 * secondsLeft) / turnSecs}%` }} /><small>{secondsLeft} s</small></div>
+              <div className={`ab-timebar${secondsLeft <= 10 ? ' low' : ''}`} title={tr('g421.timeToPlay')}><i style={{ width: `${(100 * secondsLeft) / turnSecs}%` }} /><small>{secondsLeft} s</small></div>
             )}
           </>
         ))}
@@ -656,40 +656,40 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
 
       {s && myPlace != null && (() => {
         const o = (typeof early === 'function' ? early(s, myPlace) : null) ?? {};
-        const quit = o.quit === undefined ? { label: 'Empocher et quitter', run: () => { controller.leave(); onExit(); } } : o.quit;
-        const title = o.title ?? `Vous avez fini ${placeLabel(myPlace)} !`;
+        const quit = o.quit === undefined ? { label: tr('g421.cashOut'), run: () => { controller.leave(); onExit(); } } : o.quit;
+        const title = o.title ?? tr('g421.finished', { p: placeLabel(myPlace) });
         const r = endReward?.reward;
-        const gain = rewardStatus === 'pending' || rewardStatus === 'none' ? 'Récompense : calcul…'
-          : rewardStatus === 'earlier' ? 'Récompense déjà comptée.'
-            : r && (r.xp || r.coins) ? `+${r.xp} XP · +${r.coins} pièce${r.coins > 1 ? 's' : ''}${endReward?.applied.bagsFound ? ' · sac de dés !' : ''}`
-              : 'Pas de récompense pour cette partie.';
-        const skip = controller.canSkipToEnd?.() ? <button className="btn small" onClick={() => controller.skipToEnd?.()} aria-label="Voir le résultat">⏩ Résultat</button> : null;
+        const gain = rewardStatus === 'pending' || rewardStatus === 'none' ? tr('g421.reward.pending')
+          : rewardStatus === 'earlier' ? tr('g421.reward.earlier')
+            : r && (r.xp || r.coins) ? `+${r.xp} XP · ${trn('g421.plusCoins', r.coins)}${endReward?.applied.bagsFound ? tr('g421.bagBonus') : ''}`
+              : tr('g421.reward.none');
+        const skip = controller.canSkipToEnd?.() ? <button className="btn small" onClick={() => controller.skipToEnd?.()} aria-label={tr('g421.seeResult')}>⏩ {tr('g421.result')}</button> : null;
         if (watching) return (
           <div className="skip-end early-mini" role="status">
             <span><b>{placeLabel(myPlace)}</b> · {gain}</span>
             {skip}
-            {quit && <button className="btn primary small" onClick={quit.run}>Quitter</button>}
+            {quit && <button className="btn primary small" onClick={quit.run}>{tr('g421.quit')}</button>}
           </div>
         );
         return (
           <div className="early-done" role="dialog" aria-label={title}>
             <div className="ed-head">
               <span className="ed-medal" aria-hidden>{myPlace <= 3 ? MEDALS[myPlace - 1] : '🎲'}</span>
-              <div><b>{title}</b><small>{o.note ?? 'Les autres terminent la partie. Votre place est acquise.'}</small></div>
+              <div><b>{title}</b><small>{o.note ?? tr('g421.earlyNote')}</small></div>
             </div>
             <p className={`ed-gain${rewardStatus === 'done' && r && (r.xp || r.coins) ? ' ok' : ''}`}>{gain}</p>
             <div className="ed-buttons">
               {quit && <button className="btn primary" onClick={quit.run}>{quit.label}</button>}
               {o.alt && <button className="btn" onClick={o.alt.run}>{o.alt.label}</button>}
-              <button className="btn" onClick={() => setWatching(true)}>Continuer à regarder</button>
+              <button className="btn" onClick={() => setWatching(true)}>{tr('g421.keepWatching')}</button>
             </div>
           </div>
         );
       })()}
       {s && s.phase !== 'fini' && myPlace == null && s.players.find((p) => p.id === controller.meId)?.out && controller.canSkipToEnd?.() && (
         <div className="skip-end">
-          <span>Vous êtes sorti : les autres finissent la partie.</span>
-          <button className="btn primary small" onClick={() => controller.skipToEnd?.()}>⏩ Voir le résultat</button>
+          <span>{tr('g421.outOthers')}</span>
+          <button className="btn primary small" onClick={() => controller.skipToEnd?.()}>⏩ {tr('g421.seeResult')}</button>
         </div>
       )}
       {s && s.phase === 'fini' && !animating && (
@@ -705,7 +705,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
         })}
         {Object.entries(emotes).map(([id, em]) => {
           const r = cardEls.current[id]?.getBoundingClientRect();
-          return r ? <div key={em.k} className="emote-float" aria-label="réaction" style={{ left: r.left + r.width / 2, top: r.bottom - 6 }}>{em.e}</div> : null;
+          return r ? <div key={em.k} className="emote-float" aria-label={tr('g421.reactionLow')} style={{ left: r.left + r.width / 2, top: r.bottom - 6 }}>{em.e}</div> : null;
         })}
       </div>
       {bigShot && (
@@ -716,17 +716,17 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
           <div className="bs-who" style={{ color: metaOf(bigShot.who)?.color }}>{nameOf(bigShot.who)}</div>
         </div>
       )}
-      {!s && <div className="loading">Préparation de la table…</div>}
+      {!s && <div className="loading">{tr('g421.preparing')}</div>}
       {profileOf && pa && <ProfileView pa={pa} username={profileOf.username} displayName={settings.name} avatar={settings.avatar} onClose={() => setProfileOf(null)} />}
       {rulesOpen && (
-        <div className="modal" role="dialog" aria-label="Règles du jeu" onClick={(e) => { if (e.target === e.currentTarget) setRulesOpen(false); }}>
+        <div className="modal" role="dialog" aria-label={tr('g421.rules')} onClick={(e) => { if (e.target === e.currentTarget) setRulesOpen(false); }}>
           <div className="modal-card">
             <header className="panel-head">
-              <h2>Règles du jeu</h2>
-              <button className="icon-btn" onClick={() => setRulesOpen(false)} aria-label="Fermer"><Icon name="close" /></button>
+              <h2>{tr('g421.rules')}</h2>
+              <button className="icon-btn" onClick={() => setRulesOpen(false)} aria-label={tr('common.close')}><Icon name="close" /></button>
             </header>
             <div className="modal-body"><RulesContent current={s?.config} /></div>
-            <p className="muted small modal-foot">La partie continue pendant la lecture{controller.turnDeadline() || s?.config.turnSeconds ? ' : surveillez le temps de jeu' : ''}.</p>
+            <p className="muted small modal-foot">{tr(controller.turnDeadline() || s?.config.turnSeconds ? 'g421.keepOnTime' : 'g421.keepOn')}</p>
           </div>
         </div>
       )}
@@ -738,9 +738,9 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
 function ThrowPips({ used, limit, mine }: { used: number; limit: number; mine?: boolean }) {
   const left = limit - used;
   return (
-    <span className="ab-throws throws" title="Lancers">
+    <span className="ab-throws throws" title={tr('g421.throws')}>
       <span>{Array.from({ length: limit }, (_, i) => <i key={i} className={i < used ? 'used' : ''} />)}</span>
-      <small>{used === 0 ? `${limit} lancer${limit > 1 ? 's' : ''}` : left > 0 ? `${left} ${mine ? 'relance' : 'lancer'}${left > 1 ? 's' : ''}` : 'dernier lancer'}</small>
+      <small>{used === 0 ? trn('g421.nThrows', limit) : left > 0 ? trn(mine ? 'g421.nRerolls' : 'g421.nThrows', left) : tr('g421.lastThrow')}</small>
     </span>
   );
 }

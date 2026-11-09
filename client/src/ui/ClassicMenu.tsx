@@ -22,6 +22,9 @@ import { ScheduledCard } from './Scheduled';
 import { STANDALONE } from './Screens';
 import { TableArt, TargetArt, TopHatArt, TrophyArt } from './illustrations';
 import { inTime, tournamentInfo, useLiveTables, useOnlineCount, useOpenLobbies, useProgramme } from './menuData';
+import { tr } from '../i18n/lang';
+import { botName, trn } from '../i18n/g421';
+import type { MessageKey } from '../../../shared/i18n';
 
 export interface ClassicMenuProps {
   profile: Profile; pa: ProfileApi; settings: Settings;
@@ -38,9 +41,9 @@ export interface ClassicMenuProps {
 
 /** Pages de guide du 421 (référencement) : liens texte visibles, utiles aux joueurs comme à Google. */
 export const GUIDES_421: [string, string][] = [
-  ['/jouer-au-421-en-ligne', 'Jouer au 421 en ligne'], ['/regles-du-421', 'Règles du 421'], ['/combinaisons-du-421', 'Combinaisons'],
-  ['/strategie-421', 'Stratégie'], ['/421-entre-amis', '421 entre amis'], ['/jeux-entre-amis-a-distance', 'Jeux entre amis à distance'],
-  ['/jeu-multijoueur-navigateur', 'Jeu multijoueur sur navigateur'], ['/jeux-de-des', 'Jeux de dés'],
+  ['/jouer-au-421-en-ligne', 'g421.menu.g1'], ['/regles-du-421', 'g421.menu.g2'], ['/combinaisons-du-421', 'g421.menu.g3'],
+  ['/strategie-421', 'g421.menu.g4'], ['/421-entre-amis', 'g421.menu.g5'], ['/jeux-entre-amis-a-distance', 'g421.menu.g6'],
+  ['/jeu-multijoueur-navigateur', 'g421.menu.g7'], ['/jeux-de-des', 'g421.menu.g8'],
 ];
 
 const FACE_COLORS = ['#5b8cff', '#b06ad9', '#3fbf8a', '#e8964a', '#ef5a52'];
@@ -70,35 +73,35 @@ export function ClassicMenu(props: ClassicMenuProps) {
 
   // Une seule bannière : la plus utile.
   const banner = (() => {
-    if (props.resume && !STANDALONE) return <button className="home-banner resume" onClick={props.onResume}><Icon name="resume" size={20} /><span><b>{props.resume.tournament ? 'Reprendre le tournoi' : 'Reprendre la partie'}</b><small>Table {props.resume.code}</small></span></button>;
+    if (props.resume && !STANDALONE) return <button className="home-banner resume" onClick={props.onResume}><Icon name="resume" size={20} /><span><b>{tr(props.resume.tournament ? 'g421.menu.resumeT' : 'g421.menu.resumeG')}</b><small>{tr('g421.menu.tableN', { code: props.resume.code })}</small></span></button>;
     const salon = prog?.slots.find((x) => x.status === 'salon' && x.registered && x.code);
-    if (salon && props.onJoinScheduled) return <button className="home-banner resume" onClick={() => props.onJoinScheduled!(salon.code!, false)}><Icon name="trophy" size={20} /><span><b>Votre tournoi de {salon.hour} h commence !</b><small>Le salon est ouvert : rejoignez-le</small></span><em>Rejoindre</em></button>;
-    if (!profile.tutorial) return <button className="home-banner tuto" onClick={props.onTutorial}><Icon name="resume" size={20} /><span><b>Nouveau ? Apprendre à jouer</b><small>Partie guidée de 3 minutes</small></span><em>+50 pièces</em></button>;
-    if (lobbies > 0 && netOk) return <button className="home-banner lobbies" onClick={() => setSheet('lobbies')}><Icon name="people" size={20} /><span><b>{lobbies > 1 ? `${lobbies} parties attendent des joueurs` : 'Une partie attend des joueurs'}</b><small>Rejoignez une table ouverte</small></span><em>Voir</em></button>;
+    if (salon && props.onJoinScheduled) return <button className="home-banner resume" onClick={() => props.onJoinScheduled!(salon.code!, false)}><Icon name="trophy" size={20} /><span><b>{tr('g421.menu.tourStart', { h: tr('g421.hour', { h: salon.hour }) })}</b><small>{tr('g421.menu.lobbyOpen')}</small></span><em>{tr('g421.menu.join')}</em></button>;
+    if (!profile.tutorial) return <button className="home-banner tuto" onClick={props.onTutorial}><Icon name="resume" size={20} /><span><b>{tr('g421.menu.newT')}</b><small>{tr('g421.menu.newS')}</small></span><em>{tr('g421.menu.plus50')}</em></button>;
+    if (lobbies > 0 && netOk) return <button className="home-banner lobbies" onClick={() => setSheet('lobbies')}><Icon name="people" size={20} /><span><b>{lobbies > 1 ? tr('g421.menu.manyWait', { n: lobbies }) : tr('g421.menu.oneWait')}</b><small>{tr('g421.menu.joinOpen')}</small></span><em>{tr('g421.menu.see')}</em></button>;
     return null;
   })();
 
-  const liveLine = lobbies > 0 ? `${lobbies} table${lobbies > 1 ? 's' : ''} vous attend${lobbies > 1 ? 'ent' : ''}`
-    : live.games > 0 ? `${live.games} partie${live.games > 1 ? 's' : ''} en cours` : 'Ouvrez une table, on vous rejoint';
+  const liveLine = lobbies > 0 ? trn('g421.menu.tablesWait', lobbies)
+    : live.games > 0 ? trn('g421.menu.gamesOn', live.games) : tr('g421.menu.openOne');
   const extra = online != null ? Math.max(0, online - live.faces.length) : 0;
 
   const events = [
-    ...(!STANDALONE ? [{ id: 'tournoi', title: 'Tournoi', art: <TrophyArt size={46} />, tone: 'blue', hot: t.open && t.registered,
-      tag: t.registered ? (t.open ? 'Go !' : 'Inscrit') : t.label, tagGold: !t.registered,
-      sub: t.open ? `salon ouvert${t.count != null ? ` · ${t.count} joueur${t.count > 1 ? 's' : ''}` : ''}` : inTime(t.minutes),
+    ...(!STANDALONE ? [{ id: 'tournoi', title: tr('g421.menu.tournoi'), art: <TrophyArt size={46} />, tone: 'blue', hot: t.open && t.registered,
+      tag: t.registered ? tr(t.open ? 'g421.menu.go' : 'g421.menu.registered') : tr('g421.hour', { h: parseInt(t.label, 10) }), tagGold: !t.registered,
+      sub: t.open ? `${tr('g421.menu.lobbyOpenLow')}${t.count != null ? ` · ${trn('g421.menu.players', t.count)}` : ''}` : inTime(t.minutes),
       go: () => (props.onJoinScheduled ? setSheet('tournoi') : props.onTournaments()) }] : []),
-    { id: 'patron', title: 'Patron', art: <TopHatArt size={46} />, tone: 'felt', hot: false, tag: bossBeaten ? 'Battu' : undefined, tagGold: false,
-      sub: bossBeaten ? `${boss.name} · battu` : `${boss.name} · à battre`, go: () => setSheet('patron') },
-    { id: 'defi', title: 'Défi du jour', art: <TargetArt size={46} />, tone: 'felt', hot: false, tag: undefined, tagGold: false,
-      sub: chalDone ? `${chal!.points} points` : '1 essai par jour', go: () => setSheet('defi') },
+    { id: 'patron', title: tr('g421.menu.patron'), art: <TopHatArt size={46} />, tone: 'felt', hot: false, tag: bossBeaten ? tr('g421.menu.beaten') : undefined, tagGold: false,
+      sub: `${botName(boss.name)} · ${tr(bossBeaten ? 'g421.menu.beatenLow' : 'g421.menu.toBeat')}`, go: () => setSheet('patron') },
+    { id: 'defi', title: tr('g421.menu.defi'), art: <TargetArt size={46} />, tone: 'felt', hot: false, tag: undefined, tagGold: false,
+      sub: chalDone ? trn('g421.ptLong', chal!.points) : tr('g421.menu.oneTry'), go: () => setSheet('defi') },
   ];
 
   return (
     <div className="home2 v2 classic-menu">
-      <ModeBar tone="classique" title="421 classique" onBack={props.onBack}>
-        {online !== null && <ModeChip onClick={props.onStats} label={`${online} joueur${online > 1 ? 's' : ''} en ligne, voir les statistiques`}><i className="live-dot" aria-hidden />{online}</ModeChip>}
+      <ModeBar tone="classique" title={tr('g421.menu.title')} onBack={props.onBack}>
+        {online !== null && <ModeChip onClick={props.onStats} label={trn('g421.menu.onlineStats', online)}><i className="live-dot" aria-hidden />{online}</ModeChip>}
         {acc && <FriendsButton pa={pa} onOpen={props.onFriends} />}
-        <button className="icon-btn mode-rules" onClick={props.onRules} aria-label="Règles du 421"><Icon name="rules" size={20} /></button>
+        <button className="icon-btn mode-rules" onClick={props.onRules} aria-label={tr('g421.menu.rulesAria')}><Icon name="rules" size={20} /></button>
       </ModeBar>
 
       <main className="h2-main">
@@ -106,17 +109,17 @@ export function ClassicMenu(props: ClassicMenuProps) {
         {/* Vitrine 3D et partie contre l'ordinateur */}
         <section className="h2-hero">
           <HeroTray pa={pa} settings={props.settings} />
-          <h1 className="plaque h2-plaque"><span aria-hidden>421</span><span className="sr-only">421 en ligne : jeu de dés multijoueur gratuit</span></h1>
+          <h1 className="plaque h2-plaque"><span aria-hidden>421</span><span className="sr-only">{tr('g421.menu.sr')}</span></h1>
           {!STANDALONE && <div className="h2-news"><NewsTicker /></div>}
-          <button className="h2-play" onClick={props.onSolo}><Icon name="dice" size={26} /><span>Jouer contre l'ordinateur</span><Icon name="back" size={20} /></button>
+          <button className="h2-play" onClick={props.onSolo}><Icon name="dice" size={26} /><span>{tr('g421.menu.playCpu')}</span><Icon name="back" size={20} /></button>
         </section>
 
         {/* Jeu en ligne : la grande carte rouge et or */}
-        {STANDALONE ? <p className="note">Le jeu en ligne demande le serveur du projet. Cette version propose le solo et le jeu sur un seul téléphone.</p> : (
-          <section className="v2-multi" aria-label="Jouer en ligne">
+        {STANDALONE ? <p className="note">{tr('g421.menu.standalone')}</p> : (
+          <section className="v2-multi" aria-label={tr('g421.menu.online')}>
             <span className="v2-multi-art"><TableArt size={70} /></span>
             <div className="v2-multi-body">
-              <div className="v2-multi-head"><b>Jouer en ligne</b></div>
+              <div className="v2-multi-head"><b>{tr('g421.menu.online')}</b></div>
               <button className="v2-multi-who" onClick={() => (lobbies > 0 ? setSheet('lobbies') : props.onOnline())} disabled={!netOk}>
                 {live.faces.length > 0 && <span className="v2-faces" aria-hidden>
                   {live.faces.slice(0, 3).map((f, i) => <span key={i} className="v2-face" style={{ background: FACE_COLORS[i % FACE_COLORS.length] }}>{f.avatar}</span>)}
@@ -125,16 +128,16 @@ export function ClassicMenu(props: ClassicMenuProps) {
                 <span>{liveLine}</span>
               </button>
               <div className="v2-multi-btns">
-                {props.onQuick && <button className="v2-mbtn gold v2-quick" onClick={props.onQuick} disabled={!netOk}><Icon name="dice" size={17} />Partie rapide</button>}
-                <button className={`v2-mbtn ${props.onQuick ? 'ghost v2-tables' : 'gold'}`} onClick={props.onOnline} disabled={!netOk} aria-label="Tables en ligne : rejoindre, créer, regarder">Tables</button>
+                {props.onQuick && <button className="v2-mbtn gold v2-quick" onClick={props.onQuick} disabled={!netOk}><Icon name="dice" size={17} />{tr('g421.menu.quick')}</button>}
+                <button className={`v2-mbtn ${props.onQuick ? 'ghost v2-tables' : 'gold'}`} onClick={props.onOnline} disabled={!netOk} aria-label={tr('g421.menu.tablesAria')}>{tr('g421.menu.tables')}</button>
               </div>
             </div>
           </section>
         )}
-        {!netOk && !STANDALONE && <p className="note">Hors connexion : le jeu en ligne reviendra avec le réseau.</p>}
+        {!netOk && !STANDALONE && <p className="note">{tr('g421.menu.offline')}</p>}
 
         {/* Rendez-vous du 421 */}
-        <section className="v2-events" aria-label="Rendez-vous du 421">
+        <section className="v2-events" aria-label={tr('g421.menu.rdv')}>
           {events.map((e) => (
             <button key={e.id} className={`v2-ev ${e.tone}${e.hot ? ' hot' : ''}`} onClick={e.go}>
               {e.tag && <em className={`v2-tag${e.tagGold ? ' gold' : ''}`}>{e.tag}</em>}
@@ -146,23 +149,23 @@ export function ClassicMenu(props: ClassicMenuProps) {
         </section>
 
         {/* Le reste du 421, en une rangée */}
-        <nav className="cm-links" aria-label="Plus du 421">
-          <button onClick={props.onParty}><Icon name="cheers" size={22} /><span>Entre amis<small>un téléphone</small></span></button>
-          {!STANDALONE && <button onClick={props.onLeaderboard}><Icon name="chart" size={22} /><span>Classement<small>saison</small></span></button>}
-          <button onClick={props.onAlbum}><Icon name="album" size={22} /><span>Album<small>combinaisons</small></span></button>
-          <button onClick={props.onTutorial}><Icon name="resume" size={22} /><span>Partie guidée<small>3 minutes</small></span></button>
+        <nav className="cm-links" aria-label={tr('g421.menu.moreAria')}>
+          <button onClick={props.onParty}><Icon name="cheers" size={22} /><span>{tr('g421.menu.friends')}<small>{tr('g421.menu.onePhone')}</small></span></button>
+          {!STANDALONE && <button onClick={props.onLeaderboard}><Icon name="chart" size={22} /><span>{tr('g421.menu.rank')}<small>{tr('g421.menu.season')}</small></span></button>}
+          <button onClick={props.onAlbum}><Icon name="album" size={22} /><span>{tr('g421.menu.album')}<small>{tr('g421.menu.combos')}</small></span></button>
+          <button onClick={props.onTutorial}><Icon name="resume" size={22} /><span>{tr('g421.menu.tuto')}<small>{tr('g421.menu.min3')}</small></span></button>
         </nav>
-        {!STANDALONE && <nav className="h2-guides" aria-label="Guides du 421">{GUIDES_421.map(([href, label]) => <a key={href} href={href}>{label}</a>)}</nav>}
+        {!STANDALONE && <nav className="h2-guides" aria-label={tr('g421.menu.guides')}>{GUIDES_421.map(([href, label]) => <a key={href} href={href}>{tr(label as MessageKey)}</a>)}</nav>}
       </main>
 
-      {sheet === 'tournoi' && props.onJoinScheduled && <Sheet title="Tournois du 421" onClose={() => setSheet(null)}>
+      {sheet === 'tournoi' && props.onJoinScheduled && <Sheet title={tr('g421.menu.tourTitle')} onClose={() => setSheet(null)}>
         <ScheduledCard pa={pa} onJoin={(c, pay) => { setSheet(null); props.onJoinScheduled!(c, pay); }} onAccount={() => { setSheet(null); props.onAccount(); }} />
         {/* Tournois perso (créés par les joueurs) : bien visibles sous le tournoi programmé. */}
-        <button className="btn secondary wide" style={{ marginTop: 10 }} onClick={() => { setSheet(null); props.onTournaments(); }}><Icon name="trophy" size={18} /> Créer ou rejoindre un tournoi perso</button>
+        <button className="btn secondary wide" style={{ marginTop: 10 }} onClick={() => { setSheet(null); props.onTournaments(); }}><Icon name="trophy" size={18} /> {tr('g421.menu.tourPerso')}</button>
       </Sheet>}
-      {sheet === 'patron' && <Sheet title="Patron de la semaine" onClose={() => setSheet(null)}><BossCard pa={pa} onPlay={() => { setSheet(null); props.onBoss(); }} /></Sheet>}
-      {sheet === 'defi' && <Sheet title="Défi du jour" onClose={() => setSheet(null)}><ChallengeCard onOpen={() => { setSheet(null); props.onChallenge(); }} /></Sheet>}
-      {sheet === 'lobbies' && <Sheet title="Salons ouverts" onClose={() => setSheet(null)}><OpenLobbies onJoin={props.onJoinRoom} onAll={props.onOnline} /></Sheet>}
+      {sheet === 'patron' && <Sheet title={tr('g421.menu.patronW')} onClose={() => setSheet(null)}><BossCard pa={pa} onPlay={() => { setSheet(null); props.onBoss(); }} /></Sheet>}
+      {sheet === 'defi' && <Sheet title={tr('g421.menu.defi')} onClose={() => setSheet(null)}><ChallengeCard onOpen={() => { setSheet(null); props.onChallenge(); }} /></Sheet>}
+      {sheet === 'lobbies' && <Sheet title={tr('g421.menu.openLobbies')} onClose={() => setSheet(null)}><OpenLobbies onJoin={props.onJoinRoom} onAll={props.onOnline} /></Sheet>}
     </div>
   );
 }

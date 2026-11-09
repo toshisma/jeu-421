@@ -2,7 +2,7 @@ import { api } from '../account/api';
 import { Chat } from './Chat';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { useNavGuard } from './navGuard';
-import { DEFAULT_CONFIG, describeConfig, type GameConfig } from '../../../shared/config';
+import { DEFAULT_CONFIG, type GameConfig } from '../../../shared/config';
 import { AVATARS } from '../../../shared/protocol';
 import { OnlineController, OnlineSession } from '../game/online';
 import { loadSession, type Settings } from '../settings';
@@ -14,12 +14,14 @@ import type { GameState } from '../../../shared/engine';
 import { BigAction, Choices, Shell } from './kit';
 import { publicUrl } from '../platform';
 import type { ProfileApi } from '../account/useProfile';
-import { DEFAULT_TABLE, STAKES, stakeLabel, type TableSettings } from '../../../shared/tournament';
+import { DEFAULT_TABLE, STAKES, type TableSettings } from '../../../shared/tournament';
 import { Icon } from './Icon';
 import { Avatar } from './Avatar';
 import { Seg, StakePicker } from './OnlineHub';
 import { trackEvent } from '../visit';
 import { usePresenceLayer } from '../presence';
+import { tr, trServer } from '../i18n/lang';
+import { botName, describeCfg, trn } from '../i18n/g421';
 
 export type OnlineMode = { kind: 'create'; invite?: string } | { kind: 'join'; code?: string; auto?: boolean } | { kind: 'resume' } | { kind: 'quick' };
 type Mode = OnlineMode;
@@ -76,20 +78,20 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
         // Page rechargée avec ?rejoindre=CODE : si c'est notre table, on reprend notre place (jeton de session).
         const c = code.trim().toUpperCase();
         const saved = loadSession();
-        await s.join(c, name.trim() || settings.name || 'Joueur', avatar, saved && !saved.tournament && saved.code === c ? saved.token : undefined);
+        await s.join(c, name.trim() || settings.name || tr('g421.on.player'), avatar, saved && !saved.tournament && saved.code === c ? saved.token : undefined);
       }
-      else if (kind === 'quick') await s.quick(name.trim() || 'Joueur', avatar);
+      else if (kind === 'quick') await s.quick(name.trim() || tr('g421.on.player'), avatar);
       else {
         const saved = loadSession();
         if (!saved) throw new Error('Aucune partie à reprendre');
-        await s.join(saved.code, name.trim() || 'Joueur', avatar, saved.token);
+        await s.join(saved.code, name.trim() || tr('g421.on.player'), avatar, saved.token);
       }
       if (kind !== 'resume' && kind !== 'quick') onSettings({ ...settings, name: name.trim(), avatar });
       setSession(s);
       clearInviteParam();
       // Table créée pour inviter un ami : l'invitation part dès que la table existe.
       if (kind === 'create' && mode.kind === 'create' && mode.invite && pa.token) {
-        await api('/invites', { token: pa.token, body: { username: mode.invite } }).catch((e) => setError((e as Error).message));
+        await api('/invites', { token: pa.token, body: { username: mode.invite } }).catch((e) => setError(trServer((e as Error).message)));
       }
     } catch (e) {
       s.socket.disconnect();
@@ -119,7 +121,7 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
       </>
     );
   }
-  if (session?.kicked) return <Shell title="Table" onBack={onExit}><p>{session.kicked}</p><button className="btn primary" onClick={onExit}>Retour à l’accueil</button></Shell>;
+  if (session?.kicked) return <Shell title={tr('g421.on.table')} onBack={onExit}><p>{trServer(session.kicked)}</p><button className="btn primary" onClick={onExit}>{tr('g421.on.backHome')}</button></Shell>;
   if (session?.room) return <><Lobby session={session} onExit={exit} pa={pa} /><Notices session={session} /><Chat session={session} pa={pa} /></>;
 
   const isJoin = mode.kind === 'join';
@@ -127,32 +129,32 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
   const canGo = !busy && !!name.trim() && (!isJoin || code.length === 5);
   const submit = () => { if (canGo) void connect(isJoin ? 'join' : 'create'); };
   return (
-    <Shell title={waiting ? 'Connexion…' : isJoin ? 'Rejoindre une table' : 'Créer une table'} onBack={cancel} icon={isJoin ? 'key' : 'plus'}
+    <Shell title={tr(waiting ? 'g421.on.connecting' : isJoin ? 'g421.on.joinT' : 'g421.on.createT')} onBack={cancel} icon={isJoin ? 'key' : 'plus'}
       foot={waiting ? undefined : <BigAction type="button" icon={isJoin ? 'people' : 'dice'} disabled={!canGo} onClick={submit}
-        label={busy ? 'Connexion…' : isJoin ? 'Rejoindre la table' : 'Ouvrir la table'}
-        sub={isJoin ? undefined : 'Vous choisirez les règles dans le salon'} />}>
+        label={tr(busy ? 'g421.on.connecting' : isJoin ? 'g421.on.joinB' : 'g421.on.openB')}
+        sub={isJoin ? undefined : tr('g421.on.rulesLater')} />}>
       {waiting ? (
         <div className="k-wait">
-          {busy && <><span className="k-spinner" aria-hidden /><p>{mode.kind === 'quick' ? 'Recherche d’une table…' : 'Reconnexion au salon…'}</p></>}
-          {error && <><p className="error">{error}</p><button className="btn" onClick={onExit}>Retour à l'accueil</button></>}
+          {busy && <><span className="k-spinner" aria-hidden /><p>{tr(mode.kind === 'quick' ? 'g421.on.searching' : 'g421.on.reconnecting')}</p></>}
+          {error && <><p className="error">{trServer(error)}</p><button className="btn" onClick={onExit}>{tr('g421.on.backHome')}</button></>}
         </div>
       ) : (
         <form className="k-form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
           {isJoin && (
-            <label className="k-field"><span className="k-label">Code de la partie</span>
+            <label className="k-field"><span className="k-label">{tr('g421.on.code')}</span>
               <input className="code-input k-input" value={code} maxLength={5} autoFocus placeholder="ABCDE"
                 onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} /></label>
           )}
           <div className="hub-me">
             <details className="hub-av">
-              <summary aria-label="Changer d'avatar"><Avatar emoji={avatar} size={46} /><i className="hub-me-edit" aria-hidden>✎</i></summary>
+              <summary aria-label={tr('g421.on.changeAv')}><Avatar emoji={avatar} size={46} /><i className="hub-me-edit" aria-hidden>✎</i></summary>
               <div className="avatars hub-avatars">{AVATARS.map((a) => <button type="button" key={a} className={a === avatar ? 'on' : ''} onClick={(e) => { setAvatar(a); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }} aria-label={`Avatar ${a}`}>{a}</button>)}</div>
             </details>
-            <label className="hub-me-name"><small>Votre nom</small>
-              <input value={name} maxLength={20} placeholder="Votre nom" autoFocus={!isJoin} onChange={(e) => setName(e.target.value)} /></label>
+            <label className="hub-me-name"><small>{tr('g421.on.name')}</small>
+              <input value={name} maxLength={20} placeholder={tr('g421.on.name')} autoFocus={!isJoin} onChange={(e) => setName(e.target.value)} /></label>
           </div>
           {!isJoin && <TableFields table={table} onChange={setTable} pa={pa} />}
-          {error && <p className="error">{error}</p>}
+          {error && <p className="error">{trServer(error)}</p>}
           <button type="submit" hidden aria-hidden tabIndex={-1} />
         </form>
       )}
@@ -164,14 +166,14 @@ export function OnlineFlow({ mode, settings, onSettings, onExit, onCancel, appea
 function TableFields({ table, onChange, pa, minPlayers = 2 }: { table: TableSettings; onChange: (t: TableSettings) => void; pa: ProfileApi; minPlayers?: number }) {
   return (
     <>
-      <div className="k-field"><span className="k-label">Qui peut rejoindre ?</span>
+      <div className="k-field"><span className="k-label">{tr('g421.on.whoCan')}</span>
         <Choices value={table.visibility} onChange={(v) => onChange({ ...table, visibility: v })}
-          options={[{ v: 'private', label: 'Sur invitation', hint: 'Avec le code ou le lien', icon: 'key' }, { v: 'public', label: 'Tout le monde', hint: 'Visible dans la liste', icon: 'people' }]} />
+          options={[{ v: 'private', label: tr('g421.on.invite'), hint: tr('g421.on.inviteH'), icon: 'key' }, { v: 'public', label: tr('g421.on.everyone'), hint: tr('g421.on.everyoneH'), icon: 'people' }]} />
       </div>
-      <Seg label="Nombre de places" value={table.maxPlayers} onChange={(v) => onChange({ ...table, maxPlayers: v })}
+      <Seg label={tr('g421.on.seats')} value={table.maxPlayers} onChange={(v) => onChange({ ...table, maxPlayers: v })}
         options={[2, 3, 4, 5, 6].filter((n) => n >= minPlayers).map((n) => ({ v: n, label: String(n) }))} />
       <StakePicker value={table.stake} onChange={(v) => onChange({ ...table, stake: v })} pa={pa} stakes={STAKES} />
-      {table.stake > 0 && <p className="k-hint">Chaque joueur mise {table.stake} pièces au lancement de la partie. Le gagnant remporte la cagnotte (partagée en cas d'égalité).</p>}
+      {table.stake > 0 && <p className="k-hint">{tr('g421.on.stakeNote', { n: table.stake })}</p>}
     </>
   );
 }
@@ -186,78 +188,78 @@ function Lobby({ session, onExit, pa }: { session: OnlineSession; onExit: () => 
   // Sur téléphone : menu de partage natif (SMS, WhatsApp, Messenger…).
   const canShare = typeof navigator.share === 'function';
   const share = async () => {
-    try { await navigator.share({ title: 'Partie de 421', text: `Viens jouer au 421 avec moi ! Code : ${room.code}`, url: link }); trackEvent('invite'); }
+    try { await navigator.share({ title: tr('g421.on.shareT'), text: tr('g421.on.shareX', { code: room.code }), url: link }); trackEvent('invite'); }
     catch { /* partage annulé */ }
   };
   const copy = async (text: string, what: string) => {
     try { await navigator.clipboard.writeText(text); setCopied(what); setTimeout(() => setCopied(null), 1800); trackEvent('invite'); }
-    catch { window.prompt('Copiez :', text); }
+    catch { window.prompt(tr('g421.copyPrompt'), text); }
   };
   const allReady = room.members.filter((m) => !m.left).every((m) => m.ready);
   const count = room.members.length;
-  const updateConfig = async (c: GameConfig) => { const a = await session.setConfig(c); if (!a.ok) setErr(a.error); };
-  const updateTable = async (t: TableSettings) => { setErr(null); const a = await session.setTable(t); if (!a.ok) setErr(a.error); };
+  const updateConfig = async (c: GameConfig) => { const a = await session.setConfig(c); if (!a.ok) setErr(trServer(a.error)); };
+  const updateTable = async (t: TableSettings) => { setErr(null); const a = await session.setTable(t); if (!a.ok) setErr(trServer(a.error)); };
   const max = room.table.maxPlayers;
   const [botLevel, setBotLevel] = useState<'facile' | 'normal' | 'difficile'>('normal');
-  const addBot = async () => { setErr(null); const a = await session.addBot(botLevel); if (!a.ok) setErr(a.error); };
-  const fill = async () => { setErr(null); const a = await session.fill(botLevel); if (!a.ok) setErr(a.error); };
+  const addBot = async () => { setErr(null); const a = await session.addBot(botLevel); if (!a.ok) setErr(trServer(a.error)); };
+  const fill = async () => { setErr(null); const a = await session.fill(botLevel); if (!a.ok) setErr(trServer(a.error)); };
   const quick = room.quick;
   const humans = room.members.filter((m) => !m.bot).length;
-  const start = async () => { setErr(null); const a = await session.start(); if (!a.ok) setErr(a.error); };
+  const start = async () => { setErr(null); const a = await session.start(); if (!a.ok) setErr(trServer(a.error)); };
 
   return (
-    <Shell title={room.title} onBack={onExit} wide>
+    <Shell title={trServer(room.title)} onBack={onExit} wide>
       <div className="cols">
         <section>
           <LobbyTable room={room} meId={session.playerId} isHost={isHost} max={max}
             onInvite={() => (canShare ? void share() : void copy(link, 'lien'))}
-            onKick={async (id) => { const a = await session.kick(id); if (!a.ok) setErr(a.error); }}
+            onKick={async (id) => { const a = await session.kick(id); if (!a.ok) setErr(trServer(a.error)); }}
             onRemoveBot={(id) => void session.removeBot(id)} />
           <div className="lobby-code">
-            <span>{room.table.visibility === 'public' ? 'Table publique' : 'Sur invitation'} · code <b>{room.code}</b></span>
-            <button className="btn small" onClick={() => copy(room.code, 'code')}><Icon name="copy" size={16} />{copied === 'code' ? 'Copié' : 'Code'}</button>
+            <span>{tr(room.table.visibility === 'public' ? 'g421.on.publicT' : 'g421.on.invite')} · {tr('g421.on.codeLow')} <b>{room.code}</b></span>
+            <button className="btn small" onClick={() => copy(room.code, 'code')}><Icon name="copy" size={16} />{tr(copied === 'code' ? 'g421.on.copied' : 'g421.on.codeBtn')}</button>
             {canShare
-              ? <button className="btn small" onClick={share}><Icon name="share" size={16} />Inviter</button>
-              : <button className="btn small" onClick={() => copy(link, 'lien')}><Icon name="share" size={16} />{copied === 'lien' ? 'Copié' : 'Lien'}</button>}
+              ? <button className="btn small" onClick={share}><Icon name="share" size={16} />{tr('g421.on.inviteBtn')}</button>
+              : <button className="btn small" onClick={() => copy(link, 'lien')}><Icon name="share" size={16} />{tr(copied === 'lien' ? 'g421.on.copied' : 'g421.on.link')}</button>}
           </div>
           {quick && <QuickBanner quick={quick} isHost={isHost} canFill={count < max && room.table.stake === 0} onFill={fill} />}
           {pa.isAccount && count < max && <InviteFriends pa={pa} inRoom={room.members.map((m) => m.name)} />}
           {isHost && count < max && room.table.stake === 0 && (
             <div className="bot-add">
-              <div className="seg" role="group" aria-label="Niveau de l'ordinateur">
-                {(['facile', 'normal', 'difficile'] as const).map((d) => <button key={d} className={botLevel === d ? 'on' : ''} onClick={() => setBotLevel(d)}>{d[0].toUpperCase() + d.slice(1)}</button>)}
+              <div className="seg" role="group" aria-label={tr('g421.on.botLevel')}>
+                {(['facile', 'normal', 'difficile'] as const).map((d) => <button key={d} className={botLevel === d ? 'on' : ''} onClick={() => setBotLevel(d)}>{tr(d === 'facile' ? 'g421.solo.easy' : d === 'normal' ? 'g421.solo.normal' : 'g421.solo.hard')}</button>)}
               </div>
-              <button className="btn small" onClick={addBot}><Icon name="plus" size={18} />Ajouter un ordinateur</button>
-              {!quick && <button className="btn small" onClick={fill} title="Des ordinateurs prennent les places libres ; un ami qui arrive prend la place de l’un d’eux">
-                <Icon name="people" size={18} />Compléter avec l’ordinateur</button>}
+              <button className="btn small" onClick={addBot}><Icon name="plus" size={18} />{tr('g421.on.addBot')}</button>
+              {!quick && <button className="btn small" onClick={fill} title={tr('g421.on.fillT')}>
+                <Icon name="people" size={18} />{tr('g421.on.fillB')}</button>}
             </div>
           )}
-          {isHost && humans === 1 && count < 2 && !quick && <p className="muted small">Personne pour l'instant : ajoutez un ordinateur pour jouer tout de suite, ou partagez le code.</p>}
-          {!session.connected && <p className="error">Connexion perdue, reconnexion en cours…</p>}
+          {isHost && humans === 1 && count < 2 && !quick && <p className="muted small">{tr('g421.on.nobody')}</p>}
+          {!session.connected && <p className="error">{tr('g421.on.lost')}</p>}
           <div className="lobby-actions">
             {!isHost && me && !quick && (
               <button className={`btn big wide ${me.ready ? '' : 'primary'}`} onClick={() => session.setReady(!me.ready)}>
-                {me.ready ? 'Je ne suis plus prêt' : 'Je suis prêt'}
+                {tr(me.ready ? 'g421.on.notReady' : 'g421.on.ready')}
               </button>
             )}
             {isHost && (
               <button className="btn primary big wide" disabled={count < 2 || !allReady} onClick={start}>
-                {count < 2 ? 'En attente de joueurs…' : !allReady ? 'En attente des joueurs prêts…' : 'Lancer la partie'}
+                {tr(count < 2 ? 'g421.on.waitPlayers' : !allReady ? 'g421.on.waitReady' : 'g421.on.start')}
               </button>
             )}
             {err && <p className="error">{err}</p>}
           </div>
         </section>
         <section>
-          <h3>Table</h3>
+          <h3>{tr('g421.on.table')}</h3>
           {isHost ? <TableFields table={room.table} onChange={updateTable} pa={pa} minPlayers={Math.max(2, count)} />
             : <ul className="muted">
-              <li>{room.table.visibility === 'public' ? 'Table publique' : 'Table sur invitation'}, {max} places</li>
-              <li>{room.table.stake ? `Mise de ${room.table.stake} pièces par joueur, le gagnant remporte la cagnotte` : stakeLabel(0)}</li>
+              <li>{tr(room.table.visibility === 'public' ? 'g421.on.publicT' : 'g421.on.inviteT')}, {tr('g421.on.nSeats', { n: max })}</li>
+              <li>{room.table.stake ? tr('g421.on.stakeLine', { n: room.table.stake }) : tr('g421.on.noStake')}</li>
             </ul>}
-          <h3>Règles {isHost ? '' : <small className="muted">(choisies par l'hôte)</small>}</h3>
+          <h3>{tr('g421.solo.rules')} {isHost ? '' : <small className="muted">{tr('g421.on.byHost')}</small>}</h3>
           {isHost ? <ConfigEditor config={room.config} onChange={updateConfig} />
-            : <ul className="muted">{describeConfig(room.config).map((l) => <li key={l}>{l}</li>)}</ul>}
+            : <ul className="muted">{describeCfg(room.config).map((l) => <li key={l}>{l}</li>)}</ul>}
         </section>
       </div>
     </Shell>
@@ -279,16 +281,16 @@ function LobbyTable({ room, meId, isHost, max, onInvite, onKick, onRemoveBot }: 
       <div className="ltable" style={{ ['--n' as string]: seats }}>
         <div className="ltable-felt">
           {room.table.stake > 0
-            ? <><b>{room.table.stake * room.members.length}</b><small>pièces en jeu</small><small className="muted">{room.table.stake} par joueur</small></>
-            : <><b>{room.members.length}/{max}</b><small>joueurs</small><small className="muted">{ready} prêt{ready > 1 ? 's' : ''}</small></>}
+            ? <><b>{room.table.stake * room.members.length}</b><small>{tr('g421.on.coinsAtStake')}</small><small className="muted">{tr('g421.on.perPlayer', { n: room.table.stake })}</small></>
+            : <><b>{room.members.length}/{max}</b><small>{tr('g421.on.players')}</small><small className="muted">{trn('g421.on.nReady', ready)}</small></>}
         </div>
         {Array.from({ length: seats }, (_, i) => {
           const m = ordered[i];
           const a = (i / seats) * Math.PI * 2 - Math.PI / 2;
           const style = { left: `${50 + 40 * Math.cos(a)}%`, top: `${50 + 40 * Math.sin(a)}%` };
           if (!m) return (
-            <button key={`v${i}`} className="seat empty" style={style} onClick={onInvite} aria-label="Inviter quelqu'un à cette place">
-              <span className="seat-av"><Icon name="plus" size={20} /></span><span className="seat-name">Inviter</span>
+            <button key={`v${i}`} className="seat empty" style={style} onClick={onInvite} aria-label={tr('g421.on.inviteSeat')}>
+              <span className="seat-av"><Icon name="plus" size={20} /></span><span className="seat-name">{tr('g421.on.inviteBtn')}</span>
             </button>
           );
           const mine = m.id === meId;
@@ -297,12 +299,12 @@ function LobbyTable({ room, meId, isHost, max, onInvite, onKick, onRemoveBot }: 
               <span className="seat-av"><Avatar photo={m.photo} emoji={m.avatar} size={46} accessory={m.accessory} />
                 {(m.ready || m.bot) && <i className="seat-ok"><Icon name="check" size={11} /></i>}
                 {!m.connected && !m.bot && <i className="seat-off" />}
-                {m.isHost && <i className="seat-host" title="Hôte">★</i>}</span>
-              <span className="seat-name">{mine ? `${m.name} (vous)` : m.name}</span>
-              <small>{m.filler ? 'Ordinateur · cède sa place' : m.bot ? `Ordinateur · ${m.bot}` : !m.connected ? 'hors ligne' : m.ready ? 'prêt' : 'pas prêt'}</small>
+                {m.isHost && <i className="seat-host" title={tr('g421.host')}>★</i>}</span>
+              <span className="seat-name">{mine ? `${m.name} ${tr('g421.youParen')}` : botName(m.name)}</span>
+              <small>{m.filler ? tr('g421.on.filler') : m.bot ? tr('g421.on.botLvl', { l: m.bot === 'facile' || m.bot === 'difficile' || m.bot === 'normal' ? tr(`g421.solo.level.${m.bot}`) : m.bot }) : tr(!m.connected ? 'g421.offline' : m.ready ? 'g421.on.readyLow' : 'g421.on.notReadyLow')}</small>
               {isHost && !mine && (m.bot
-                ? <button className="seat-kick" onClick={() => onRemoveBot(m.id)} aria-label={`Retirer ${m.name}`}>Retirer</button>
-                : <button className="seat-kick" onClick={() => onKick(m.id)} aria-label={`Exclure ${m.name}`}>Exclure</button>)}
+                ? <button className="seat-kick" onClick={() => onRemoveBot(m.id)} aria-label={tr('g421.on.removeA', { name: m.name })}>{tr('g421.on.remove')}</button>
+                : <button className="seat-kick" onClick={() => onKick(m.id)} aria-label={tr('g421.on.kickA', { name: m.name })}>{tr('g421.on.kick')}</button>)}
             </div>
           );
         })}
@@ -321,12 +323,12 @@ function QuickBanner({ quick, isHost, canFill, onFill }: { quick: NonNullable<No
       <span className="quick-clock" aria-hidden>{quick.startAt ? secs(quick.startAt) : quick.fillAt ? secs(quick.fillAt) : '…'}</span>
       <div>
         {quick.startAt
-          ? <><b>Départ dans {secs(quick.startAt)} s</b><small>Un joueur qui arrive d’ici là prend la place d’un ordinateur.</small></>
+          ? <><b>{tr('g421.on.startsIn', { s: secs(quick.startAt) })}</b><small>{tr('g421.on.quickNote')}</small></>
           : quick.fillAt
-            ? <><b>On cherche des joueurs…</b><small>Sans renfort, des ordinateurs complètent la table dans {secs(quick.fillAt)} s.</small></>
-            : <><b>Partie rapide</b><small>En attente de joueurs.</small></>}
+            ? <><b>{tr('g421.on.searchingP')}</b><small>{tr('g421.on.fillSoon', { s: secs(quick.fillAt) })}</small></>
+            : <><b>{tr('g421.menu.quick')}</b><small>{tr('g421.on.waitP')}</small></>}
       </div>
-      {isHost && canFill && !quick.startAt && <button className="btn small" onClick={onFill}>Compléter avec l’ordinateur</button>}
+      {isHost && canFill && !quick.startAt && <button className="btn small" onClick={onFill}>{tr('g421.on.fillB')}</button>}
     </div>
   );
 }
@@ -342,7 +344,7 @@ export function Notices({ session }: { session: OnlineSession }) {
   }, [n]);
   return (
     <div className="notices">
-      {n.filter((x) => !hidden.has(x.id)).map((x) => <div key={x.id} className={`notice ${x.kind}`}>{x.text}</div>)}
+      {n.filter((x) => !hidden.has(x.id)).map((x) => <div key={x.id} className={`notice ${x.kind}`}>{trServer(x.text)}</div>)}
     </div>
   );
 }
@@ -359,16 +361,16 @@ function InviteFriends({ pa, inRoom }: { pa: ProfileApi; inRoom: string[] }) {
   if (!list.length) return null;
   return (
     <section className="lobby-invite">
-      <h3>Inviter des amis</h3>
+      <h3>{tr('g421.on.inviteFriends')}</h3>
       <ul>
         {list.slice(0, 8).map((f) => (
           <li key={f.username}>
             <i className={`fr-dot ${f.online ? 'on' : ''}`} aria-hidden /><b>{f.username}</b>
             {sent[f.username] ? <small className="muted">{sent[f.username]}</small> : (
               <button className="btn small" onClick={async () => {
-                try { await api('/invites', { token: pa.token!, body: { username: f.username } }); setSent((x) => ({ ...x, [f.username]: 'Invitation envoyée' })); }
-                catch (e) { setSent((x) => ({ ...x, [f.username]: (e as Error).message })); }
-              }}>Inviter</button>
+                try { await api('/invites', { token: pa.token!, body: { username: f.username } }); setSent((x) => ({ ...x, [f.username]: tr('g421.on.sent') })); }
+                catch (e) { setSent((x) => ({ ...x, [f.username]: trServer((e as Error).message) })); }
+              }}>{tr('g421.on.inviteBtn')}</button>
             )}
           </li>
         ))}

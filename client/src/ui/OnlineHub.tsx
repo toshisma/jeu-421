@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AVATARS } from '../../../shared/protocol';
-import { stakeLabel, type LobbyEntry, type TournamentEntry } from '../../../shared/tournament';
+import { type LobbyEntry, type TournamentEntry } from '../../../shared/tournament';
 import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
 import type { Settings } from '../settings';
@@ -11,9 +11,10 @@ import { RecentGames } from './Friends';
 import { ProfileView } from './ProfileView';
 import { LiveGames } from './SpectateFlow';
 import { ScheduledCard } from './Scheduled';
+import { tr, trServer, fmtNum } from '../i18n/lang';
+import { trn, trVariant } from '../i18n/g421';
 
 export type HubTab = 'tables' | 'tournois';
-const VARIANT: Record<string, string> = { classique: 'Classique', decharge: 'Décharge seule', manches: 'Aux points', 'sans-charge': 'Sans charge' };
 
 /**
  * Jouer en ligne : rejoindre avec un code, créer une table ou un tournoi, ou choisir dans les
@@ -40,7 +41,7 @@ export function OnlineHub({ tab: initial, settings, onSettings, pa, onBack, onJo
     let alive = true;
     const load = () => api<{ lobbies: LobbyEntry[]; tournaments: TournamentEntry[] }>('/lobbies')
       .then((r) => { if (alive) { setLists(r); setListErr(null); } })
-      .catch((e) => { if (alive) setListErr((e as Error).message); });
+      .catch((e) => { if (alive) setListErr(trServer((e as Error).message)); });
     void load();
     const t = setInterval(load, 4000);
     return () => { alive = false; clearInterval(t); };
@@ -55,57 +56,56 @@ export function OnlineHub({ tab: initial, settings, onSettings, pa, onBack, onJo
       const r = await api<{ kind: 'room' | 'tournament'; playing?: boolean }>(`/code/${code}`);
       if (r.playing && onWatch) { onWatch(code); return; }
       go(() => (r.kind === 'room' ? onJoinRoom(code) : onJoinTournament(code)));
-    } catch (e) { setCodeErr((e as Error).message); }
+    } catch (e) { setCodeErr(trServer((e as Error).message)); }
   };
   const coins = pa.profile.coins;
   const canPay = (stake: number) => stake === 0 || (pa.isAccount && coins >= stake);
-  const payHint = (stake: number) => (stake === 0 ? '' : !pa.isAccount ? 'Compte requis' : coins < stake ? 'Pas assez de pièces' : '');
+  const payHint = (stake: number) => (stake === 0 ? '' : !pa.isAccount ? tr('g421.hub.needAcc') : coins < stake ? tr('g421.hub.noCoins') : '');
 
   const nTables = lists?.lobbies.length ?? 0, nTourn = lists?.tournaments.length ?? 0;
-  const vName = VARIANT;
   return (
-    <Shell title="Jouer en ligne" onBack={onBack} icon="people"
-      sub={lists ? (nTables + nTourn ? `${nTables} table${nTables > 1 ? 's' : ''} et ${nTourn} tournoi${nTourn > 1 ? 's' : ''} ouverts` : 'Tables, tournois et parties à regarder') : 'Chargement des tables…'}>
+    <Shell title={tr('g421.menu.online')} onBack={onBack} icon="people"
+      sub={lists ? (nTables + nTourn ? tr('g421.hub.sub', { t: trn('g421.hub.tables', nTables), u: trn('g421.hub.tourns', nTourn) }) : tr('g421.hub.subEmpty')) : tr('g421.hub.loading')}>
       <div className="hub">
         <div className="hub-me">
-          <button type="button" className="avatar-pick" onClick={() => setPicking((v) => !v)} aria-expanded={picking} aria-label="Changer d'avatar" title="Changer d'avatar">
+          <button type="button" className="avatar-pick" onClick={() => setPicking((v) => !v)} aria-expanded={picking} aria-label={tr('g421.on.changeAv')} title={tr('g421.on.changeAv')}>
             <Avatar photo={pa.photo} emoji={avatar} size={46} /><i className="hub-me-edit" aria-hidden>✎</i>
           </button>
-          <label className="hub-me-name"><small>Votre nom à la table</small>
-            <input value={name} maxLength={20} placeholder="Votre nom" onChange={(e) => setName(e.target.value)} /></label>
+          <label className="hub-me-name"><small>{tr('g421.hub.tableName')}</small>
+            <input value={name} maxLength={20} placeholder={tr('g421.on.name')} onChange={(e) => setName(e.target.value)} /></label>
         </div>
         {picking && <div className="avatars hub-avatars">{AVATARS.map((a) => <button type="button" key={a} className={a === avatar ? 'on' : ''} onClick={() => { setAvatar(a); setPicking(false); }} aria-label={`Avatar ${a}`}>{a}</button>)}</div>}
-        {!ready && <p className="k-warn">Choisissez un nom pour rejoindre ou créer une partie.</p>}
+        {!ready && <p className="k-warn">{tr('g421.hub.needName')}</p>}
 
         <form className="hub-code" onSubmit={(e) => { e.preventDefault(); void joinCode(); }}>
           <Icon name="key" size={20} />
-          <input className="code-input" value={code} maxLength={5} placeholder="CODE" aria-label="Code de la table ou du tournoi"
+          <input className="code-input" value={code} maxLength={5} placeholder="CODE" aria-label={tr('g421.hub.codeA')}
             onChange={(e) => { setCodeErr(null); setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')); }} />
-          <button className="btn primary small" disabled={!ready || code.length !== 5}>Rejoindre</button>
+          <button className="btn primary small" disabled={!ready || code.length !== 5}>{tr('g421.menu.join')}</button>
         </form>
         {codeErr && <p className="error small">{codeErr}</p>}
 
-        <Tabs label="Tables ou tournois" value={tab} onChange={setTab}
-          options={[{ v: 'tables', label: 'Tables', icon: 'dice', badge: nTables }, { v: 'tournois', label: 'Tournois', icon: 'trophy', badge: nTourn }]} />
+        <Tabs label={tr('g421.hub.tabs')} value={tab} onChange={setTab}
+          options={[{ v: 'tables', label: tr('g421.menu.tables'), icon: 'dice', badge: nTables }, { v: 'tournois', label: tr('g421.hub.tournois'), icon: 'trophy', badge: nTourn }]} />
 
         {tab === 'tables' ? (
           <>
-            <BigAction icon="dice" label="Partie rapide" sub="On vous trouve une table tout de suite" disabled={!ready} onClick={() => go(onQuick)} />
-            <Tile icon="plus" label="Créer une table" sub="Privée pour vos amis, ou publique" disabled={!ready} onClick={() => go(onCreateRoom)} />
-            <Section title="Tables publiques" count={lists ? nTables : undefined}>
+            <BigAction icon="dice" label={tr('g421.menu.quick')} sub={tr('g421.hub.quickSub')} disabled={!ready} onClick={() => go(onQuick)} />
+            <Tile icon="plus" label={tr('g421.on.createT')} sub={tr('g421.hub.createSub')} disabled={!ready} onClick={() => go(onCreateRoom)} />
+            <Section title={tr('g421.hub.public')} count={lists ? nTables : undefined}>
               {listErr && <p className="error small">{listErr}</p>}
-              {lists && !nTables && <Empty icon="dice" action={<button className="btn small" disabled={!ready} onClick={() => go(onCreateRoom)}>Ouvrir une table</button>}>Aucune table n'attend de joueurs. Ouvrez-en une : elle s'affichera ici.</Empty>}
+              {lists && !nTables && <Empty icon="dice" action={<button className="btn small" disabled={!ready} onClick={() => go(onCreateRoom)}>{tr('g421.hub.openOne')}</button>}>{tr('g421.hub.noneT')}</Empty>}
               <ul className="hub-list">
                 {lists?.lobbies.map((l) => (
                   <li key={l.code}>
-                    <span className="hub-seats" aria-label={`${l.players} joueurs sur ${l.max}`}><b>{l.players}</b>/{l.max}</span>
+                    <span className="hub-seats" aria-label={tr('g421.hub.seatsA', { a: l.players, b: l.max })}><b>{l.players}</b>/{l.max}</span>
                     <div className="l-main">
-                      <b>{l.title}</b>
-                      <small>{vName[l.variant] ?? l.variant} · {l.turnSeconds ? `${l.turnSeconds} s` : 'sans chrono'}</small>
-                      {l.stake ? <small><Coins n={l.stake} label="de mise" /></small> : <small>Sans mise</small>}
+                      <b>{trServer(l.title)}</b>
+                      <small>{trVariant(l.variant)} · {l.turnSeconds ? `${l.turnSeconds} s` : tr('g421.hub.noClock')}</small>
+                      {l.stake ? <small><Coins n={l.stake} label={tr('g421.hub.ofStake')} /></small> : <small>{tr('g421.on.noStake')}</small>}
                     </div>
                     <button className="btn small primary" disabled={!ready || !canPay(l.stake)} title={payHint(l.stake)} onClick={() => go(() => onJoinRoom(l.code))}>
-                      {payHint(l.stake) || 'Rejoindre'}
+                      {payHint(l.stake) || tr('g421.menu.join')}
                     </button>
                   </li>
                 ))}
@@ -116,21 +116,21 @@ export function OnlineHub({ tab: initial, settings, onSettings, pa, onBack, onJo
         ) : (
           <>
             {onJoinScheduled && <ScheduledCard pa={pa} onJoin={(c, pay) => go(() => onJoinScheduled(c, pay))} onAccount={onAccount ?? onBack} />}
-            <BigAction icon="trophy" tone="gold" label="Créer un tournoi" sub="Plusieurs tables, la meilleure moitié passe, jusqu'à la finale" disabled={!ready} onClick={() => go(onCreateTournament)} />
-            <Section title="Tournois ouverts" count={lists ? nTourn : undefined}>
+            <BigAction icon="trophy" tone="gold" label={tr('g421.t.create')} sub={tr('g421.hub.tSub')} disabled={!ready} onClick={() => go(onCreateTournament)} />
+            <Section title={tr('g421.hub.openT')} count={lists ? nTourn : undefined}>
               {listErr && <p className="error small">{listErr}</p>}
-              {lists && !nTourn && <Empty icon="trophy">Aucun tournoi public n'attend d'inscrits. Lancez le vôtre : il s'affichera ici.</Empty>}
+              {lists && !nTourn && <Empty icon="trophy">{tr('g421.hub.noneTour')}</Empty>}
               <ul className="hub-list">
                 {lists?.tournaments.map((t) => (
                   <li key={t.code}>
-                    <span className="hub-seats gold" aria-label={`${t.players} inscrits sur ${t.max}`}><b>{t.players}</b>/{t.max}</span>
+                    <span className="hub-seats gold" aria-label={tr('g421.hub.regA', { a: t.players, b: t.max })}><b>{t.players}</b>/{t.max}</span>
                     <div className="l-main">
-                      <b>{t.title}</b>
-                      <small>Par {t.host} · tables de {t.tableSize}</small>
-                      {t.stake ? <small><Coins n={t.stake} label={`d'entrée, ${t.payout === 'winner' ? 'tout au vainqueur' : 'podium payé'}`} /></small> : <small>{stakeLabel(0)}</small>}
+                      <b>{trServer(t.title)}</b>
+                      <small>{tr('g421.hub.by', { h: t.host, n: t.tableSize })}</small>
+                      {t.stake ? <small><Coins n={t.stake} label={tr(t.payout === 'winner' ? 'g421.hub.entryAll' : 'g421.hub.entryPod')} /></small> : <small>{tr('g421.on.noStake')}</small>}
                     </div>
                     <button className="btn small primary" disabled={!ready || !canPay(t.stake)} title={payHint(t.stake)} onClick={() => go(() => onJoinTournament(t.code))}>
-                      {payHint(t.stake) || "S'inscrire"}
+                      {payHint(t.stake) || tr('g421.hub.register')}
                     </button>
                   </li>
                 ))}
@@ -149,13 +149,13 @@ export function OnlineHub({ tab: initial, settings, onSettings, pa, onBack, onJo
 export function StakePicker({ value, onChange, pa, stakes }: { value: number; onChange: (v: number) => void; pa: ProfileApi; stakes: number[] }) {
   return (
     <div className="k-field">
-      <span className="k-label">Mise par joueur
-        <small>{!pa.isAccount ? 'Les mises demandent un compte (pièces gardées sur le serveur).' : `Vous avez ${pa.profile.coins.toLocaleString('fr-BE')} pièces.`}</small>
+      <span className="k-label">{tr('g421.hub.stakeL')}
+        <small>{!pa.isAccount ? tr('g421.hub.stakeAcc') : tr('g421.hub.haveCoins', { n: fmtNum(pa.profile.coins) })}</small>
       </span>
-      <div className="k-pills coins" role="radiogroup" aria-label="Mise par joueur">
+      <div className="k-pills coins" role="radiogroup" aria-label={tr('g421.hub.stakeL')}>
         {stakes.map((s) => (
           <button type="button" role="radio" aria-checked={s === value} key={s} className={s === value ? 'on' : ''} disabled={s > 0 && (!pa.isAccount || pa.profile.coins < s)} onClick={() => onChange(s)}>
-            {s === 0 ? 'Aucune' : s.toLocaleString('fr-BE')}
+            {s === 0 ? tr('g421.hub.none') : fmtNum(s)}
           </button>
         ))}
       </div>

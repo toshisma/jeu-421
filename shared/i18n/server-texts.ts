@@ -6,6 +6,7 @@
  */
 import { BARON, type Foreign } from './courtisan';
 import type { Lang } from './index';
+import { translateG421 } from './zones/jeu421-server';
 
 const N = '(.+)';
 const RULES: [RegExp, Record<Foreign, string>][] = [
@@ -99,6 +100,7 @@ const RULES: [RegExp, Record<Foreign, string>][] = [
 /** Texte du serveur dans la langue du joueur (français : rendu tel quel ; message inconnu : français). */
 export function translateServerText(lang: Lang, text: string): string {
   if (lang === 'fr') return text;
+  const g421 = translateG421(lang, text); if (g421 !== null) return g421;
   for (const [re, t] of RULES) {
     if (re.test(text)) {
       const out = text.replace(re, t[lang]).replace(/\bLe Baron\b/g, BARON[lang]);
