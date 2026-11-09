@@ -83,3 +83,31 @@ Captures mobiles : scripts `puppeteer-core` dans `scripts/` (Chrome : `/usr/bin/
 ## Idées validées pour la suite
 - **Tournée des comptoirs** : carrière de bistrots (solo + réputation en multi), étoiles, règles maison.
 - Charge rapide, mode spectateur, alerte d'onglet « À toi de jouer » (faits). Pas de musique : Sam l'a fait retirer.
+
+## État au 9 novembre 2026 (reprise dans une nouvelle conversation)
+Dernière version publiée : **0.49** (fenêtre « Créez un compte », cadeau de bienvenue, reprise invité plafonnée). Rapport d'inspection complet du 6/11 : https://claude.ai/artifact/FYnn23Wm4AkVZRDc1m3tyd (maquettes : https://claude.ai/artifact/2XXM8TngZ4mazyeyTBpUZt).
+
+### Failles et bugs encore ouverts (inspection du 6/11)
+- **Cadeau du jour à l'infini** et **défi du jour 3×/jour** : le serveur accepte la date du téléphone à ±1 jour (`server/accounts.ts` `clientDay` ~l.73 et routes cadeau/défi) → utiliser l'horloge du serveur.
+- **Solo 421 déclaré par le téléphone** : succès débloqués avec des combinaisons inventées, faux « a battu le Patron de la semaine » dans le fil d'actualité (`/solo/end`, paramètre `boss` non vérifié).
+- **Mort subite / variante aux points avec mise** : en cas d'égalité, l'hôte (1er assis) gagne toujours la cagnotte (`shared/engine.ts` tri par score ; `splitPot` de `shared/tournament.ts` jamais utilisé). Fin de charge : plusieurs sortis en même temps → classés par siège.
+- **421 en ligne** : un joueur qui abandonne touche quand même ses gains (table à mise, tournoi perso) ; pièces bloquées quand tout le monde quitte une table à mise (rendues seulement au redémarrage) ; recharger la page avec `?rejoindre=CODE` fait perdre la partie ; exclusion contournable par un invité.
+- **Comptes** : demandes d'amis en boucle (notifications sans limite) ; usurpation de pseudo (lettres grecques, noms des ordinateurs, nom libre à table) ; droits admin donnés par le seul pseudo (réserver les pseudos de `ADMIN_USERS`) ; erreurs serveur qui affichent les chemins des fichiers.
+- Mineurs : voir le rapport (textes « 1 pts », « 0 joueurs », « Or de octobre », titre coupé en partie, bulle de tchat qui cache le compteur…).
+
+### Coups Fourrés : points en suspens
+- Decks d'une seule famille (mono Chaînes / mono Pièges) ≈ 57 % en simulation ; duel ≈ 6,4 min (sous 7–9, seul levier = plus de jetons, refusé par Sam).
+- Choix à faire par Sam (non tranchés) : Le dé sous la table / Tournée générale relancent votre propre dé si personne n'a fini (garder ou « en second » seulement ?) ; Le grand enchaînement peut rejouer un Coup annulé ; Leurre annulé à la pose ne rapporte rien ; « Tant qu'on y est » ne compte que vos cartes ; tutoiement des ordinateurs du 421 et de « Tu paies ta tournée ! ».
+- Les anciens joueurs gardent l'ancienne version des decks de départ (pas de bouton « mettre à jour »).
+
+### Le Courtisan : points en suspens
+- 20 Groschen au départ seulement (bonus de bienvenue 100 proposé, pas validé) ; les ordinateurs « Débutant » permettent de gagner des Groschen facilement ; succès propres au Courtisan proposés, pas faits.
+
+### Idées proposées à Sam, pas faites
+Statistiques admin par carte (taux de jeu / de victoire réels), bouton « mettre à jour mes decks de départ », mode draft « Tirage au comptoir », défis de combo, partage de deck par code, Tournée des comptoirs. Sam a refusé les idées « tech » (secouer le téléphone, vidéo du 4-2-1, réalité augmentée…).
+
+### Méthode de travail qui a bien marché
+- Gros chantiers : un agent par chantier dans un worktree `/home/claude/wt-<nom>` (branche dédiée, `node_modules` copié), puis fusion dans `main`, `npx tsc`, `npx vitest run`, les deux builds, entrée Nouveautés, push. Vérifier régulièrement que l'agent avance (un agent est déjà resté bloqué 1 h 20 sans prévenir) et relancer.
+- Le hook d'arrêt demande de pousser : pousser `main` = publier. Sans accord de Sam, sauvegarder seulement sur une branche `wip-…`.
+- Tests parfois instables sous charge (cf-online, cf-tournament, collection, éclats CF) : les relancer seuls. Attention aux pseudos en double entre tests d'un même fichier (409).
+- Scripts navigateur : dans `scripts/tmp-*.mjs` (supprimés à la fin), serveur local sur un port libre, jamais `pkill -f` (tuer par PID).
