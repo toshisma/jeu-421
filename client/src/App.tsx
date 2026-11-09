@@ -370,7 +370,7 @@ export function App() {
       return <SoloSetup settings={settings} onBack={classic} onStart={startSolo} />;
     case 'solo':
       return <GameScreen controller={screen.controller} personas={screen.personas} settings={settings} onSettings={setSettings} onExit={classic}
-        appearance={profile.equipped} onGameStart={pa.onSoloStart} pa={pa}
+        appearance={profile.equipped} onGameStart={() => pa.onSoloStart()} pa={pa}
         onGameEnd={(st, ctx) => pa.onGameEnd(st, screen.controller.meId, ctx)} />;
     case 'online':
       return <OnlineFlow mode={screen.mode} settings={settings} onSettings={setSettings} onExit={classic} onCancel={() => setScreen({ name: 'hub', tab: 'tables' })}
@@ -393,7 +393,7 @@ export function App() {
       const c = screen.controller;
       const personas = Object.fromEntries(c.getMeta().filter((m) => m.isBot).map((m, i) => [m.id, PERSONAS.find((p) => p.name === m.name) ?? PERSONAS[i]]));
       return <GameScreen controller={c} personas={personas} settings={settings} onSettings={setSettings} onExit={classic}
-        appearance={profile.equipped} onGameStart={pa.onSoloStart} pa={pa} bossId={c.boss.id}
+        appearance={profile.equipped} onGameStart={() => pa.onSoloStart(c.boss.id)} pa={pa} bossId={c.boss.id}
         onGameEnd={(st, ctx) => pa.onGameEnd(st, c.meId, ctx)} />;
     }
     case 'party-setup':

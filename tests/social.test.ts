@@ -37,8 +37,9 @@ describe('amis et défis', () => {
     expect((await api('/friends/decline', { username: 'Alice' }, b)).ok).toBe(true);
     expect((await api('/notifications', undefined, b)).count).toBe(0);
     expect((await api('/duels', { username: 'Bob' }, a)).code).toBe(403); // pas encore amis
-    await api('/friends', { username: 'Bob' }, a);
-    expect((await api('/friends', { username: 'Alice' }, b)).result).toBe('accepted'); // il demandait aussi : amis
+    expect((await api('/friends', { username: 'Bob' }, a)).code).toBe(429); // refusée : pas de nouvelle demande avant 7 jours
+    expect((await api('/friends', { username: 'Alice' }, b)).result).toBe('sent'); // celui qui a refusé peut changer d'avis
+    expect((await api('/friends', { username: 'Bob' }, a)).result).toBe('accepted'); // elle demandait aussi : amis
     expect((await api('/friends', undefined, a)).friends.map((f: { username: string }) => f.username).sort()).toEqual(['Alice', 'Bob']);
     expect((await api('/friends', undefined, b)).friends.map((f: { username: string }) => f.username).sort()).toEqual(['Alice', 'Bob']);
     // Présence : Alice vient d'utiliser l'API, elle est en ligne, sans salon.

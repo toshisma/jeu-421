@@ -32,7 +32,20 @@ export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessa
   const [open, setOpen] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [toast, showToast] = useToast();
-  const load = () => { if (pa.token) api<{ friends: Friend[] }>('/friends', { token: pa.token }).then((r) => setList(r.friends.filter((f) => !f.me))).catch(() => {}); };
+  const [incoming, setIncoming] = useState<{ username: string; at: number }[]>([]);
+  const load = () => {
+    if (!pa.token) return;
+    api<{ friends: Friend[] }>('/friends', { token: pa.token }).then((r) => setList(r.friends.filter((f) => !f.me))).catch(() => {});
+    api<{ incoming: { username: string; at: number }[] }>('/friends/requests', { token: pa.token }).then((r) => setIncoming(r.incoming)).catch(() => {});
+  };
+  const answer = async (username: string, accept: boolean) => {
+    try {
+      await api(accept ? '/friends/accept' : '/friends/decline', { token: pa.token!, body: { username } });
+      showToast(accept ? `${username} est maintenant votre ami.` : `Demande de ${username} refusée.`);
+      setIncoming((l) => l.filter((x) => x.username !== username));
+      load();
+    } catch (x) { showToast((x as Error).message, 'err'); }
+  };
   useEffect(() => { load(); const t = setInterval(load, 20_000); return () => clearInterval(t); }, [pa.token]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!pa.isAccount) {
     return (
@@ -79,7 +92,22 @@ export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessa
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ajouter un ami par son pseudo" maxLength={20} aria-label="Pseudo d'un ami" />
         <button className="btn small primary" disabled={name.trim().length < 3}>Ajouter</button>
       </form>
-      {list?.length === 0 && <Empty icon="people">Pas encore d'amis : ajoutez un pseudo ci-dessus, ou partagez votre lien de parrainage depuis l'accueil.</Empty>}
+      {incoming.length > 0 && (
+        <Section title="Demandes reçues" count={incoming.length}>
+          <ul className="friends-list">
+            {incoming.map((r) => (
+              <li key={r.username} className="on friend-request">
+                <span className="fr-main"><Initial name={r.username} dot="off" /><span className="fr-name"><b>{r.username}</b><small>veut être votre ami</small></span></span>
+                <span className="friend-request-actions">
+                  <button className="btn small primary" onClick={() => void answer(r.username, true)}>Accepter</button>
+                  <button className="btn small ghost" onClick={() => void answer(r.username, false)}>Refuser</button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+      {list?.length === 0 && incoming.length === 0 && <Empty icon="people">Pas encore d'amis : ajoutez un pseudo ci-dessus, ou partagez votre lien de parrainage depuis l'accueil.</Empty>}
       {active.length > 0 && <Section title="En ligne" count={active.length}><ul className="friends-list">{active.map(row)}</ul></Section>}
       {away.length > 0 && <Section title="Hors ligne" count={away.length}><ul className="friends-list">{away.map(row)}</ul></Section>}
       {open && <ProfileView pa={pa} username={open} onClose={() => setOpen(null)} onInvite={onInvite} onMessage={onMessage} onWatch={onWatch} />}

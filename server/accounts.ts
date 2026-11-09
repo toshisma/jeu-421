@@ -33,16 +33,20 @@ import { cfCoinReward } from '../shared/cards/progress';
 import type { CfLevel } from '../shared/cards/ai';
 import { DIVISIONS, SEASON_DIE_FROM, SEASON_TITLE_FROM, divisionIndex, divisionOf, nextSeasonStart, seasonDelta, seasonOf } from '../shared/season';
 import { today } from '../shared/progress/quests';
+import { bossOfWeek } from '../shared/progress/boss';
+import { adminNameList, usernameProblem } from '../shared/names';
 import type { ComboKind } from '../shared/combos';
 import type { Difficulty } from '../shared/ai';
 import { applyDixMilleGame, dixMilleBagRoll, dixMilleOnlineReward, dixMilleReward } from '../shared/dixmille/reward';
-import type { DmLevel } from '../shared/dixmille/engine';
+import { DM_TARGETS, type DmLevel } from '../shared/dixmille/engine';
 
 export interface AccountsOptions {
   /** Pour les tests : configuration et appel Discord simulés. */
   discord?: { env?: Record<string, string | undefined>; api?: (code: string, redirect: string) => Promise<{ id: string; guilds: string[] }> };
   /** Durée minimale d'une partie solo pour être récompensée (anti-triche basique). */
   minSoloMs?: number;
+  /** Pseudos réservés à l'inscription (administrateurs) ; par défaut, la variable ADMIN_USERS. */
+  adminUsers?: string[];
   /** Parties solo récompensées par jour et par compte. */
   soloDailyCap?: number;
   /** Tentatives d'authentification par IP et par fenêtre de 10 minutes. */
@@ -55,7 +59,6 @@ export interface AccountsOptions {
   onSoloFinished?: (g: { id: string; userId: string; startedAt: number; opponents: number; won: boolean }) => void;
 }
 
-const USERNAME = /^[\p{L}\p{N}_.-]{3,20}$/u;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 function scryptHash(secret: string): Promise<string> {
@@ -70,17 +73,11 @@ function scryptVerify(secret: string, stored: string): Promise<boolean> {
   return new Promise((resolve) => scrypt(secret, Buffer.from(salt, 'base64'), expected.length, (err, key) =>
     resolve(!err && key.length === expected.length && timingSafeEqual(key, expected))));
 }
+/** Meilleur tour annoncé par le téléphone : au plus l'objectif le plus élevé, plus un dernier lancer. */
+const DM_DECLARED_TURN_MAX = Math.max(...DM_TARGETS) + 6000;
 const sha = (t: string) => createHash('sha256').update(t).digest('hex');
 const newRecoveryCode = () => Array.from({ length: 4 }, () =>
   Array.from({ length: 4 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('')).join('-');
-
-/** Jour du joueur (AAAA-MM-JJ, son fuseau), accepté s'il est à ±1 jour de la date du serveur. */
-export function clientDay(raw: unknown): string {
-  const server = today();
-  if (typeof raw !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return server;
-  const diff = Math.abs(Date.parse(raw) - Date.parse(server));
-  return Number.isFinite(diff) && diff <= 86400_000 ? raw : server;
-}
 
 function publicProfile(u: UserRow, p: Profile) {
   return { user: toPublic(u), profile: p };
@@ -90,10 +87,11 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   const MIN_SOLO = opts.minSoloMs ?? 20_000;
   const SOLO_CAP = opts.soloDailyCap ?? 40;
   const ATTEMPTS = opts.authAttempts ?? 12;
+  const admins = adminNameList(opts.adminUsers);
   const router = express.Router();
   // Parties solo en cours : gardées en base, pour survivre à un redémarrage du serveur (mise à jour).
   const soloGames = {
-    set: (token: string, v: { userId: string; startedAt: number }) => store.soloTokenSet(token, v.userId, v.startedAt),
+    set: (token: string, v: { userId: string; startedAt: number; boss: string | null }) => store.soloTokenSet(token, v.userId, v.startedAt, v.boss),
     get: (token: string) => store.soloTokenGet(token),
     delete: (token: string) => store.soloTokenDelete(token),
     prune: (before: number) => store.soloTokenPrune(before),
@@ -153,11 +151,11 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   router.post('/register', async (req, res) => {
     if (limited(req)) return fail(res, 429, 'Trop de tentatives, réessayez dans quelques minutes.');
     const { username, password, guestProfile } = req.body ?? {};
-    if (typeof username !== 'string' || !USERNAME.test(username.trim()))
-      return fail(res, 400, 'Pseudo : 3 à 20 caractères (lettres, chiffres, _ . -).');
+    const name = typeof username === 'string' ? username.trim().normalize('NFC') : '';
+    const nameIssue = usernameProblem(name, admins);
+    if (nameIssue) return fail(res, 400, nameIssue);
     if (typeof password !== 'string' || password.length < 8 || password.length > 200)
       return fail(res, 400, 'Mot de passe : au moins 8 caractères.');
-    const name = username.trim();
     if (store.userByName(name)) return fail(res, 409, 'Ce pseudo est déjà pris.');
     const recoveryCode = newRecoveryCode();
     // La progression d'invité de cet appareil est reprise une fois, à la création du compte.
@@ -179,7 +177,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   router.post('/login', async (req, res) => {
     if (limited(req)) return fail(res, 429, 'Trop de tentatives, réessayez dans quelques minutes.');
     const { username, password } = req.body ?? {};
-    const u = typeof username === 'string' ? store.userByName(username.trim()) : undefined;
+    const u = typeof username === 'string' ? store.userByName(username.trim()) ?? store.userByName(username.trim().normalize('NFC')) : undefined;
     // Même délai et même message que le compte existe ou non.
     const ok = await scryptVerify(typeof password === 'string' ? password : '', u?.pass_hash ?? 's1$AAAA$AAAA');
     if (!u || !ok) return fail(res, 401, 'Pseudo ou mot de passe incorrect.');
@@ -236,7 +234,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     res.json({ ok: true, profile: next });
   };
   router.post('/shop/buy', auth, (req, res) => mutate(req, res, (p) => {
-    const b = buy(p, String(req.body?.id ?? ''), clientDay(req.headers['x-day']));
+    const b = buy(p, String(req.body?.id ?? ''), today());
     return b ? equip(b, String(req.body.id)) : null;
   }, 'Achat impossible (pièces ou niveau insuffisants).'));
   router.post('/shop/equip', auth, (req, res) => mutate(req, res, (p) => equip(p, String(req.body?.id ?? '')), 'Objet non possédé.'));
@@ -249,9 +247,9 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     store.setMeta('feed', JSON.stringify(feed));
   };
   router.get('/feed', (_req, res) => { res.setHeader('Cache-Control', 'no-store'); res.json({ ok: true, feed: feed.slice(0, 12) }); });
-  const gameNews = (name: string, won: boolean, mode: 'solo' | 'online', count421: number, boss?: string) => {
-    if (boss && won) news(`🏆 ${name} a battu le Patron de la semaine !`);
-    else if (count421 >= 2) news(`🎲 ${name} a sorti ${count421} fois 4-2-1 dans la même partie !`);
+  // Uniquement des parties vérifiées par le serveur : une partie solo annoncée par le téléphone n'y publie rien.
+  const gameNews = (name: string, won: boolean, mode: 'online', count421: number) => {
+    if (count421 >= 2) news(`🎲 ${name} a sorti ${count421} fois 4-2-1 dans la même partie !`);
     else if (count421 === 1 && won) news(`🎲 ${name} a gagné avec un 4-2-1 !`);
     else if (won && mode === 'online') news(`🍻 ${name} a remporté une partie en ligne`);
   };
@@ -276,7 +274,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   router.post('/collection/showcase', auth, (req, res) =>
     mutate(req, res, (p) => setShowcase(p, Array.isArray(req.body?.ids) ? req.body.ids.map(String) : []), 'Vitrine invalide.'));
   router.post('/quests/claim', auth, (req, res) =>
-    mutate(req, res, (p) => claimQuest(p, String(req.body?.id ?? ''), clientDay(req.headers['x-day']))?.profile ?? null, 'Défi non accompli.'));
+    mutate(req, res, (p) => claimQuest(p, String(req.body?.id ?? ''), today())?.profile ?? null, 'Défi non accompli.'));
 
   router.post('/prestige', auth, (req, res) =>
     mutate(req, res, (p) => doPrestige(p), `Le prestige s'ouvre au niveau ${PRESTIGE_LEVEL}.`));
@@ -290,9 +288,9 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     res.json({ ok: true, coins: r.coins, bag: r.bag, profile: store.profileOf(store.userById(u.id)!) });
   });
   router.post('/daily/claim', auth, (req, res) =>
-    mutate(req, res, (p) => claimDaily(p, clientDay(req.headers['x-day']))?.profile ?? null, 'Récompense du jour déjà récupérée.'));
+    mutate(req, res, (p) => claimDaily(p, today())?.profile ?? null, 'Récompense du jour déjà récupérée.'));
   router.post('/season/claim', auth, (req, res) =>
-    mutate(req, res, (p) => claimPassTier(p, Number(req.body?.tier), clientDay(req.headers['x-day']))?.profile ?? null, 'Palier pas encore atteint.'));
+    mutate(req, res, (p) => claimPassTier(p, Number(req.body?.tier), today())?.profile ?? null, 'Palier pas encore atteint.'));
   router.post('/title', auth, (req, res) =>
     mutate(req, res, (p) => setTitle(p, req.body?.id == null ? null : String(req.body.id)), 'Titre non débloqué.'));
   router.post('/tutorial/done', auth, (req, res) =>
@@ -301,7 +299,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   // --- Défi du jour : le serveur rejoue les décisions et calcule le score officiel ---------------
   router.post('/challenge/submit', auth, (req, res) => {
     const u = userOf(req);
-    const day = clientDay(req.headers['x-day']);
+    const day = today();
     const result = playChallenge(day, req.body?.decisions);
     if (!result) return fail(res, 400, 'Partie du défi invalide.');
     if (!store.challengeAdd(day, u.id, result.points, result.throws)) return fail(res, 409, 'Vous avez déjà joué le défi du jour.');
@@ -317,7 +315,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   });
   router.get('/challenge/board', auth, (req, res) => {
     const u = userOf(req);
-    const day = clientDay(req.headers['x-day']);
+    const day = today();
     const mine = store.challengeOf(day, u.id);
     res.json({ ok: true, day, top: store.challengeTop(day), total: store.challengeCount(day), mine: mine ? { points: mine.points, throws: mine.throws, ...store.challengeRank(day, u.id) } : null });
   });
@@ -325,10 +323,13 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   // --- Parties solo (jouées sur l'appareil) ------------------------------------------------------
   // Le serveur ne voit pas la partie solo : il exige un jeton de début de partie, une durée minimale,
   // borne les valeurs et plafonne le nombre de parties récompensées par jour. Le classement, lui,
-  // ne compte que les parties en ligne, vérifiées par le serveur.
+  // ne compte que les parties en ligne, vérifiées par le serveur. Dés et décisions restent sur l'appareil :
+  // le résultat (gagné, place) est déclaré, les combinaisons sont plafonnées, le patron est fixé au départ.
   router.post('/solo/start', auth, (req, res) => {
     const token = randomBytes(18).toString('base64url');
-    soloGames.set(token, { userId: userOf(req).id, startedAt: Date.now() });
+    // Patron : seulement celui de la semaine (jour du serveur), noté dès le début de la partie.
+    const boss = typeof req.body?.boss === 'string' && req.body.boss === bossOfWeek(today()).id ? req.body.boss : null;
+    soloGames.set(token, { userId: userOf(req).id, startedAt: Date.now(), boss });
     soloGames.prune(Date.now() - 12 * 3600_000);
     res.json({ ok: true, gameToken: token });
   });
@@ -341,29 +342,41 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     soloGames.delete(b.gameToken);
     // La partie est terminée : elle compte dans les statistiques, même au-delà du plafond de récompenses.
     opts.onSoloFinished?.({ id: b.gameToken, userId: u.id, startedAt: g.startedAt, opponents: Math.min(5, Math.max(1, Math.floor(Number(b.opponents) || 1))), won: !!b.won });
-    const day = clientDay(req.headers['x-day']);
+    const day = today();
     if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.');
     const int = (v: unknown, min: number, max: number) => Math.min(max, Math.max(min, Math.floor(Number(v) || 0)));
     const diffs: Difficulty[] = ['facile', 'normal', 'difficile'];
+    // Plafonds de vraisemblance : au plus 8 lancers par manche, 3 s par manche et 0,8 s par lancer
+    // (avec une marge). Ils ne réduisent que des totaux impossibles à atteindre en jouant vraiment.
+    const elapsed = Date.now() - g.startedAt;
+    const declaredRounds = int(b.rounds, 1, 200);
+    const roundsPlayed = Math.min(declaredRounds, Math.floor(elapsed / 3000) + 5);
+    const throwBudget = Math.min(declaredRounds * 8, Math.floor(elapsed / 800) + 5);
     const combos: Partial<Record<ComboKind, number>> = {};
-    for (const k of ['421', '111', '11x', 'brelan', 'suite', 'nenette', 'autre'] as ComboKind[]) combos[k] = int(b.combos?.[k], 0, 60);
+    let throwsLeft = throwBudget;
+    const rareCap: Partial<Record<ComboKind, number>> = { '421': 3 + Math.floor(roundsPlayed / 5), '111': 2 + Math.floor(roundsPlayed / 10) };
+    for (const k of ['421', '111', '11x', 'brelan', 'suite', 'nenette', 'autre'] as ComboKind[]) {
+      const n = Math.min(int(b.combos?.[k], 0, 60), rareCap[k] ?? Infinity, throwsLeft);
+      combos[k] = n;
+      throwsLeft -= n;
+    }
     const ctx: RewardContext = {
       mode: 'solo',
       opponents: int(b.opponents, 1, 5),
       difficulty: diffs.includes(b.difficulty) ? b.difficulty : 'normal',
       count421: Math.min(int(b.count421, 0, 60), combos['421'] ?? 0),
       combos,
-      gestureThrows: int(b.gestureThrows, 0, 300),
-      rounds: int(b.rounds, 1, 200),
-      roundsLost: b.roundsLost === undefined || b.roundsLost === null ? undefined : int(b.roundsLost, 0, 200),
+      gestureThrows: Math.min(int(b.gestureThrows, 0, 300), throwBudget),
+      rounds: declaredRounds,
+      roundsLost: b.roundsLost === undefined || b.roundsLost === null ? undefined : int(b.roundsLost, 0, declaredRounds),
       maxTokens: int(b.maxTokens, 0, 99),
       day,
       suddenDeath: !!b.suddenDeath || int(b.rounds, 1, 200) <= 1,
-      comboKeys: Array.isArray(b.comboKeys) ? b.comboKeys.filter((k: unknown) => typeof k === 'string' && ALBUM_KEYS.includes(k)).slice(0, 30) : [],
+      comboKeys: Array.isArray(b.comboKeys) ? b.comboKeys.filter((k: unknown) => typeof k === 'string' && ALBUM_KEYS.includes(k)).slice(0, Math.min(30, throwBudget)) : [],
       best: b.best && typeof b.best.label === 'string' ? { label: String(b.best.label).slice(0, 30), rank: int(b.best.rank, 0, 2000) } : undefined,
       opponentNames: Array.isArray(b.opponentNames) ? b.opponentNames.filter((n: unknown) => typeof n === 'string').map((n: string) => n.slice(0, 20)).slice(0, 5) : [],
       hour: brusselsHour(),
-      boss: typeof b.boss === 'string' ? b.boss.slice(0, 20) : undefined,
+      boss: g.boss ?? undefined, // celui noté au début de la partie : le `boss` envoyé à la fin est ignoré
       // Place annoncée (bornée) ; durée mesurée par le serveur, depuis le début de la partie.
       place: b.won ? 1 : int(b.place, 2, int(b.opponents, 1, 5) + 1),
       minutes: (Date.now() - g.startedAt) / 60000,
@@ -373,7 +386,6 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const applied = applyGameEnd(store.profileOf(u), reward, ctx, day);
     store.saveProfile(u.id, applied.profile);
     if (!ctx.suddenDeath) { leagueGain(u.id, reward.xp); checkReferral(u.id); if (b.won) clubWin(u.id); }
-    gameNews(u.username, !!b.won, 'solo', ctx.count421 ?? 0, ctx.boss);
     res.json({ ok: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
   });
 
@@ -382,7 +394,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   const clock = () => opts.now?.() ?? Date.now();
   router.post('/dixmille/start', auth, (req, res) => {
     const token = randomBytes(18).toString('base64url');
-    soloGames.set(token, { userId: userOf(req).id, startedAt: clock() });
+    soloGames.set(token, { userId: userOf(req).id, startedAt: clock(), boss: null });
     soloGames.prune(clock() - 12 * 3600_000);
     res.json({ ok: true, gameToken: token });
   });
@@ -393,19 +405,19 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     if (!g || g.userId !== u.id) return fail(res, 400, 'Partie inconnue.');
     if (clock() - g.startedAt < MIN_SOLO) return fail(res, 400, 'Partie trop courte pour être récompensée.');
     soloGames.delete(b.gameToken);
-    const day = clientDay(req.headers['x-day']);
+    const day = today();
     if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.');
     const levels: DmLevel[] = ['debutant', 'habitue', 'fouine'];
     const opponents = Math.min(3, Math.max(1, Math.floor(Number(b.opponents) || 1)));
     const reward = dixMilleReward({
-      won: !!b.won, place: Math.floor(Number(b.place) || opponents + 1), opponents,
+      won: !!b.won, place: b.won ? 1 : Math.min(opponents + 1, Math.max(2, Math.floor(Number(b.place) || opponents + 1))), opponents,
       level: levels.includes(b.level) ? b.level : 'habitue', minutes: (clock() - g.startedAt) / 60000, day, now: clock(),
     });
     // Sac de dés : durée mesurée ici ; le résultat annoncé par le téléphone ne change pas la chance.
     const level: DmLevel = levels.includes(b.level) ? b.level : 'habitue';
     const applied = applyDixMilleGame(store.profileOf(u), reward, day, {
       won: !!b.won, players: opponents + 1, minutes: (clock() - g.startedAt) / 60000, mode: 'solo', level,
-      bestTurn: Number(b.bestTurn) || 0, declared: true,
+      bestTurn: Math.min(DM_DECLARED_TURN_MAX, Math.max(0, Math.floor(Number(b.bestTurn) || 0))), declared: true,
     });
     store.saveProfile(u.id, applied.profile);
     leagueGain(u.id, reward.xp);

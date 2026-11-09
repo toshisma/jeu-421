@@ -29,9 +29,8 @@ let base = '';
 beforeAll(async () => { srv = await startServer({ port: 0, dbPath: ':memory:', accounts: { authAttempts: 1000 } }); base = `http://localhost:${srv.port}`; });
 afterAll(async () => { await srv.close(); });
 const call = async (path: string, body?: object, token?: string) => {
-  const day = new Date().toISOString().slice(0, 10);
   const r = await fetch(`${base}/api${path}`, { method: body ? 'POST' : 'GET', body: body ? JSON.stringify(body) : undefined,
-    headers: { 'Content-Type': 'application/json', 'X-Day': day, ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
   return { status: r.status, ...(await r.json()) };
 };
 

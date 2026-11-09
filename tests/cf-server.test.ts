@@ -259,18 +259,18 @@ describe('Coups Fourrés : serveur', () => {
   });
 
   it('partie classée : 15 / 5 capsules, points de ligue, plancher de division, historique', async () => {
-    const d = await reg('Dede'), e = await reg('Emma');
+    const d = await reg('Didier'), e = await reg('Emma');
     const r = cards().recordCfGame({ winnerId: d.id, loserId: e.id, ranked: true, vsBot: false });
     const w = r.find((x) => x.userId === d.id)!, l = r.find((x) => x.userId === e.id)!;
     expect(w).toMatchObject({ capsules: CAPSULES.rankedWin, booster: true, points: 25, leaguePoints: 25 });
     expect(l).toMatchObject({ capsules: CAPSULES.rankedLoss, booster: false, points: 0, leaguePoints: 0 }); // plancher 0
     const lg = await api('/cf/league', undefined, d.token);
     expect(lg.me).toMatchObject({ points: 25, division: 'comptoir', games: 1, wins: 1, rank: 1 });
-    expect(lg.top[0]).toMatchObject({ username: 'Dede', points: 25 });
+    expect(lg.top[0]).toMatchObject({ username: 'Didier', points: 25 });
     expect(lg.divisions).toHaveLength(5);
     expect(lg.me.endsOn).toMatch(/^\d{4}-\d{2}-01$/);
     const hist = (await me(e.token)).history[0];
-    expect(hist).toMatchObject({ opponent: 'Dede', ranked: true, result: 'defaite', points: 0, capsules: CAPSULES.rankedLoss });
+    expect(hist).toMatchObject({ opponent: 'Didier', ranked: true, result: 'defaite', points: 0, capsules: CAPSULES.rankedLoss });
     // Plancher : à 310 (Bistrot), une défaite ne fait pas redescendre sous 300.
     const season = lg.me.season;
     srv.store.cfLeagueSet({ season, user_id: d.id, points: 310, best: 310, games: 5, wins: 5, updated_at: clock });
@@ -322,7 +322,7 @@ describe('Coups Fourrés : serveur', () => {
     expect(pick.state.collection['retournement-veste'].count).toBe(1);
     expect(pick.state.legendPicks).toBe(0);
     // Les joueurs de Comptoir : 1 booster ; Dede (Bistrot) : 2 boosters, repart à 0.
-    const dede = srv.store.userByName('Dede')!;
+    const dede = srv.store.userByName('Didier')!;
     expect(srv.store.cfLeagueRow(`${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, '0')}`, dede.id)).toBeUndefined();
   });
 

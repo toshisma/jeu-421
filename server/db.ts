@@ -216,6 +216,17 @@ export class Store {
       'league INTEGER NOT NULL DEFAULT 0', 'referred_by TEXT', 'referral_paid INTEGER NOT NULL DEFAULT 0']) {
       try { this.db.exec(`ALTER TABLE users ADD COLUMN ${col}`); } catch { /* déjà présente */ }
     }
+    try { this.db.exec('ALTER TABLE solo_tokens ADD COLUMN boss TEXT'); } catch { /* déjà présente */ }
+    // Demandes d'amis : dernier envoi et dernier refus, par expéditeur et destinataire (voir server/social.ts).
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS friend_request_limits (
+        from_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        to_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        sent_at INTEGER NOT NULL DEFAULT 0,
+        declined_at INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (from_id, to_id)
+      );
+    `);
     // Messages privés entre amis (read_at : lu par le destinataire, NULL sinon).
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS private_messages (
@@ -485,6 +496,21 @@ export class Store {
   // --- Demandes d'amis ---
   friendRequest(fromId: string, toId: string) { this.db.prepare('INSERT OR IGNORE INTO friend_requests (from_id, to_id, created_at) VALUES (?, ?, ?)').run(fromId, toId, Date.now()); }
   hasFriendRequest(fromId: string, toId: string): boolean { return !!this.db.prepare('SELECT 1 FROM friend_requests WHERE from_id = ? AND to_id = ?').get(fromId, toId); }
+  friendLimit(fromId: string, toId: string): { sentAt: number; declinedAt: number } {
+    const r = this.db.prepare('SELECT sent_at, declined_at FROM friend_request_limits WHERE from_id = ? AND to_id = ?').get(fromId, toId) as { sent_at: number; declined_at: number } | undefined;
+    return { sentAt: r?.sent_at ?? 0, declinedAt: r?.declined_at ?? 0 };
+  }
+  friendSentMark(fromId: string, toId: string, at: number) {
+    this.db.prepare('INSERT INTO friend_request_limits (from_id, to_id, sent_at) VALUES (?, ?, ?) ON CONFLICT (from_id, to_id) DO UPDATE SET sent_at = excluded.sent_at').run(fromId, toId, at);
+  }
+  friendDeclineMark(fromId: string, toId: string, at: number) {
+    this.db.prepare('INSERT INTO friend_request_limits (from_id, to_id, declined_at) VALUES (?, ?, ?) ON CONFLICT (from_id, to_id) DO UPDATE SET declined_at = excluded.declined_at').run(fromId, toId, at);
+  }
+  friendLimitClear(a: string, b: string) { this.db.prepare('DELETE FROM friend_request_limits WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)').run(a, b, b, a); }
+  /** Demandes envoyées depuis `since` (à des personnes différentes). */
+  friendSentSince(fromId: string, since: number): number {
+    return (this.db.prepare('SELECT COUNT(*) AS n FROM friend_request_limits WHERE from_id = ? AND sent_at >= ?').get(fromId, since) as { n: number }).n;
+  }
   deleteFriendRequest(fromId: string, toId: string) { this.db.prepare('DELETE FROM friend_requests WHERE from_id = ? AND to_id = ?').run(fromId, toId); }
   incomingRequests(userId: string) {
     return this.db.prepare('SELECT u.username AS username, r.created_at AS at FROM friend_requests r JOIN users u ON u.id = r.from_id WHERE r.to_id = ? ORDER BY r.created_at DESC').all(userId) as unknown as { username: string; at: number }[];
@@ -542,12 +568,12 @@ export class Store {
   }
 
   // --- Parties solo en cours (jetons) ---
-  soloTokenSet(token: string, userId: string, startedAt: number) {
-    this.db.prepare('INSERT OR REPLACE INTO solo_tokens (token, user_id, started_at) VALUES (?, ?, ?)').run(token, userId, startedAt);
+  soloTokenSet(token: string, userId: string, startedAt: number, boss: string | null = null) {
+    this.db.prepare('INSERT OR REPLACE INTO solo_tokens (token, user_id, started_at, boss) VALUES (?, ?, ?, ?)').run(token, userId, startedAt, boss);
   }
-  soloTokenGet(token: string): { userId: string; startedAt: number } | undefined {
-    const r = this.db.prepare('SELECT user_id, started_at FROM solo_tokens WHERE token = ?').get(token) as { user_id: string; started_at: number } | undefined;
-    return r ? { userId: r.user_id, startedAt: r.started_at } : undefined;
+  soloTokenGet(token: string): { userId: string; startedAt: number; boss: string | null } | undefined {
+    const r = this.db.prepare('SELECT user_id, started_at, boss FROM solo_tokens WHERE token = ?').get(token) as { user_id: string; started_at: number; boss: string | null } | undefined;
+    return r ? { userId: r.user_id, startedAt: r.started_at, boss: r.boss } : undefined;
   }
   soloTokenDelete(token: string) { this.db.prepare('DELETE FROM solo_tokens WHERE token = ?').run(token); }
   soloTokenPrune(before: number) { this.db.prepare('DELETE FROM solo_tokens WHERE started_at < ?').run(before); }

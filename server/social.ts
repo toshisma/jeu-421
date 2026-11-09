@@ -17,6 +17,10 @@ import { happyHourOfDay } from '../shared/progress/events';
 
 export const DUEL_STAKES = [0, 10, 25, 50];
 export const DUEL_HOURS = 72;
+/** Après un refus : délai avant de pouvoir redemander la même personne. */
+export const FRIEND_RETRY_DAYS = 7;
+/** Demandes d'amis (personnes différentes) par expéditeur et par 24 h. */
+export const FRIEND_REQUESTS_PER_DAY = 20;
 
 interface Ctx {
   router: Router;
@@ -84,13 +88,21 @@ export function createSocial(c: Ctx) {
     if (store.isFriend(me.id, f.id) && store.isFriend(f.id, me.id)) return fail(res, 409, 'Vous êtes déjà amis.');
     if (store.hasFriendRequest(f.id, me.id)) { accept(me, f); return res.json({ ok: true, result: 'accepted' }); }
     if (store.hasFriendRequest(me.id, f.id)) return res.json({ ok: true, result: 'pending' });
+    const t = c.now(), limits = store.friendLimit(me.id, f.id);
+    if (limits.declinedAt && t - limits.declinedAt < FRIEND_RETRY_DAYS * 86400_000) return fail(res, 429, `Ce joueur a refusé votre demande : réessayez dans quelques jours (${FRIEND_RETRY_DAYS} jours après le refus).`);
+    const renewed = t - limits.sentAt < 86400_000; // demande annulée puis renvoyée : pas de nouvelle notification
+    if (!renewed && store.friendSentSince(me.id, t - 86400_000) >= FRIEND_REQUESTS_PER_DAY) return fail(res, 429, 'Trop de demandes d’amis aujourd’hui : réessayez demain.');
     store.friendRequest(me.id, f.id);
-    void push(f.id, 'Demande d’ami', `${me.username} veut être votre ami.`, '/?notifs=1');
+    if (!renewed) {
+      store.friendSentMark(me.id, f.id, t);
+      void push(f.id, 'Demande d’ami', `${me.username} veut être votre ami.`, '/?notifs=1');
+    }
     res.json({ ok: true, result: 'sent' });
   }
   function accept(me: UserRow, f: UserRow) {
     store.deleteFriendRequest(f.id, me.id);
     store.deleteFriendRequest(me.id, f.id);
+    store.friendLimitClear(me.id, f.id);
     store.addFriend(me.id, f.id);
     store.addFriend(f.id, me.id);
     void push(f.id, 'Nouvel ami', `${me.username} a accepté votre demande d’ami.`);
@@ -108,7 +120,11 @@ export function createSocial(c: Ctx) {
   });
   router.post('/friends/decline', auth, (req, res) => {
     const me = userOf(req), f = target(req);
-    if (f) { store.deleteFriendRequest(f.id, me.id); store.deleteFriendRequest(me.id, f.id); }
+    if (f) {
+      if (store.hasFriendRequest(f.id, me.id)) store.friendDeclineMark(f.id, me.id, c.now());
+      store.deleteFriendRequest(f.id, me.id);
+      store.deleteFriendRequest(me.id, f.id);
+    }
     res.json({ ok: true });
   });
   router.delete('/friends/:username', auth, (req, res) => {

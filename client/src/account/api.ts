@@ -1,6 +1,5 @@
 /** Appels à l'API des comptes (même serveur que le multijoueur). */
 import { SERVER_URL } from '../platform';
-import { today } from '../../../shared/progress/quests';
 
 const KEY = '421.compte';
 
@@ -24,7 +23,6 @@ export async function api<T = Record<string, unknown>>(path: string, opts: { bod
       method: opts.method ?? (opts.body ? 'POST' : 'GET'),
       headers: {
         'Content-Type': 'application/json',
-        'X-Day': today(),
         ...(opts.token ? { Authorization: `Bearer ${opts.token}` } : {}),
       },
       body: opts.body ? JSON.stringify(opts.body) : undefined,

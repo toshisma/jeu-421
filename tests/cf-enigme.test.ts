@@ -156,7 +156,7 @@ describe('Énigme du jour : serveur', () => {
   });
 
   it('refuse l’énigme d’un autre jour', async () => {
-    const d = await reg('Dédé');
+    const d = await reg('Didier');
     const r = await api('/cf/enigme', { day: '2026-11-09', actions: dailyPuzzle('2026-11-09').solution }, d);
     expect(r.code).toBe(409);
   });

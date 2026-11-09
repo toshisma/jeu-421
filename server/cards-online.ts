@@ -92,12 +92,10 @@ export const CF_KEEP_WINDOW_MS = 15000;
 export interface CfGameEnd { id: string; mode: CfGameMode; winner: string; losers: string[]; abandon: string | null }
 
 // --- Parties contre l'ordinateur ------------------------------------------------------------------
+import { CF_BOT_NAMES } from '../shared/bot-names';
+
 const LEVELS: CfLevel[] = ['debutant', 'habitue', 'fine-fouine'];
-/** Noms de bistrot originaux pour les ordinateurs. */
-export const CF_BOT_NAMES = [
-  'Mimile du comptoir', 'Tonton Gaston', 'La Mère Ginette', 'Fredo des Halles', 'Bébert la Tournée', 'Le Grand Raymond',
-  'Zézette', 'Momo le Zingueur', 'Riton du Marché', 'Paulette Belote', 'Dédé Deux-Dés', 'Nénette du Port',
-];
+export { CF_BOT_NAMES };
 const deckList = (cards: Record<string, number>) => CARDS.flatMap((c) => Array<string>(cards[c.id] ?? 0).fill(c.id));
 const RARITY_WEIGHT: Record<CardRarity, number> = { commune: 8, rare: 3, epique: 1, legendaire: 0.4 };
 

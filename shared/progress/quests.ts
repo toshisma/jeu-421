@@ -46,9 +46,12 @@ export const QUESTS: QuestDef[] = [
 
 export interface QuestState { day: string; progress: Record<string, number>; claimed: string[] }
 
-/** Jour local au format AAAA-MM-JJ. */
+const BRUSSELS_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Brussels', year: 'numeric', month: '2-digit', day: '2-digit' });
+
+/** Jour officiel du jeu (fuseau de Bruxelles) au format AAAA-MM-JJ : le même sur tous les appareils et sur le serveur. */
 export function today(d = new Date()): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const part = (type: string) => BRUSSELS_DAY.formatToParts(d).find((p) => p.type === type)!.value;
+  return `${part('year')}-${part('month')}-${part('day')}`;
 }
 
 /** Les 3 défis du jour, toujours dont un défi « facile » (jouer / gagner) pour tout le monde. */

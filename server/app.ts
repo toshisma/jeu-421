@@ -20,11 +20,14 @@ import {
   type LobbyEntry, type PublicTournament, type TableSettings, type TournamentEntry, type TournamentSettings,
 } from '../shared/tournament';
 import { Store } from './db';
-import { clientDay, createAccounts, type AccountsOptions } from './accounts';
+import { createAccounts, type AccountsOptions } from './accounts';
 import { createStats, type StatsOptions } from './stats';
 import { createAdmin } from './admin';
 import { createModeration, type TableChatEntry } from './moderation';
 import { muteText } from '../shared/moderation';
+import { today } from '../shared/progress/quests';
+import { COUNTER_BOTS } from '../shared/bot-names';
+import { adminNameList, avoidBotName, guestLabel, tableName } from '../shared/names';
 import { canonicalHostRedirect, serveClient } from './static';
 import { albumKey, botTableRules, didWin, finalPlace } from '../shared/progress/profile';
 import type { ComboKind } from '../shared/combos';
@@ -210,11 +213,7 @@ const cleanDice = (v: unknown) => {
 /** Les ordinateurs en ligne jouent avec un dé de collection commun ou rare. */
 const botDice = () => { const pool = COLLECTION.filter((c) => c.rarity === 'commun' || c.rarity === 'rare'); return pool[randomInt(pool.length)].id; };
 const cleanCode = (v: unknown) => (typeof v === 'string' && /^[A-Z0-9]{5}$/.test(v.toUpperCase()) ? v.toUpperCase() : null);
-const BOTS: { name: string; avatar: string }[] = [
-  { name: 'Marcel', avatar: '🐻' }, { name: 'Josiane', avatar: '🦉' }, { name: 'Le Baron', avatar: '🎩' }, { name: 'Lulu', avatar: '🦊' },
-  { name: 'Dédé', avatar: '⚓' }, { name: 'Simone', avatar: '🍷' }, { name: 'Gégé', avatar: '🐸' }, { name: 'Fernand', avatar: '🐙' },
-  { name: 'Odette', avatar: '🍀' }, { name: 'Raymond', avatar: '🦁' }, { name: 'Huguette', avatar: '🐧' }, { name: 'Firmin', avatar: '🐯' },
-];
+const BOTS = COUNTER_BOTS;
 const DIFFS: Difficulty[] = ['facile', 'normal', 'difficile'];
 const cleanDiff = (v: unknown): Difficulty => (DIFFS.includes(v as Difficulty) ? (v as Difficulty) : 'normal');
 /** Nom libre pour un ordinateur (pas deux fois le même à une table). */
@@ -258,6 +257,7 @@ export async function startServer(opts: ServerOptions) {
   const store = new Store(opts.dbPath ?? (process.env.VITEST ? ':memory:' : process.env.DATABASE_PATH ?? 'data/421.sqlite'));
   // eslint-disable-next-line prefer-const
   let stats: ReturnType<typeof createStats>;
+  const adminNames = adminNameList(opts.accounts?.adminUsers);
   const accounts = createAccounts(store, { ...opts.accounts, onSoloFinished: (g) => stats.recordSolo(g) });
   const rooms = new Map<string, Room>();
   const tournaments = new Map<string, Tournament>();
@@ -460,6 +460,7 @@ export async function startServer(opts: ServerOptions) {
     io, store, userFromToken: accounts.userFromToken, banOf: admin.banOf, muteOf: moderation.muteOf, publicInfo: accounts.publicInfo,
     isBlocked: accounts.isBlocked, reward: accounts.dixMilleOnlineEnd, groschen,
     recordChat: (e) => { tableChat.push(e); if (tableChat.length > TABLE_CHAT_KEEP) tableChat.splice(0, tableChat.length - TABLE_CHAT_KEEP); },
+    adminNames,
     taken: (code) => rooms.has(code) || tournaments.has(code), opts: opts.dm,
   });
   dmPresence = dmOnline.presence;
@@ -1260,16 +1261,19 @@ export async function startServer(opts: ServerOptions) {
     };
     const safeAck = (ack: unknown) => (typeof ack === 'function' ? (ack as (a: Ack<any>) => void) : () => {});
     const attach = (r: Room, m: Member) => attachSocket(socket, r, m);
+    /** Nom à table : le pseudo pour un compte ; pour un invité, le nom choisi (sauf celui d'un administrateur). */
+    const seatName = (p: any) => tableName(accounts.userFromToken(p?.auth), cleanName(p?.name), adminNames);
 
     socket.on('room:create', (p: any, ack: unknown) => {
       const reply = safeAck(ack);
-      const name = cleanName(p?.name);
-      if (!name) return reply({ ok: false, error: 'Choisissez un nom' });
+      const seat = seatName(p);
+      if ('error' in seat) return reply({ ok: false, error: seat.error });
+      const name = seat.name;
       const userId = accounts.userFromToken(p?.auth)?.id;
       const table = sanitizeTable(p?.table);
       const problem = stakeProblem(userId, table.stake);
       if (problem) return reply({ ok: false, error: problem });
-      const m: Member = { id: randomUUID(), token: randomUUID(), name, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), ready: true, socketId: null, left: false, disconnectedAt: null, userId, day: clientDay(p?.day) };
+      const m: Member = { id: randomUUID(), token: randomUUID(), name, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), ready: true, socketId: null, left: false, disconnectedAt: null, userId, day: today() };
       const r = makeRoom({ title: `Table de ${name}`, host: m, members: [m], config: sanitizeConfig(p?.config ?? DEFAULT_CONFIG), table });
       attach(r, m);
       reply({ ok: true, code: r.code, playerId: m.id, token: m.token });
@@ -1315,8 +1319,9 @@ export async function startServer(opts: ServerOptions) {
 
     /** Nouveau joueur à une table en attente. */
     function seatNew(r: Room, p: any): Ack<{ code: string; playerId: string; token: string }> {
-      const name = cleanName(p?.name);
-      if (!name) return { ok: false, error: 'Choisissez un nom' };
+      const seat = seatName(p);
+      if ('error' in seat) return { ok: false, error: seat.error };
+      const name = seat.name;
       if (r.status !== 'lobby') return { ok: false, error: 'La partie a déjà commencé.' };
       if (seatsTaken(r) >= r.table.maxPlayers) return { ok: false, error: `Le salon est complet (${r.table.maxPlayers} joueurs).` };
       const userId = accounts.userFromToken(p?.auth)?.id;
@@ -1331,10 +1336,11 @@ export async function startServer(opts: ServerOptions) {
         broadcastRoom(r);
         return { ok: true, code: r.code, playerId: same.id, token: same.token };
       }
-      let finalName = name;
-      for (let k = 2; r.members.some((m) => m.name === finalName); k++) finalName = `${name} ${k}`;
+      const wanted = userId ? name : avoidBotName(name, r.members.filter((m) => m.bot).map((m) => m.name));
+      let finalName = wanted;
+      for (let k = 2; r.members.some((m) => m.name === finalName); k++) finalName = `${wanted} ${k}`;
       // Partie rapide : pas de bouton « prêt », le départ est automatique.
-      const m: Member = { id: randomUUID(), token: randomUUID(), name: finalName, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), ready: !!r.quick, socketId: null, left: false, disconnectedAt: null, userId, day: clientDay(p?.day) };
+      const m: Member = { id: randomUUID(), token: randomUUID(), name: finalName, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), ready: !!r.quick, socketId: null, left: false, disconnectedAt: null, userId, day: today() };
       // Un vrai joueur prend la place d'un ordinateur de complément.
       const filler = [...r.members].reverse().find((x) => x.filler);
       if (filler) r.members = r.members.filter((x) => x !== filler);
@@ -1349,7 +1355,8 @@ export async function startServer(opts: ServerOptions) {
     // Partie rapide : une table publique sans mise qui attend des joueurs, sinon une nouvelle.
     socket.on('room:quick', (p: any, ack: unknown) => {
       const reply = safeAck(ack);
-      if (!cleanName(p?.name)) return reply({ ok: false, error: 'Choisissez un nom' });
+      const seat = seatName(p);
+      if ('error' in seat) return reply({ ok: false, error: seat.error });
       const userId = accounts.userFromToken(p?.auth)?.id;
       // Tables compatibles : publiques, sans mise, avec une place (un ordinateur de complément cède la sienne).
       // D'abord celles où il y a le plus de vrais joueurs, puis les parties rapides, puis les plus anciennes.
@@ -1359,8 +1366,8 @@ export async function startServer(opts: ServerOptions) {
         && !(userId && r.kicked?.has(userId)))
         .sort((a, b) => humansAt(b) - humansAt(a) || Number(!!b.quick) - Number(!!a.quick) || a.startedAt - b.startedAt);
       if (candidates.length) return reply(seatNew(candidates[0], p));
-      const name = cleanName(p.name)!;
-      const m: Member = { id: randomUUID(), token: randomUUID(), name, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), ready: true, socketId: null, left: false, disconnectedAt: null, userId, day: clientDay(p?.day) };
+      const name = seat.name;
+      const m: Member = { id: randomUUID(), token: randomUUID(), name, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), ready: true, socketId: null, left: false, disconnectedAt: null, userId, day: today() };
       const r = makeRoom({ title: `Partie rapide de ${name}`, host: m, members: [m], config: DEFAULT_CONFIG, table: { visibility: 'public', maxPlayers: 4, stake: 0 } });
       r.quick = { waitSince: Date.now(), fillAt: null, startAt: null, timer: null };
       attach(r, m);
@@ -1543,7 +1550,7 @@ export async function startServer(opts: ServerOptions) {
       const problem = watchProblem(r, user?.id);
       if (problem) return reply({ ok: false, error: problem });
       unwatch(socket);
-      const name = user?.username ?? cleanName(p?.name) ?? 'Spectateur';
+      const name = user?.username ?? guestLabel(cleanName(p?.name), adminNames) ?? 'Spectateur';
       r.spectators.set(socket.id, { name, userId: user?.id });
       socket.data.watch = r.code;
       socket.join(r.code);
@@ -1627,13 +1634,14 @@ export async function startServer(opts: ServerOptions) {
 
     socket.on('tournament:create', (p: any, ack: unknown) => {
       const reply = safeAck(ack);
-      const name = cleanName(p?.name);
-      if (!name) return reply({ ok: false, error: 'Choisissez un nom' });
+      const seat = seatName(p);
+      if ('error' in seat) return reply({ ok: false, error: seat.error });
+      const name = seat.name;
       const userId = accounts.userFromToken(p?.auth)?.id;
       const settings = sanitizeTournament(p?.settings, `Tournoi de ${name}`);
       const problem = stakeProblem(userId, settings.stake);
       if (problem) return reply({ ok: false, error: problem });
-      const player: TPlayer = { id: randomUUID(), token: randomUUID(), name, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), userId, day: clientDay(p?.day), socketId: null, left: false, out: null };
+      const player: TPlayer = { id: randomUUID(), token: randomUUID(), name, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), userId, day: today(), socketId: null, left: false, out: null };
       const t: Tournament = {
         code: newCode(), hostId: player.id, settings, status: 'inscriptions', players: [player], rounds: [], pot: 0,
         standings: null, nextRoundAt: null, timer: null, lastActivity: Date.now(),
@@ -1668,8 +1676,9 @@ export async function startServer(opts: ServerOptions) {
         return;
       }
       if (t.sched) return reply(schedJoin(t, p));
-      const name = cleanName(p?.name);
-      if (!name) return reply({ ok: false, error: 'Choisissez un nom' });
+      const seat = seatName(p);
+      if ('error' in seat) return reply({ ok: false, error: seat.error });
+      const name = seat.name;
       if (t.status !== 'inscriptions') return reply({ ok: false, error: 'Les inscriptions sont closes.' });
       if (t.players.length >= t.settings.maxPlayers) return reply({ ok: false, error: 'Le tournoi est complet.' });
       const userId = accounts.userFromToken(p?.auth)?.id;
@@ -1679,7 +1688,7 @@ export async function startServer(opts: ServerOptions) {
       if (blockedAt(userId, t.players)) return reply({ ok: false, error: 'Impossible de rejoindre ce tournoi.' });
       let finalName = name;
       for (let k = 2; t.players.some((x) => x.name === finalName); k++) finalName = `${name} ${k}`;
-      const player: TPlayer = { id: randomUUID(), token: randomUUID(), name: finalName, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), userId, day: clientDay(p?.day), socketId: null, left: false, out: null };
+      const player: TPlayer = { id: randomUUID(), token: randomUUID(), name: finalName, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), userId, day: today(), socketId: null, left: false, out: null };
       t.players.push(player);
       tAttach(t, player);
       reply({ ok: true, code: t.code, playerId: player.id, token: player.token });
@@ -1708,7 +1717,7 @@ export async function startServer(opts: ServerOptions) {
         const err = sched.register(u.id, t.sched!.slot);
         if (err) return { ok: false, error: err };
       }
-      const player: TPlayer = { id: randomUUID(), token: randomUUID(), name: u.username, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), userId: u.id, day: clientDay(p?.day), socketId: null, left: false, out: null };
+      const player: TPlayer = { id: randomUUID(), token: randomUUID(), name: u.username, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), userId: u.id, day: today(), socketId: null, left: false, out: null };
       t.players.push(player);
       tAttach(t, player);
       tNotice(t, `${player.name} a rejoint le salon.`);
@@ -1834,6 +1843,15 @@ export async function startServer(opts: ServerOptions) {
       }
       broadcastRoom(r);
     });
+  });
+
+  // Dernier filet : JSON invalide, requête trop grosse, erreur imprévue. Jamais de chemin de fichier ni de pile côté joueur.
+  app.use((err: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (res.headersSent) return next(err);
+    const status = (err as { status?: number })?.status ?? 500;
+    if (status >= 500) console.error('Erreur serveur :', err);
+    const error = status === 413 ? 'Requête trop volumineuse.' : status >= 400 && status < 500 ? 'Requête invalide.' : 'Erreur du serveur, réessayez dans un instant.';
+    res.status(status >= 400 && status < 600 ? status : 500).json({ ok: false, error });
   });
 
   await new Promise<void>((resolve) => http.listen(opts.port, resolve));

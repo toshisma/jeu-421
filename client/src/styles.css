@@ -1162,6 +1162,9 @@ body, .screen, .home, .shop { background: var(--grain), var(--feutre); backgroun
 .friends-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
 .friends-list li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: rgba(255,255,255,.04); }
 .friends-list li:not(.on) { opacity: .7; }
+.friend-request { flex-wrap: wrap; }
+.friend-request .fr-main { cursor: default; }
+.friend-request-actions { display: flex; gap: 6px; margin-left: auto; }
 .fr-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; background: none; border: 0; color: inherit; font: inherit; text-align: left; padding: 4px 0; cursor: pointer; }
 .fr-name { min-width: 0; display: grid; }
 .fr-name b, .fr-name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

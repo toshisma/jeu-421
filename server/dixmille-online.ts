@@ -22,6 +22,8 @@ import { DM_DECISION_SECONDS, DM_TABLE_MAX, type DmPublicTable, type DmRewardMsg
 import { AVATARS, MAX_SPECTATORS, isReaction, type Ack } from '../shared/protocol';
 import { sanitizeGesture, type ThrowGesture } from '../shared/gesture';
 import { muteText } from '../shared/moderation';
+import { COUNTER_BOTS } from '../shared/bot-names';
+import { avoidBotName, guestLabel, tableName } from '../shared/names';
 import { getItem } from '../shared/progress/catalog';
 import type { Store, UserRow } from './db';
 import type { TableChatEntry } from './moderation';
@@ -55,6 +57,8 @@ interface Ctx {
   reward: (userId: string, o: { won: boolean; place: number; players: number; humans: number; botLevels: DmLevel[]; minutes: number; day: string; abandoned: boolean; bestTurn?: number; potWon?: number })
     => { reward: Reward; applied: { profile: unknown; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { id: string; text: string }[] } } | null;
   recordChat: (e: TableChatEntry) => void;
+  /** Pseudos administrateurs : un invité ne peut pas les prendre à table. */
+  adminNames: string[];
   /** Les Groschen (mises). */
   groschen: GroschenApi;
   /** Codes déjà pris par les autres jeux (tables du 421, tournois). */
@@ -115,11 +119,7 @@ interface Table {
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const LEVELS: DmLevel[] = ['debutant', 'habitue', 'fouine'];
-const BOTS: { name: string; avatar: string }[] = [
-  { name: 'Marcel', avatar: '🐻' }, { name: 'Josiane', avatar: '🦉' }, { name: 'Le Baron', avatar: '🎩' }, { name: 'Lulu', avatar: '🦊' },
-  { name: 'Dédé', avatar: '⚓' }, { name: 'Simone', avatar: '🍷' }, { name: 'Gégé', avatar: '🐸' }, { name: 'Fernand', avatar: '🐙' },
-  { name: 'Odette', avatar: '🍀' }, { name: 'Raymond', avatar: '🦁' }, { name: 'Huguette', avatar: '🐧' }, { name: 'Firmin', avatar: '🐯' },
-];
+const BOTS = COUNTER_BOTS;
 const QUICK_TARGET = 3;
 export const cleanDmCode = (v: unknown) => (typeof v === 'string' && /^[A-Z0-9]{5}$/.test(v.toUpperCase()) ? v.toUpperCase() : null);
 function cleanName(v: unknown): string | null {
@@ -507,13 +507,15 @@ export function createDixMilleOnline(c: Ctx) {
       id: randomUUID(), token: randomUUID(), name, avatar: cleanAvatar(p?.avatar), ready: false, socketId: null, left: false,
       userId: userOf(p)?.id, day: '', dice: cleanDice(p?.dice),
     });
+    const seatName = (p: any) => tableName(userOf(p), cleanName(p?.name), c.adminNames);
     const joined = (t: Table, m: Member) => ({ ok: true as const, code: t.code, playerId: m.id, token: m.token });
 
     socket.on('table:create', (p: any, ack: unknown) => {
       const reply = safeAck(ack);
       if (banned(p)) return reply({ ok: false, error: 'Votre compte est suspendu.' });
-      const name = cleanName(p?.name);
-      if (!name) return reply({ ok: false, error: 'Choisissez un nom' });
+      const seat = seatName(p);
+      if ('error' in seat) return reply({ ok: false, error: seat.error });
+      const name = seat.name;
       const m = { ...newMember(p, name), ready: true };
       const stake = cleanStake(p?.stake);
       const problem = stakeProblem(m.userId, stake);
@@ -525,8 +527,9 @@ export function createDixMilleOnline(c: Ctx) {
     });
 
     function seatNew(t: Table, p: any): Ack<{ code: string; playerId: string; token: string }> {
-      const name = cleanName(p?.name);
-      if (!name) return { ok: false, error: 'Choisissez un nom' };
+      const seat = seatName(p);
+      if ('error' in seat) return { ok: false, error: seat.error };
+      const name = seat.name;
       const userId = userOf(p)?.id;
       if (t.status !== 'lobby') return { ok: false, error: 'La partie a déjà commencé.' };
       if (userId && t.kicked.has(userId)) return { ok: false, error: 'L’hôte vous a retiré de cette table.' };
@@ -537,8 +540,9 @@ export function createDixMilleOnline(c: Ctx) {
       const same = userId ? t.members.find((x) => x.userId === userId && !x.bot) : undefined;
       if (same) { attach(t, same); broadcast(t); return joined(t, same); }
       if (seatsTaken(t) >= DM_TABLE_MAX) return { ok: false, error: `La table est complète (${DM_TABLE_MAX} joueurs).` };
-      let finalName = name;
-      for (let k = 2; t.members.some((m) => m.name === finalName); k++) finalName = `${name} ${k}`;
+      const wanted = userId ? name : avoidBotName(name, t.members.filter((m) => m.bot).map((m) => m.name));
+      let finalName = wanted;
+      for (let k = 2; t.members.some((m) => m.name === finalName); k++) finalName = `${wanted} ${k}`;
       const m = { ...newMember(p, finalName), ready: !!t.quick };
       const filler = [...t.members].reverse().find((x) => x.filler);
       if (filler) t.members = t.members.filter((x) => x !== filler);
@@ -582,8 +586,9 @@ export function createDixMilleOnline(c: Ctx) {
     socket.on('table:quick', (p: any, ack: unknown) => {
       const reply = safeAck(ack);
       if (banned(p)) return reply({ ok: false, error: 'Votre compte est suspendu.' });
-      const name = cleanName(p?.name);
-      if (!name) return reply({ ok: false, error: 'Choisissez un nom' });
+      const seat = seatName(p);
+      if ('error' in seat) return reply({ ok: false, error: seat.error });
+      const name = seat.name;
       const userId = userOf(p)?.id;
       const humansAt = (t: Table) => t.members.filter((m) => !m.bot).length;
       const candidates = [...tables.values()].filter((t) => t.status === 'lobby' && t.visibility === 'public' && t.stake === 0 && !t.solo && seatsTaken(t) < DM_TABLE_MAX
@@ -609,7 +614,7 @@ export function createDixMilleOnline(c: Ctx) {
       if (stake <= 0) return reply({ ok: false, error: 'Choisissez une mise.' });
       const problem = stakeProblem(u.id, stake);
       if (problem) return reply({ ok: false, error: problem });
-      const m = { ...newMember(p, cleanName(p?.name) ?? u.username), ready: true };
+      const m = { ...newMember(p, u.username), ready: true };
       const t = makeTable(m, 'Contre l’ordinateur', cleanTarget(p?.target), 'private', stake);
       t.solo = true;
       const n = Math.min(3, Math.max(1, Math.floor(Number(p?.opponents) || 1)));
@@ -810,7 +815,7 @@ export function createDixMilleOnline(c: Ctx) {
         const problem = watchProblem(t, u?.id);
         if (problem) return reply({ ok: false, error: problem });
         unwatch();
-        t.spectators.set(socket.id, { name: u?.username ?? cleanName(p?.name) ?? 'Spectateur', userId: u?.id });
+        t.spectators.set(socket.id, { name: u?.username ?? guestLabel(cleanName(p?.name), c.adminNames) ?? 'Spectateur', userId: u?.id });
         socket.data.watch = t.code;
         socket.join(t.code);
       }

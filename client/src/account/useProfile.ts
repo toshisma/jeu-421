@@ -252,14 +252,14 @@ export function useProfile(enabled: boolean) {
   /** Début d'une partie solo : avec un compte, le serveur délivre un jeton de partie. */
   // Invités : un jeton de partie pour les statistiques publiques (aucune donnée personnelle).
   const statToken = useRef<string | null>(null);
-  const onSoloStart = useCallback(() => {
+  const onSoloStart = useCallback((boss?: string) => {
     soloToken.current = null;
     statToken.current = null;
     if (!enabled) return;
     setPresence('solo');
     trackEvent('solo');
     const s = ref.current.session;
-    if (s) api<{ gameToken: string }>('/solo/start', { body: {}, token: s.token }).then((r) => { soloToken.current = r.gameToken; }).catch(() => {});
+    if (s) api<{ gameToken: string }>('/solo/start', { body: boss ? { boss } : {}, token: s.token }).then((r) => { soloToken.current = r.gameToken; }).catch(() => {});
     else api<{ token: string }>('/stats/solo/start', { body: {} }).then((r) => { statToken.current = r.token; }).catch(() => {});
   }, [enabled]);
 
