@@ -1,3 +1,4 @@
+import { tr } from '../i18n/lang';
 /**
  * Coups Fourrés : « voir la carte en grand », partout où une carte apparaît (demande de Sam, novembre :
  * « on doit toujours pouvoir agrandir les cartes pour les lire »).
@@ -10,7 +11,7 @@
  */
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { appHeight } from '../ui/navGuard';
-import { cardDef, FAMILY_LABEL, RARITY_LABEL } from '../../../shared/cards/catalog';
+import { cardDef, FAMILY_LABEL, RARITY_LABEL } from './i18n';
 import { Icon } from '../ui/Icon';
 import { BigCard } from './BoardParts';
 
@@ -61,11 +62,11 @@ export function useLongPress(onLong: (() => void) | null | undefined, ms = 450) 
 
 /** Petite loupe dans le coin d'une carte : la carte en grand, sans toucher à la carte elle-même. */
 export function ZoomBtn({ id, className }: { id: string; className?: string }) {
-  const name = cardDef(id)?.name ?? 'la carte';
+  const name = cardDef(id)?.name ?? tr('cf.board.la_carte');
   const open = (e: MouseEvent | KeyboardEvent) => { e.stopPropagation(); e.preventDefault(); zoomCard(id); };
   // <span role="button"> : la loupe se pose souvent DANS un bouton (carte à choisir), un <button> y serait invalide.
   return (
-    <span className={`cf-zoombtn${className ? ` ${className}` : ''}`} role="button" tabIndex={0} aria-label={`Lire « ${name} » en grand`}
+    <span className={`cf-zoombtn${className ? ` ${className}` : ''}`} role="button" tabIndex={0} aria-label={tr('cf.boardparts.lire_en_grand_3', { name: name })}
       onClick={open} onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') open(e); }}>
       <Icon name="search" size={13} />
     </span>
@@ -91,11 +92,11 @@ export function CardZoomHost() {
   if (!d) return null;
   const w = typeof window !== 'undefined' ? Math.min(330, window.innerWidth - 32, Math.round((appHeight() - 150) * 0.66)) : 300;
   return (
-    <div className="cf-bigzoom" role="dialog" aria-modal="true" aria-label={`${d.name} en grand`} onClick={() => setId(null)}>
+    <div className="cf-bigzoom" role="dialog" aria-modal="true" aria-label={tr('cf.zoom.en_grand', { name: d.name })} onClick={() => setId(null)}>
       <div className="cf-bigzoom-in" onClick={(e) => e.stopPropagation()}>
         <BigCard id={id} width={Math.max(220, w)} className="cf-bigzoom-card" />
         <p className="cf-bigzoom-flavor"><em>{d.flavor}</em><small>{FAMILY_LABEL[d.family]} · {RARITY_LABEL[d.rarity]}</small></p>
-        <button className="cfn-act ghost full" onClick={() => setId(null)} autoFocus>Fermer</button>
+        <button className="cfn-act ghost full" onClick={() => setId(null)} autoFocus>{tr('cf.boardparts.fermer')}</button>
       </div>
     </div>
   );

@@ -1,3 +1,4 @@
+import { tr } from '../i18n/lang';
 /**
  * Coups Fourrés : visite guidée de l'écran (0.39, demande de Sam : « montrer où sont toutes les infos
  * et à quoi elles correspondent »). Jouée au début des parties guidées (à 2 et à 4) et depuis l'aide.
@@ -9,13 +10,13 @@ export interface TourStep { title: string; text: string; focus: 'top' | 'opp' | 
 export function screenTour(opponents: number): TourStep[] {
   const multi = opponents > 1;
   const steps: TourStep[] = [
-    { focus: 'opp', title: multi ? 'Vos adversaires' : 'Votre adversaire', text: `${multi ? `Une case par adversaire (${opponents} ici). Celui qui joue est encadré en doré. ` : ''}Le gros chiffre : ses jetons. Le premier à 0 jeton gagne. Dessous : 🍺 ses Tournées (elles paient les cartes), ses cartes en main, ses pièges posés et ses Habitués. Touchez une case pour tout voir en clair.` },
-    { focus: 'say', title: 'Le bandeau', text: `Il dit toujours à qui de jouer et quoi faire.${multi ? ' La petite ligne dessous : le dernier coup joué.' : ' Le dernier coup de l’adversaire est écrit dans sa case.'}` },
-    { focus: 'tray', title: 'Le bac', text: `Les dés de celui qui joue. À votre tour, lancez jusqu’à ${CF_RULES.maxThrows} fois et touchez un dé pour le garder avant de relancer.` },
-    { focus: 'hand', title: 'Vos cartes', text: 'Sous chaque nom : ce que fait la carte. Le chiffre dans le petit verre : son coût en Tournées (pas en jetons). Les cartes dorées sont jouables maintenant. Touchez une carte pour la lire en grand.' },
-    { focus: 'me', title: 'Vous', text: 'Vos jetons, vos Tournées, vos Habitués (le chiffre : les manches qu’il leur reste) et vos pièges posés. Touchez « Vous » pour votre fiche.' },
-    { focus: 'top', title: 'En haut', text: '« Journal » : tout ce qui s’est passé, coup par coup. « ? » : ce que veut dire chaque chose à l’écran. La croix pour quitter.' },
+    { focus: 'opp', title: multi ? tr('cf.tour.vos_adversaires') : tr('cf.tour.votre_adversaire'), text: tr('cf.tour.le_gros_chiffre_ses_jetons_le', { a: multi ? tr('cf.tour.une_case_par_adversaire_ici_celui', { opponents: opponents }) : '' }) },
+    { focus: 'say', title: tr('cf.boardparts.le_bandeau'), text: tr('cf.tour.il_dit_toujours_a_qui_de', { a: multi ? tr('cf.tour.la_petite_ligne_dessous_le_dernier') : tr('cf.tour.le_dernier_coup_de_l_adversaire') }) },
+    { focus: 'tray', title: tr('cf.boardparts.le_bac'), text: tr('cf.tour.les_des_de_celui_qui_joue', { maxThrows: CF_RULES.maxThrows }) },
+    { focus: 'hand', title: tr('cf.boardparts.vos_cartes'), text: tr('cf.tour.sous_chaque_nom_ce_que_fait') },
+    { focus: 'me', title: tr('cf.boardparts.vous'), text: tr('cf.tour.vos_jetons_vos_tournees_vos_habitues') },
+    { focus: 'top', title: tr('cf.boardparts.en_haut'), text: tr('cf.tour.journal_tout_ce_qui_s_est') },
   ];
-  if (multi) steps.push({ focus: null, title: 'À plusieurs', text: 'À chaque manche, seul le plus mauvais reçoit des jetons, du meilleur. Une carte « contre l’adversaire » vise le joueur de votre choix, un piège se pose devant un joueur précis. Le premier à 0 jeton gagne et la partie s’arrête.' });
+  if (multi) steps.push({ focus: null, title: tr('cf.tour.a_plusieurs'), text: tr('cf.tour.a_chaque_manche_seul_le_plus') });
   return steps;
 }

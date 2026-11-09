@@ -1,3 +1,4 @@
+import { tr } from '../i18n/lang';
 /**
  * Coups Fourrés : partie contre l'ordinateur, sur l'appareil (implémente CfController).
  *
@@ -14,7 +15,8 @@
 import { ApiError } from '../account/api';
 import { cfBotAbandon, cfBotEnd, cfBotStart } from './api';
 import type { TourStep } from './tour';
-import { CARDS, STARTER_DECKS } from '../../../shared/cards/catalog';
+import { STARTER_DECKS } from '../../../shared/cards/catalog';
+import { CARDS, cfText } from './i18n';
 import { buildAutoDeck } from '../../../shared/cards/autodeck';
 import { CF_LEVEL_LABEL, type CfLevel } from '../../../shared/cards/ai';
 import { botToPlay, playMine, startBotMatch, stepBotAction, type BotMatch, type BotMatchSetup } from '../../../shared/cards/botmatch';
@@ -25,9 +27,9 @@ export const deckList = (d: Record<string, number>) => Object.entries(d).flatMap
 
 /** Les ordinateurs du comptoir (noms originaux). */
 export const CF_BOTS: Record<CfLevel, { name: string; avatar: string; blurb: string }> = {
-  debutant: { name: 'P’tit Louis', avatar: '🧢', blurb: 'Garde ses as et joue ses cartes un peu au hasard.' },
-  habitue: { name: 'Dédé du comptoir', avatar: '🍺', blurb: 'Compte ses coups et garde de quoi répondre.' },
-  'fine-fouine': { name: 'Mado la Fouine', avatar: '🦊', blurb: 'Calcule tout, lit vos Tournées et bluffe.' },
+  debutant: { name: 'P’tit Louis', avatar: '🧢', get blurb() { return tr('cf.local.garde_ses_as_et_joue_ses'); } },
+  habitue: { name: 'Dédé du comptoir', avatar: '🍺', get blurb() { return tr('cf.local.compte_ses_coups_et_garde_de'); } },
+  'fine-fouine': { name: 'Mado la Fouine', avatar: '🦊', get blurb() { return tr('cf.local.calcule_tout_lit_vos_tournees_et'); } },
 };
 
 export interface LocalCfOptions {
@@ -128,7 +130,7 @@ export class LocalCfController implements CfController {
     this.pendingStart = events;
     this.seats = [
       { id: setup.me.id, name: o.me.name || setup.me.name, avatar: o.me.avatar, photo: o.me.photo ?? undefined, account: o.me.account },
-      ...setup.bots.map((b) => ({ id: b.id, name: b.name, bot: true, avatar: CF_BOTS[b.level]?.avatar ?? '🤖', label: CF_LEVEL_LABEL[b.level] })),
+      ...setup.bots.map((b) => ({ id: b.id, name: b.name, bot: true, avatar: CF_BOTS[b.level]?.avatar ?? '🤖', label: cfText(CF_LEVEL_LABEL[b.level]) })),
     ];
   }
 
@@ -154,11 +156,11 @@ export class LocalCfController implements CfController {
     const bot = CF_BOTS[o.level];
     const setup: BotMatchSetup = {
       seed,
-      me: { id: 'moi', name: o.me.name || 'Vous', deck: o.deck },
+      me: { id: 'moi', name: o.me.name || tr('cf.boardparts.vous'), deck: o.deck },
       bots: [{ id: 'ordi', name: bot.name, deck: o.deckId?.startsWith('parcours:') ? [...o.deck] : localBotDeck(o.level, o.deck, rnd), level: o.level },
         ...MORE_BOTS.slice(0, Math.min(3, Math.max(1, o.opponents ?? 1)) - 1).map((b, i) => ({ id: `ordi${i + 2}`, name: b.name, deck: localBotDeck(o.level, o.deck, rnd), level: o.level }))],
     };
-    const notice = o.tour ? null : o.token ? 'Partie d’entraînement : elle ne rapporte pas de capsules cette fois.' : 'Partie d’essai : vous gagnez des pièces ; avec un compte gratuit, aussi des capsules et des boosters.';
+    const notice = o.tour ? null : o.token ? tr('cf.local.partie_d_entrainement_elle_ne_rappor') : tr('cf.local.partie_d_essai_vous_gagnez_des');
     return new LocalCfController(o, setup, null, notice);
   }
 
@@ -176,11 +178,11 @@ export class LocalCfController implements CfController {
   }
 
   async act(action: CfAction): Promise<string | null> {
-    if (this.closed) return 'La partie est terminée.';
-    if (this.running) return 'Patientez : l’ordinateur joue.';
+    if (this.closed) return tr('cf.local.la_partie_est_terminee');
+    if (this.running) return tr('cf.local.patientez_l_ordinateur_joue');
     this.consumeReserve();
     const r = playMine(this.match, action);
-    if (!r.ok) return r.error ?? 'Action impossible.';
+    if (!r.ok) return (r.error ? cfText(r.error) : tr('cf.decks.action_impossible'));
     this.clearTimer();
     this.publish(r.events);
     await this.runBots();
@@ -273,9 +275,9 @@ export class LocalCfController implements CfController {
     if (!this.gameId || !this.token) return;
     try {
       const r = await cfBotEnd(this.token, this.gameId, this.match.mine);
-      this.finished = { standings, reward: r.reward ?? { note: 'Plafond du jour atteint : pas de capsules pour cette partie.' } };
+      this.finished = { standings, reward: r.reward ?? { note: tr('cf.local.plafond_du_jour_atteint_pas_de') } };
     } catch (e) {
-      this.finished = { standings, reward: { error: e instanceof Error ? e.message : 'Résultat non enregistré.' } };
+      this.finished = { standings, reward: { error: e instanceof Error ? cfText(e.message) : tr('cf.local.resultat_non_enregistre') } };
     }
     this.publish([]);
   }

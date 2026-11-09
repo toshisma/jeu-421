@@ -1,3 +1,5 @@
+import { cfText } from './i18n';
+import { tr } from '../i18n/lang';
 /**
  * Coups Fourrés : contrôleur de la partie guidée (implémente CfController).
  * Le scénario est dans shared/cards/tutorial.ts ; ici on ajoute les pauses de Dédé, la bulle
@@ -41,12 +43,12 @@ export class TutorialCfController implements CfController {
   private pace: number;
 
   constructor(private o: TutorialOptions) {
-    this.run = new CfTutorial(o.me.name || 'Vous');
+    this.run = new CfTutorial(o.me.name || tr('cf.boardparts.vous'));
     this.pace = o.pace ?? 1;
     this.rewarded = !!o.token;
     this.seats = [
-      { id: TUTO_ME, name: o.me.name || 'Vous', avatar: o.me.avatar, photo: o.me.photo ?? undefined, account: o.me.account },
-      { id: TUTO_BOT, name: TUTO_BOT_NAME, bot: true, avatar: '🍺', label: 'Partie guidée' },
+      { id: TUTO_ME, name: o.me.name || tr('cf.boardparts.vous'), avatar: o.me.avatar, photo: o.me.photo ?? undefined, account: o.me.account },
+      { id: TUTO_BOT, name: TUTO_BOT_NAME, bot: true, avatar: '🍺', get label() { return tr('cf.game.partie_guidee'); } },
     ];
   }
 
@@ -58,10 +60,10 @@ export class TutorialCfController implements CfController {
   }
 
   async act(a: CfAction): Promise<string | null> {
-    if (this.closed) return 'La partie guidée est terminée.';
-    if (this.busy) return 'Un instant…';
+    if (this.closed) return tr('cf.tutorial.la_partie_guidee_est_terminee');
+    if (this.busy) return tr('cf.enigme.un_instant');
     const r = this.run.play(a);
-    if (!r.ok) return r.error ?? 'Action impossible.';
+    if (!r.ok) return (r.error ? cfText(r.error) : tr('cf.decks.action_impossible'));
     this.publish(r.events);
     await this.advance();
     return null;
@@ -108,14 +110,14 @@ export class TutorialCfController implements CfController {
     this.closed = true;
     this.publish([]);
     if (!this.o.token) {
-      this.finished = { standings, reward: { note: `Partie guidée terminée ! Avec un compte gratuit, elle rapporte ${CF_TUTORIAL_CAPSULES} capsules (une fois).` } };
+      this.finished = { standings, reward: { note: tr('cf.tutorial.partie_guidee_terminee_avec_un_compt', { CF_TUTORIAL_CAPSULES: CF_TUTORIAL_CAPSULES }) } };
     } else {
       try {
         const r = await cfTutorialDone(this.o.token);
         this.finished = { standings, reward: { capsules: r.capsules } };
         this.o.onReward?.();
       } catch (e) {
-        this.finished = { standings, reward: { note: e instanceof Error ? e.message : 'Récompense non enregistrée.' } };
+        this.finished = { standings, reward: { note: e instanceof Error ? cfText(e.message) : tr('cf.tutorial.recompense_non_enregistree') } };
       }
     }
     this.publish([]);
@@ -124,8 +126,8 @@ export class TutorialCfController implements CfController {
   private guide(): CfGuide | null {
     const st = this.run.current;
     if (!st || this.finished) return null;
-    if (st.kind === 'bot') return st.text ? { text: st.text, index: this.run.visibleIndex, total: TUTO_VISIBLE } : null;
-    return { title: st.title, text: st.text, next: st.kind === 'info' ? st.button ?? 'Continuer' : undefined, focus: st.focus, index: this.run.visibleIndex, total: TUTO_VISIBLE };
+    if (st.kind === 'bot') return st.text ? { text: cfText(st.text), index: this.run.visibleIndex, total: TUTO_VISIBLE } : null;
+    return { title: st.title && cfText(st.title), text: st.text && cfText(st.text), next: st.kind === 'info' ? (st.button ? cfText(st.button) : tr('cf.tutorial.continuer')) : undefined, focus: st.focus, index: this.run.visibleIndex, total: TUTO_VISIBLE };
   }
 
   private publish(events: CfEvent[]) {

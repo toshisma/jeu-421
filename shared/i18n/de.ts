@@ -1,7 +1,9 @@
+import { cartesDe } from './zones/cartes.de';
 import type { MessageKey } from './fr';
 
 /** Textes allemands (« du », ton direct). Une clé absente s'affiche en français. */
 export const de: Partial<Record<MessageKey, string>> = {
+  ...(cartesDe as Partial<Record<MessageKey, string>>),
   'common.back': 'Zurück', 'common.close': 'Schließen', 'common.cancel': 'Abbrechen', 'common.confirm': 'Bestätigen', 'common.backHome': 'Zurück zum Hauptmenü', 'common.menu': 'Menü',
   'lang.title': 'Sprache', 'lang.switch': 'Sprache', 'lang.note': 'Bisher ist nur Der Höfling (Farkle) übersetzt. Der Rest des Spiels ist auf Französisch.',
   'lang.frenchOnly': 'Bisher ist nur Der Höfling übersetzt. Die 421, Coups Fourrés, die Sammlung und der Shop sind auf Französisch.',

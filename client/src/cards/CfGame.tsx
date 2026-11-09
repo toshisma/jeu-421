@@ -1,3 +1,5 @@
+import { cfText } from './i18n';
+import { tr } from '../i18n/lang';
 /**
  * Coups Fourrés : l'écran de partie (refait le 5 novembre d'après les prototypes CFN validés par Sam :
  * CFNTourAdverse, CFNVotreTour, CFNRiposte, CFNPiege, CFNFiche).
@@ -134,8 +136,8 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const share = useCallback(async (m: ShareMoment) => {
     if (sharing) return;
     setSharing(true);
-    try { const r = await shareImage(await makeShareImage(m), m.text); if (r === 'telechargement') setNotice({ key: Date.now(), text: 'Image enregistrée : partagez-la où vous voulez !' }); }
-    catch (e) { setToast({ text: e instanceof Error ? e.message : 'Partage impossible.', key: Date.now() }); }
+    try { const r = await shareImage(await makeShareImage(m), m.text); if (r === 'telechargement') setNotice({ key: Date.now(), text: tr('cf.game.image_enregistree_partagez_la_ou_vou') }); }
+    catch (e) { setToast({ text: e instanceof Error ? cfText(e.message) : tr('cf.game.partage_impossible'), key: Date.now() }); }
     finally { setSharing(false); }
   }, [sharing]);
   useEffect(() => { if (!moment) return; const t = setTimeout(() => setMoment(null), 12000); return () => clearTimeout(t); }, [moment]);
@@ -221,7 +223,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       sound.jackpot();
       t.celebrate(null);
       // La plaque passe seule : le bandeau se tait pendant ce temps (aucun texte dessous).
-      setBigShot({ text: big === '421' ? '4-2-1 !' : 'Trois as !', who: player, key: Date.now() });
+      setBigShot({ text: big === '421' ? '4-2-1 !' : tr('cf.game.trois_as'), who: player, key: Date.now() });
       await wait(1600);
       if (alive.current) setBigShot(null);
     }
@@ -398,7 +400,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
     const k = meP.r.throwsUsed === 0 ? NO_KEEP : keep;
     const a = legal.find((x) => x.type === 'roll' && x.keep.every((b, i) => b === k[i]));
     if (a) void act(a);
-    else if (isTuto) setToast({ text: 'Gardez exactement les dés indiqués dans la bulle.', key: Date.now() });
+    else if (isTuto) setToast({ text: tr('cf.game.gardez_exactement_les_des_indiques_d'), key: Date.now() });
   };
 
   const discardNow = mine && decision === 'discard';
@@ -418,7 +420,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const inReserve = left !== null && left <= 0;
   const reserveLeft = left !== null ? Math.max(0, reserve + Math.min(0, left)) : 0;
   const clock = left === null || !mine ? null : inReserve
-    ? { text: `Réserve ${Math.ceil(reserveLeft)} s`, low: true }
+    ? { text: tr('cf.game.reserve_s', { a: Math.ceil(reserveLeft) }), low: true }
     : { text: `${Math.min(CF_RULES.decisionSeconds, Math.ceil(left))} s`, low: left <= 8 };
   const tickSec = clock ? Math.ceil(inReserve ? reserveLeft : left!) : 0;
   const lastTick = useRef(0);
@@ -427,7 +429,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const close = () => { const c = controller as { close?: () => void }; if (c.close) c.close(); else controller.leave(); onExit(); };
   const isOver = () => !!snap?.finished || v?.phase === 'over';
   /** Confirmation avant de quitter (bouton ✕, ou barre du bas). */
-  const okToLeave = async () => isOver() || askConfirm(isTuto ? 'Quitter la partie guidée ? Vous pourrez la relancer depuis le menu.' : controller.ranked ? 'Quitter ? La partie classée compte comme une défaite.' : v && v.players.length > 2 ? 'Quitter la partie ? Le serveur jouera à votre place, et vous pourrez revenir depuis le menu (« Reprendre »).' : 'Abandonner la partie en cours ? En duel, quitter compte comme une défaite.', 'Quitter');
+  const okToLeave = async () => isOver() || askConfirm(isTuto ? tr('cf.game.quitter_la_partie_guidee_vous_pourre') : controller.ranked ? tr('cf.game.quitter_la_partie_classee_compte_com') : v && v.players.length > 2 ? tr('cf.game.quitter_la_partie_le_serveur_jouera') : tr('cf.game.abandonner_la_partie_en_cours_en'), tr('cf.decks.quitter'));
   const leave = async () => {
     const over = isOver();
     if (!(await okToLeave())) return;
@@ -439,7 +441,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   useGuestInviteAtEnd('cf', !!snap && (snap.finished || v?.phase === 'over') && !animating && !spectator);
 
   if (!snap || !v || !meP) {
-    return <div className="cfn-board"><div className="cfn-loading" role="status"><span className="cf-wait-spin" aria-hidden><i /><i /><i /></span>Préparation de la table…</div></div>;
+    return <div className="cfn-board"><div className="cfn-loading" role="status"><span className="cf-wait-spin" aria-hidden><i /><i /><i /></span>{tr('cf.game.preparation_de_la_table')}</div></div>;
   }
 
   const opps = v.players.filter((p) => p.id !== me);
@@ -458,7 +460,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const seat = (id: string) => snap.seats.find((s) => s.id === id);
   const banner = decisionBanner(v, legal, spectator);
   // Titre court (le bandeau dit qui joue) : la place va aux boutons Journal et Aide.
-  const title = v.phase === 'mulligan' ? 'Main de départ' : v.phase === 'over' ? 'Partie terminée' : `Manche ${v.round}${mode ? ` · ${mode}` : ''}`;
+  const title = v.phase === 'mulligan' ? tr('cf.boardparts.main_de_depart') : v.phase === 'over' ? tr('cf.game.partie_terminee') : tr('cf.game.manche', { round: v.round, a: mode ? ` · ${mode}` : '' });
   const myTraps = v.traps.filter((t) => t.owner === me);
   const respWin = snap.responseWindow && snap.responseWindow.player !== me && snap.responseWindow.until > now ? snap.responseWindow : null;
   const overlayOpen = !!ann || animating;
@@ -470,7 +472,8 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       if (round !== v.round) break;
       if (!ev.player || !ACTS.includes(ev.kind) || (id ? ev.player !== id : ev.player === me)) continue;
       const n = nameIn(v, ev.player);
-      return { who: ev.player, text: (ev.text.startsWith(n) ? ev.text.slice(n.length).trim() : ev.text).replace(/\.$/, '').replace(/ sur Vous\b/, ' sur vous') };
+      const evText = cfText(ev.text);
+      return { who: ev.player, text: (evText.startsWith(n) ? evText.slice(n.length).trim() : evText).replace(/\.$/, '').replace(/ sur Vous\b/, tr('cf.game.sur_vous')) };
     }
     return null;
   };
@@ -482,15 +485,15 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   type Say = { tone: string; title?: string; text: string; icon?: string | null };
   let say: Say;
   if (voice) say = { tone: `voice t-${voice.tone}`, text: voice.title, icon: voice.tone in TONE_ICON ? voice.tone : null };
-  else if (josiane) say = { tone: 'gold', title: 'Josiane', text: 'Touchez le dé qu’elle doit relancer' };
-  else if (respWin && !ann) say = { tone: 'wait', text: `${respWin.kind === 'lastword' ? 'Dernier mot possible' : 'Réponse possible'} : ${nameIn(v, respWin.player)}… ${Math.max(0, Math.ceil((respWin.until - now) / 1000))} s` };
+  else if (josiane) say = { tone: 'gold', title: 'Josiane', text: tr('cf.game.touchez_le_de_qu_elle_doit') };
+  else if (respWin && !ann) say = { tone: 'wait', text: tr('cf.game.s', { a: respWin.kind === 'lastword' ? tr('cf.game.dernier_mot_possible') : tr('cf.game.reponse_possible'), b: nameIn(v, respWin.player), c: Math.max(0, Math.ceil((respWin.until - now) / 1000)) }) };
   else if (notice) say = { tone: 'voice t-info', text: notice.text };
   else if (onlyPass) {
     // Fenêtre de réponse où je n'ai rien à jouer (on passe tout seul) : on dit ce que fait l'adversaire.
     const top = v.stack[v.stack.length - 1];
     const o = top ? v.players.find((p) => p.id === top.owner) : null;
     const kept = top?.kind === 'keep' && o ? o.r.dice.filter((_, i) => top.keep[i]) : [];
-    say = { tone: 'wait', text: o && kept.length ? `${o.name} garde ${kept.join('-')} et relance ${plural(3 - kept.length, 'dé')}` : `${o?.name ?? 'L’adversaire'} joue…` };
+    say = { tone: 'wait', text: o && kept.length ? tr('cf.game.garde_et_relance', { name: o.name, a: kept.join('-'), des: plural(3 - kept.length, 'dé') }) : tr('cf.game.joue', { a: o?.name ?? tr('cf.boardparts.l_adversaire') }) };
   }
   else if (banner.mine) say = { tone: banner.tone, title: banner.title, text: banner.text };
   else say = { tone: 'wait', text: banner.text || '…' };
@@ -499,13 +502,13 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   return (
     <div className={`cfn-board${opps.length > 1 ? ' multi' : ''}${isTuto ? ' tuto' : ''}`} onPointerDown={() => sound.unlock()}>
       <div className={`cfn-top${fx('top')}`}>
-        <button className="cfn-ib" onClick={leave} aria-label="Quitter la partie"><Icon name="close" size={18} /></button>
+        <button className="cfn-ib" onClick={leave} aria-label={tr('cf.game.quitter_la_partie')}><Icon name="close" size={18} /></button>
         <div className="cfn-ttl"><span>{title}</span>{commandeOf(v.commande) && v.phase !== 'mulligan' && v.phase !== 'over' && (
-          <button className="cfn-cmd" onClick={() => setHelp(true)} aria-label={`Commande du comptoir : ${commandeOf(v.commande)!.text}`}>{commandeOf(v.commande)!.title}</button>)}</div>
-        <button className="cfn-tb" onClick={() => setJournal(true)}>Journal</button>
-        {canFast && <button className={`cfn-tb fast${fast ? ' on' : ''}`} onClick={() => setFast((f) => !f)} aria-pressed={fast} aria-label={fast ? 'Vitesse normale' : 'Jouer deux fois plus vite'}>×2</button>}
+          <button className="cfn-cmd" onClick={() => setHelp(true)} aria-label={tr('cf.game.commande_du_comptoir', { a: cfText(commandeOf(v.commande)!.text) })}>{cfText(commandeOf(v.commande)!.title)}</button>)}</div>
+        <button className="cfn-tb" onClick={() => setJournal(true)}>{tr('cf.boardparts.journal')}</button>
+        {canFast && <button className={`cfn-tb fast${fast ? ' on' : ''}`} onClick={() => setFast((f) => !f)} aria-pressed={fast} aria-label={fast ? tr('cf.game.vitesse_normale') : tr('cf.game.jouer_deux_fois_plus_vite')}>×2</button>}
         {online && <CfChatButton controller={controller} pa={pa} />}
-        <button className="cfn-ib" onClick={() => setHelp(true)} aria-label="Aide : ce que veut dire chaque chose à l’écran"><b>?</b></button>
+        <button className="cfn-ib" onClick={() => setHelp(true)} aria-label={tr('cf.game.aide_ce_que_veut_dire_chaque')}><b>?</b></button>
         <VolumeControl settings={settings} onSettings={onSettings} />
       </div>
       <div className={`cfn-pboxes n${opps.length}`}>
@@ -530,9 +533,9 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       <div className={`cfn-trayzone${fx('tray')}`}>
         <DiceTray ref={tray} appearance={pa.profile.equipped} quality={settings.quality} onDieClick={onDie} cup={settings.cup} />
         {canKeep && !josiane && (
-          <span className="cfn-keep" role="group" aria-label="Dés à garder">
-            <em>Garder :</em>
-            {meP.r.dice.map((d, i) => <button key={i} className={keep[i] ? 'on' : ''} aria-pressed={keep[i]} aria-label={`Garder le ${d}`} onClick={() => onDie(i)}><Pip v={d} size={24} on={keep[i]} /></button>)}
+          <span className="cfn-keep" role="group" aria-label={tr('cf.game.des_a_garder')}>
+            <em>{tr('cf.game.garder')}</em>
+            {meP.r.dice.map((d, i) => <button key={i} className={keep[i] ? 'on' : ''} aria-pressed={keep[i]} aria-label={tr('cf.game.garder_le', { d: d })} onClick={() => onDie(i)}><Pip v={d} size={24} on={keep[i]} /></button>)}
           </span>
         )}
         {bigShot && (
@@ -544,19 +547,19 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
 
       <div className="cfn-me">
         <div className="cfn-count-row">
-          {mine && playable > 0 && !discardMode && <span className="cfn-count"><i aria-hidden />{plural(playable, 'carte')} jouable{playable > 1 ? 's' : ''} maintenant</span>}
-          {discardMode && <span className="cfn-count violet">Touchez une carte à défausser ({hand.length}/{v.rules.handMax})</span>}
-          {moment && !mine && <button className="cfn-share" disabled={sharing} onClick={() => void share(moment)}><Icon name="share" size={14} />Partager ce coup</button>}
+          {mine && playable > 0 && !discardMode && <span className="cfn-count"><i aria-hidden />{plural(playable, 'carte')}{tr('cf.game.jouable')}{playable > 1 ? 's' : ''}{tr('cf.game.maintenant')}</span>}
+          {discardMode && <span className="cfn-count violet">{tr('cf.game.touchez_une_carte_a_defausser')}{hand.length}/{v.rules.handMax})</span>}
+          {moment && !mine && <button className="cfn-share" disabled={sharing} onClick={() => void share(moment)}><Icon name="share" size={14} />{tr('cf.game.partager_ce_coup')}</button>}
         </div>
         {spectator ? (
-          <div className="cfn-spect"><span className="cfn-backs">{Array.from({ length: Math.min(meP.handCount, 7) }, (_, i) => <i key={i} className="cfn-bk" />)}</span><small>Vous regardez la partie · main de {meP.name} cachée</small></div>
+          <div className="cfn-spect"><span className="cfn-backs">{Array.from({ length: Math.min(meP.handCount, 7) }, (_, i) => <i key={i} className="cfn-bk" />)}</span><small>{tr('cf.game.vous_regardez_la_partie_main_de')}{meP.name}{tr('cf.game.cachee')}</small></div>
         ) : hand.length > 0 ? (
           <Hand cards={hand} hints={hints} sel={fiche?.uid ?? null} focus={focus === 'hand'} quiet={!mine} onPick={pickCard} />
-        ) : <div className="cfn-hand-empty">Aucune carte en main</div>}
+        ) : <div className="cfn-hand-empty">{tr('cf.game.aucune_carte_en_main')}</div>}
         <div className={`cfn-bar${fx('me')}`}>
-          <button className="cfn-me-name" onClick={() => setSheetOf(me)}>{spectator ? meP.name : 'Vous'}</button>
+          <button className="cfn-me-name" onClick={() => setSheetOf(me)}>{spectator ? meP.name : tr('cf.boardparts.vous')}</button>
           <Tokens n={meP.tokens} refEl={(el) => { tokRefs.current[me] = el; }} label />
-          <span className="cfn-me-t" aria-label={plural(meP.tournees, 'Tournée')}>🍺 {meP.tournees}<small>Tournée{meP.tournees > 1 ? 's' : ''}</small></span>
+          <span className="cfn-me-t" aria-label={plural(meP.tournees, 'Tournée')}>🍺 {meP.tournees}<small>{tr('cf.game.tournee')}{meP.tournees > 1 ? 's' : ''}</small></span>
           <span className="cfn-pins">
             {meP.habitues.map((h) => <HabPin key={h.uid} id={h.id} rounds={h.rounds} onClick={() => setFiche({ id: h.id, owner: me, uid: h.uid })} />)}
             {myTraps.map((t) => <HabPin key={t.uid} id={t.id} trap onClick={() => t.id && setFiche({ id: t.id, trapUid: t.uid })} />)}
@@ -565,13 +568,13 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         </div>
         <EffectChips list={activeEffects(v, meP, !spectator)} onCard={(id) => setFiche({ id, owner: me })} />
         <div className="cfn-actions">
-          {myTurn && meP.r.throwsUsed === 0 && <button className={`cfn-act roll${fx('roll')}`} disabled={pending || !legal.some((a) => a.type === 'roll')} onClick={roll}><Icon name="dice" size={20} />Lancer les dés</button>}
+          {myTurn && meP.r.throwsUsed === 0 && <button className={`cfn-act roll${fx('roll')}`} disabled={pending || !legal.some((a) => a.type === 'roll')} onClick={roll}><Icon name="dice" size={20} />{tr('cf.game.lancer_les_des')}</button>}
           {canRollAgain && <button className={`cfn-act roll${fx('tray')}`} disabled={pending || allKept} onClick={roll}>{rerollLabel(meP.r.dice, keep)}</button>}
           {myTurn && josianeAct && !josiane && <button className="cfn-act ghost slim" onClick={() => setJosiane(true)}>Josiane</button>}
-          {josiane && <button className="cfn-act ghost slim" onClick={() => setJosiane(false)}>Annuler</button>}
-          {stopAct && <button className={`cfn-act ghost${canRollAgain ? ' slim' : ''}${fx('stop')}`} disabled={pending} onClick={() => void act(stopAct)}>M’arrêter</button>}
-          {lastwordMine && <button className="cfn-act ghost" disabled={pending || !legal.some((a) => a.type === 'pass')} onClick={() => void act({ type: 'pass' })}>Passer</button>}
-          {myTurn && !stopAct && !legal.some((a) => a.type === 'roll') && <div className="cfn-wait">Jouez une carte</div>}
+          {josiane && <button className="cfn-act ghost slim" onClick={() => setJosiane(false)}>{tr('cf.game.annuler')}</button>}
+          {stopAct && <button className={`cfn-act ghost${canRollAgain ? ' slim' : ''}${fx('stop')}`} disabled={pending} onClick={() => void act(stopAct)}>{tr('cf.game.m_arreter')}</button>}
+          {lastwordMine && <button className="cfn-act ghost" disabled={pending || !legal.some((a) => a.type === 'pass')} onClick={() => void act({ type: 'pass' })}>{tr('cf.game.passer')}</button>}
+          {myTurn && !stopAct && !legal.some((a) => a.type === 'roll') && <div className="cfn-wait">{tr('cf.game.jouez_une_carte')}</div>}
           {/* Hors de mon tour : rien ici (le bandeau dit ce qui se passe, la main est grisée). La place reste
               réservée pour que le bac 3D ne change pas de taille à chaque tour. */}
         </div>
@@ -585,7 +588,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       {!overlayOpen && choiceMine && <ChoiceWindow v={v} legal={legal} pending={pending} onAct={act} focus={focus === 'choice'} tuto={guide?.text ?? null} />}
       {(snap.finished || v.phase === 'over') && !animating && <EndScreen snap={snap} v={v} me={me} onExit={close} onAgain={onAgain} onAccount={onAccount} onBags={onBags}
         bot={controller.kind === 'bot'} guest={!pa.isAccount} ranked={controller.ranked} spectator={spectator} rewarded={(controller as { rewarded?: boolean }).rewarded ?? controller.kind === 'online'}
-        againLabel={isTuto ? 'Contre l’ordinateur' : undefined}
+        againLabel={isTuto ? tr('cf.game.contre_l_ordinateur') : undefined}
         onShare={spectator || isTuto || !moments.current.best() ? undefined : () => { const m = moments.current.best(); if (m) void share(m); }} sharing={sharing} />}
 
       {fiche && <Fiche key={`${fiche.uid ?? fiche.id}`} t={fiche} v={v} legal={legal} snapLegal={snap.legal} pending={pending} discard={discardMode} onAct={act} onClose={() => setFiche(null)}
@@ -595,16 +598,16 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         onClose={() => setSheetOf(null)} onCard={(id) => { const o = sheetOf; setSheetOf(null); setFiche({ id, owner: o }); }} onTraps={() => { const o = sheetOf; setSheetOf(null); if (o === me) return; setTrapOf(o); }} />}
       {journal && <Journal log={log} v={v} me={me} onCard={(id, owner) => setFiche({ id, owner: owner ?? 'journal' })} onClose={() => setJournal(false)} />}
       {help && <HelpSheet v={v} onClose={() => setHelp(false)} onRules={() => { setHelp(false); setRules(true); }} onTour={() => { setHelp(false); setTourAt(0); }} />}
-      {rules && <Sheet title="Règles de Coups Fourrés" onClose={() => setRules(false)}><RulesContent short /></Sheet>}
+      {rules && <Sheet title={tr('cf.game.regles_de_coups_fourres')} onClose={() => setRules(false)}><RulesContent short /></Sheet>}
 
       {tourStep && tour && (
-        <TutoBubble g={{ title: tourStep.title, text: tourStep.text, focus: tourStep.focus === 'opp' || tourStep.focus === 'top' || tourStep.focus === 'say' ? 'opp' : undefined, index: tourAt! + 1, total: tour.length, next: tourAt! + 1 < tour.length ? 'Suivant' : 'C’est parti !' }}
-          onNext={() => { sound.click(); setTourAt((i) => (i === null || i + 1 >= tour.length ? null : i + 1)); }} skipLabel="Passer la visite"
+        <TutoBubble g={{ title: tourStep.title, text: tourStep.text, focus: tourStep.focus === 'opp' || tourStep.focus === 'top' || tourStep.focus === 'say' ? 'opp' : undefined, index: tourAt! + 1, total: tour.length, next: tourAt! + 1 < tour.length ? tr('cf.game.suivant') : tr('cf.game.c_est_parti') }}
+          onNext={() => { sound.click(); setTourAt((i) => (i === null || i + 1 >= tour.length ? null : i + 1)); }} skipLabel={tr('cf.game.passer_la_visite')}
           onSkip={() => setTourAt(null)} />
       )}
       {guide && !tourStep && !snap.finished && !overlayOpen && !fiche && !(respondMine || choiceMine) && (
         <TutoBubble g={guide} onNext={() => { sound.click(); (controller as { guideNext?: () => void }).guideNext?.(); }}
-          onSkip={async () => { if (await askConfirm('Passer la partie guidée ? Vous pourrez la refaire quand vous voulez depuis le menu du mode.', 'Passer')) { controller.leave(); onExit(); } }} />
+          onSkip={async () => { if (await askConfirm(tr('cf.game.passer_la_partie_guidee_vous_pourrez'), tr('cf.game.passer'))) { controller.leave(); onExit(); } }} />
       )}
     </div>
   );
@@ -615,8 +618,8 @@ const TONE_ICON: Partial<Record<string, 'coup' | 'piege' | 'riposte' | 'dernier-
 /** Bulle de la partie guidée : texte court, une seule action attendue, « Passer le tutoriel ». */
 function TutoBubble({ g, onNext, onSkip, skipLabel }: { g: NonNullable<CfSnapshot['guide']>; onNext: () => void; onSkip: () => void; skipLabel?: string }) {
   return (
-    <div className={`cfn-tuto at-${g.focus === 'opp' ? 'bottom' : 'top'}`} role="dialog" aria-live="polite" aria-label="Partie guidée">
-      <div className="cfn-tuto-head"><b>{g.title ?? 'Partie guidée'}</b><small>{g.index}/{g.total}</small><button className="cfn-tuto-skip" onClick={onSkip}>{skipLabel ?? 'Passer le tutoriel'}</button></div>
+    <div className={`cfn-tuto at-${g.focus === 'opp' ? 'bottom' : 'top'}`} role="dialog" aria-live="polite" aria-label={tr('cf.game.partie_guidee')}>
+      <div className="cfn-tuto-head"><b>{g.title ?? tr('cf.game.partie_guidee')}</b><small>{g.index}/{g.total}</small><button className="cfn-tuto-skip" onClick={onSkip}>{skipLabel ?? tr('cf.game.passer_le_tutoriel')}</button></div>
       <p>{g.text}</p>
       {g.next && <button className="cfn-act gold full" onClick={onNext} autoFocus>{g.next}</button>}
     </div>

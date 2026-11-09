@@ -1,3 +1,4 @@
+import { tr } from '../i18n/lang';
 /**
  * Coups Fourrés : les 5 types de cartes, avec une icône et une couleur FIXES partout
  * (cartes, main, annonces, fiche, journal, règles). Prototypes validés par Sam (CFN*).
@@ -15,11 +16,11 @@ export interface TypeMeta {
 }
 
 export const TYPE_META: Record<CardType, TypeMeta> = {
-  coup: { label: 'Coup', color: '#f1cc7d', moment: 'Pendant votre tour', def: 'Pendant votre tour, avant ou après un lancer.' },
-  piege: { label: 'Piège', color: '#d6a6ff', moment: 'Se pose pendant votre tour', def: 'Posé face cachée pendant votre tour ; se déclenche tout seul chez l’adversaire.' },
-  riposte: { label: 'Riposte', color: '#7cc4ff', moment: 'En réponse à l’adversaire', def: 'En réponse à une carte de l’adversaire, même pendant son tour.' },
-  'dernier-mot': { label: 'Dernier mot', color: '#ff9fb2', moment: 'Quand les dés sont posés', def: 'Quand les deux combinaisons sont posées, avant les comptes.' },
-  habitue: { label: 'Habitué', color: '#7fe0b2', moment: 'Reste 3 manches', def: 'S’installe devant vous et agit pendant 3 manches (celle où il arrive comprise), puis rentre chez lui.' },
+  coup: { get label() { return tr('cf.learn.coup'); }, color: '#f1cc7d', get moment() { return tr('cf.cardtypes.pendant_votre_tour'); }, get def() { return tr('cf.learn.pendant_votre_tour_avant_ou_apres'); } },
+  piege: { get label() { return tr('cf.boardparts.piege'); }, color: '#d6a6ff', get moment() { return tr('cf.cardtypes.se_pose_pendant_votre_tour'); }, get def() { return tr('cf.learn.pose_face_cachee_pendant_votre_tour'); } },
+  riposte: { get label() { return tr('cf.learn.riposte'); }, color: '#7cc4ff', get moment() { return tr('cf.cardtypes.en_reponse_a_l_adversaire'); }, get def() { return tr('cf.cardtypes.en_reponse_a_une_carte_de'); } },
+  'dernier-mot': { get label() { return tr('cf.boardparts.dernier_mot'); }, color: '#ff9fb2', get moment() { return tr('cf.cardtypes.quand_les_des_sont_poses'); }, get def() { return tr('cf.cardtypes.quand_les_deux_combinaisons_sont_pos'); } },
+  habitue: { get label() { return tr('cf.learn.habitue'); }, color: '#7fe0b2', get moment() { return tr('cf.cardtypes.reste_3_manches'); }, get def() { return tr('cf.cardtypes.s_installe_devant_vous_et_agit'); } },
 };
 
 export const TYPE_ORDER: CardType[] = ['coup', 'piege', 'riposte', 'dernier-mot', 'habitue'];
@@ -49,7 +50,7 @@ export function TypeTag({ type, moment, size = 12, className }: { type: CardType
 }
 
 /** Légende des 5 types (fiche de carte, aide « ? », règles). */
-export function TypeLegend({ highlight, title = 'Les 5 types de cartes' }: { highlight?: CardType; title?: string | null }) {
+export function TypeLegend({ highlight, title = tr('cf.cardtypes.les_5_types_de_cartes') }: { highlight?: CardType; title?: string | null }) {
   return (
     <div className="cfn-legend">
       {title && <b className="cfn-legend-title">{title}</b>}

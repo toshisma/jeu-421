@@ -1,3 +1,5 @@
+import { plural } from './i18n';
+import { tr } from '../i18n/lang';
 /**
  * Coups Fourrés : « Partager son coup fourré ». Module réutilisable (pas encore branché sur le plateau,
  * qui est en refonte) :
@@ -11,7 +13,8 @@
  * victoire. L'image ne montre que les pseudos de la partie (aucune autre donnée personnelle).
  */
 import { createElement } from 'react';
-import { CARD_BY_ID, FAMILY_LABEL, TYPE_LABEL, type CardDef } from '../../../shared/cards/catalog';
+import { type CardDef } from '../../../shared/cards/catalog';
+import { CARD_BY_ID, FAMILY_LABEL, TYPE_LABEL } from './i18n';
 import type { CfEvent, CfView } from '../../../shared/cards/engine';
 import { FAMILY_STYLE, PAPER, RARITY_COLOR } from './meta';
 import { CardArt } from './art';
@@ -33,7 +36,6 @@ export const SHARE_H = 630;
 export const SHARE_SITE = '421online.com';
 
 const nameOf = (v: CfView, id: string | null | undefined) => v.players.find((p) => p.id === id)?.name ?? '?';
-const plural = (n: number, w: string) => `${n} ${w}${n > 1 ? 's' : ''}`;
 const isCard = (id: string | undefined): id is string => !!id && !!CARD_BY_ID[id];
 
 /**
@@ -92,19 +94,19 @@ export class MomentTracker {
     if (!lr) return null;
     const opp = lr.winner === this.me ? lr.loser : lr.winner;
     if (lr.reversed && lr.loser === this.me && lr.winner) {
-      return { kind: 'veste', cardId: 'retournement-veste', weight: 5, text: `J’ai retourné la veste de ${nameOf(v, lr.winner)} : +${plural(lr.amount, 'jeton')} pour lui !` };
+      return { kind: 'veste', cardId: 'retournement-veste', weight: 5, text: tr('cf.share.j_ai_retourne_la_veste_de', { a: nameOf(v, lr.winner), jetons: plural(lr.amount, 'jeton') }) };
     }
     if (this.nenetteOn) {
-      return { kind: 'nenette', cardId: 'coup-nenette', weight: 4, dice: [2, 2, 1], text: `Le coup de la nénette ! La main de ${nameOf(v, this.nenetteOn)} finit en 2-2-1.` };
+      return { kind: 'nenette', cardId: 'coup-nenette', weight: 4, dice: [2, 2, 1], text: tr('cf.share.le_coup_de_la_nenette_la', { a: nameOf(v, this.nenetteOn) }) };
     }
     const mine = lr.combos[this.me];
     if (lr.winner === this.me && mine && mine.label === '421') {
       const card = [...this.roundCards].reverse().find((id) => CARD_BY_ID[id].type !== 'piege') ?? null;
-      return { kind: '421', cardId: card, weight: 3, dice: [4, 2, 1], text: `4-2-1 au comptoir contre ${nameOf(v, opp)} : ${plural(lr.amount, 'jeton')} dans sa poche !` };
+      return { kind: '421', cardId: card, weight: 3, dice: [4, 2, 1], text: tr('cf.share.4_2_1_au_comptoir_contre', { a: nameOf(v, opp), jetons: plural(lr.amount, 'jeton') }) };
     }
     const rip = this.ripostes.find((r) => r.cancelled);
     if (rip && lr.winner === this.me) {
-      return { kind: 'riposte', cardId: rip.card, weight: 2, text: `Ma ${CARD_BY_ID[rip.card].name} a renversé la manche contre ${nameOf(v, opp)} !` };
+      return { kind: 'riposte', cardId: rip.card, weight: 2, text: tr('cf.share.ma_a_renverse_la_manche_contre', { a: CARD_BY_ID[rip.card].name, b: nameOf(v, opp) }) };
     }
     return null;
   }
@@ -113,7 +115,7 @@ export class MomentTracker {
     const others = v.players.filter((p) => p.id !== this.me).map((p) => p.name);
     const vs = others.length > 1 ? `${others.slice(0, -1).join(', ')} et ${others[others.length - 1]}` : others[0] ?? '?';
     const card = [...this.gameCards].reverse().sort((a, b) => CARD_BY_ID[b].cost - CARD_BY_ID[a].cost)[0] ?? this.lastMine;
-    return { kind: 'victoire', cardId: card ?? null, weight: 1, dice: card ? undefined : [4, 2, 1], text: `J’ai gagné à Coups Fourrés contre ${vs} en ${plural(v.round, 'manche')} !` };
+    return { kind: 'victoire', cardId: card ?? null, weight: 1, dice: card ? undefined : [4, 2, 1], text: tr('cf.share.j_ai_gagne_a_coups_fourres', { vs: vs, manches: plural(v.round, 'manche') }) };
   }
 }
 
@@ -277,7 +279,7 @@ export function drawShareImage(ctx: CanvasRenderingContext2D, m: ShareMoment, ar
   ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = `800 34px ${SANS}`;
   ctx.fillText(SHARE_SITE, tx + 175, py + 30);
   ctx.fillStyle = '#d6a6ff';
-  const tag = 'Le 421 aux cartes : bluff, fouine et coups bas';
+  const tag = tr('cf.mode.le_421_aux_cartes_bluff_fouine');
   let ts = 22;
   do { ctx.font = `600 ${ts}px ${SANS}`; } while (ctx.measureText(tag).width > W - tx - 175 - 30 && --ts > 14);
   ctx.fillText(tag, tx + 175, py + 62);
@@ -309,9 +311,9 @@ export async function makeShareImage(m: ShareMoment): Promise<Blob> {
   const canvas = document.createElement('canvas');
   canvas.width = SHARE_W; canvas.height = SHARE_H;
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Image impossible à créer sur cet appareil.');
+  if (!ctx) throw new Error(tr('cf.share.image_impossible_a_creer_sur_cet'));
   drawShareImage(ctx, m, art);
-  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Image impossible à créer.'))), 'image/png'));
+  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error(tr('cf.share.image_impossible_a_creer')))), 'image/png'));
 }
 
 /** Partage l'image (Web Share avec fichier) ou, à défaut, la télécharge. Renvoie ce qui a été fait. */

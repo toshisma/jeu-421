@@ -1,7 +1,9 @@
+import { cartesNl } from './zones/cartes.nl';
 import type { MessageKey } from './fr';
 
 /** Textes néerlandais (« je », ton direct). Une clé absente s'affiche en français. */
 export const nl: Partial<Record<MessageKey, string>> = {
+  ...(cartesNl as Partial<Record<MessageKey, string>>),
   'common.back': 'Terug', 'common.close': 'Sluiten', 'common.cancel': 'Annuleren', 'common.confirm': 'Bevestigen', 'common.backHome': 'Terug naar het hoofdmenu', 'common.menu': 'Menu',
   'lang.title': 'Taal', 'lang.switch': 'Taal', 'lang.note': 'Voorlopig is alleen De Hoveling (Farkle) vertaald. De rest van het spel is in het Frans.',
   'lang.frenchOnly': 'Voorlopig is alleen De Hoveling vertaald. De 421, Coups Fourrés, de collectie en de winkel zijn in het Frans.',

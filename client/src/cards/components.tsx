@@ -1,3 +1,4 @@
+import { getLang, tr } from '../i18n/lang';
 /**
  * Coups Fourrés : les composants visuels des cartes (carte complète, carte en main, dos, piège
  * face cachée, booster, capsule, pastilles). Fidèles aux prototypes validés par Sam
@@ -5,7 +6,8 @@
  */
 import { GlossText } from './Gloss';
 import { useId, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react';
-import { cardDef, FAMILY_LABEL, RARITY_LABEL, TYPE_LABEL, type CardDef, type CardFamily, type CardRarity } from '../../../shared/cards/catalog';
+import { type CardDef, type CardFamily, type CardRarity } from '../../../shared/cards/catalog';
+import { cardDef, FAMILY_LABEL, RARITY_LABEL, TYPE_LABEL } from './i18n';
 import { CardArt } from './art';
 import { TYPE_META, TypeIcon } from './cardTypes';
 import { FAMILY_SHORT, FAMILY_STYLE, splitEmphasis } from './meta';
@@ -37,7 +39,7 @@ function clickable(onClick?: () => void) {
 /** Pastille de coût dorée (en Tournées). */
 export function CostBadge({ cost, size = 34, className }: { cost: number; size?: number; className?: string }) {
   return (
-    <span className={cx('cf-cost', className)} style={{ width: size, height: size, fontSize: Math.round(size * 0.62) }} aria-label={`Coût : ${cost} Tournée${cost > 1 ? 's' : ''}`}>
+    <span className={cx('cf-cost', className)} style={{ width: size, height: size, fontSize: Math.round(size * 0.62) }} aria-label={tr('cf.components.cout_tournee', { cost: cost, s: cost > 1 ? 's' : '' })}>
       {cost}
     </span>
   );
@@ -117,18 +119,21 @@ export interface CardViewProps {
 /** Corps de la carte à sa taille de référence (230×322). */
 function CardFace({ def, shiny, isNew, count, gloss }: { def: CardDef; shiny?: boolean; isNew?: boolean; count?: number; gloss?: boolean }) {
   const [, bold] = splitEmphasis(def.id, def.text);
-  const long = def.text.length + def.flavor.length > 150;
+  const len = def.text.length + def.flavor.length;
+  const foreign = getLang() !== 'fr';
+  const long = len > (foreign ? 110 : 150);
+  const xl = foreign && len > 150;
   return (
     <>
-      {shiny && <span className="cf-tag cf-tag-shiny">Brillante</span>}
-      {isNew && <span className="cf-tag cf-tag-new">Nouvelle</span>}
+      {shiny && <span className="cf-tag cf-tag-shiny">{tr('cf.components.brillante')}</span>}
+      {isNew && <span className="cf-tag cf-tag-new">{tr('cf.collection.nouvelle_2')}</span>}
       <div className="cf-top">
         <CostBadge cost={def.cost} />
         <h3 className={cx('cf-name', def.name.length > 15 && 'cf-name-long')}>{def.name}</h3>
       </div>
       <div className="cf-art"><CardArt id={def.id} /></div>
       <div className="cf-type"><span className="cfn-typetag"><TypeIcon type={def.type} size={13} color={TYPE_META[def.type].color} />{TYPE_LABEL[def.type]}</span><RarityGem rarity={def.rarity} label /></div>
-      <div className={cx('cf-txt', long && 'cf-txt-long')}>
+      <div className={cx('cf-txt', long && 'cf-txt-long', xl && 'cf-txt-xl')}>
         <p><GlossText text={def.text} bold={bold || undefined} plain={!gloss} /></p>
         <em>{def.flavor}</em>
       </div>
@@ -151,7 +156,7 @@ export function CardView({ id, width, shiny, isNew, dimmed, selected, count, onC
     def.rarity === 'legendaire' && 'cf-legendary',
     shiny && 'cf-shiny', dimmed && 'cf-dimmed', selected && 'cf-selected', onClick && 'cf-clickable',
   );
-  const label = `${def.name}, ${TYPE_LABEL[def.type]}, ${RARITY_LABEL[def.rarity]}, coût ${def.cost}${shiny ? ', brillante' : ''}${count && count > 1 ? `, ${count} exemplaires` : ''}`;
+  const label = tr('cf.components.cout', { name: def.name, a: TYPE_LABEL[def.type], b: RARITY_LABEL[def.rarity], cost: def.cost, c: shiny ? tr('cf.components.brillante_2') : '', d: count && count > 1 ? tr('cf.components.exemplaires', { count: count }) : '' });
   return (
     <div
       className={cx('cf-card-box', className)}
@@ -197,7 +202,7 @@ export function MiniCard({ id, playable, selected, disabled, shiny, isNew, width
     <div
       className={cx('cf-mini-box', className)}
       style={{ width: w, height: Math.round(w * MINI_H / MINI_W), ...style }}
-      aria-label={`${def.name}, ${TYPE_LABEL[def.type]}, coût ${def.cost}${disabled ? ', pas jouable' : playable ? ', jouable' : ''}`}
+      aria-label={tr('cf.components.cout_2', { name: def.name, a: TYPE_LABEL[def.type], cost: def.cost, b: disabled ? tr('cf.components.pas_jouable') : playable ? tr('cf.components.jouable') : '' })}
       aria-pressed={onClick ? !!selected : undefined}
       aria-disabled={disabled || undefined}
       {...clickable(onClick)}
@@ -207,7 +212,7 @@ export function MiniCard({ id, playable, selected, disabled, shiny, isNew, width
           playable && 'cf-playable', selected && 'cf-selected', disabled && 'cf-disabled', shiny && 'cf-shiny')}
         style={scale === 1 ? undefined : { transform: `scale(${scale})` }}
       >
-        {isNew && <span className="cf-mini-new">Nouvelle</span>}
+        {isNew && <span className="cf-mini-new">{tr('cf.collection.nouvelle_2')}</span>}
         <span className="cf-mini-cost">{def.cost}</span>
         <span className="cf-mini-art"><CardArt id={def.id} /></span>
         <b className={cx('cf-mini-name', def.name.length > 14 && 'cf-mini-name-long')}>{def.name}</b>
@@ -248,7 +253,7 @@ export function CardBack({ width = MINI_W, className, style }: { width?: number;
   const uid = useId().replace(/[^A-Za-z0-9_-]/g, '');
   const g = (n: string) => `cf-back-${n}-${uid}`;
   return (
-    <svg className={cx('cf-back', className)} style={style} width={width} height={Math.round(width * CARD_H / CARD_W)} viewBox="0 0 230 322" role="img" aria-label="Carte face cachée" focusable="false">
+    <svg className={cx('cf-back', className)} style={style} width={width} height={Math.round(width * CARD_H / CARD_W)} viewBox="0 0 230 322" role="img" aria-label={tr('cf.components.carte_face_cachee')} focusable="false">
       <defs>
         <linearGradient id={g('bg')} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#4a2c7a" /><stop offset=".55" stopColor="#2a1848" /><stop offset="1" stopColor="#140a24" /></linearGradient>
         <pattern id={g('los')} width="22" height="22" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -285,7 +290,7 @@ export function TrapBack({ width = 34, className, style }: { width?: number; cla
   const uid = useId().replace(/[^A-Za-z0-9_-]/g, '');
   const id = `cf-trap-${uid}`;
   return (
-    <svg className={cx('cf-trap', className)} style={style} width={width} height={Math.round(width * 46 / 34)} viewBox="0 0 34 46" role="img" aria-label="Piège posé" focusable="false">
+    <svg className={cx('cf-trap', className)} style={style} width={width} height={Math.round(width * 46 / 34)} viewBox="0 0 34 46" role="img" aria-label={tr('cf.board.piege_pose')} focusable="false">
       <defs>
         <pattern id={id} width="8.5" height="8.5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <rect width="8.5" height="8.5" fill="#2a1a40" /><rect width="4.25" height="8.5" fill="#3b2457" />
@@ -308,7 +313,7 @@ export function BoosterPack({ width = 160, count = 5, className, style }: { widt
     return d;
   };
   return (
-    <svg className={cx('cf-pack', className)} style={style} width={width} height={Math.round(width * 220 / 160)} viewBox="0 0 160 220" role="img" aria-label={`Booster de ${count} cartes`} focusable="false">
+    <svg className={cx('cf-pack', className)} style={style} width={width} height={Math.round(width * 220 / 160)} viewBox="0 0 160 220" role="img" aria-label={tr('cf.components.booster_de_cartes', { count: count })} focusable="false">
       <defs>
         <linearGradient id={g('foil')} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#6b46a3" /><stop offset=".45" stopColor="#3b2457" /><stop offset=".6" stopColor="#5a3b85" /><stop offset="1" stopColor="#1c1030" />
@@ -333,7 +338,7 @@ export function BoosterPack({ width = 160, count = 5, className, style }: { widt
       <text x="80" y="130" textAnchor="middle" fontFamily="'Alfa Slab One', 'Rockwell', serif" fontSize="30" fill="#f1cc7d">CF</text>
       <text x="80" y="170" textAnchor="middle" fontFamily="'Alfa Slab One', 'Rockwell', serif" fontSize="15" fill="#fbf6e9">Coups Fourrés</text>
       <rect x="50" y="178" width="60" height="16" rx="8" fill="#f1cc7d" />
-      <text x="80" y="190" textAnchor="middle" fontFamily="'Barlow Condensed', 'Barlow', sans-serif" fontWeight="800" fontSize="12" fill="#2a1a05">{count} CARTES</text>
+      <text x="80" y="190" textAnchor="middle" fontFamily="'Barlow Condensed', 'Barlow', sans-serif" fontWeight="800" fontSize="12" fill="#2a1a05">{count}{tr('cf.components.cartes')}</text>
       <path d="M-20 200 L60 18 L90 18 L10 200Z" fill={`url(#${g('shine')})`} clipPath={`url(#${g('clip')})`} />
       <path d="M6 18 L154 18 L156 202 L4 202Z" fill="none" stroke="#d6a6ff" strokeOpacity=".5" strokeWidth="1.5" />
     </svg>

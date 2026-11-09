@@ -1,7 +1,9 @@
+import { cartesFr } from './zones/cartes.fr';
 /**
  * Textes français : LA liste des clés. Toute nouvelle chaîne s'ajoute d'abord ici (mode d'emploi : shared/i18n/index.ts).
  */
 export const fr = {
+  ...cartesFr,
   "common.back": "Retour",
   "common.close": "Fermer",
   "common.cancel": "Annuler",
