@@ -350,13 +350,13 @@ ${H.toc('Inhoud', [['idee', 'Het idee'], ['ronde', 'Een ronde'], ['typen', 'Vijf
 <li>Iedereen start met <b>${R.startTokens} fiches</b>. Wie als eerste geen fiches meer heeft, wint.</li>
 <li>Elke ronde gooi je <b>tot ${R.maxThrows} keer met drie stenen</b>, met de combinaties van <a href="/421-dobbelspel-regels">421</a>.</li>
 <li>De beste combinatie wint de ronde, en die speler <b>geeft de verliezer</b> zoveel fiches als ze waard is.</li>
-<li>Tussen de worpen speel je kaarten en betaal je met <b>Tournées</b> („rondjes”, het kleingeld van elk potje): ${R.tourneesPerRound} per ronde, ${R.tourneesPerRound + R.tourneesLoserBonus} voor wie net verloren heeft.</li>
-<li>Je ziet de Tournées, het aantal kaarten en de vallen van je tegenstander… maar niet welke vallen. Daar begint de bluf.</li>
+<li>Tussen de worpen speel je kaarten en betaal je met <b>Biertjes</b> („rondjes”, het kleingeld van elk potje): ${R.tourneesPerRound} per ronde, ${R.tourneesPerRound + R.tourneesLoserBonus} voor wie net verloren heeft.</li>
+<li>Je ziet de Biertjes, het aantal kaarten en de vallen van je tegenstander… maar niet welke vallen. Daar begint de bluf.</li>
 </ul>
 
 <h2 id="ronde">Een ronde</h2>
 <ol class="steps">
-<li><b>Uitschenken</b>: iedereen trekt een kaart en krijgt Tournées (hoogstens ${R.tourneesMax} in voorraad).</li>
+<li><b>Uitschenken</b>: iedereen trekt een kaart en krijgt Biertjes (hoogstens ${R.tourneesMax} in voorraad).</li>
 <li><b>De voorspeler</b> (verliezer van de vorige ronde) gooit en speelt kaarten. Zijn aantal worpen is de grens voor de ander.</li>
 <li><b>De andere speler</b> is aan de beurt en kent de combinatie die hij moet verslaan.</li>
 <li><b>Laatste woord</b>: beide combinaties liggen op tafel, en wie op dat moment verliest, mag nog een „laatste woord”-kaart spelen.</li>
@@ -370,13 +370,13 @@ ${H.toc('Inhoud', [['idee', 'Het idee'], ['ronde', 'Een ronde'], ['typen', 'Vijf
 <tbody>
 <tr><td><b>Zet</b></td><td>In je beurt, voor of na een worp, en dan afgelegd.</td></tr>
 <tr><td><b>Val</b></td><td>Gedekt gelegd in je beurt; ze gaat vanzelf af als aan haar voorwaarde is voldaan.</td></tr>
-<tr><td><b>Riposte</b></td><td>Altijd, als antwoord op een kaart van de tegenstander.</td></tr>
+<tr><td><b>Repliek</b></td><td>Altijd, als antwoord op een kaart van de tegenstander.</td></tr>
 <tr><td><b>Laatste woord</b></td><td>Alleen in de stap „laatste woord”, vlak voor de afrekening.</td></tr>
 <tr><td><b>Stamgast</b></td><td>In je beurt; een stamgast blijft ${R.habitueRounds} rondes voor je liggen (hoogstens ${R.maxHabitues}).</td></tr>
 </tbody></table></div>
 
 <h2 id="families">Vier kaartfamilies</h2>
-<p>De ${CARDS.length} kaarten horen bij vier families: <b>Stamgasten</b> brengen bondgenoten en extra Tournées, <b>Dronkenschap</b>-kaarten laten stenen draaien en brengen die van de tegenstander in de war, <b>Vallen</b> worden gedekt gelegd, en <b>Kettingen</b> combineren trekken, kortingen en steeds sterkere antwoorden. Een deck heeft hoogstens ${DECK_RULES.maxFamilies} families, en de families van de tegenstander zijn vanaf het begin zichtbaar.</p>
+<p>De ${CARDS.length} kaarten horen bij vier families: <b>Stamgasten</b> brengen bondgenoten en extra Biertjes, <b>Dronkenschap</b>-kaarten laten stenen draaien en brengen die van de tegenstander in de war, <b>Vallen</b> worden gedekt gelegd, en <b>Kettingen</b> combineren trekken, kortingen en steeds sterkere antwoorden. Een deck heeft hoogstens ${DECK_RULES.maxFamilies} families, en de families van de tegenstander zijn vanaf het begin zichtbaar.</p>
 
 <h2 id="manieren">Manieren om te spelen</h2>
 <div class="cards">
@@ -401,13 +401,13 @@ ${playCF('Speel Coups Fourrés gratis', 'In je browser, met een begeleid potje v
   // ---------------------------------------------------------------------------------------------
   {
     ...baseCF, slug: 'coups-fourres-spelregels', nav: 'Regels CF', short: 'Coups Fourrés spelregels', parent: 'coups-fourres-kaart-dobbelspel',
-    blurb: 'Opstelling, rondes, Tournées, soorten kaarten, vallen en spellen met 3 of 4.',
+    blurb: 'Opstelling, rondes, Biertjes, soorten kaarten, vallen en spellen met 3 of 4.',
     title: 'Coups Fourrés spelregels: rondes, kaarten, vallen en fiches',
-    description: 'De regels van Coups Fourrés: opstelling, een ronde stap voor stap, combinaties, Tournées, de vijf soorten kaarten, vallen en spellen met 3 of 4 spelers.',
+    description: 'De regels van Coups Fourrés: opstelling, een ronde stap voor stap, combinaties, Biertjes, de vijf soorten kaarten, vallen en spellen met 3 of 4 spelers.',
     h1: 'De spelregels van Coups Fourrés',
     lead: `Coups Fourrés gebruikt de stenen en de combinaties van 421 en voegt een deck van ${R.deckSize} kaarten per speler toe. Het spel past alle regels voor je toe; hier vind je de details.`,
     body: `
-${H.toc('Inhoud', [['doel', 'Het doel'], ['opstelling', 'Opstelling'], ['ronde', 'Een ronde'], ['combos', 'De combinaties'], ['tournees', 'Tournées'], ['kaarten', 'Vallen, stamgasten en ripostes'], ['einde', 'Einde van het spel'], ['meer', 'Met 3 of 4 spelers'], ['deck', 'Een deck bouwen']])}
+${H.toc('Inhoud', [['doel', 'Het doel'], ['opstelling', 'Opstelling'], ['ronde', 'Een ronde'], ['combos', 'De combinaties'], ['tournees', 'Biertjes'], ['kaarten', 'Vallen, stamgasten en ripostes'], ['einde', 'Einde van het spel'], ['meer', 'Met 3 of 4 spelers'], ['deck', 'Een deck bouwen']])}
 
 <h2 id="doel">Het doel</h2>
 <p>Je speelt 421 enkel met lossen: iedereen start met <b>${R.startTokens} fiches</b> (${R.startTokensMulti} met 3 of 4 spelers). Wie als eerste geen fiches meer heeft, wint het spel.</p>
@@ -417,7 +417,7 @@ ${H.toc('Inhoud', [['doel', 'Het doel'], ['opstelling', 'Opstelling'], ['ronde',
 
 <h2 id="ronde">Een ronde</h2>
 <ol class="steps">
-<li><b>Uitschenken</b>: trek 1 kaart en krijg ${R.tourneesPerRound} Tournée (${R.tourneesPerRound + R.tourneesLoserBonus} voor de verliezer van de vorige ronde). Je kunt er tot ${R.tourneesMax} sparen.</li>
+<li><b>Uitschenken</b>: trek 1 kaart en krijg ${R.tourneesPerRound} Biertje (${R.tourneesPerRound + R.tourneesLoserBonus} voor de verliezer van de vorige ronde). Je kunt er tot ${R.tourneesMax} sparen.</li>
 <li><b>Bestelling aan de toog</b>: een willekeurige bonusregel geldt voor iedereen in die ronde.</li>
 <li><b>Beurt van de voorspeler</b>: gooi tot ${R.maxThrows} keer, houd stenen tussen de worpen en stop wanneer je wilt. Kaarten mogen voor of na elke worp gespeeld worden. Het aantal worpen is de grens voor de ander.</li>
 <li><b>Beurt van de ander</b>, binnen die grens, met zicht op het resultaat van de voorspeler.</li>
@@ -430,8 +430,8 @@ ${H.toc('Inhoud', [['doel', 'Het doel'], ['opstelling', 'Opstelling'], ['ronde',
 <p>Dezelfde als bij 421, van de beste naar de slechtste:</p>
 ${combosTable(L421, H.dice)}
 
-<h2 id="tournees">Tournées</h2>
-<p>Tournées betalen de kaarten: het cijfer in het glaasje op elke kaart is de kostprijs. Je krijgt ze bij elke ronde, en de Tournées van elke speler zijn <b>voor iedereen zichtbaar</b>. Een tegenstander zonder Tournées kan bijna niets spelen, en iemand met vier of meer plant misschien iets groots.</p>
+<h2 id="tournees">Biertjes</h2>
+<p>Biertjes betalen de kaarten: het cijfer in het glaasje op elke kaart is de kostprijs. Je krijgt ze bij elke ronde, en de Biertjes van elke speler zijn <b>voor iedereen zichtbaar</b>. Een tegenstander zonder Biertjes kan bijna niets spelen, en iemand met vier of meer plant misschien iets groots.</p>
 
 <h2 id="kaarten">Vallen, stamgasten en ripostes</h2>
 <ul>

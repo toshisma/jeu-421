@@ -7,6 +7,10 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.52', date: '2026-11-09T15:00:00+01:00', title: 'Le jeu parle quatre langues', items: [
+    'Tout le jeu est disponible en français, anglais, allemand et néerlandais : changez de langue dans les Réglages.',
+    'Si vous ne choisissez rien, le jeu suit la langue de votre navigateur (anglais, allemand ou néerlandais) ; sinon il reste en français.',
+  ] },
   { version: '0.51', date: '2026-11-09T12:30:00+01:00', title: 'De nouvelles pages d’aide', items: [
     'Nouvelles pages pour découvrir le site et inviter vos amis : jeu de dés entre amis, jeux de dés en ligne, jeu de bistrot, Farkle, apéro à distance.',
   ] },

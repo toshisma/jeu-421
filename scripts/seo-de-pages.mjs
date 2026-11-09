@@ -18,7 +18,7 @@ const playCF = (a, b) => H.play(P.cartes, a, b);
 const indep = `<p class="disclaimer" role="note"><b>${DISCLAIMERS.de}</b> Diese Seite beschreibt das traditionelle Würfelspiel, das das Videospiel inspiriert hat; sie enthält weder Bilder noch Texte aus dem Videospiel.</p>`;
 const targets = DM_TARGETS.map(nb);
 const targetsText = `${targets[0]}, ${targets[1]} oder ${targets[2]}`;
-const L421 = { head: ['Kombination', 'Beispiel', 'Wert'], tokens: (n) => `${n} ${n > 1 ? 'Chips' : 'Chip'}`, r421: '4-2-1', r111: 'Drei Einsen', rx: 'Zwei Einsen + x, danach Dreierpasch x', rxv: 'x Chips (6 bis 2)', rs: 'Straße', ro: 'Alle anderen', rn: 'Nénette (die schlechteste)', rnv: `der Verlierer nimmt mindestens ${V421.nenette} Chips` };
+const L421 = { head: ['Kombination', 'Beispiel', 'Wert'], tokens: (n) => `${n} ${n > 1 ? 'Jetons' : 'Jeton'}`, r421: '4-2-1', r111: 'Drei Einsen', rx: 'Zwei Einsen + x, danach Dreierpasch x', rxv: 'x Jetons (6 bis 2)', rs: 'Straße', ro: 'Alle anderen', rn: 'Nénette (die schlechteste)', rnv: `der Verlierer nimmt mindestens ${V421.nenette} Jetons` };
 const SC = { h: ['Kombination', 'Punkte'], one: 'Eine einzelne 1', five: 'Eine einzelne 5', t1: 'Drei Einsen', tx: 'Dreierpasch aus 2, 3, 4, 5 oder 6', txv: 'Augenzahl × 100 (drei 4er = 400)', more: 'Vierer-, Fünfer- oder Sechserpasch', morev: 'verdoppelt sich mit jedem weiteren Würfel (vier 2er = 400)', s15: 'Straße 1–5', s26: 'Straße 2–6', s16: 'Große Straße 1–6' };
 const KT = { face: 'Augenzahl', three: 'Drei', four: 'Vier', five: 'Fünf', six: 'Sechs', of: (f) => `${f}er` };
 
@@ -28,23 +28,23 @@ export const dePages = [
     ...base421, slug: '421-wuerfelspiel-online', nav: '421 spielen', short: '421 online spielen',
     blurb: 'Das französische Kneipen-Würfelspiel, kostenlos im Browser: allein oder mit Freunden.',
     title: '421 online spielen: das französische Würfelspiel, kostenlos',
-    description: '421, das klassische französische Kneipen-Würfelspiel, kostenlos online spielen: 3 Würfel, Chips, 2 bis 6 Spieler oder gegen den Computer. Ohne Download.',
+    description: '421, das klassische französische Kneipen-Würfelspiel, kostenlos online spielen: 3 Würfel, Jetons, 2 bis 6 Spieler oder gegen den Computer. Ohne Download.',
     h1: '421 online spielen: das Würfelspiel aus Frankreich',
-    lead: `<b>421</b> (auf Deutsch „Vier-Zwei-Eins“) ist in Frankreich und Belgien das, was Schocken in deutschen Kneipen ist: drei Würfel, ein Haufen Chips, und wer am Ende noch welche hat, zahlt traditionell die nächste Runde. Außerhalb Frankreichs kennt es kaum jemand, und auf <a href="${P.l421}" data-play>421online.com</a> kannst du es kostenlos im Browser spielen, gegen den Computer oder mit Freunden.`,
+    lead: `<b>421</b> (auf Deutsch „Vier-Zwei-Eins“) ist in Frankreich und Belgien das, was Schocken in deutschen Kneipen ist: drei Würfel, ein Haufen Jetons, und wer am Ende noch welche hat, zahlt traditionell die nächste Runde. Außerhalb Frankreichs kennt es kaum jemand, und auf <a href="${P.l421}" data-play>421online.com</a> kannst du es kostenlos im Browser spielen, gegen den Computer oder mit Freunden.`,
     body: `
 ${play421('421 jetzt spielen', 'Kostenlos, ohne Download, auf Handy und PC')}
 ${H.toc('Inhalt', [['was', 'Was ist 421?'], ['ablauf', 'So läuft ein Spiel'], ['arten', 'Spielarten'], ['konto', 'Mit oder ohne Konto'], ['fair', 'Faire Würfel']])}
 
 <h2 id="was">Was ist 421?</h2>
-<p>421 ist nach seinem besten Wurf benannt, ${H.dice('421')}. Wie beim Schocken würfelt jeder mit drei Würfeln, bis zu dreimal, und der schlechteste Wurf der Runde kassiert. Der Unterschied liegt in den Kombinationen und ihrem Wert: Beim 421 entscheidet der beste Wurf, wie viele Chips die Hand wechseln. Eine Partie dauert wenige Minuten, und alle spielen in jeder Runde mit.</p>
+<p>421 ist nach seinem besten Wurf benannt, ${H.dice('421')}. Wie beim Schocken würfelt jeder mit drei Würfeln, bis zu dreimal, und der schlechteste Wurf der Runde kassiert. Der Unterschied liegt in den Kombinationen und ihrem Wert: Beim 421 entscheidet der beste Wurf, wie viele Jetons die Hand wechseln. Eine Partie dauert wenige Minuten, und alle spielen in jeder Runde mit.</p>
 
 <h2 id="ablauf">So läuft ein Spiel</h2>
 <ol class="steps">
 <li>Pro Runde würfelst du bis zu ${V421.throws}-mal mit drei Würfeln und behältst die, die dir passen. Der erste Spieler der Runde gibt die Zahl der Würfe für alle vor.</li>
-<li>Der schlechteste Wurf verliert die Runde, der beste legt fest, wie viele Chips fällig werden.</li>
-<li>Erst wird <b>aufgeladen</b>: Der Verlierer nimmt Chips aus einem Topf mit ${V421.pot} Chips. Dann wird <b>entladen</b>: Die Chips wandern zum Verlierer. Wer keine mehr hat, ist raus und sicher. Wer am Ende noch welche hat, verliert.</li>
+<li>Der schlechteste Wurf verliert die Runde, der beste legt fest, wie viele Jetons fällig werden.</li>
+<li>Erst wird <b>aufgeladen</b>: Der Verlierer nimmt Jetons aus einem Topf mit ${V421.pot} Jetons. Dann wird <b>abladen</b>: Die Jetons wandern zum Verlierer. Wer keine mehr hat, ist raus und sicher. Wer am Ende noch welche hat, verliert.</li>
 </ol>
-<p>Alle Regeln mit Beispiel stehen auf der Seite <a href="/421-wuerfelspiel-regeln">421 Regeln</a>. Das Spiel zählt die Chips für dich, und eine geführte Partie erklärt alles beim Spielen.</p>
+<p>Alle Regeln mit Beispiel stehen auf der Seite <a href="/421-wuerfelspiel-regeln">421 Regeln</a>. Das Spiel zählt die Jetons für dich, und eine geführte Partie erklärt alles beim Spielen.</p>
 
 <h2 id="arten">Spielarten</h2>
 <div class="cards">
@@ -53,7 +53,7 @@ ${H.toc('Inhalt', [['was', 'Was ist 421?'], ['ablauf', 'So läuft ein Spiel'], [
 <section class="card"><h3>Privater Tisch</h3><p>Tisch erstellen, Link oder 5-stelligen Code teilen. <a href="/online-wuerfelspiel-mit-freunden">Mit Freunden spielen</a>.</p></section>
 <section class="card"><h3>Turniere</h3><p>Täglich um 11 und 21 Uhr (Brüsseler Zeit), 4 bis 16 Spieler, mit Konto. Eigene Turniere kannst du auch anlegen.</p></section>
 <section class="card"><h3>Tagesherausforderung</h3><p>Für alle dieselben Würfel, fünf Würfe, ein Versuch, eine tägliche Rangliste.</p></section>
-<section class="card"><h3>Hausregeln</h3><p>Chips, Würfe, Werte und Gleichstand vor dem Spiel einstellen. Fertige Formate: Klassisch, Blitz und Sudden Death.</p></section>
+<section class="card"><h3>Hausregeln</h3><p>Jetons, Würfe, Werte und Gleichstand vor dem Spiel einstellen. Fertige Formate: Klassisch, Blitz und Sudden Death.</p></section>
 <section class="card"><h3>Coups Fourrés</h3><p>421 mit Kartendeck, Fallen und Bluff. <a href="/coups-fourres-karten-wuerfelspiel">Mehr dazu</a>.</p></section>
 <section class="card"><h3>Der Höfling</h3><p>Sechs Würfel, Risiko und Zehntausend-Feeling. <a href="/farkle-online-spielen">Farkle spielen</a>.</p></section>
 </div>
@@ -66,7 +66,7 @@ ${H.toc('Inhalt', [['was', 'Was ist 421?'], ['ablauf', 'So läuft ein Spiel'], [
 ${play421('421 jetzt spielen', 'Dein erstes Spiel ist geführt')}
 `,
     faq: [
-      ['Was ist das Würfelspiel 421?', 'Ein traditionelles französisches Kneipenspiel mit drei Würfeln und Chips. Der beste Wurf ist 4-2-1, der schlechteste Wurf verliert jede Runde, und wer zuletzt noch Chips hat, verliert das Spiel.'],
+      ['Was ist das Würfelspiel 421?', 'Ein traditionelles französisches Kneipenspiel mit drei Würfeln und Jetons. Der beste Wurf ist 4-2-1, der schlechteste Wurf verliert jede Runde, und wer zuletzt noch Jetons hat, verliert das Spiel.'],
       ['Ist 421online kostenlos?', 'Ja, ohne Werbung, ohne Abo und ohne Käufe. Es läuft im Browser.'],
       ['Wie viele können mitspielen?', '2 bis 6 Spieler an einem Online-Tisch oder 1 bis 5 Computergegner.'],
       ['Ist 421 wie Schocken?', 'Es ist verwandt: drei Würfel, bis zu drei Würfe, der schlechteste Wurf verliert. Kombinationen und Werte unterscheiden sich aber.'],
@@ -77,21 +77,21 @@ ${play421('421 jetzt spielen', 'Dein erstes Spiel ist geführt')}
   // ---------------------------------------------------------------------------------------------
   {
     ...base421, slug: '421-wuerfelspiel-regeln', nav: '421 Regeln', short: '421 Regeln', parent: '421-wuerfelspiel-online',
-    blurb: 'Würfe, Kombinationen, Aufladen und Entladen, Gleichstand: die Regeln mit Beispiel.',
-    title: '421 Würfelspiel Regeln: Kombinationen, Chips und Ablauf',
-    description: 'So spielt man das französische Würfelspiel 421: drei Würfel, Rangfolge der Kombinationen, Wert der Chips, Aufladen und Entladen, Gleichstand und Hausregeln.',
+    blurb: 'Würfe, Kombinationen, Aufladen und Abladen, Gleichstand: die Regeln mit Beispiel.',
+    title: '421 Würfelspiel Regeln: Kombinationen, Jetons und Ablauf',
+    description: 'So spielt man das französische Würfelspiel 421: drei Würfel, Rangfolge der Kombinationen, Wert der Jetons, Aufladen und Abladen, Gleichstand und Hausregeln.',
     h1: '421 Regeln: so spielt man das Würfelspiel',
-    lead: `421 wird mit drei Würfeln und einem Topf Chips gespielt. Ziel ist es, <b>alle Chips loszuwerden</b>; wer am Ende noch welche hat, verliert. Das hier sind die Standardregeln auf 421online, danach die gängigen Varianten.`,
+    lead: `421 wird mit drei Würfeln und einem Topf Jetons gespielt. Ziel ist es, <b>alle Jetons loszuwerden</b>; wer am Ende noch welche hat, verliert. Das hier sind die Standardregeln auf 421online, danach die gängigen Varianten.`,
     body: `
-${H.toc('Inhalt', [['material', 'Material'], ['runde', 'Eine Runde'], ['kombis', 'Die Kombinationen'], ['aufladen', 'Aufladen'], ['entladen', 'Entladen'], ['beispiel', 'Beispiel'], ['gleich', 'Gleichstand'], ['varianten', 'Varianten']])}
+${H.toc('Inhalt', [['material', 'Material'], ['runde', 'Eine Runde'], ['kombis', 'Die Kombinationen'], ['aufladen', 'Aufladen'], ['abladen', 'Abladen'], ['beispiel', 'Beispiel'], ['gleich', 'Gleichstand'], ['varianten', 'Varianten']])}
 
 <h2 id="material">Material</h2>
-<p>Du brauchst drei sechsseitige Würfel und ${V421.pot} Chips (Streichhölzer oder Münzen gehen auch) in der Tischmitte, ab 2 Spielern; am schönsten sind 3 bis 6.</p>
+<p>Du brauchst drei sechsseitige Würfel und ${V421.pot} Jetons (Streichhölzer oder Münzen gehen auch) in der Tischmitte, ab 2 Spielern; am schönsten sind 3 bis 6.</p>
 
 <h2 id="runde">Eine Runde</h2>
 <p>Jeder würfelt in seinem Zug mit den drei Würfeln. Du kannst aufhören oder <b>die Würfel behalten, die dir passen, und den Rest neu werfen</b>, bis zu ${V421.throws} Würfe insgesamt. Ein behaltener Würfel darf beim nächsten Wurf wieder mitgeworfen werden.</p>
 <p>Der <b>erste Spieler der Runde</b> gibt die Grenze vor: Hört er nach einem Wurf auf, haben alle nur einen; nimmt er zwei, hat niemand mehr als zwei.</p>
-<p>Wenn alle dran waren, <b>verliert die schlechteste Kombination die Runde</b>, und die <b>beste</b> bestimmt, wie viele Chips fällig sind. Der Verlierer beginnt die nächste Runde.</p>
+<p>Wenn alle dran waren, <b>verliert die schlechteste Kombination die Runde</b>, und die <b>beste</b> bestimmt, wie viele Jetons fällig sind. Der Verlierer beginnt die nächste Runde.</p>
 
 <h2 id="kombis">Die Kombinationen</h2>
 <p>Von der besten zur schlechtesten:</p>
@@ -99,33 +99,33 @@ ${combosTable(L421, H.dice)}
 <p>Bei zwei „anderen“ Kombinationen ordnest du die Würfel von hoch nach niedrig und vergleichst der Reihe nach: 6-5-2 schlägt 6-4-3. Zwei Einsen schlagen einen gleich hohen Dreierpasch: 6-1-1 schlägt 6-6-6, das schlägt 5-1-1. Die 2-2-1, in Frankreich <b>Nénette</b> genannt, ist die schlechteste Kombination.</p>
 
 <h2 id="aufladen">Aufladen</h2>
-<p>Am Anfang liegen alle ${V421.pot} Chips im Topf. In jeder Runde <b>nimmt der Verlierer so viele Chips aus dem Topf, wie die beste Kombination wert ist</b>. Beim Aufladen gilt hier standardmäßig ein einziger Wurf, damit es schnell geht. Ist der Topf leer, ist die Aufladephase vorbei, und wer <b>keine Chips</b> hat, hat schon gewonnen und scheidet aus.</p>
+<p>Am Anfang liegen alle ${V421.pot} Jetons im Topf. In jeder Runde <b>nimmt der Verlierer so viele Jetons aus dem Topf, wie die beste Kombination wert ist</b>. Beim Aufladen gilt hier standardmäßig ein einziger Wurf, damit es schnell geht. Ist der Topf leer, ist die Aufladephase vorbei, und wer <b>keine Jetons</b> hat, hat schon gewonnen und scheidet aus.</p>
 
-<h2 id="entladen">Entladen</h2>
-<p>Wer Chips hat, spielt weiter, jetzt mit drei Würfen. <b>Der Spieler mit der besten Kombination gibt dem Verlierer</b> so viele Chips, wie seine Kombination wert ist. Wer keine Chips mehr hat, ist raus und sicher. Wer zuletzt noch welche hat, verliert das Spiel.</p>
+<h2 id="abladen">Abladen</h2>
+<p>Wer Jetons hat, spielt weiter, jetzt mit drei Würfen. <b>Der Spieler mit der besten Kombination gibt dem Verlierer</b> so viele Jetons, wie seine Kombination wert ist. Wer keine Jetons mehr hat, ist raus und sicher. Wer zuletzt noch welche hat, verliert das Spiel.</p>
 
 <h2 id="beispiel">Beispiel</h2>
-<p>Anna, Ben und Clara spielen, im Topf liegen noch 9 Chips. Anna wirft ${H.dice('641')}, wirft die 6 und die 1 neu und hat ${H.dice('421')}. Sie stoppt nach <b>zwei Würfen</b>, also dürfen die anderen nur zweimal.</p>
-<p>Ben kommt auf ${H.dice('555')}, Clara auf ${H.dice('221')}. Clara hat die schlechteste Kombination und verliert; die beste ist Annas 421 mit ${V421.v421} Chips. Clara nimmt ${V421.v421} Chips aus dem Topf, einer bleibt übrig, und sie beginnt die nächste Runde.</p>
+<p>Anna, Ben und Clara spielen, im Topf liegen noch 9 Jetons. Anna wirft ${H.dice('641')}, wirft die 6 und die 1 neu und hat ${H.dice('421')}. Sie stoppt nach <b>zwei Würfen</b>, also dürfen die anderen nur zweimal.</p>
+<p>Ben kommt auf ${H.dice('555')}, Clara auf ${H.dice('221')}. Clara hat die schlechteste Kombination und verliert; die beste ist Annas 421 mit ${V421.v421} Jetons. Clara nimmt ${V421.v421} Jetons aus dem Topf, einer bleibt übrig, und sie beginnt die nächste Runde.</p>
 
 <h2 id="gleich">Gleichstand</h2>
 <ul>
 <li>Gleichstand um den letzten Platz: Die Betroffenen <b>stechen</b>, ein Wurf pro Person, der schlechteste verliert. Immer noch gleich? Neu werfen.</li>
-<li>Gleichstand um die beste Kombination beim Entladen: Ein Stechen entscheidet, wer die Chips gibt.</li>
-<li>Wer mit einer Nénette verliert, nimmt mindestens ${V421.nenette} Chips.</li>
-<li>Ist der Topf fast leer, nimmt der Verlierer nur den Rest; beim Entladen gibt man höchstens, was man noch hat.</li>
+<li>Gleichstand um die beste Kombination beim Abladen: Ein Stechen entscheidet, wer die Jetons gibt.</li>
+<li>Wer mit einer Nénette verliert, nimmt mindestens ${V421.nenette} Jetons.</li>
+<li>Ist der Topf fast leer, nimmt der Verlierer nur den Rest; beim Abladen gibt man höchstens, was man noch hat.</li>
 </ul>
 
 <h2 id="varianten">Varianten</h2>
-<p>421 ändert sich von Kneipe zu Kneipe, also vorher klären. Auf 421online stellst du Chips, Würfe, den Wert jeder Kombination, die Gleichstandsregel und das Format ein: Aufladen und Entladen, <b>nur Entladen</b> (alle starten mit gleich vielen Chips) oder <b>nach Punkten</b> (feste Rundenzahl).</p>
-${play421('Eine Partie versuchen', 'Das Spiel wendet die Regeln an und zählt die Chips')}
+<p>421 ändert sich von Kneipe zu Kneipe, also vorher klären. Auf 421online stellst du Jetons, Würfe, den Wert jeder Kombination, die Gleichstandsregel und das Format ein: Aufladen und Abladen, <b>nur Abladen</b> (alle starten mit gleich vielen Jetons) oder <b>nach Punkten</b> (feste Rundenzahl).</p>
+${play421('Eine Partie versuchen', 'Das Spiel wendet die Regeln an und zählt die Jetons')}
 `,
     faq: [
       ['Mit wie vielen Würfeln spielt man 421?', 'Mit drei, bis zu drei Würfe pro Zug. Der erste Spieler jeder Runde gibt die Zahl der Würfe vor.'],
-      ['Was ist die beste Kombination?', `4-2-1, standardmäßig ${V421.v421} Chips wert. Danach kommen drei Einsen mit ${V421.v111} Chips.`],
-      ['Was ist eine Nénette?', `Die 2-2-1, die schlechteste Kombination. Wer damit verliert, nimmt mindestens ${V421.nenette} Chips.`],
-      ['Wer verliert beim 421?', 'Wer am Ende des Entladens als Letzter noch Chips hat. In französischen Kneipen zahlt er traditionell die Runde.'],
-      ['Wie viele Chips gibt es?', `${V421.pot} Chips liegen im Topf; das Aufladen verteilt sie auf die Spieler.`],
+      ['Was ist die beste Kombination?', `4-2-1, standardmäßig ${V421.v421} Jetons wert. Danach kommen drei Einsen mit ${V421.v111} Jetons.`],
+      ['Was ist eine Nénette?', `Die 2-2-1, die schlechteste Kombination. Wer damit verliert, nimmt mindestens ${V421.nenette} Jetons.`],
+      ['Wer verliert beim 421?', 'Wer am Ende des Entladens als Letzter noch Jetons hat. In französischen Kneipen zahlt er traditionell die Runde.'],
+      ['Wie viele Jetons gibt es?', `${V421.pot} Jetons liegen im Topf; das Aufladen verteilt sie auf die Spieler.`],
     ],
     related: ['421-wuerfelspiel-online', 'online-wuerfelspiel-mit-freunden', 'coups-fourres-regeln'],
   },
@@ -153,7 +153,7 @@ ${H.toc('Inhalt', [['schritte', 'Freunde einladen in vier Schritten'], ['welches
 <div class="table-wrap"><table>
 <thead><tr><th>Spiel</th><th>Spieler</th><th>Stimmung</th></tr></thead>
 <tbody>
-<tr><td><a href="/421-wuerfelspiel-online">421</a></td><td>2 bis 6</td><td>Drei Würfel und Chips zum Weiterreichen: schnell, frech, mit eigenen Hausregeln.</td></tr>
+<tr><td><a href="/421-wuerfelspiel-online">421</a></td><td>2 bis 6</td><td>Drei Würfel und Jetons zum Weiterreichen: schnell, frech, mit eigenen Hausregeln.</td></tr>
 <tr><td><a href="/farkle-online-spielen">Der Höfling (Farkle)</a></td><td>2 bis 6</td><td>Sechs Würfel und eine Frage: weiterwürfeln oder sichern?</td></tr>
 <tr><td><a href="/coups-fourres-karten-wuerfelspiel">Coups Fourrés</a></td><td>2 bis 4</td><td>421 mit Kartendeck, Fallen und Bluff, für Strategen.</td></tr>
 </tbody></table></div>
@@ -164,7 +164,7 @@ ${H.toc('Inhalt', [['schritte', 'Freunde einladen in vier Schritten'], ['welches
 <h2 id="ideen">Ideen für den Spieleabend</h2>
 <ul>
 <li>Videocall starten und das Spiel daneben offen lassen: die Würfel im Spiel, das Lachen im Call.</li>
-<li>Beim 421 das Format Blitz wählen (11 Chips, 10 Sekunden pro Entscheidung) für eine kurze Partie.</li>
+<li>Beim 421 das Format Blitz wählen (11 Jetons, 10 Sekunden pro Entscheidung) für eine kurze Partie.</li>
 <li>Nicht alle haben gleichzeitig Zeit? Bei Freundes-Herausforderungen im 421 bekommen beide genau dieselben Würfel, jeder spielt innerhalb von 72 Stunden.</li>
 <li>Beim 421 geht auch ein einziges Handy, das herumgereicht wird, oder eure echten Würfel, die App zählt mit.</li>
 </ul>
@@ -348,20 +348,20 @@ ${H.toc('Inhalt', [['idee', 'Die Idee'], ['runde', 'Eine Runde'], ['typen', 'Fü
 
 <h2 id="idee">Die Idee</h2>
 <ul>
-<li>Jeder startet mit <b>${R.startTokens} Chips</b>. Wer als Erster keine mehr hat, gewinnt.</li>
+<li>Jeder startet mit <b>${R.startTokens} Jetons</b>. Wer als Erster keine mehr hat, gewinnt.</li>
 <li>In jeder Runde würfelst du <b>mit drei Würfeln bis zu ${R.maxThrows}-mal</b>, mit den Kombinationen aus dem <a href="/421-wuerfelspiel-regeln">421</a>.</li>
-<li>Die beste Kombination gewinnt die Runde, und ihr Spieler <b>gibt dem Verlierer</b> so viele Chips, wie sie wert ist.</li>
-<li>Zwischen den Würfen spielst du Karten und bezahlst sie mit <b>Tournées</b> („Runden“, die Spielwährung jeder Partie): ${R.tourneesPerRound} pro Runde, ${R.tourneesPerRound + R.tourneesLoserBonus} für den, der gerade verloren hat.</li>
-<li>Du siehst die Tournées des Gegners, seine Kartenzahl und seine Fallen… aber nicht, welche. Da beginnt der Bluff.</li>
+<li>Die beste Kombination gewinnt die Runde, und ihr Spieler <b>gibt dem Verlierer</b> so viele Jetons, wie sie wert ist.</li>
+<li>Zwischen den Würfen spielst du Karten und bezahlst sie mit <b>Biere</b> („Runden“, die Spielwährung jeder Partie): ${R.tourneesPerRound} pro Runde, ${R.tourneesPerRound + R.tourneesLoserBonus} für den, der gerade verloren hat.</li>
+<li>Du siehst die Biere des Gegners, seine Kartenzahl und seine Fallen… aber nicht, welche. Da beginnt der Bluff.</li>
 </ul>
 
 <h2 id="runde">Eine Runde</h2>
 <ol class="steps">
-<li><b>Ausschank</b>: Jeder zieht eine Karte und bekommt seine Tournées (höchstens ${R.tourneesMax} im Vorrat).</li>
+<li><b>Ausschank</b>: Jeder zieht eine Karte und bekommt seine Biere (höchstens ${R.tourneesMax} im Vorrat).</li>
 <li><b>Der Vorspieler</b> (Verlierer der letzten Runde) würfelt und spielt Karten. Seine Zahl der Würfe ist die Grenze für den anderen.</li>
 <li><b>Der andere Spieler</b> ist dran und kennt die Kombination, die er schlagen muss.</li>
 <li><b>Letztes Wort</b>: Beide Kombinationen liegen auf dem Tisch; wer gerade verliert, darf noch eine „Letztes Wort“-Karte spielen.</li>
-<li><b>Abrechnung</b>: Der Gewinner gibt dem Verlierer Chips, Karteneffekte eingerechnet.</li>
+<li><b>Abrechnung</b>: Der Gewinner gibt dem Verlierer Jetons, Karteneffekte eingerechnet.</li>
 </ol>
 <p>Alle Regeln stehen auf der Seite <a href="/coups-fourres-regeln">Coups Fourrés Regeln</a>.</p>
 
@@ -369,7 +369,7 @@ ${H.toc('Inhalt', [['idee', 'Die Idee'], ['runde', 'Eine Runde'], ['typen', 'Fü
 <div class="table-wrap"><table>
 <thead><tr><th>Art</th><th>Wann du sie spielst</th></tr></thead>
 <tbody>
-<tr><td><b>Coup</b></td><td>In deinem Zug, vor oder nach einem Wurf, danach abgelegt.</td></tr>
+<tr><td><b>Streich</b></td><td>In deinem Zug, vor oder nach einem Wurf, danach abgelegt.</td></tr>
 <tr><td><b>Falle</b></td><td>Verdeckt in deinem Zug gelegt; sie löst von selbst aus, wenn ihre Bedingung eintritt.</td></tr>
 <tr><td><b>Konter</b></td><td>Jederzeit als Antwort auf eine gegnerische Karte.</td></tr>
 <tr><td><b>Letztes Wort</b></td><td>Nur im Schritt „Letztes Wort“, direkt vor der Abrechnung.</td></tr>
@@ -377,7 +377,7 @@ ${H.toc('Inhalt', [['idee', 'Die Idee'], ['runde', 'Eine Runde'], ['typen', 'Fü
 </tbody></table></div>
 
 <h2 id="familien">Vier Kartenfamilien</h2>
-<p>Die ${CARDS.length} Karten gehören zu vier Familien: <b>Stammgäste</b> bringen Verbündete und mehr Tournées, <b>Rausch</b>-Karten lassen Würfel kreisen und bringen die des Gegners durcheinander, <b>Fallen</b> liegen verdeckt, und <b>Ketten</b> verbinden Nachziehen, Rabatte und immer stärkere Antworten. Ein Deck hat höchstens ${DECK_RULES.maxFamilies} Familien, und die Familien des Gegners sind von Anfang an sichtbar.</p>
+<p>Die ${CARDS.length} Karten gehören zu vier Familien: <b>Stammgäste</b> bringen Verbündete und mehr Biere, <b>Rausch</b>-Karten lassen Würfel kreisen und bringen die des Gegners durcheinander, <b>Fallen</b> liegen verdeckt, und <b>Ketten</b> verbinden Nachziehen, Rabatte und immer stärkere Antworten. Ein Deck hat höchstens ${DECK_RULES.maxFamilies} Familien, und die Familien des Gegners sind von Anfang an sichtbar.</p>
 
 <h2 id="arten">Spielarten</h2>
 <div class="cards">
@@ -402,28 +402,28 @@ ${playCF('Coups Fourrés gratis spielen', 'Im Browser, mit geführter Partie in 
   // ---------------------------------------------------------------------------------------------
   {
     ...baseCF, slug: 'coups-fourres-regeln', nav: 'Regeln CF', short: 'Coups Fourrés Regeln', parent: 'coups-fourres-karten-wuerfelspiel',
-    blurb: 'Aufbau, Runden, Tournées, Kartenarten, Fallen und Partien zu dritt oder viert.',
-    title: 'Coups Fourrés Regeln: Runden, Karten, Fallen und Chips',
-    description: 'Die Regeln von Coups Fourrés: Aufbau, eine Runde Schritt für Schritt, Kombinationen, Tournées, die fünf Kartenarten, Fallen und Partien mit 3 oder 4 Spielern.',
+    blurb: 'Aufbau, Runden, Biere, Kartenarten, Fallen und Partien zu dritt oder viert.',
+    title: 'Coups Fourrés Regeln: Runden, Karten, Fallen und Jetons',
+    description: 'Die Regeln von Coups Fourrés: Aufbau, eine Runde Schritt für Schritt, Kombinationen, Biere, die fünf Kartenarten, Fallen und Partien mit 3 oder 4 Spielern.',
     h1: 'Die Regeln von Coups Fourrés',
     lead: `Coups Fourrés nimmt die Würfel und Kombinationen des 421 und ergänzt ein Deck aus ${R.deckSize} Karten pro Spieler. Das Spiel wendet alle Regeln selbst an; hier stehen die Details.`,
     body: `
-${H.toc('Inhalt', [['ziel', 'Das Ziel'], ['aufbau', 'Aufbau'], ['runde', 'Eine Runde'], ['kombis', 'Die Kombinationen'], ['tournees', 'Tournées'], ['karten', 'Fallen, Stammgäste, Konter'], ['ende', 'Spielende'], ['mehr', 'Mit 3 oder 4 Spielern'], ['deck', 'Ein Deck bauen']])}
+${H.toc('Inhalt', [['ziel', 'Das Ziel'], ['aufbau', 'Aufbau'], ['runde', 'Eine Runde'], ['kombis', 'Die Kombinationen'], ['tournees', 'Biere'], ['karten', 'Fallen, Stammgäste, Konter'], ['ende', 'Spielende'], ['mehr', 'Mit 3 oder 4 Spielern'], ['deck', 'Ein Deck bauen']])}
 
 <h2 id="ziel">Das Ziel</h2>
-<p>Du spielst 421 nur mit Entladen: Alle starten mit <b>${R.startTokens} Chips</b> (${R.startTokensMulti} zu dritt oder viert). Wer als Erster keine Chips mehr hat, gewinnt.</p>
+<p>Du spielst 421 nur mit Abladen: Alle starten mit <b>${R.startTokens} Jetons</b> (${R.startTokensMulti} zu dritt oder viert). Wer als Erster keine Jetons mehr hat, gewinnt.</p>
 
 <h2 id="aufbau">Aufbau</h2>
 <p>Jeder mischt sein Deck mit ${R.deckSize} Karten und zieht ${R.startHand}. Bis zu ${R.mulligan} Karten darfst du einmalig unter das Deck legen und nachziehen. Der erste Vorspieler wird ausgelost.</p>
 
 <h2 id="runde">Eine Runde</h2>
 <ol class="steps">
-<li><b>Ausschank</b>: 1 Karte ziehen und ${R.tourneesPerRound} Tournée bekommen (${R.tourneesPerRound + R.tourneesLoserBonus} für den Verlierer der letzten Runde). Du kannst bis zu ${R.tourneesMax} sparen.</li>
+<li><b>Ausschank</b>: 1 Karte ziehen und ${R.tourneesPerRound} Bier bekommen (${R.tourneesPerRound + R.tourneesLoserBonus} für den Verlierer der letzten Runde). Du kannst bis zu ${R.tourneesMax} sparen.</li>
 <li><b>Tresen-Bestellung</b>: Eine zufällige Bonusregel gilt für alle in dieser Runde.</li>
 <li><b>Zug des Vorspielers</b>: bis zu ${R.maxThrows}-mal würfeln, Würfel zwischen den Würfen behalten, jederzeit aufhören. Karten dürfen vor oder nach jedem Wurf gespielt werden. Die Zahl der Würfe ist die Grenze des anderen.</li>
 <li><b>Zug des anderen</b> innerhalb dieser Grenze, mit Blick auf das Ergebnis des Vorspielers.</li>
 <li><b>Letztes Wort</b>: Wer gerade verliert, darf eine „Letztes Wort“-Karte spielen, der andere antworten, bis beide passen.</li>
-<li><b>Abrechnung</b>: Der Gewinner gibt dem Verlierer so viele Chips, wie seine Kombination wert ist, Karten eingerechnet. Bei völligem Gleichstand gibt niemand etwas.</li>
+<li><b>Abrechnung</b>: Der Gewinner gibt dem Verlierer so viele Jetons, wie seine Kombination wert ist, Karten eingerechnet. Bei völligem Gleichstand gibt niemand etwas.</li>
 <li>Der Verlierer beginnt die nächste Runde.</li>
 </ol>
 
@@ -431,8 +431,8 @@ ${H.toc('Inhalt', [['ziel', 'Das Ziel'], ['aufbau', 'Aufbau'], ['runde', 'Eine R
 <p>Wie beim 421, von der besten zur schlechtesten:</p>
 ${combosTable(L421, H.dice)}
 
-<h2 id="tournees">Tournées</h2>
-<p>Tournées bezahlen Karten: Die Zahl im kleinen Glas auf der Karte sind ihre Kosten. Du bekommst sie bei jedem Ausschank, und die Tournées jedes Spielers sind <b>für alle sichtbar</b>. Ein Gegner ohne Tournées kann kaum etwas spielen, einer mit vier oder mehr plant vielleicht etwas Großes.</p>
+<h2 id="tournees">Biere</h2>
+<p>Biere bezahlen Karten: Die Zahl im kleinen Glas auf der Karte sind ihre Kosten. Du bekommst sie bei jedem Ausschank, und die Biere jedes Spielers sind <b>für alle sichtbar</b>. Ein Gegner ohne Biere kann kaum etwas spielen, einer mit vier oder mehr plant vielleicht etwas Großes.</p>
 
 <h2 id="karten">Fallen, Stammgäste, Konter</h2>
 <ul>
@@ -443,24 +443,24 @@ ${combosTable(L421, H.dice)}
 
 <h2 id="ende">Spielende</h2>
 <ul>
-<li>Wer keine Chips mehr hat, gewinnt sofort.</li>
-<li>Zieht sich eine Partie hin, schließt die Kneipe nach Runde <b>${R.maxRounds}</b>: Wer die wenigsten Chips hat, gewinnt.</li>
-<li>Deck leer: Ablagestapel neu mischen und ${R.reshufflePenalty} Chip nehmen.</li>
+<li>Wer keine Jetons mehr hat, gewinnt sofort.</li>
+<li>Zieht sich eine Partie hin, schließt die Kneipe nach Runde <b>${R.maxRounds}</b>: Wer die wenigsten Jetons hat, gewinnt.</li>
+<li>Deck leer: Ablagestapel neu mischen und ${R.reshufflePenalty} Jeton nehmen.</li>
 <li>Pro Entscheidung hast du ${R.decisionSeconds} Sekunden, dazu ${R.reserveSeconds} Sekunden Reserve für die ganze Partie. In der Rangliste zählt Verlassen als Niederlage; nach einem Verbindungsabbruch hast du 60 Sekunden, um zurückzukehren.</li>
 </ul>
 
 <h2 id="mehr">Mit 3 oder 4 Spielern</h2>
-<p>An einem Tisch mit Code: ${R.startTokensMulti} Chips pro Spieler. Wer zuerst bei 0 ist, gewinnt, und die Partie endet. <b>Nur die schlechteste Kombination der Runde bekommt Chips</b>, von der besten, wie beim 421. Fallen liegen sichtbar vor einem gewählten Spieler.</p>
+<p>An einem Tisch mit Code: ${R.startTokensMulti} Jetons pro Spieler. Wer zuerst bei 0 ist, gewinnt, und die Partie endet. <b>Nur die schlechteste Kombination der Runde bekommt Jetons</b>, von der besten, wie beim 421. Fallen liegen sichtbar vor einem gewählten Spieler.</p>
 
 <h2 id="deck">Ein Deck bauen</h2>
 <p>Ein Deck hat genau <b>${R.deckSize} Karten</b>: höchstens ${R.maxCopies} Kopien einer Karte, <b>höchstens ${DECK_RULES.maxFamilies} Familien</b> und <b>eine legendäre Karte</b>. Du kannst bis zu 5 Decks speichern.</p>
 ${playCF('Coups Fourrés ausprobieren', 'Die geführte Partie erklärt die Regeln')}
 `,
     faq: [
-      ['Mit wie vielen Chips startet man?', `${R.startTokens} im Duell, ${R.startTokensMulti} mit 3 oder 4 Spielern. Wer zuerst keine mehr hat, gewinnt.`],
+      ['Mit wie vielen Jetons startet man?', `${R.startTokens} im Duell, ${R.startTokensMulti} mit 3 oder 4 Spielern. Wer zuerst keine mehr hat, gewinnt.`],
       ['Wie viele Karten hat ein Deck?', `Genau ${R.deckSize}, höchstens ${R.maxCopies} Kopien pro Karte, höchstens ${DECK_RULES.maxFamilies} Familien und eine legendäre Karte.`],
       ['Sieht man die Fallen des Gegners?', 'Du siehst, wie viele liegen, aber nicht welche.'],
-      ['Was passiert bei Gleichstand?', 'Bei völligem Gleichstand der beiden Kombinationen gibt niemand Chips.'],
+      ['Was passiert bei Gleichstand?', 'Bei völligem Gleichstand der beiden Kombinationen gibt niemand Jetons.'],
     ],
     related: ['coups-fourres-karten-wuerfelspiel', '421-wuerfelspiel-regeln', '421-wuerfelspiel-online'],
   },

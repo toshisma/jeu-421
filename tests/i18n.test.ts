@@ -14,9 +14,11 @@ import { PERSONAS } from '../client/src/game/personas';
 const FOREIGN = ['en', 'de', 'nl'] as const;
 describe('choix de la langue', () => {
   const auto = (browser: string | null | undefined) => resolveLang({ browser, auto: true });
-  it('AUTO_LANG est à false tant que tout n’est pas traduit : le navigateur ne compte pas', () => {
-    expect(AUTO_LANG).toBe(false);
-    for (const b of ['en-US', 'de-DE', 'nl-BE']) expect(resolveLang({ browser: b })).toBe('fr');
+  it('tout le site est traduit : le navigateur compte, sans jamais basculer un francophone', () => {
+    expect(AUTO_LANG).toBe(true);
+    expect(resolveLang({ browser: 'en-US' })).toBe('en');
+    expect(resolveLang({ browser: 'nl-BE' })).toBe('nl');
+    for (const b of ['fr-FR', 'fr-BE', 'es-ES', null]) expect(resolveLang({ browser: b })).toBe('fr');
   });
   it('détection (quand elle sera active) : en, de, nl seulement ; fr, absent et autres = français', () => {
     expect(auto('en-US')).toBe('en');

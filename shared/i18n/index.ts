@@ -35,7 +35,7 @@ export const LANG_LOCALE: Record<Lang, string> = { fr: 'fr-BE', en: 'en-US', de:
  * Détection automatique selon le navigateur. À passer à true (ici, un seul endroit) quand TOUT le site
  * sera traduit : tant que c'est false, seuls le choix enregistré et `?lang=` comptent.
  */
-export const AUTO_LANG = false;
+export const AUTO_LANG = true;
 
 export const isLang = (v: unknown): v is Lang => typeof v === 'string' && (LANGS as readonly string[]).includes(v);
 

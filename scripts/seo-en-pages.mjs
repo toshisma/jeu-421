@@ -244,7 +244,7 @@ ${H.toc('Contents', [['what', 'What is 421?'], ['how', 'How it plays'], ['modes'
 <ol class="steps">
 <li>Each round, roll three dice up to ${V421.throws} times, keeping the dice you like. The first player of the round sets how many rolls everyone else gets.</li>
 <li>The lowest hand loses the round, and the highest hand decides how many tokens change hands.</li>
-<li>First you <b>charge</b>, taking tokens from a pot of ${V421.pot}; then you <b>discharge</b>, passing your tokens to the loser. Out of tokens: you’re safe. Last one holding tokens loses.</li>
+<li>First you <b>loading</b>, taking tokens from a pot of ${V421.pot}; then you <b>unloading</b>, passing your tokens to the loser. Out of tokens: you’re safe. Last one holding tokens loses.</li>
 </ol>
 <p>The full rules, with an example, are on the <a href="/421-dice-game-rules">421 rules page</a>. The game counts the tokens for you, and a guided game teaches you the ropes.</p>
 
@@ -278,13 +278,13 @@ ${play421('Play 421 now', 'Your first game is a guided one')}
   // ---------------------------------------------------------------------------------------------
   {
     ...base421, slug: '421-dice-game-rules', nav: '421 rules', short: '421 rules', parent: 'play-421-dice-game-online',
-    blurb: 'Rolls, hands, charge and discharge, ties: how 421 works, with an example.',
-    title: '421 Dice Game Rules: Hands, Tokens, Charge and Discharge',
-    description: 'How to play 421, the French dice game: three dice, the ranking of hands, token values, charge and discharge, ties and house rules, with a worked example.',
+    blurb: 'Rolls, hands, loading and unloading, ties: how 421 works, with an example.',
+    title: '421 Dice Game Rules: Hands, Tokens, Loading and Unloading',
+    description: 'How to play 421, the French dice game: three dice, the ranking of hands, token values, loading and unloading, ties and house rules, with a worked example.',
     h1: 'How to play 421: the rules',
     lead: `421 is played with three dice and a pot of tokens. The aim is to <b>get rid of all your tokens</b>; the last player still holding some loses. These are the rules used on 421online by default, followed by the common variants.`,
     body: `
-${H.toc('Contents', [['basics', 'The basics'], ['round', 'A round'], ['hands', 'The ranking of hands'], ['charge', 'Charge'], ['discharge', 'Discharge'], ['example', 'Worked example'], ['ties', 'Ties'], ['variants', 'Variants']])}
+${H.toc('Contents', [['basics', 'The basics'], ['round', 'A round'], ['hands', 'The ranking of hands'], ['loading', 'Loading'], ['unloading', 'Unloading'], ['example', 'Worked example'], ['ties', 'Ties'], ['variants', 'Variants']])}
 
 <h2 id="basics">The basics</h2>
 <p>You need three six-sided dice and ${V421.pot} tokens (or matchsticks, or coins) in the middle of the table, for at least 2 players; 3 to 6 is ideal.</p>
@@ -299,10 +299,10 @@ ${H.toc('Contents', [['basics', 'The basics'], ['round', 'A round'], ['hands', '
 ${combosTable(L421, H.dice)}
 <p>Between two “other hands”, sort the dice from high to low and compare one by one: 6-5-2 beats 6-4-3. Two 1s beat three of a kind of the same value: 6-1-1 beats 6-6-6, which beats 5-1-1. The 2-2-1, called the <b>nénette</b>, is the worst hand in the game.</p>
 
-<h2 id="charge">Charge</h2>
-<p>At the start, all ${V421.pot} tokens are in the pot. Each round, <b>the loser takes from the pot as many tokens as the best hand is worth</b>. During the charge, the default here is a single roll each to keep things moving. When the pot is empty the charge ends, and anybody with <b>no tokens</b> has already won and leaves the game.</p>
+<h2 id="loading">Loading</h2>
+<p>At the start, all ${V421.pot} tokens are in the pot. Each round, <b>the loser takes from the pot as many tokens as the best hand is worth</b>. During the loading, the default here is a single roll each to keep things moving. When the pot is empty the loading ends, and anybody with <b>no tokens</b> has already won and leaves the game.</p>
 
-<h2 id="discharge">Discharge</h2>
+<h2 id="unloading">Unloading</h2>
 <p>The players holding tokens carry on, this time with three rolls. <b>The player with the best hand gives the loser</b> as many tokens as their hand is worth. When you have no tokens left, you’re out and safe. The last player holding tokens loses the game.</p>
 
 <h2 id="example">Worked example</h2>
@@ -312,21 +312,21 @@ ${combosTable(L421, H.dice)}
 <h2 id="ties">Ties</h2>
 <ul>
 <li>Tied for last place: those players <b>roll off</b>, one roll each, and the lowest loses. Still tied? Roll again.</li>
-<li>Tied for best hand during the discharge: a roll-off decides who gives the tokens.</li>
+<li>Tied for best hand during the unloading: a roll-off decides who gives the tokens.</li>
 <li>A losing nénette always takes at least ${V421.nenette} tokens.</li>
-<li>Near an empty pot the loser only takes what’s left, and in the discharge a winner only gives what they still have.</li>
+<li>Near an empty pot the loser only takes what’s left, and in the unloading a winner only gives what they still have.</li>
 </ul>
 
 <h2 id="variants">Variants</h2>
-<p>421 varies from one bar to the next, so agree before you start. On 421online, you can change the tokens, the number of rolls, the value of each hand, the tie rule, and the format: charge and discharge, <b>discharge only</b> (everyone starts with the same number of tokens), or <b>points</b> (a fixed number of rounds).</p>
+<p>421 varies from one bar to the next, so agree before you start. On 421online, you can change the tokens, the number of rolls, the value of each hand, the tie rule, and the format: loading and unloading, <b>unloading only</b> (everyone starts with the same number of tokens), or <b>points</b> (a fixed number of rounds).</p>
 ${play421('Try a game', 'The game applies the rules and counts the tokens')}
 `,
     faq: [
       ['How many dice do you use in 421?', 'Three, with up to three rolls per turn. The first player of each round sets how many rolls everyone else gets.'],
       ['What is the best hand in 421?', `4-2-1, worth ${V421.v421} tokens by default. Next come three 1s, worth ${V421.v111}.`],
       ['What is a nénette?', `The 2-2-1, the worst hand of all. A player who loses with it takes at least ${V421.nenette} tokens.`],
-      ['Who loses at 421?', 'The last player still holding tokens at the end of the discharge. In French bars, that player traditionally buys the round.'],
-      ['How many tokens do you start with?', `${V421.pot} tokens are placed in the pot; the charge spreads them among the players.`],
+      ['Who loses at 421?', 'The last player still holding tokens at the end of the unloading. In French bars, that player traditionally buys the round.'],
+      ['How many tokens do you start with?', `${V421.pot} tokens are placed in the pot; the loading spreads them among the players.`],
     ],
     related: ['play-421-dice-game-online', 'online-dice-game-with-friends', 'coups-fourres-rules'],
   },
@@ -398,13 +398,13 @@ ${H.toc('Contents', [['idea', 'The idea'], ['round', 'A round'], ['types', 'Five
 <li>Each player starts with <b>${R.startTokens} tokens</b>. The first player with none left wins.</li>
 <li>Each round you roll <b>three dice up to ${R.maxThrows} times</b>, with the same hands as <a href="/421-dice-game-rules">421</a>.</li>
 <li>The best hand wins the round, and that player <b>gives the loser</b> as many tokens as the hand is worth.</li>
-<li>Between rolls you play cards, paying with <b>Tournées</b> (“rounds”, the small change of each game): ${R.tourneesPerRound} a round, ${R.tourneesPerRound + R.tourneesLoserBonus} for whoever just lost.</li>
-<li>You can see your opponent’s Tournées, hand size and trap count… but not which traps. That’s where the bluffing starts.</li>
+<li>Between rolls you play cards, paying with <b>Pints</b> (“rounds” of drinks, the small change of each game): ${R.tourneesPerRound} a round, ${R.tourneesPerRound + R.tourneesLoserBonus} for whoever just lost.</li>
+<li>You can see your opponent’s Pints, hand size and trap count… but not which traps. That’s where the bluffing starts.</li>
 </ul>
 
 <h2 id="round">A round</h2>
 <ol class="steps">
-<li><b>Serve</b>: each player draws a card and gets their Tournées (${R.tourneesMax} in reserve at most).</li>
+<li><b>Serve</b>: each player draws a card and gets their Pints (${R.tourneesMax} in reserve at most).</li>
 <li><b>The leader</b> (last round’s loser) rolls and plays cards. Their number of rolls is the other player’s limit.</li>
 <li><b>The other player</b> plays their turn, knowing the hand to beat.</li>
 <li><b>Last word</b>: both hands are on the table, and the losing player can still play a “last word” card.</li>
@@ -424,7 +424,7 @@ ${H.toc('Contents', [['idea', 'The idea'], ['round', 'A round'], ['types', 'Five
 </tbody></table></div>
 
 <h2 id="families">Four card families</h2>
-<p>The ${CARDS.length} cards come in four families. <b>Regulars</b> bring allies and extra Tournées, <b>Drunken</b> cards make dice spin and bump your opponent’s, <b>Traps</b> are placed face down, and <b>Chains</b> combine draws, discounts and ever stronger answers. A deck holds ${DECK_RULES.maxFamilies} families at most, and your opponent’s families are visible from the start.</p>
+<p>The ${CARDS.length} cards come in four families. <b>Regulars</b> bring allies and extra Pints, <b>Drunken</b> cards make dice spin and bump your opponent’s, <b>Traps</b> are placed face down, and <b>Chains</b> combine draws, discounts and ever stronger answers. A deck holds ${DECK_RULES.maxFamilies} families at most, and your opponent’s families are visible from the start.</p>
 
 <h2 id="modes">Ways to play</h2>
 <div class="cards">
@@ -449,23 +449,23 @@ ${playCF('Play Coups Fourrés for free', 'In your browser, with a 3-minute guide
   // ---------------------------------------------------------------------------------------------
   {
     ...baseCF, slug: 'coups-fourres-rules', nav: 'Coups Fourrés rules', short: 'Coups Fourrés rules', parent: 'coups-fourres-card-dice-game', about: 'cf-en',
-    blurb: 'Setup, rounds, Tournées, the kinds of card, traps and games for 3 or 4.',
+    blurb: 'Setup, rounds, Pints, the kinds of card, traps and games for 3 or 4.',
     title: 'Coups Fourrés Rules: Rounds, Cards, Traps and Tokens',
-    description: 'The complete rules of Coups Fourrés: setup, a round step by step, hands, Tournées, the five kinds of card, traps, games for 3 or 4 players and glossary.',
+    description: 'The complete rules of Coups Fourrés: setup, a round step by step, hands, Pints, the five kinds of card, traps, games for 3 or 4 players and glossary.',
     h1: 'The rules of Coups Fourrés',
     lead: `Coups Fourrés takes the dice and the hands of 421 and adds a ${R.deckSize}-card deck per player. The game applies every rule for you: read on for the details.`,
     body: `
-${H.toc('Contents', [['goal', 'The goal'], ['setup', 'Setup'], ['round', 'A round'], ['hands', 'The hands'], ['tournees', 'Tournées'], ['cards', 'Traps, regulars and ripostes'], ['end', 'End of the game'], ['multi', 'With 3 or 4 players'], ['deck', 'Building a deck']])}
+${H.toc('Contents', [['goal', 'The goal'], ['setup', 'Setup'], ['round', 'A round'], ['hands', 'The hands'], ['tournees', 'Pints'], ['cards', 'Traps, regulars and ripostes'], ['end', 'End of the game'], ['multi', 'With 3 or 4 players'], ['deck', 'Building a deck']])}
 
 <h2 id="goal">The goal</h2>
-<p>You play 421 in discharge only: everyone starts with <b>${R.startTokens} tokens</b> (${R.startTokensMulti} with 3 or 4 players). The first player with no tokens left wins the game.</p>
+<p>You play 421 in unloading only: everyone starts with <b>${R.startTokens} tokens</b> (${R.startTokensMulti} with 3 or 4 players). The first player with no tokens left wins the game.</p>
 
 <h2 id="setup">Setup</h2>
 <p>Each player shuffles a ${R.deckSize}-card deck and draws ${R.startHand}. You can send up to ${R.mulligan} cards back under the deck and redraw as many, once. The first leader is drawn at random.</p>
 
 <h2 id="round">A round</h2>
 <ol class="steps">
-<li><b>Serve</b>: draw 1 card and receive ${R.tourneesPerRound} Tournée (${R.tourneesPerRound + R.tourneesLoserBonus} for the loser of the previous round). You can save up to ${R.tourneesMax}.</li>
+<li><b>Serve</b>: draw 1 card and receive ${R.tourneesPerRound} Pint (${R.tourneesPerRound + R.tourneesLoserBonus} for the loser of the previous round). You can save up to ${R.tourneesMax}.</li>
 <li><b>Bar order</b>: a random bonus rule applies to everyone for the round.</li>
 <li><b>Leader’s turn</b>: roll up to ${R.maxThrows} times, keep dice between rolls, and stop whenever you like. Cards can be played before or after each roll. The number of rolls sets the other player’s limit.</li>
 <li><b>The other player’s turn</b>, within that limit, seeing the leader’s result.</li>
@@ -478,8 +478,8 @@ ${H.toc('Contents', [['goal', 'The goal'], ['setup', 'Setup'], ['round', 'A roun
 <p>The same as 421, from best to worst:</p>
 ${combosTable(L421, H.dice)}
 
-<h2 id="tournees">Tournées</h2>
-<p>Tournées pay for cards: the number in the small glass on each card is its cost. You receive them with each serve, and the amount each player holds is <b>visible to all</b>. An opponent with none can hardly play anything; one with four or more may be planning something big.</p>
+<h2 id="tournees">Pints</h2>
+<p>Pints pay for cards: the number in the small glass on each card is its cost. You receive them with each serve, and the amount each player holds is <b>visible to all</b>. An opponent with none can hardly play anything; one with four or more may be planning something big.</p>
 
 <h2 id="cards">Traps, regulars and ripostes</h2>
 <ul>
