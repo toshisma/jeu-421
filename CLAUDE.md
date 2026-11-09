@@ -1,7 +1,7 @@
 # Mémo du projet — 421 en ligne
 
 Jeu de dés 421 (le jeu de bistrot), en ligne sur https://421online.com. Auteur : Sam (pseudo admin dans `ADMIN_USERS`).
-Tout le texte du jeu est **en français** (vouvoiement côté joueurs). Réponds à Sam en français, simplement : il n'est pas développeur.
+Le jeu existe en **français (référence, vouvoiement), anglais, allemand, néerlandais** (0.52 : mode d’emploi en tête de `shared/i18n/index.ts`, textes dans `shared/i18n/zones/` ; tout nouveau texte visible doit être ajouté dans les 4 langues). Réponds à Sam en français, simplement : il n'est pas développeur.
 
 ## Pile technique
 - Client : Vite + React + TypeScript, rendu 3D Three.js, physique des dés cannon-es (simulée puis rejouée).
@@ -85,9 +85,11 @@ Captures mobiles : scripts `puppeteer-core` dans `scripts/` (Chrome : `/usr/bin/
 - Charge rapide, mode spectateur, alerte d'onglet « À toi de jouer » (faits). Pas de musique : Sam l'a fait retirer.
 
 ## État au 9 novembre 2026 (reprise dans une nouvelle conversation)
-Dernière version publiée : **0.51** (référencement renforcé ; 0.50 : corrections des triches, parties en ligne, petits défauts). Rapport d'inspection du 6/11 : https://claude.ai/artifact/FYnn23Wm4AkVZRDc1m3tyd (maquettes : https://claude.ai/artifact/2XXM8TngZ4mazyeyTBpUZt).
+Dernière version publiée : **0.52** (tout le jeu et les pages d’aide en 4 langues, choix dans les Réglages, sinon langue du navigateur en/de/nl, sinon français) ; 0.51 (référencement renforcé ; 0.50 : corrections des triches, parties en ligne, petits défauts). Rapport d'inspection du 6/11 : https://claude.ai/artifact/FYnn23Wm4AkVZRDc1m3tyd (maquettes : https://claude.ai/artifact/2XXM8TngZ4mazyeyTBpUZt).
 
-### Limites connues après la 0.50
+### Limites connues après la 0.52
+- Restent en français : tableau de bord admin, mots dessinés dans les illustrations CF, page Confidentialité, quelques liens vers des guides. Traductions de/nl à relire par un locuteur natif (noms de cartes surtout).
+- Test « éclats » (cf-server) instable au hasard.
 - Solo 421 et Courtisan contre l'ordinateur : victoire, place et jetons restent annoncés par le téléphone (combinaisons plafonnées, patron vérifié au départ, plus rien dans le fil d'actualité). Seul un rejeu serveur réglerait le fond.
 - Jour officiel = Bruxelles pour tout le monde (`today()`), le serveur ignore X-Day.
 - Exclusion d'un invité contournable en vidant les données du navigateur ; transfert de pièces possible par comptes en série et mises perdues exprès ; chrono CF en ligne : jusqu'à 20 s gagnables par un client trafiqué (`cf:ready`).
