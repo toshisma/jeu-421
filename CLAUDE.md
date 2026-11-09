@@ -85,15 +85,13 @@ Captures mobiles : scripts `puppeteer-core` dans `scripts/` (Chrome : `/usr/bin/
 - Charge rapide, mode spectateur, alerte d'onglet « À toi de jouer » (faits). Pas de musique : Sam l'a fait retirer.
 
 ## État au 9 novembre 2026 (reprise dans une nouvelle conversation)
-Dernière version publiée : **0.49** (fenêtre « Créez un compte », cadeau de bienvenue, reprise invité plafonnée). Rapport d'inspection complet du 6/11 : https://claude.ai/artifact/FYnn23Wm4AkVZRDc1m3tyd (maquettes : https://claude.ai/artifact/2XXM8TngZ4mazyeyTBpUZt).
+Dernière version publiée : **0.50** (corrections des triches, parties en ligne, petits défauts). Rapport d'inspection du 6/11 : https://claude.ai/artifact/FYnn23Wm4AkVZRDc1m3tyd (maquettes : https://claude.ai/artifact/2XXM8TngZ4mazyeyTBpUZt).
 
-### Failles et bugs encore ouverts (inspection du 6/11)
-- **Cadeau du jour à l'infini** et **défi du jour 3×/jour** : le serveur accepte la date du téléphone à ±1 jour (`server/accounts.ts` `clientDay` ~l.73 et routes cadeau/défi) → utiliser l'horloge du serveur.
-- **Solo 421 déclaré par le téléphone** : succès débloqués avec des combinaisons inventées, faux « a battu le Patron de la semaine » dans le fil d'actualité (`/solo/end`, paramètre `boss` non vérifié).
-- **Mort subite / variante aux points avec mise** : en cas d'égalité, l'hôte (1er assis) gagne toujours la cagnotte (`shared/engine.ts` tri par score ; `splitPot` de `shared/tournament.ts` jamais utilisé). Fin de charge : plusieurs sortis en même temps → classés par siège.
-- **421 en ligne** : un joueur qui abandonne touche quand même ses gains (table à mise, tournoi perso) ; pièces bloquées quand tout le monde quitte une table à mise (rendues seulement au redémarrage) ; recharger la page avec `?rejoindre=CODE` fait perdre la partie ; exclusion contournable par un invité.
-- **Comptes** : demandes d'amis en boucle (notifications sans limite) ; usurpation de pseudo (lettres grecques, noms des ordinateurs, nom libre à table) ; droits admin donnés par le seul pseudo (réserver les pseudos de `ADMIN_USERS`) ; erreurs serveur qui affichent les chemins des fichiers.
-- Mineurs : voir le rapport (textes « 1 pts », « 0 joueurs », « Or de octobre », titre coupé en partie, bulle de tchat qui cache le compteur…).
+### Limites connues après la 0.50
+- Solo 421 et Courtisan contre l'ordinateur : victoire, place et jetons restent annoncés par le téléphone (combinaisons plafonnées, patron vérifié au départ, plus rien dans le fil d'actualité). Seul un rejeu serveur réglerait le fond.
+- Jour officiel = Bruxelles pour tout le monde (`today()`), le serveur ignore X-Day.
+- Exclusion d'un invité contournable en vidant les données du navigateur ; transfert de pièces possible par comptes en série et mises perdues exprès ; chrono CF en ligne : jusqu'à 20 s gagnables par un client trafiqué (`cf:ready`).
+- À 360×640 et 4 joueurs, dés ≈ 20 px (revoir la caméra du bac) ; le bouton couvre encore une partie du bac du menu 421.
 
 ### Coups Fourrés : points en suspens
 - Decks d'une seule famille (mono Chaînes / mono Pièges) ≈ 57 % en simulation ; duel ≈ 6,4 min (sous 7–9, seul levier = plus de jetons, refusé par Sam).
