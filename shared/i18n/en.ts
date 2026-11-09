@@ -1,8 +1,10 @@
+import { communEn } from './zones/commun.en';
 import type { MessageKey } from './fr';
 import { g421En } from './zones/jeu421.en';
 
 /** Textes anglais. Ton : direct et simple ; vocabulaire de Farkle (farkle, bank, hot dice). */
 export const en: Partial<Record<MessageKey, string>> = {
+  ...communEn,
   "common.back": "Back",
   "common.close": "Close",
   "common.cancel": "Cancel",
@@ -10,8 +12,8 @@ export const en: Partial<Record<MessageKey, string>> = {
   "common.backHome": "Back to the main menu",
   "common.menu": "Menu",
   "lang.title": "Language",
-  "lang.switch": "Language of The Courtier",
-  "lang.note": "English covers The Courtier (Farkle). The rest of the game is in French.",
+  "lang.switch": "Language",
+  "lang.note": "Applies to the whole game.",
   "lang.frenchOnly": "Only The Courtier is in English for now. The 421, Coups Fourrés, the collection and the shop are in French.",
   "lang.homeBanner": "Play The Courtier (Farkle) in English",
   "lang.homeSub": "The rest of the site is in French",
@@ -209,7 +211,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   "dm.bag.guest": "Saved for you: a free account lets you open it.",
   "dm.open": "Open",
   "dm.see": "View",
-  "dm.quest": "Daily challenge completed",
+  "dm.quest": "Daily challenge completed: {q}",
   "dm.quitAsk": "Leave this game of The Courtier?",
   "dm.quitStake": "Leave the game? The server will play for you and you lose your stake ({n} Groschen). You can’t win anything, even if you come back.",
   "dm.quitFree": "Leave the game? The server will play for you. You can come back from the home screen until it ends.",

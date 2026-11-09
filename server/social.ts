@@ -14,6 +14,11 @@ import { playChallenge } from '../shared/challenge';
 import type { DuelRow, Store, UserRow } from './db';
 import { dailyStatus } from '../shared/progress/profile';
 import { happyHourOfDay } from '../shared/progress/events';
+import { isLang, type Lang } from '../shared/i18n';
+import { translateServerText } from '../shared/i18n/server-texts';
+
+/** Texte d'une notification push dans la langue de l'appareil (enregistrée à l'abonnement ; français sinon). */
+const pushText = (lang: string | null, text: string): string => (isLang(lang) ? translateServerText(lang as Lang, text) : text);
 
 export const DUEL_STAKES = [0, 10, 25, 50];
 export const DUEL_HOURS = 72;
@@ -58,7 +63,7 @@ export function createSocial(c: Ctx) {
     if (!vapid || process.env.VITEST) return;
     for (const s of store.pushOf(userId)) {
       try {
-        await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify({ title, body, url }), { TTL: 6 * 3600 });
+        await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify({ title: pushText(s.lang, title), body: pushText(s.lang, body), url }), { TTL: 6 * 3600 });
       } catch (e) {
         const code = (e as { statusCode?: number }).statusCode;
         if (code === 404 || code === 410) store.pushRemove(s.endpoint); // abonnement expiré
@@ -70,7 +75,11 @@ export function createSocial(c: Ctx) {
     const s = req.body?.subscription;
     const endpoint = typeof s?.endpoint === 'string' ? s.endpoint : '';
     if (!/^https:\/\//.test(endpoint) || endpoint.length > 1000 || typeof s?.keys?.p256dh !== 'string' || typeof s?.keys?.auth !== 'string') return fail(res, 400, 'Abonnement invalide.');
-    store.pushAdd(userOf(req).id, endpoint, s.keys.p256dh.slice(0, 200), s.keys.auth.slice(0, 100));
+    store.pushAdd(userOf(req).id, endpoint, s.keys.p256dh.slice(0, 200), s.keys.auth.slice(0, 100), isLang(req.body?.lang) ? req.body.lang : null);
+    res.json({ ok: true });
+  });
+  router.post('/push/lang', auth, (req, res) => {
+    if (typeof req.body?.endpoint === 'string' && isLang(req.body?.lang)) store.pushSetLang(req.body.endpoint, userOf(req).id, req.body.lang);
     res.json({ ok: true });
   });
   router.post('/push/unsubscribe', auth, (req, res) => {

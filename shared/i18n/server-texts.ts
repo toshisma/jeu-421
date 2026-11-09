@@ -5,11 +5,13 @@
  * Ajouter un message : une ligne ici, avec en, de, nl.
  */
 import { BARON, type Foreign } from './courtisan';
+import { COMMON_RULES, translateCommonText } from './zones/serveur-commun';
 import type { Lang } from './index';
 import { translateG421 } from './zones/jeu421-server';
 
 const N = '(.+)';
 const RULES: [RegExp, Record<Foreign, string>][] = [
+  ...COMMON_RULES,
   [/^Connexion au serveur impossible$/, { en: 'Can’t reach the server', de: 'Verbindung zum Server nicht möglich', nl: 'Kan de server niet bereiken' }],
   [/^Le serveur ne répond pas$/, { en: 'The server isn’t responding', de: 'Der Server antwortet nicht', nl: 'De server reageert niet' }],
   [/^Impossible de joindre le serveur de jeu$/, { en: 'Can’t reach the game server', de: 'Spielserver nicht erreichbar', nl: 'Kan de spelserver niet bereiken' }],
@@ -107,6 +109,8 @@ export function translateServerText(lang: Lang, text: string): string {
       return out.replace(/ \((moderation decision|Moderation|moderatie)(: )?\)/, (_m, w) => ` (${w})`).replace(/ \((moderation decision|Moderation|moderatie): \)/, ' ($1)');
     }
   }
+  const catalog = translateCommonText(lang, text);
+  if (catalog) return catalog;
   // « Pseudo : problème » (un joueur ne peut pas payer sa mise) : la partie de droite est déjà un message connu.
   const m = /^(.+?) : (.+)$/.exec(text);
   if (m) { const right = translateServerText(lang, m[2]); if (right !== m[2]) return `${m[1]}: ${right}`; }

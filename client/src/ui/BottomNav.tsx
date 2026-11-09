@@ -46,7 +46,7 @@ type Discord = ReturnType<typeof useDiscord>['discord'];
 export const discordPending = (pa: ProfileApi, d: Discord) => pa.isAccount && !STANDALONE && !!d?.invite && !!d.verify && !d.claimed;
 
 /** Pages de guide des deux autres jeux (référencement), en bas du menu « Plus ». */
-const GUIDES_MORE: [string, string][] = [['/coups-fourres', 'Coups Fourrés'], ['/dix-mille-en-ligne', 'Le Dix mille en ligne']];
+const GUIDES_MORE: [string, () => string][] = [['/coups-fourres', () => 'Coups Fourrés'], ['/dix-mille-en-ligne', () => tr('app.le_dix_mille_en_ligne')]];
 
 /** Menu « Plus » : tout le général, rangé par thème, avec une recherche (qui trouve aussi le 421). */
 function PlusMenu({ a, pa, settings, onChangeSettings, discord, unread, onSheet, onClose }: {
@@ -86,14 +86,14 @@ function PlusMenu({ a, pa, settings, onChangeSettings, discord, unread, onSheet,
       { label: tr('plus.cf'), icon: 'cards', go: a.onCards, keys: 'cartes mode cartes deck booster capsules ligue' },
       { label: tr('plus.courtier'), icon: 'dice', go: a.onDixMille, keys: '10000 dix mille farkle six des courtisan groschen' },
       // Le 421 : seulement à la recherche (tout est dans son menu).
-      { label: 'Règles du 421', icon: 'rules', go: a.onRules, search: true, keys: 'regles combinaisons charge decharge' },
-      { label: 'Partie guidée (421)', icon: 'resume', go: a.onTutorial, search: true, keys: 'tuto apprendre' },
-      { label: 'Tournois du 421', icon: 'trophy', go: a.onTournaments, search: true, show: !STANDALONE, keys: 'tournoi 11h 21h perso' },
-      { label: 'Classement du 421', icon: 'trophy', go: a.onLeaderboard, search: true, show: !STANDALONE, keys: 'classement ligue saison division' },
-      { label: 'Album', icon: 'album', go: a.onAlbum, search: true, keys: 'combinaisons' },
-      { label: 'Regarder une partie', icon: 'eye', go: a.onOnline, search: true, show: !STANDALONE, keys: 'spectateur parties en cours tables' },
-      { label: 'Soirée (un téléphone)', icon: 'cheers', go: a.onParty, search: true, keys: 'vrais des arbitre entre amis' },
-      { label: 'Défi du jour (421)', icon: 'target', go: a.onChallenge, search: true, keys: 'defi' },
+      { label: tr('app.regles_du_421'), icon: 'rules', go: a.onRules, search: true, keys: 'regles combinaisons charge decharge' },
+      { label: tr('app.partie_guidee_421'), icon: 'resume', go: a.onTutorial, search: true, keys: 'tuto apprendre' },
+      { label: tr('app.tournois_du_421'), icon: 'trophy', go: a.onTournaments, search: true, show: !STANDALONE, keys: 'tournoi 11h 21h perso' },
+      { label: tr('app.classement_du_421'), icon: 'trophy', go: a.onLeaderboard, search: true, show: !STANDALONE, keys: 'classement ligue saison division' },
+      { label: tr('app.album'), icon: 'album', go: a.onAlbum, search: true, keys: 'combinaisons' },
+      { label: tr('app.regarder_une_partie'), icon: 'eye', go: a.onOnline, search: true, show: !STANDALONE, keys: 'spectateur parties en cours tables' },
+      { label: tr('app.soiree_un_telephone'), icon: 'cheers', go: a.onParty, search: true, keys: 'vrais des arbitre entre amis' },
+      { label: tr('app.defi_du_jour_421'), icon: 'target', go: a.onChallenge, search: true, keys: 'defi' },
     ] },
   ];
   const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -120,7 +120,7 @@ function PlusMenu({ a, pa, settings, onChangeSettings, discord, unread, onSheet,
         <button className="link small-link" onClick={() => pick(a.onChangelog)}>{tr('plus.news', { v: CURRENT_VERSION })}{changelogUnseen() && <i className="new-dot" aria-label={tr('plus.newVersion')} />}</button>
         <a className="link small-link" href={reportUrl()}>{tr('plus.report')}</a>
         <button className="link small-link" onClick={() => pick(a.onLegal)}>{tr('plus.privacy')}</button>
-        {!STANDALONE && [...GUIDES_421, ...GUIDES_MORE].map(([href, label]) => <a key={href} className="link small-link" href={href}>{label}</a>)}
+        {!STANDALONE && [...GUIDES_421, ...GUIDES_MORE].map(([href, label]) => <a key={href} className="link small-link" href={href}>{typeof label === 'function' ? label() : label}</a>)}
       </div>
     </Sheet>
   );
@@ -136,8 +136,8 @@ export function NavSheets({ sheet, setSheet, a, pa, settings, onChangeSettings, 
   if (!sheet) return null;
   if (sheet === 'menu') return <PlusMenu a={a} pa={pa} settings={settings} onChangeSettings={onChangeSettings} discord={discord} unread={unread} onSheet={setSheet} onClose={close} />;
   if (sheet === 'profile') return <ProfileView pa={pa} displayName={displayName} avatar={avatar} onClose={close} />;
-  if (sheet === 'missions') return <Sheet title="Défis du jour" onClose={close}><QuestsPanel profile={pa.profile} onClaim={pa.claim} /></Sheet>;
-  if (sheet === 'parrainage') return <Sheet title="Parrainage" onClose={close}><ReferralCard pa={pa} onAccount={() => { close(); a.onAccount(); }} /></Sheet>;
+  if (sheet === 'missions') return <Sheet title={tr('app.defis_du_jour')} onClose={close}><QuestsPanel profile={pa.profile} onClaim={pa.claim} /></Sheet>;
+  if (sheet === 'parrainage') return <Sheet title={tr('app.parrainage')} onClose={close}><ReferralCard pa={pa} onAccount={() => { close(); a.onAccount(); }} /></Sheet>;
   if (sheet === 'discord' && discord) return <Sheet title="Discord" onClose={close}><DiscordCard pa={pa} state={discord} onAccount={() => { close(); a.onAccount(); }} /></Sheet>;
   return null;
 }

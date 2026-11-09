@@ -1,4 +1,4 @@
-import { tr } from '../i18n/lang';
+import { loc, tr } from '../i18n/lang';
 import { botName, describeCfg, rich, trCombo, trn, trTagline } from '../i18n/g421';
 import { LangSwitch } from '../i18n/LangSwitch';
 import { BossCard, DailyStreak, EveningChest, EventBanner, HappyHourBanner, PassSummary } from './Progression';
@@ -7,7 +7,7 @@ import { reportUrl } from '../legal';
 import type { MessageKey } from '../../../shared/i18n';
 import { ChallengeCard } from './ChallengeScreen';
 import { accessoryEmoji } from '../../../shared/progress/catalog';
-import { titleLabel as titleLabelFn } from '../../../shared/progress/profile';
+import { titleL } from '../i18n/data';
 import { useEffect, useRef, useState } from 'react';
 import { DEFAULT_CONFIG, type GameConfig } from '../../../shared/config';
 import { comboTable, evaluate } from '../../../shared/combos';
@@ -55,12 +55,12 @@ export { Shell };
 export function ProfileChip({ profile, onClick, photo, emoji }: { profile: Profile; onClick?: () => void; photo?: string | null; emoji?: string }) {
   const li = levelInfo(profile.xp);
   return (
-    <button type="button" className="profile-chip" onClick={onClick} disabled={!onClick} title="Voir mon profil">
+    <button type="button" className="profile-chip" onClick={onClick} disabled={!onClick} title={tr('app.voir_mon_profil')}>
       {emoji !== undefined && <Avatar photo={photo} emoji={emoji} size={26} />}
-      <span className="lvl">Niv. {li.level}</span>
-      <span className="xpbar" title={`${li.into} / ${li.need} XP`}><i style={{ width: `${(100 * li.into) / li.need}%` }} /></span>
-      <span className="xp">{profile.xp.toLocaleString('fr-BE')} XP</span>
-      <span className="coins">{profile.coins.toLocaleString('fr-BE')} pièces</span>
+      <span className="lvl">{tr('app.niv')} {li.level}</span>
+      <span className="xpbar" title={tr('app.xp', { into: li.into, need: li.need })}><i style={{ width: `${(100 * li.into) / li.need}%` }} /></span>
+      <span className="xp">{profile.xp.toLocaleString(loc())} {tr('app.xp_2')}</span>
+      <span className="coins">{profile.coins.toLocaleString(loc())} {tr('app.pieces_2')}</span>
     </button>
   );
 }
@@ -81,18 +81,18 @@ export function Home(props: {
     return () => { window.removeEventListener('online', up); window.removeEventListener('offline', down); };
   }, []);
   const li = levelInfo(props.profile.xp);
-  const name = props.pa.session?.username ?? (props.displayName || 'Invité');
+  const name = props.pa.session?.username ?? (props.displayName || tr('app.invite'));
   return (
     <div className="home">
       <header className="home-bar">
-        <button className="me-btn" onClick={() => setShowProfile(true)} aria-label="Mon profil">
+        <button className="me-btn" onClick={() => setShowProfile(true)} aria-label={tr('app.mon_profil')}>
           <Avatar photo={props.pa.photo} emoji={props.avatar} size={40} accessory={accessoryEmoji(props.profile.equipped.accessoire)} />
           <span className="me-text">
             <b>{name}</b>
-            <span>Niveau {li.level}{titleLabelFn(props.profile.title) ? `, ${titleLabelFn(props.profile.title)}` : ''}</span>
+            <span>{tr('app.niveau')} {li.level}{titleL(props.profile.title) ? `, ${titleL(props.profile.title)}` : ''}</span>
           </span>
         </button>
-        {!STANDALONE && !props.pa.isAccount && <button className="install-chip login-chip" onClick={props.onLogin}>Connexion</button>}
+        {!STANDALONE && !props.pa.isAccount && <button className="install-chip login-chip" onClick={props.onLogin}>{tr('app.connexion')}</button>}
         <div className="home-audio"><VolumeControl settings={props.settings} onSettings={props.onChangeSettings} /></div>
         {!STANDALONE && props.pa.isAccount && <div className="home-social">
           <FriendsButton pa={props.pa} onOpen={props.onFriends} />
@@ -100,17 +100,17 @@ export function Home(props: {
         </div>}
         {!STANDALONE && props.pa.isAccount && <NotifBell count={notifs?.count ?? 0} onOpen={() => { setShowNotifs(true); reload(); }} />}
         <InstallPrompt compact />
-        <div className="wallet" aria-label="Mon solde">
-          <span className="wallet-xp" title={`${li.into} sur ${li.need} XP pour le niveau suivant`}>
-            <i style={{ width: `${(100 * li.into) / li.need}%` }} />{props.profile.xp.toLocaleString('fr-BE')} XP
+        <div className="wallet" aria-label={tr('app.mon_solde')}>
+          <span className="wallet-xp" title={tr('app.sur_xp_pour_le_niveau_suivant', { into: li.into, need: li.need })}>
+            <i style={{ width: `${(100 * li.into) / li.need}%` }} />{props.profile.xp.toLocaleString(loc())} {tr('app.xp_2')}
           </span>
-          <span className="wallet-coins">{props.profile.coins.toLocaleString('fr-BE')} pièces</span>
+          <span className="wallet-coins">{props.profile.coins.toLocaleString(loc())} {tr('app.pieces_2')}</span>
         </div>
       </header>
 
       <main className="home-main">
         <h1 className="plaque logo-plaque"><span>421</span></h1>
-        <p className="tagline">Trois dés, un bac, et le dernier paie la tournée.</p>
+        <p className="tagline">{tr('app.trois_des_un_bac_et_le_dernier')}</p>
 
         {!STANDALONE && <LiveStrip onOpen={props.onStats} />}
         {!STANDALONE && <NewsTicker />}
@@ -118,42 +118,42 @@ export function Home(props: {
         {!STANDALONE && <OpenLobbies onJoin={props.onJoinRoom} onAll={props.onOnline} />}
         <nav className="home-actions">
           {props.resume && !STANDALONE && (
-            <button className="btn secondary wide" onClick={props.onResume}><Icon name="resume" /> {props.resume.tournament ? 'Reprendre le tournoi' : 'Reprendre la partie'} {props.resume.code}</button>
+            <button className="btn secondary wide" onClick={props.onResume}><Icon name="resume" /> {props.resume.tournament ? tr('app.reprendre_le_tournoi') : tr('app.reprendre_la_partie')} {props.resume.code}</button>
           )}
-          <button className="btn primary wide" onClick={props.onSolo}><Icon name="dice" /> Jouer contre l'ordinateur</button>
+          <button className="btn primary wide" onClick={props.onSolo}><Icon name="dice" /> {tr('app.jouer_contre_l_ordinateur')}</button>
           {STANDALONE ? (
-            <p className="note">Le jeu entre amis demande le serveur du projet. Cette version propose le solo et le bac d'essai.</p>
+            <p className="note">{tr('app.le_jeu_entre_amis_demande_le_serveur')}</p>
           ) : (
             <div className="pair">
-              <button className="btn secondary" onClick={props.onOnline} disabled={!online}><Icon name="people" /> Jouer en ligne</button>
-              <button className="btn secondary" onClick={props.onTournaments} disabled={!online}><Icon name="trophy" /> Tournois</button>
+              <button className="btn secondary" onClick={props.onOnline} disabled={!online}><Icon name="people" /> {tr('app.jouer_en_ligne')}</button>
+              <button className="btn secondary" onClick={props.onTournaments} disabled={!online}><Icon name="trophy" /> {tr('app.tournois')}</button>
             </div>
           )}
-          <button className="btn secondary wide" onClick={props.onParty}><Icon name="cheers" /> Soirée entre amis (un seul téléphone ou vrais dés)</button>
-          {!online && !STANDALONE && <p className="note">Hors connexion : le jeu entre amis reviendra avec le réseau.</p>}
+          <button className="btn secondary wide" onClick={props.onParty}><Icon name="cheers" /> {tr('app.soiree_entre_amis_un_seul_telephone_')}</button>
+          {!online && !STANDALONE && <p className="note">{tr('app.hors_connexion_le_jeu_entre_amis_rev')}</p>}
         </nav>
 
         {!STANDALONE && <CollectionPromo pa={props.pa} onOpen={props.onCollection} />}
         {!STANDALONE && <ReferralCard pa={props.pa} onAccount={props.onAccount} />}
         {!STANDALONE && !props.pa.isAccount && (
           <section className="account-card">
-            <div><b>Gardez votre progression</b><span>Un compte gratuit sauvegarde vos pièces et vos objets, et ouvre les classements, clubs et tables avec mise.</span></div>
+            <div><b>{tr('app.gardez_votre_progression')}</b><span>{tr('app.un_compte_gratuit_sauvegarde_vos_pie')}</span></div>
             <div className="account-actions">
-              <button className="btn primary" onClick={props.onAccount}>Créer un compte</button>
-              <button className="btn secondary" onClick={props.onLogin}>Se connecter</button>
+              <button className="btn primary" onClick={props.onAccount}>{tr('app.creer_un_compte')}</button>
+              <button className="btn secondary" onClick={props.onLogin}>{tr('app.se_connecter')}</button>
             </div>
           </section>
         )}
         {!props.profile.tutorial && (
           <section className="tuto-card">
-            <div><b>Nouveau au 421 ?</b><span>Une partie guidée de quelques minutes pour apprendre les règles en jouant. 50 pièces à la clé.</span></div>
-            <button className="btn primary" onClick={props.onTutorial}>Apprendre à jouer</button>
+            <div><b>{tr('app.nouveau_au_421')}</b><span>{tr('app.une_partie_guidee_de_quelques_minute')}</span></div>
+            <button className="btn primary" onClick={props.onTutorial}>{tr('app.apprendre_a_jouer')}</button>
           </section>
         )}
         <HappyHourBanner />
         {props.pa.welcomeBack && (
           <button className="welcome-back" onClick={() => { props.pa.dismissWelcome(); props.onCollection(); }}>
-            <span aria-hidden><BagIcon size="1em" /></span><span><b>Content de vous revoir !</b> Un sac de dés vous attend : ouvrez-le dans la Collection.</span>
+            <span aria-hidden><BagIcon size="1em" /></span><span><b>{tr('app.content_de_vous_revoir')}</b> {tr('app.un_sac_de_des_vous_attend_ouvrez')}</span>
           </button>
         )}
         <EventBanner onShop={props.onShop} />
@@ -164,38 +164,38 @@ export function Home(props: {
         <PassSummary pa={props.pa} onOpen={props.onPass} />
         <QuestsPanel profile={props.profile} onClaim={props.pa.claim} />
 
-        <nav className="home-grid" aria-label="Plus">
-          <button onClick={() => setShowProfile(true)}><Icon name="user" /><span>Profil</span></button>
-          <button onClick={props.onShop}><Icon name="shop" /><span>Boutique</span></button>
-          {!STANDALONE && <button onClick={props.onCollection} className="tile-coll"><Icon name="dice" /><span>Collection</span>{(props.profile.bags ?? 0) > 0 && <i className="tile-badge">{props.profile.bags}</i>}</button>}
-          <button onClick={props.onAlbum}><Icon name="album" /><span>Album</span></button>
-          {!STANDALONE && <button onClick={props.onLeaderboard}><Icon name="trophy" /><span>Classement</span></button>}
-          {!STANDALONE && <button onClick={props.onClub}><Icon name="club" /><span>Club</span></button>}
-          {!STANDALONE && <button onClick={props.onFriends}><Icon name="user" /><span>Amis</span></button>}
-          {!STANDALONE && <button onClick={props.onDuels} className="tile-coll"><Icon name="dice" /><span>Défis entre amis</span>{(notifs?.toPlay.filter((d) => !d.sent).length ?? 0) > 0 && <i className="tile-badge">{notifs!.toPlay.filter((d) => !d.sent).length}</i>}</button>}
-          <button onClick={props.onRecap}><Icon name="chart" /><span>Récap</span></button>
-          {!STANDALONE && <button onClick={props.onStats}><Icon name="stats" /><span>Statistiques</span></button>}
-          <button onClick={props.onRules}><Icon name="rules" /><span>Règles</span></button>
-          <button onClick={props.onSettings}><Icon name="settings" /><span>Réglages</span></button>
-          <button onClick={props.onSandbox}><Icon name="target" /><span>Bac d'essai</span></button>
+        <nav className="home-grid" aria-label={tr('app.plus')}>
+          <button onClick={() => setShowProfile(true)}><Icon name="user" /><span>{tr('app.profil')}</span></button>
+          <button onClick={props.onShop}><Icon name="shop" /><span>{tr('app.boutique')}</span></button>
+          {!STANDALONE && <button onClick={props.onCollection} className="tile-coll"><Icon name="dice" /><span>{tr('app.collection')}</span>{(props.profile.bags ?? 0) > 0 && <i className="tile-badge">{props.profile.bags}</i>}</button>}
+          <button onClick={props.onAlbum}><Icon name="album" /><span>{tr('app.album')}</span></button>
+          {!STANDALONE && <button onClick={props.onLeaderboard}><Icon name="trophy" /><span>{tr('app.classement')}</span></button>}
+          {!STANDALONE && <button onClick={props.onClub}><Icon name="club" /><span>{tr('app.club')}</span></button>}
+          {!STANDALONE && <button onClick={props.onFriends}><Icon name="user" /><span>{tr('app.amis')}</span></button>}
+          {!STANDALONE && <button onClick={props.onDuels} className="tile-coll"><Icon name="dice" /><span>{tr('app.defis_entre_amis')}</span>{(notifs?.toPlay.filter((d) => !d.sent).length ?? 0) > 0 && <i className="tile-badge">{notifs!.toPlay.filter((d) => !d.sent).length}</i>}</button>}
+          <button onClick={props.onRecap}><Icon name="chart" /><span>{tr('app.recap')}</span></button>
+          {!STANDALONE && <button onClick={props.onStats}><Icon name="stats" /><span>{tr('app.statistiques')}</span></button>}
+          <button onClick={props.onRules}><Icon name="rules" /><span>{tr('app.regles')}</span></button>
+          <button onClick={props.onSettings}><Icon name="settings" /><span>{tr('app.reglages')}</span></button>
+          <button onClick={props.onSandbox}><Icon name="target" /><span>{tr('app.bac_d_essai')}</span></button>
         </nav>
 
         <div className="home-foot">
           {!STANDALONE && (
             props.pa.isAccount
-              ? <button className="link" onClick={props.onAccount}>Connecté en tant que {props.pa.session!.username} (gérer le compte)</button>
-              : <button className="link" onClick={props.onLogin}>Déjà un compte ? Se connecter</button>
+              ? <button className="link" onClick={props.onAccount}>{tr('app.connecte_en_tant_que_gerer_le_compte', { username: props.pa.session!.username })}</button>
+              : <button className="link" onClick={props.onLogin}>{tr('app.deja_un_compte_se_connecter')}</button>
           )}
           <div className="foot-links">
-            <button className="link small-link" onClick={props.onChangelog}>Nouveautés (v{CURRENT_VERSION}){changelogUnseen() && <i className="new-dot" aria-label="nouvelle version" />}</button>
-            <a className="link small-link" href={reportUrl()}>Signaler un problème</a>
-            <button className="link small-link" onClick={props.onLegal}>Confidentialité et mentions légales</button>
+            <button className="link small-link" onClick={props.onChangelog}>{tr('app.nouveautes_v', { CURRENT_VERSION })}{changelogUnseen() && <i className="new-dot" aria-label="nouvelle version" />}</button>
+            <a className="link small-link" href={reportUrl()}>{tr('app.signaler_un_probleme')}</a>
+            <button className="link small-link" onClick={props.onLegal}>{tr('app.confidentialite_et_mentions_legales')}</button>
           </div>
           {!STANDALONE && (
             <div className="foot-links">
-              <a className="link small-link" href="/regles-du-421">Règles du 421</a>
-              <a className="link small-link" href="/combinaisons-du-421">Combinaisons et probabilités</a>
-              <a className="link small-link" href="/421-entre-amis">Jouer entre amis</a>
+              <a className="link small-link" href="/regles-du-421">{tr('app.regles_du_421')}</a>
+              <a className="link small-link" href="/combinaisons-du-421">{tr('app.combinaisons_et_probabilites')}</a>
+              <a className="link small-link" href="/421-entre-amis">{tr('app.jouer_entre_amis')}</a>
             </div>
           )}
         </div>
@@ -317,43 +317,43 @@ export function SettingsScreen({ settings, onChange, onBack }: { settings: Setti
   const set = (p: Partial<Settings>) => { sound.unlock(); onChange({ ...settings, ...p }); };
   const vol = settings.muted ? 0 : Math.round(settings.volume * 100);
   return (
-    <Shell title="Réglages" onBack={onBack} icon="settings" sub="Enregistrés automatiquement sur cet appareil">
+    <Shell title={tr('app.reglages')} onBack={onBack} icon="settings" sub={tr('app.enregistres_automatiquement_sur_cet_')}>
       <div className="k-stack">
-        <Section title="Vous">
+        <Section title={tr('app.vous')}>
           <div className="k-card">
-            <label className="k-field"><span className="k-label">Votre nom</span>
-              <input className="k-input" value={settings.name} maxLength={20} placeholder="Votre nom" onChange={(e) => set({ name: e.target.value })} /></label>
-            <div className="k-field"><span className="k-label">Avatar</span>
-              <div className="avatars">{AVATARS.map((a) => <button key={a} className={a === settings.avatar ? 'on' : ''} onClick={() => set({ avatar: a })} aria-label={`Avatar ${a}`}>{a}</button>)}</div>
+            <label className="k-field"><span className="k-label">{tr('app.votre_nom')}</span>
+              <input className="k-input" value={settings.name} maxLength={20} placeholder={tr('app.votre_nom')} onChange={(e) => set({ name: e.target.value })} /></label>
+            <div className="k-field"><span className="k-label">{tr('app.avatar')}</span>
+              <div className="avatars">{AVATARS.map((a) => <button key={a} className={a === settings.avatar ? 'on' : ''} onClick={() => set({ avatar: a })} aria-label={tr('app.avatar_2', { a })}>{a}</button>)}</div>
             </div>
           </div>
         </Section>
         <Section title="Langue · Language · Sprache · Taal"><LangSwitch full /><p className="muted small">{tr('lang.note')}</p></Section>
-        <Section title="Son" aside={<button className="btn ghost small" onClick={() => { sound.unlock(); sound.impact('paroi', 10); setTimeout(() => sound.impact('feutre', 9), 120); setTimeout(() => sound.impact('de', 8), 220); }}><Icon name="sound" size={18} /> Tester le son</button>}>
+        <Section title={tr('app.son')} aside={<button className="btn ghost small" onClick={() => { sound.unlock(); sound.impact('paroi', 10); setTimeout(() => sound.impact('feutre', 9), 120); setTimeout(() => sound.impact('de', 8), 220); }}><Icon name="sound" size={18} /> {tr('app.tester_le_son')}</button>}>
           <div className="k-card">
-            <label className="k-range"><span><Icon name={vol ? 'sound' : 'mute'} size={20} /><b>Effets</b><em>{vol} %</em></span>
+            <label className="k-range"><span><Icon name={vol ? 'sound' : 'mute'} size={20} /><b>{tr('app.effets')}</b><em>{vol} %</em></span>
               <input type="range" min={0} max={100} step={1} value={vol}
                 onChange={(e) => { const v = Number(e.target.value); set({ volume: v / 100, muted: v === 0 }); }} /></label>
-            <Toggle label="Couper tous les sons" checked={settings.muted} onChange={(b) => set({ muted: b })} />
+            <Toggle label={tr('app.couper_tous_les_sons')} checked={settings.muted} onChange={(b) => set({ muted: b })} />
           </div>
         </Section>
-        <Section title="Lancer les dés">
+        <Section title={tr('app.lancer_les_des')}>
           <div className="k-card">
-            <Toggle label="Secouer le téléphone pour lancer" checked={settings.shake}
+            <Toggle label={tr('app.secouer_le_telephone_pour_lancer')} checked={settings.shake}
               onChange={async (on) => { if (on && needsMotionPermission() && !(await requestMotionPermission())) return; set({ shake: on }); }} />
-            <Toggle label="Lancer au gobelet" hint="Les dés partent d'un gobelet renversé" checked={settings.cup} onChange={(b) => set({ cup: b })} />
-            <Toggle label="Vibrations" hint="Quand les dés frappent (téléphone)" checked={settings.vibrate} onChange={(b) => set({ vibrate: b })} />
-            <Toggle label="M'alerter quand c'est mon tour" hint="Onglet qui clignote et petit son quand le jeu est en arrière-plan" checked={settings.turnAlert} onChange={(b) => set({ turnAlert: b })} />
+            <Toggle label={tr('app.lancer_au_gobelet')} hint={tr('app.les_des_partent_d_un_gobelet_renvers')} checked={settings.cup} onChange={(b) => set({ cup: b })} />
+            <Toggle label={tr('app.vibrations')} hint={tr('app.quand_les_des_frappent_telephone')} checked={settings.vibrate} onChange={(b) => set({ vibrate: b })} />
+            <Toggle label={tr('app.m_alerter_quand_c_est_mon_tour')} hint={tr('app.onglet_qui_clignote_et_petit_son_qua')} checked={settings.turnAlert} onChange={(b) => set({ turnAlert: b })} />
           </div>
         </Section>
-        <Section title="Graphismes">
+        <Section title={tr('app.graphismes')}>
           <Choices value={settings.quality} onChange={(q) => set({ quality: q })}
-            options={[{ v: 'haute', label: 'Haute', hint: 'Ombres fines' }, { v: 'normale', label: 'Normale', hint: 'Plus léger' }]} />
+            options={[{ v: 'haute', label: tr('app.haute'), hint: tr('app.ombres_fines') }, { v: 'normale', label: tr('app.normale'), hint: tr('app.plus_leger') }]} />
         </Section>
-        <Section title="Aide">
+        <Section title={tr('app.aide')}>
           <div className="k-links">
             <InstallPrompt />
-            <a className="btn" href={reportUrl()}><Icon name="flag" size={18} /> Signaler un problème</a>
+            <a className="btn" href={reportUrl()}><Icon name="flag" size={18} /> {tr('app.signaler_un_probleme')}</a>
           </div>
         </Section>
       </div>
@@ -397,7 +397,7 @@ export function Sandbox({ settings, appearance, onBack, onSettings, trail, fete,
     if (big) {
       sound.jackpot();
       tray.current?.celebrate(feteId ?? null);
-      setShot({ id: Date.now(), text: next[0] === 1 ? 'Trois as !' : '4-2-1 !' });
+      setShot({ id: Date.now(), text: next[0] === 1 ? tr('app.trois_as') : '4-2-1 !' });
     }
     setDice(next);
     setCount((c) => c + 1);
@@ -414,28 +414,28 @@ export function Sandbox({ settings, appearance, onBack, onSettings, trail, fete,
         onSwipe={(g) => { void roll(g); }} />
       <div className="vignette" />
       <div className="top"><div className="topbar">
-        <button className="icon-btn" onClick={onBack} aria-label="Retour"><Icon name="back" /></button>
-        <div className="phase"><span className="logo-mini">421</span><span>Bac d'essai</span></div>
+        <button className="icon-btn" onClick={onBack} aria-label={tr('app.retour')}><Icon name="back" /></button>
+        <div className="phase"><span className="logo-mini">421</span><span>{tr('app.bac_d_essai')}</span></div>
         <div className="top-actions">
           <VolumeControl settings={settings} onSettings={onSettings} />
         </div>
       </div></div>
       <div className="actionbar">
-        <div className="status"><div className="turn-line"><b>{rolling ? 'Les dés roulent…' : count ? combo.label : 'Lancez pour essayer'}</b></div>
-          <div className="throws"><span>{count} lancer{count > 1 ? 's' : ''}. Touchez un dé pour le garder, glissez sur le bac pour lancer.</span></div></div>
+        <div className="status"><div className="turn-line"><b>{rolling ? tr('app.les_des_roulent') : count ? combo.label : tr('app.lancez_pour_essayer')}</b></div>
+          <div className="throws"><span>{count} {tr(count > 1 ? 'app.lancer_touchez_un_de_pour_le_garder.p' : 'app.lancer_touchez_un_de_pour_le_garder')}</span></div></div>
         <div className="result">{count > 0 && !rolling && (
           <div className="keep-row">{dice.map((d, i) => (
             <button key={i} className={`keep-die${keep[i] ? ' on' : ''}`} onClick={() => setKeep((k) => k.map((v, j) => (j === i ? !v : v)))}>
-              <MiniDie value={d} size={30} kept={keep[i]} /><small>{keep[i] ? 'gardé' : 'relancé'}</small>
+              <MiniDie value={d} size={30} kept={keep[i]} /><small>{keep[i] ? tr('app.garde_2') : tr('app.relance')}</small>
             </button>))}</div>)}
         </div>
         <div className="buttons">
           <button className="btn primary big" disabled={rolling || keep.every(Boolean)} onClick={() => roll()}>
-            🎲 {keep.some(Boolean) ? `Relancer (${keep.filter((k) => !k).length})` : 'Lancer les dés'}
+            🎲 {keep.some(Boolean) ? tr('app.relancer', { n: keep.filter((k) => !k).length }) : tr('app.lancer_les_des')}
           </button>
-          {keep.some(Boolean) && <button className="btn ghost small" onClick={() => setKeep([false, false, false])}>Tout relancer</button>}
+          {keep.some(Boolean) && <button className="btn ghost small" onClick={() => setKeep([false, false, false])}>{tr('app.tout_relancer')}</button>}
           <button className="btn ghost small" disabled={rolling} onClick={() => void roll(undefined, true)}>
-            ✨ {tried ? `Essayer « ${tried.name} »` : 'Voir la célébration du 4-2-1'}
+            ✨ {tried ? tr('app.essayer', { name: tried.name }) : tr('app.voir_la_celebration_du_4_2_1')}
           </button>
         </div>
       </div>

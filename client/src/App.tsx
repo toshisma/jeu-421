@@ -47,6 +47,7 @@ import { useDiscord } from './ui/Discord';
 import { changelogUnseen } from './ui/Changelog';
 import { loadTrayScene } from './ui/DiceTray';
 import { INVITE_DELAY_MS, inviteDue, lastInviteClosed, loadWelcomeGift, markInviteClosed, onGuestInvite, saveWelcomeGift, type InviteGame, type WelcomeGift } from './ui/guestInvite';
+import { syncPushLang } from './push';
 
 // Écrans secondaires : chargés à la demande (voir lazy.ts). L'accueil n'attend aucun d'eux.
 const GameScreen = lazyScreen(() => import('./ui/GameScreen'), 'GameScreen');
@@ -185,6 +186,9 @@ export function App() {
     return () => { document.title = before; };
   }, [screen.name, lang]);
 
+  // Notifications push : l'appareil suit la langue choisie.
+  useEffect(() => { if (!STANDALONE && pa.token) void syncPushLang(pa.token); }, [lang, pa.token]);
+
   const setSettings = (s: Settings) => { setSettingsState(s); saveSettings(s); };
   useEffect(() => { sound.configure({ volume: settings.volume, muted: settings.muted }); }, [settings.volume, settings.muted]);
   useEffect(() => { setHaptics(settings.vibrate); }, [settings.vibrate]);
@@ -200,7 +204,7 @@ export function App() {
       if (shown) return;
       shown = true;
       void pa.logout();
-      void askConfirm((e as CustomEvent<string>).detail || 'Votre compte est suspendu.', 'Compris', 'Fermer').then(() => { shown = false; setScreen({ name: 'home' }); });
+      void askConfirm((e as CustomEvent<string>).detail || tr('app.votre_compte_est_suspendu'), tr('app.compris'), tr('app.fermer')).then(() => { shown = false; setScreen({ name: 'home' }); });
     };
     window.addEventListener('421:banned', onBan);
     return () => window.removeEventListener('421:banned', onBan);
@@ -468,7 +472,7 @@ export function App() {
     <div className={`app-shell${inGame ? ' in-game' : ''}`}>
       {/* Zone des écrans : tout ce qui s'y affiche (y compris les fenêtres) reste au-dessus de la barre. */}
       <div className="app-view">
-        <Suspense fallback={<div className="screen-loading" role="status" aria-label="Chargement…"><span className="spinner" aria-hidden /></div>}>{view}</Suspense>
+        <Suspense fallback={<div className="screen-loading" role="status" aria-label={tr('app.chargement')}><span className="spinner" aria-hidden /></div>}>{view}</Suspense>
         {!STANDALONE && <FriendOnlineToast pa={pa} />}
         {!STANDALONE && !atTable && screen.name !== 'cf' && <CfChallengeBanner pa={pa} onOpen={go(() => setScreen({ name: 'cf' }))} />}
         {!STANDALONE && !atTable && <InviteBanner pa={pa} onJoin={(code, game) => go(() => joinTable(code, game))()} />}

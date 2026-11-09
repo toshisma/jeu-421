@@ -1,9 +1,11 @@
+import { communFr } from './zones/commun.fr';
 /**
  * Textes français : LA liste des clés. Toute nouvelle chaîne s'ajoute d'abord ici (mode d'emploi : shared/i18n/index.ts).
  */
 import { g421Fr } from "./zones/jeu421.fr";
 
 export const fr = {
+  ...communFr,
   "common.back": "Retour",
   "common.close": "Fermer",
   "common.cancel": "Annuler",

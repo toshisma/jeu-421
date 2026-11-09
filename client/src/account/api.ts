@@ -1,5 +1,6 @@
 /** Appels à l'API des comptes (même serveur que le multijoueur). */
 import { SERVER_URL } from '../platform';
+import { trServer } from '../i18n/lang';
 
 const KEY = '421.compte';
 
@@ -28,11 +29,11 @@ export async function api<T = Record<string, unknown>>(path: string, opts: { bod
       body: opts.body ? JSON.stringify(opts.body) : undefined,
     });
   } catch {
-    throw new ApiError('Serveur injoignable. Vérifiez votre connexion.', 0);
+    throw new ApiError(trServer('Serveur injoignable. Vérifiez votre connexion.'), 0);
   }
   const data = await res.json().catch(() => ({ ok: false, error: 'Réponse invalide du serveur' }));
   // Compte suspendu par l'administration : l'application ferme la session et l'explique.
-  if (res.status === 403 && data?.banned === true && opts.token) window.dispatchEvent(new CustomEvent('421:banned', { detail: String(data.error ?? 'Votre compte est suspendu.') }));
-  if (!res.ok || data.ok === false) throw new ApiError(data.error ?? `Erreur ${res.status}`, res.status);
+  if (res.status === 403 && data?.banned === true && opts.token) window.dispatchEvent(new CustomEvent('421:banned', { detail: trServer(String(data.error ?? 'Votre compte est suspendu.')) }));
+  if (!res.ok || data.ok === false) throw new ApiError(trServer(data.error ?? `Erreur ${res.status}`), res.status);
   return data as T;
 }

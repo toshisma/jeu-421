@@ -65,7 +65,7 @@ const lead = (g: InviteGame) => tr(`gi.lead.${g}`);
 
 export function GuestInvitePopup({ game, onCreate, onClose }: { game: InviteGame; onCreate: () => void; onClose: () => void }) {
   return (
-    <Popup label="Créez un compte gratuit" onClose={onClose}>
+    <Popup label={tr('app.creez_un_compte_gratuit')} onClose={onClose}>
       <p className="gi-kicker">{lead(game)}</p>
       <h2 id="gi-title" className="gi-title">{tr('gi.title')}</h2>
       <GiftArt />
@@ -88,7 +88,7 @@ export function WelcomeGiftPopup({ gift, bags, onBags, onBoosters, onClose }: {
 }) {
   const both = gift.bags && gift.boosters;
   return (
-    <Popup label="Votre cadeau de bienvenue" onClose={onClose}>
+    <Popup label={tr('app.votre_cadeau_de_bienvenue')} onClose={onClose}>
       <p className="gi-kicker">{tr('gi.welcome', { user: gift.user })}</p>
       <h2 id="gi-title" className="gi-title">{tr(both ? 'gi.both' : gift.bags ? 'gi.bags' : 'gi.packs')}</h2>
       <GiftArt small bags={gift.bags} packs={gift.boosters} />

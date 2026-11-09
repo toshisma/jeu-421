@@ -1,9 +1,10 @@
-import { ALBUM, ALBUM_FULL_COINS, monthName, type MonthRecap } from '../../../shared/progress/profile';
+import { monthNameL } from '../i18n/data';
+import { tr } from '../i18n/lang';
+import { ALBUM, ALBUM_FULL_COINS, type MonthRecap } from '../../../shared/progress/profile';
 import type { ProfileApi } from '../account/useProfile';
 import { DiceRow } from './MiniDie';
 import type { MessageKey } from '../../../shared/i18n';
 import { Empty, Shell } from './kit';
-import { tr } from '../i18n/lang';
 import { trn } from '../i18n/g421';
 
 /** Album des combinaisons : chaque combinaison réussie au moins une fois se colle dans l'album. */
@@ -45,21 +46,21 @@ function MonthCard({ m }: { m: MonthRecap }) {
   const favH = m.hours.indexOf(Math.max(...m.hours));
   return (
     <section className="recap">
-      <h3>{monthName(m.id).replace(/^./, (c) => c.toUpperCase())}</h3>
+      <h3>{monthNameL(m.id).replace(/^./, (c) => c.toUpperCase())}</h3>
       <div className="pv-stats">
-        <div><b>{m.played}</b><small>parties</small></div>
-        <div><b>{pct(m.won, m.played)} %</b><small>de victoires</small></div>
+        <div><b>{m.played}</b><small>{tr('app.parties_2')}</small></div>
+        <div><b>{pct(m.won, m.played)} %</b><small>{tr('app.de_victoires')}</small></div>
         <div><b>{m.c421}</b><small>4-2-1</small></div>
-        <div><b>{m.best?.label ?? '–'}</b><small>meilleur coup</small></div>
+        <div><b>{m.best?.label ?? '–'}</b><small>{tr('app.meilleur_coup')}</small></div>
       </div>
       <ul className="recap-lines">
-        {fav && <li>Adversaire préféré : <b>{fav[0]}</b> ({fav[1]} partie{fav[1] > 1 ? 's' : ''})</li>}
-        {m.played > 0 && <li>Vous jouez surtout <b>vers {favH} h</b>.</li>}
+        {fav && <li>{tr('app.adversaire_prefere')} <b>{fav[0]}</b> ({fav[1]} {tr(fav[1] > 1 ? 'app.partie.p' : 'app.partie')}</li>}
+        {m.played > 0 && <li>{tr('app.vous_jouez_surtout')} <b>{tr('app.vers_h', { favH })}</b>.</li>}
       </ul>
-      <div className="hours" aria-label="Parties par heure">
-        {m.hours.map((h, i) => <i key={i} style={{ height: `${(100 * h) / maxH}%` }} title={`${i} h : ${h} partie${h > 1 ? 's' : ''}`} />)}
+      <div className="hours" aria-label={tr('app.parties_par_heure')}>
+        {m.hours.map((h, i) => <i key={i} style={{ height: `${(100 * h) / maxH}%` }} title={tr(h > 1 ? 'app.h_partie.p' : 'app.h_partie', { i, h })} />)}
       </div>
-      <div className="hours-axis"><span>0 h</span><span>6 h</span><span>12 h</span><span>18 h</span><span>23 h</span></div>
+      <div className="hours-axis"><span>{tr('app.0_h')}</span><span>{tr('app.6_h')}</span><span>{tr('app.12_h')}</span><span>{tr('app.18_h')}</span><span>{tr('app.23_h')}</span></div>
     </section>
   );
 }
@@ -68,8 +69,8 @@ function MonthCard({ m }: { m: MonthRecap }) {
 export function RecapScreen({ pa, onBack }: { pa: ProfileApi; onBack: () => void }) {
   const { month, prevMonth } = pa.profile;
   return (
-    <Shell title="Votre récap" onBack={onBack} icon="chart" sub="Pour vous seul : rien n'est partagé">
-      {!month && !prevMonth && <Empty icon="chart">Jouez quelques parties : votre récap du mois se remplira au fil du jeu.</Empty>}
+    <Shell title={tr('app.votre_recap')} onBack={onBack} icon="chart" sub={tr('app.pour_vous_seul_rien_n_est_partage')}>
+      {!month && !prevMonth && <Empty icon="chart">{tr('app.jouez_quelques_parties_votre_recap_d')}</Empty>}
       {month && <MonthCard m={month} />}
       {prevMonth && <MonthCard m={prevMonth} />}
     </Shell>

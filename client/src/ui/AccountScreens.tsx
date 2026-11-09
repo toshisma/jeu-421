@@ -1,4 +1,4 @@
-import { tr, trServer } from '../i18n/lang';
+import { loc, tr, trServer } from '../i18n/lang';
 import { useEffect, useState } from 'react';
 import { askConfirm } from './confirm';
 import { Icon } from './Icon';
@@ -29,7 +29,7 @@ export function QuestsPanel({ profile, onClaim }: { profile: Profile; onClaim: (
   const [err, setErr] = useState<string | null>(null);
   return (
     <section className="quests">
-      <header><h3>Défis du jour</h3><span className="muted small">nouveaux dans {untilMidnight()}</span></header>
+      <header><h3>{tr('app.defis_du_jour')}</h3><span className="muted small">{tr('app.nouveaux_dans')} {untilMidnight()}</span></header>
       <ul>
         {dailyQuests(day).map((d) => {
           const n = q.progress[d.id] ?? 0;
@@ -40,7 +40,7 @@ export function QuestsPanel({ profile, onClaim }: { profile: Profile; onClaim: (
               <div className="q-text">
                 <span>{d.text}</span>
                 <span className="q-bar"><i style={{ width: `${(100 * n) / d.target}%` }} /></span>
-                <small className="q-meta">{n} sur {d.target}, rapporte {d.coins} pièces et {d.xp} XP</small>
+                <small className="q-meta">{n} {tr('app.sur_rapporte_pieces_et_xp', { target: d.target, coins: d.coins, xp: d.xp })}</small>
               </div>
               {claimed ? <span className="q-ok">✓</span>
                 : done ? <button className="btn primary small" disabled={busy === d.id} onClick={async () => {
@@ -48,7 +48,7 @@ export function QuestsPanel({ profile, onClaim }: { profile: Profile; onClaim: (
                   const e = await onClaim(d.id);
                   setBusy(null);
                   if (e) setErr(e); else sound.chips(5);
-                }}>Récupérer</button> : null}
+                }}>{tr('app.recuperer')}</button> : null}
             </li>
           );
         })}
@@ -121,55 +121,55 @@ export function AccountScreen({ pa, onBack, onPrivacy, onRegistered, initial = '
   if (pa.isAccount) {
     const li = levelInfo(pa.profile.xp);
     return (
-      <Shell title="Mon compte" onBack={onBack} icon="key" sub="Progression gardée sur le serveur">
+      <Shell title={tr('app.mon_compte')} onBack={onBack} icon="key" sub={tr('app.progression_gardee_sur_le_serveur')}>
         <div className="k-stack">
           <div className="acct-hero">
             <span className="k-initial big" aria-hidden>{pa.session!.username.slice(0, 1).toUpperCase()}</span>
             <div><div className="acct-name">{pa.session!.username}</div>
-              <div className="acct-sub">Niveau {li.level} · <Coins n={pa.profile.coins} label="pièces" /></div></div>
+              <div className="acct-sub">{tr('app.niveau_2', { level: li.level })} <Coins n={pa.profile.coins} label={tr('app.pieces_2')} /></div></div>
           </div>
           <div className="acct-stats">
-            <div><b>{pa.user?.onlineWins ?? '–'}</b><small>victoires en ligne</small></div>
-            <div><b>{pa.user?.onlineGames ?? '–'}</b><small>parties en ligne</small></div>
-            <div><b>{rank ?? '–'}</b><small>au classement</small></div>
-            <div><b>{pa.profile.stats.won}</b><small>victoires au total</small></div>
+            <div><b>{pa.user?.onlineWins ?? '–'}</b><small>{tr('app.victoires_en_ligne')}</small></div>
+            <div><b>{pa.user?.onlineGames ?? '–'}</b><small>{tr('app.parties_en_ligne')}</small></div>
+            <div><b>{rank ?? '–'}</b><small>{tr('app.au_classement')}</small></div>
+            <div><b>{pa.profile.stats.won}</b><small>{tr('app.victoires_au_total')}</small></div>
           </div>
-          <p className="k-hint">Niveau, pièces, objets et défis vous suivent sur tous vos appareils.</p>
-          <Section title="Inviter des amis">
+          <p className="k-hint">{tr('app.niveau_pieces_objets_et_defis_vous_s')}</p>
+          <Section title={tr('app.inviter_des_amis')}>
             <ReferralCard pa={pa} onAccount={() => {}} />
           </Section>
-          <Section title="Joueurs bloqués" count={pa.blocked.length || undefined}>
+          <Section title={tr('app.joueurs_bloques')} count={pa.blocked.length || undefined}>
             {pa.blocked.length ? (
               <ul className="list">
                 {pa.blocked.map((b) => (
-                  <li key={b}><div className="l-main"><b>{b}</b><small>Photo et réactions masquées, ne peut pas rejoindre vos tables</small></div>
-                    <button className="btn small" onClick={() => void pa.block(b, false).then(() => showToast(`${b} est débloqué.`))}>Débloquer</button></li>
+                  <li key={b}><div className="l-main"><b>{b}</b><small>{tr('app.photo_et_reactions_masquees_ne_peut_')}</small></div>
+                    <button className="btn small" onClick={() => void pa.block(b, false).then(() => showToast(tr('app.est_debloque', { b })))}>{tr('app.debloquer')}</button></li>
                 ))}
               </ul>
-            ) : <Empty icon="user">Personne. Pour bloquer quelqu'un, ouvrez son profil (classement, amis ou carte en partie).</Empty>}
+            ) : <Empty icon="user">{tr('app.personne_pour_bloquer_quelqu_un_ouvr')}</Empty>}
           </Section>
-          <Section title="Vos données">
+          <Section title={tr('app.vos_donnees')}>
             <div className="k-links">
-              <button className="btn" onClick={() => void exportData()}><Icon name="install" size={18} /> Télécharger mes données</button>
-              <button className="btn" onClick={onPrivacy}><Icon name="lock" size={18} /> Confidentialité</button>
+              <button className="btn" onClick={() => void exportData()}><Icon name="install" size={18} /> {tr('app.telecharger_mes_donnees')}</button>
+              <button className="btn" onClick={onPrivacy}><Icon name="lock" size={18} /> {tr('app.confidentialite')}</button>
             </div>
           </Section>
-          <Section title="Session">
+          <Section title={tr('app.session')}>
             <div className="k-links">
-              <button className="btn" onClick={() => void pa.logout()}><Icon name="back" size={18} /> Se déconnecter</button>
+              <button className="btn" onClick={() => void pa.logout()}><Icon name="back" size={18} /> {tr('app.se_deconnecter')}</button>
             </div>
           </Section>
           {!deleting ? (
-            <button className="btn ghost danger acct-del" onClick={() => setDeleting(true)}>Supprimer mon compte…</button>
+            <button className="btn ghost danger acct-del" onClick={() => setDeleting(true)}>{tr('app.supprimer_mon_compte')}</button>
           ) : (
             <div className="danger-zone">
-              <p><b>Suppression définitive et immédiate</b> : pseudo, progression, objets, statistiques et liste d'amis sont effacés du serveur. Impossible de revenir en arrière.</p>
-              <label className="k-field"><span className="k-label">Mot de passe pour confirmer</span>
+              <p><b>{tr('app.suppression_definitive_et_immediate')}</b>{tr('app.pseudo_progression_objets_statistiqu')}</p>
+              <label className="k-field"><span className="k-label">{tr('app.mot_de_passe_pour_confirmer')}</span>
                 <input className="k-input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
               {err && <p className="error">{err}</p>}
               <div className="row">
-                <button className="btn" onClick={() => { setDeleting(false); setErr(null); }}>Annuler</button>
-                <button className="btn danger-solid" disabled={busy || !password} onClick={() => run(() => pa.deleteAccount(password))}>Supprimer définitivement</button>
+                <button className="btn" onClick={() => { setDeleting(false); setErr(null); }}>{tr('app.annuler')}</button>
+                <button className="btn danger-solid" disabled={busy || !password} onClick={() => run(() => pa.deleteAccount(password))}>{tr('app.supprimer_definitivement')}</button>
               </div>
             </div>
           )}
@@ -201,7 +201,7 @@ export function AccountScreen({ pa, onBack, onPrivacy, onRegistered, initial = '
             <li><Icon name="check" size={18} />{tr('ac.perk1')}</li>
             <li><Icon name="check" size={18} />{tr('ac.perk2')}</li>
             {forCf
-              ? <li><Icon name="check" size={18} />Coups Fourrés : vos cartes, vos decks, des boosters offerts, parties classées</li>
+              ? <li><Icon name="check" size={18} />{tr('app.coups_fourres_vos_cartes_vos_decks_d')}</li>
               : <li><Icon name="check" size={18} />{tr('ac.perk3')}</li>}
           </ul>
         )}
@@ -261,9 +261,9 @@ export function LeaderboardScreen({ pa, onBack, onAccount }: { pa: ProfileApi; o
 
   if (!token) {
     return (
-      <Shell title="Classement" onBack={onBack} icon="trophy"
-        foot={<BigAction icon="key" tone="gold" label="Créer un compte ou se connecter" sub="Gratuit, sans adresse e-mail" onClick={onAccount} />}>
-        <Empty icon="trophy">Saison, ligue de la semaine et victoires en ligne, vérifiées par le serveur. Il faut un compte (gratuit) pour y figurer et ajouter des amis.</Empty>
+      <Shell title={tr('app.classement')} onBack={onBack} icon="trophy"
+        foot={<BigAction icon="key" tone="gold" label={tr('app.creer_un_compte_ou_se_connecter')} sub={tr('app.gratuit_sans_adresse_e_mail')} onClick={onAccount} />}>
+        <Empty icon="trophy">{tr('app.saison_ligue_de_la_semaine_et_victoi')}</Empty>
       </Shell>
     );
   }
@@ -272,46 +272,46 @@ export function LeaderboardScreen({ pa, onBack, onAccount }: { pa: ProfileApi; o
     setErr(null);
     try {
       const r = await api<{ result: string }>('/friends', { token, body: { username: name } });
-      showToast(r.result === 'accepted' ? `Vous êtes maintenant amis avec ${name}.` : `Demande envoyée à ${name}.`);
+      showToast(r.result === 'accepted' ? tr('app.vous_etes_maintenant_amis_avec', { name }) : tr('app.demande_envoyee_a', { name }));
       setOk(null); setName(''); load();
     } catch (x) { setErr((x as Error).message); }
   };
   return (
-    <Shell title="Classement" onBack={onBack} icon="trophy"
-      sub={me ? `Votre place : ${me.rank ? `${me.rank}e` : 'pas encore classé'} · ${me.onlineWins} victoire${me.onlineWins > 1 ? 's' : ''} en ligne` : undefined}>
-      <Tabs label="Classements" value={tab} onChange={setTab}
-        options={[{ v: 'saison', label: 'Saison' }, { v: 'ligue', label: 'Ligue' }, { v: 'monde', label: 'Victoires' }, { v: 'amis', label: 'Amis' }]} />
+    <Shell title={tr('app.classement')} onBack={onBack} icon="trophy"
+      sub={me ? tr(me.onlineWins > 1 ? 'app.votre_place_victoire_en_ligne.p' : 'app.votre_place_victoire_en_ligne', { v: me.rank ? `${me.rank}e` : tr('app.pas_encore_classe'), onlineWins: me.onlineWins }) : undefined}>
+      <Tabs label={tr('app.classements')} value={tab} onChange={setTab}
+        options={[{ v: 'saison', label: tr('app.saison') }, { v: 'ligue', label: tr('app.ligue') }, { v: 'monde', label: tr('app.victoires') }, { v: 'amis', label: tr('app.amis') }]} />
       {tab === 'saison' ? <SeasonView pa={pa} onOpen={setOpen} /> : tab === 'ligue' ? <LeagueView pa={pa} onOpen={setOpen} /> : <>
-      <p className="k-hint lb-help">{tab === 'monde' ? 'Victoires en ligne (le solo ne compte pas). À égalité, le moins de parties jouées passe devant.' : 'Vos amis, classés par victoires en ligne.'}</p>
+      <p className="k-hint lb-help">{tab === 'monde' ? tr('app.victoires_en_ligne_le_solo_ne_compte') : tr('app.vos_amis_classes_par_victoires_en_li')}</p>
       {tab === 'amis' && (
         <form className="hub-code friend-search" onSubmit={(e) => { e.preventDefault(); void addFriend(); }}>
           <Icon name="plus" size={20} />
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Pseudo d'un ami" maxLength={20} aria-label="Pseudo d'un ami" />
-          <button className="btn small primary" disabled={name.trim().length < 3}>Ajouter</button>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr('app.pseudo_d_un_ami')} maxLength={20} aria-label={tr('app.pseudo_d_un_ami')} />
+          <button className="btn small primary" disabled={name.trim().length < 3}>{tr('app.ajouter')}</button>
         </form>
       )}
       {err && <p className="error small">{err}</p>}
       {tab === 'amis' && ok && <p className="ok small">{ok}</p>}
-      {tab === 'amis' && pending.length > 0 && <p className="k-hint">En attente de réponse : {pending.join(', ')}.</p>}
-      {rows?.length === 0 ? <Empty icon={tab === 'monde' ? 'trophy' : 'people'}>{tab === 'monde' ? 'Personne encore : jouez une partie en ligne !' : 'Ajoutez des amis par leur pseudo.'}</Empty> : (
+      {tab === 'amis' && pending.length > 0 && <p className="k-hint">{tr('app.en_attente_de_reponse')} {pending.join(', ')}.</p>}
+      {rows?.length === 0 ? <Empty icon={tab === 'monde' ? 'trophy' : 'people'}>{tab === 'monde' ? tr('app.personne_encore_jouez_une_partie_en_') : tr('app.ajoutez_des_amis_par_leur_pseudo')}</Empty> : (
       <ol className="board">
-        {!rows && <li className="muted">Chargement…</li>}
+        {!rows && <li className="muted">{tr('app.chargement')}</li>}
         {rows?.map((r) => (
-          <li key={r.username} className={`${r.username === pa.session?.username ? 'me' : ''} clickable`} onClick={() => setOpen(r.username)} title="Voir le profil">
+          <li key={r.username} className={`${r.username === pa.session?.username ? 'me' : ''} clickable`} onClick={() => setOpen(r.username)} title={tr('app.voir_le_profil')}>
             <span className="b-rank">{r.rank ?? '–'}</span>
-            <span className="b-name">{r.username}<small>niveau {r.level}</small></span>
+            <span className="b-name">{r.username}<small>{tr('app.niveau_3')} {r.level}</small></span>
             <span className="b-wins"><b>{r.onlineWins}</b> <small>/ {r.onlineGames}</small></span>
             {tab === 'amis' && !r.me && (
-              <button className="icon-btn small" title="Retirer" onClick={async (e) => {
+              <button className="icon-btn small" title={tr('app.retirer')} onClick={async (e) => {
                 e.stopPropagation();
-                if (!(await askConfirm(`Retirer ${r.username} de vos amis ?`, 'Retirer'))) return;
-                await api(`/friends/${encodeURIComponent(r.username)}`, { token, method: 'DELETE' }).catch(() => {}); showToast(`${r.username} retiré de vos amis.`); load(); }} aria-label={`Retirer ${r.username}`}><Icon name="close" size={18} /></button>
+                if (!(await askConfirm(tr('app.retirer_de_vos_amis', { username: r.username }), tr('app.retirer')))) return;
+                await api(`/friends/${encodeURIComponent(r.username)}`, { token, method: 'DELETE' }).catch(() => {}); showToast(tr('app.retire_de_vos_amis', { username: r.username })); load(); }} aria-label={tr('app.retirer_2', { username: r.username })}><Icon name="close" size={18} /></button>
             )}
           </li>
         ))}
       </ol>)}
       {tab === 'monde' && me && (me.rank == null || me.rank > 50) && (
-        <p className="board-me">Votre place : {me.rank ? `${me.rank}e` : 'pas encore classé'}, {me.onlineWins} victoire{me.onlineWins > 1 ? 's' : ''} / {me.onlineGames}</p>
+        <p className="board-me">{tr('app.votre_place')} {me.rank ? `${me.rank}e` : tr('app.pas_encore_classe')}{tr(me.onlineWins > 1 ? 'app.victoire.p' : 'app.victoire', { onlineWins: me.onlineWins })} {me.onlineGames}</p>
       )}
       </>}
       {open && <ProfileView pa={pa} username={open} onClose={() => setOpen(null)} />}
@@ -335,7 +335,7 @@ function LeagueView({ pa, onOpen }: { pa: ProfileApi; onOpen: (u: string) => voi
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => { api<League>('/league', { token: pa.token }).then(setL).catch((e) => setErr(e.message)); }, [pa.token]);
   if (err) return <p className="error">{err}</p>;
-  if (!l) return <p className="muted">Chargement…</p>;
+  if (!l) return <p className="muted">{tr('app.chargement')}</p>;
   const n = l.group.length;
   const end = new Date(`${l.endsAt}T00:00:00`);
   return (
@@ -343,21 +343,20 @@ function LeagueView({ pa, onOpen }: { pa: ProfileApi; onOpen: (u: string) => voi
       <div className="league-head" style={{ ['--lc' as string]: LEAGUE_COLORS[l.league] }}>
         <span className="league-badge" aria-hidden />
         <div>
-          <b>Ligue {l.name}</b>
-          <span>Se termine dimanche soir ({end.toLocaleDateString('fr-BE', { day: 'numeric', month: 'long' })}).</span>
+          <b>{tr('app.ligue')} {trServer(l.name)}</b>
+          <span>{tr('app.se_termine_dimanche_soir')}{end.toLocaleDateString(loc(), { day: 'numeric', month: 'long' })}).</span>
         </div>
       </div>
-      <p className="muted small">Chaque point d'XP gagné cette semaine compte. Les {l.promote} premiers montent de ligue
-        et gagnent {l.prizes.join(', ')} pièces{l.demote ? `, les ${l.demote} derniers redescendent` : ''}.</p>
-      {n === 0 ? <Empty icon="trophy">Jouez une partie cette semaine pour entrer dans un groupe de 20 joueurs.</Empty> : (
+      <p className="muted small">{tr('app.chaque_point_d_xp_gagne_cette_semain', { promote: l.promote })} {l.prizes.join(', ')} {tr('app.pieces_2')}{l.demote ? tr('app.les_derniers_redescendent', { demote: l.demote }) : ''}.</p>
+      {n === 0 ? <Empty icon="trophy">{tr('app.jouez_une_partie_cette_semaine_pour_')}</Empty> : (
         <ol className="board league-board">
           {l.group.map((r) => {
             const zone = r.rank <= l.promote ? 'up' : l.demote && n >= 8 && r.rank > n - l.demote ? 'down' : '';
             return (
               <li key={r.username} className={`${r.me ? 'me ' : ''}${zone} clickable`} onClick={() => onOpen(r.username)}>
                 <span className="b-rank">{r.rank}</span>
-                <span className="b-name">{r.username}<small>{zone === 'up' ? 'Zone de montée' : zone === 'down' ? 'Zone de descente' : ''}</small></span>
-                <span className="b-wins"><b>{r.xp}</b> <small>XP</small></span>
+                <span className="b-name">{r.username}<small>{zone === 'up' ? tr('app.zone_de_montee') : zone === 'down' ? tr('app.zone_de_descente') : ''}</small></span>
+                <span className="b-wins"><b>{r.xp}</b> <small>{tr('app.xp_2')}</small></span>
               </li>
             );
           })}

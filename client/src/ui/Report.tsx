@@ -2,6 +2,7 @@
  * Signaler un joueur ou l'un de ses messages : choix de la raison, commentaire facultatif.
  * Pour un message, seul son identifiant part au serveur : il retrouve et fige lui-même le texte.
  */
+import { trServer, tr } from '../i18n/lang';
 import { useState } from 'react';
 import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
@@ -33,23 +34,23 @@ export function ReportDialog({ pa, target, onClose }: { pa: ProfileApi; target: 
     } catch (e) { setErr((e as Error).message); }
     setBusy(false);
   };
-  const title = target.message ? 'Signaler un message' : `Signaler ${target.username}`;
+  const title = target.message ? tr('app.signaler_un_message') : tr('app.signaler_2', { username: target.username });
   return (
     <div className="sheet-back report-back" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="sheet report-sheet">
         <div className="sheet-grip" aria-hidden />
-        <header className="sheet-head"><h2>{title}</h2><button className="icon-btn" onClick={onClose} aria-label="Fermer"><Icon name="close" /></button></header>
+        <header className="sheet-head"><h2>{title}</h2><button className="icon-btn" onClick={onClose} aria-label={tr('app.fermer')}><Icon name="close" /></button></header>
         <div className="sheet-body">
           {!pa.isAccount ? (
             <>
-              <p>Pour signaler un joueur ou un message, créez un compte (gratuit, sans adresse e-mail) ou connectez-vous.</p>
-              <button className="btn primary" onClick={onClose}>Compris</button>
+              <p>{tr('app.pour_signaler_un_joueur_ou_un_messag')}</p>
+              <button className="btn primary" onClick={onClose}>{tr('app.compris')}</button>
             </>
           ) : done ? (
             <>
-              <p className="report-done"><Icon name="check" size={22} /> {REPORT_SENT_TEXT}</p>
-              <p className="k-hint">Si une sanction est prise, vous serez prévenu dans vos notifications. Vous pouvez aussi bloquer ce joueur depuis son profil.</p>
-              <button className="btn primary" onClick={onClose}>Fermer</button>
+              <p className="report-done"><Icon name="check" size={22} /> {trServer(REPORT_SENT_TEXT)}</p>
+              <p className="k-hint">{tr('app.si_une_sanction_est_prise_vous_serez')}</p>
+              <button className="btn primary" onClick={onClose}>{tr('app.fermer')}</button>
             </>
           ) : (
             <>
@@ -57,22 +58,22 @@ export function ReportDialog({ pa, target, onClose }: { pa: ProfileApi; target: 
                 <blockquote className="report-quote"><b>{target.username}</b><span>{target.message.text}</span></blockquote>
               )}
               <div className="k-field">
-                <span className="k-label">Pourquoi ?</span>
-                <div className="report-reasons" role="radiogroup" aria-label="Raison du signalement">
+                <span className="k-label">{tr('app.pourquoi')}</span>
+                <div className="report-reasons" role="radiogroup" aria-label={tr('app.raison_du_signalement')}>
                   {REPORT_REASONS.map((r) => (
                     <button key={r.id} type="button" role="radio" aria-checked={reason === r.id} className={reason === r.id ? 'on' : ''} onClick={() => setReason(r.id)}>{r.label}</button>
                   ))}
                 </div>
               </div>
               <label className="k-field">
-                <span className="k-label">Précisions <small>facultatif</small></span>
+                <span className="k-label">{tr('app.precisions')} <small>{tr('app.facultatif')}</small></span>
                 <textarea className="report-comment" value={comment} maxLength={REPORT_COMMENT_MAX} rows={3} onChange={(e) => setComment(e.target.value)}
-                  placeholder="Ce qui s’est passé, en quelques mots" />
-                <small className="k-hint">{REPORT_COMMENT_MAX - comment.length} caractères restants</small>
+                  placeholder={tr('app.ce_qui_s_est_passe_en_quelques')} />
+                <small className="k-hint">{REPORT_COMMENT_MAX - comment.length} {tr('app.caracteres_restants')}</small>
               </label>
               {err && <p className="error small">{err}</p>}
-              <button className="btn primary" disabled={!reason || busy} onClick={() => void send()}><Icon name="flag" size={18} /> Envoyer le signalement</button>
-              <p className="k-hint">L’équipe de modération verra votre signalement{target.message ? ' et une copie du message' : ''}. Le joueur signalé ne saura pas que c’est vous.</p>
+              <button className="btn primary" disabled={!reason || busy} onClick={() => void send()}><Icon name="flag" size={18} /> {tr('app.envoyer_le_signalement')}</button>
+              <p className="k-hint">{tr('app.l_equipe_de_moderation_verra_votre_s')}{target.message ? tr('app.et_une_copie_du_message') : ''}{tr('app.le_joueur_signale_ne_saura_pas_que')}</p>
             </>
           )}
         </div>
@@ -83,5 +84,5 @@ export function ReportDialog({ pa, target, onClose }: { pa: ProfileApi; target: 
 
 /** Petit bouton « ⋯ » à côté d'un message d'un autre joueur. */
 export function ReportMsgButton({ onClick, name }: { onClick: () => void; name: string }) {
-  return <button type="button" className="msg-more" onClick={(e) => { e.stopPropagation(); onClick(); }} aria-label={`Signaler ce message de ${name}`} title="Signaler">⋯</button>;
+  return <button type="button" className="msg-more" onClick={(e) => { e.stopPropagation(); onClick(); }} aria-label={tr('app.signaler_ce_message_de', { name })} title={tr('app.signaler')}>⋯</button>;
 }

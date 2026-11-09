@@ -3,6 +3,7 @@
  * l'adhésion vérifiée par le serveur (connexion Discord). Rien ne s'affiche tant que le serveur
  * n'a pas de lien d'invitation configuré.
  */
+import { tr } from '../i18n/lang';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
@@ -29,16 +30,16 @@ export function takeDiscordReturn(): string | null {
   } catch { return null; }
 }
 
-export const DISCORD_RESULTS: Record<string, string> = {
-  ok: 'Merci d’avoir rejoint le Discord ! Votre sac de dés vous attend dans la Collection.',
-  absent: 'Nous ne vous trouvons pas encore sur le serveur Discord. Rejoignez-le d’abord, puis vérifiez à nouveau.',
-  deja: 'Vous avez déjà reçu votre sac Discord.',
-  autre: 'Ce compte Discord a déjà servi à un autre compte du jeu.',
-  plein: 'Votre réserve de sacs est pleine : ouvrez-en un puis vérifiez à nouveau.',
-  annule: 'Vérification annulée.',
-  expire: 'La vérification a expiré : recommencez.',
-  erreur: 'Discord ne répond pas pour le moment. Réessayez dans un instant.',
-};
+export const DISCORD_RESULTS = (): Record<string, string> => ({
+  ok: tr('app.merci_d_avoir_rejoint_le_discord_vot'),
+  absent: tr('app.nous_ne_vous_trouvons_pas_encore_sur'),
+  deja: tr('app.vous_avez_deja_recu_votre_sac_discor'),
+  autre: tr('app.ce_compte_discord_a_deja_servi_a'),
+  plein: tr('app.votre_reserve_de_sacs_est_pleine_ouv'),
+  annule: tr('app.verification_annulee'),
+  expire: tr('app.la_verification_a_expire_recommencez'),
+  erreur: tr('app.discord_ne_repond_pas_pour_le_moment'),
+});
 
 export function DiscordCard({ pa, state, onAccount }: { pa: ProfileApi; state: DiscordState; onAccount: () => void }) {
   const [busy, setBusy] = useState(false);
@@ -52,17 +53,17 @@ export function DiscordCard({ pa, state, onAccount }: { pa: ProfileApi; state: D
     <div className="discord-card">
       <div className="discord-head">
         <span className="discord-bag"><BagIcon size={46} color="bleu" /></span>
-        <p><b>Le comptoir sur Discord</b>Discutez avec les autres joueurs, trouvez des partenaires pour une partie, suivez les tournois et les nouveautés, proposez vos idées.</p>
+        <p><b>{tr('app.le_comptoir_sur_discord')}</b>{tr('app.discutez_avec_les_autres_joueurs_tro')}</p>
       </div>
-      {state.invite && <a className="btn primary big discord-join" href={state.invite} target="_blank" rel="noopener noreferrer">1. Rejoindre le Discord</a>}
-      {state.claimed ? <p className="discord-done">✓ Sac de dés reçu. Merci !</p>
+      {state.invite && <a className="btn primary big discord-join" href={state.invite} target="_blank" rel="noopener noreferrer">{tr('app.1_rejoindre_le_discord')}</a>}
+      {state.claimed ? <p className="discord-done">{tr('app.sac_de_des_recu_merci')}</p>
         : !pa.isAccount ? <>
-          <p className="discord-hint">Un sac de dés est offert aux joueurs avec un compte qui rejoignent le Discord.</p>
-          <button className="btn big" onClick={onAccount}>Créer un compte gratuit</button>
+          <p className="discord-hint">{tr('app.un_sac_de_des_est_offert_aux')}</p>
+          <button className="btn big" onClick={onAccount}>{tr('app.creer_un_compte_gratuit')}</button>
         </>
         : state.verify ? <>
-          <button className="btn big discord-verify" disabled={busy} onClick={verify}>{busy ? 'Ouverture de Discord…' : <>2. Vérifier et recevoir mon sac <BagIcon size="1em" /></>}</button>
-          <p className="discord-hint">Discord vous demande d’autoriser le jeu à voir votre pseudo et la liste de vos serveurs, seulement pour vérifier que vous avez rejoint. Une fois par compte.</p>
+          <button className="btn big discord-verify" disabled={busy} onClick={verify}>{busy ? tr('app.ouverture_de_discord') : <>{tr('app.2_verifier_et_recevoir_mon_sac')} <BagIcon size="1em" /></>}</button>
+          <p className="discord-hint">{tr('app.discord_vous_demande_d_autoriser_le_')}</p>
         </> : null}
       {err && <p className="discord-err">{err}</p>}
     </div>
