@@ -9,6 +9,7 @@ import type { Ack, ChatMessage, Notice, PublicRoom, RollMessage } from '../../..
 import { saveSession } from '../settings';
 import { SERVER_URL, publicUrl } from '../platform';
 import { trackEvent } from '../visit';
+import { deviceId } from '../presence';
 import type { EndReward } from '../account/useProfile';
 import type { GameController, GameEvent, MetaPlayer } from './controller';
 import type { ThrowGesture } from '../../../shared/gesture';
@@ -60,7 +61,7 @@ export class OnlineSession {
     this.socket.on('connect', () => {
       this.connected = true;
       // Reconnexion automatique au salon après une coupure réseau.
-      if (this.spectating && this.code) void this.call('spectate:join', { code: this.code, name: this.watchName, auth: this.auth });
+      if (this.spectating && this.code) void this.call('spectate:join', { code: this.code, name: this.watchName, auth: this.auth, device: deviceId() });
       else if (this.tcode && this.token) void this.tJoin(this.tcode, '', '', this.token).catch(() => {});
       else if (this.code && this.token) void this.join(this.code, '', '', this.token).catch(() => {});
       this.emitMeta();
@@ -130,7 +131,7 @@ export class OnlineSession {
 
   async create(name: string, avatar: string, config: GameConfig, table?: TableSettings) {
     if (!(await this.waitConnected())) throw new Error('Impossible de joindre le serveur de jeu');
-    const a = await this.call<{ code: string; playerId: string; token: string }>('room:create', { name, avatar, config, table, auth: this.auth, dice: this.dice });
+    const a = await this.call<{ code: string; playerId: string; token: string }>('room:create', { name, avatar, config, table, auth: this.auth, dice: this.dice, device: deviceId() });
     if (!a.ok) throw new Error(a.error);
     this.remember(a);
   }
@@ -138,14 +139,14 @@ export class OnlineSession {
   /** Partie rapide : une table publique qui attend des joueurs, ou une nouvelle. */
   async quick(name: string, avatar: string) {
     if (!(await this.waitConnected())) throw new Error('Impossible de joindre le serveur de jeu');
-    const a = await this.call<{ code: string; playerId: string; token: string }>('room:quick', { name, avatar, auth: this.auth, dice: this.dice });
+    const a = await this.call<{ code: string; playerId: string; token: string }>('room:quick', { name, avatar, auth: this.auth, dice: this.dice, device: deviceId() });
     if (!a.ok) throw new Error(a.error);
     this.remember(a);
   }
 
   async join(code: string, name: string, avatar: string, token?: string) {
     if (!(await this.waitConnected())) throw new Error('Impossible de joindre le serveur de jeu');
-    const a = await this.call<{ code: string; playerId: string; token: string }>('room:join', { code, name, avatar, token, auth: this.auth, dice: this.dice });
+    const a = await this.call<{ code: string; playerId: string; token: string }>('room:join', { code, name, avatar, token, auth: this.auth, dice: this.dice, device: deviceId() });
     if (!a.ok) {
       if (token) saveSession(null);
       throw new Error(a.error);
@@ -156,7 +157,7 @@ export class OnlineSession {
   /** Regarder une partie en cours (aucune place occupée, aucune action de jeu). */
   async watch(code: string, name: string) {
     if (!(await this.waitConnected())) throw new Error('Impossible de joindre le serveur de jeu');
-    const a = await this.call<{ code: string }>('spectate:join', { code, name, auth: this.auth });
+    const a = await this.call<{ code: string }>('spectate:join', { code, name, auth: this.auth, device: deviceId() });
     if (!a.ok) throw new Error(a.error);
     this.spectating = true;
     this.watchName = name;

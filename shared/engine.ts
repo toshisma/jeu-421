@@ -76,6 +76,12 @@ export interface GameState {
   lastSummary: RoundSummary | null;
   ranking: string[]; // à la fin : du premier au dernier
   loserId: string | null;
+  /** Vraie égalité pour la première place (2 joueurs ou plus) : personne n'est « vainqueur » seul. */
+  tiedWinners?: string[] | null;
+  /** Toutes les égalités réelles du classement : ces joueurs partagent la même place. */
+  tieGroups?: string[][];
+  /** Tours « normaux » de la manche, gardés pendant un barrage (départage des sorties simultanées). */
+  roundBase?: Record<string, TurnResult> | null;
   version: number;
   seq: number;
 }
@@ -84,6 +90,11 @@ export type ActionResult = { ok: true; roll?: RollRecord } | { ok: false; error:
 
 const HISTORY_CAP = 80;
 const LOG_CAP = 60;
+/**
+ * Garde-fou contre les parties sans fin (décharge à 30 jetons et 6 joueurs : jusqu'à 2 400 manches).
+ * Très au-delà des parties normales (21 jetons à 6 joueurs : 73 manches au maximum en simulation).
+ */
+export const MAX_ROUNDS = 1000;
 
 export function createGame(config: GameConfig, players: { id: string; name: string }[], firstIdx = 0): GameState {
   if (players.length < 2 || players.length > 6) throw new Error('Il faut entre 2 et 6 joueurs');
@@ -115,6 +126,9 @@ export function createGame(config: GameConfig, players: { id: string; name: stri
     lastSummary: null,
     ranking: [],
     loserId: null,
+    tiedWinners: null,
+    tieGroups: [],
+    roundBase: null,
     version: 0,
     seq: 0,
   };
@@ -174,6 +188,7 @@ function startRound(s: GameState, starterId: string) {
   s.rolloffKind = undefined;
   s.rolloffLoserId = null;
   s.rolloffBestTied = null;
+  s.roundBase = null;
   beginTurn(s);
 }
 
@@ -274,7 +289,10 @@ function resolveRound(s: GameState) {
       text: `Manche ${s.round} : meilleure combinaison pour ${nameOf(s, best)} (${res(best).combo.label}).`,
     }, phaseAtRound);
     if (s.round >= cfg.rounds) {
-      finish(s, [...s.players].sort((a, b) => b.score - a.score).map((p) => p.id), null);
+      // À égalité de points : la meilleure combinaison de la dernière manche ; sinon, vrais ex æquo.
+      const cmpFinal = (a: PlayerState, b: PlayerState) => (b.score - a.score) || compareTurn(res(b.id), res(a.id), cfg);
+      const sorted = [...s.players].sort(cmpFinal);
+      finish(s, sorted.map((p) => p.id), null, groupsOf(sorted, cmpFinal).filter((g) => g.length > 1).map((g) => g.map((p) => p.id)));
       return;
     }
     s.round++;
@@ -287,6 +305,7 @@ function resolveRound(s: GameState) {
   /** Joueurs à égalité pour la meilleure combinaison parmi `ids`. */
   const topOf = (ids: string[]) => { let t = [ids[0]]; for (const id of ids.slice(1)) { const c = cmp(res(id), res(t[0])); if (c > 0) t = [id]; else if (c === 0) t.push(id); } return t; };
   const startRolloff = (kind: 'perdant' | 'donneur', ids: string[], text: string, extra: Partial<GameState>) => {
+    if (!s.isRolloff) s.roundBase = { ...s.results };
     summarize(s, { winnerId: null, loserId: null, amount: s.rolloffPayout ?? 0, barrage: true, text }, phaseAtRound);
     Object.assign(s, { isRolloff: true, rolloffKind: kind, roundOrder: ids, turnIdx: 0, results: {} }, extra);
     beginTurn(s);
@@ -380,7 +399,20 @@ function resolveRound(s: GameState) {
   if (s.phase === 'charge' && s.pot === 0) {
     s.phase = 'decharge';
     addLog(s, 'info', 'Le pot est vide : place à la décharge !');
-    for (const p of s.players) if (p.tokens === 0) exit(p);
+    // Sorties simultanées : classées par la meilleure combinaison de la manche, jamais par le siège.
+    const base = s.roundBase ?? s.results;
+    const cmpExit = (a: PlayerState, b: PlayerState) => {
+      const ra = base[a.id], rb = base[b.id];
+      const c = ra && rb ? compareTurn(rb, ra, cfg) : 0;
+      if (c) return c;
+      return s.isRolloff && s.results[a.id] && s.results[b.id] ? cmp(s.results[b.id], s.results[a.id]) : 0;
+    };
+    const zeros = s.players.filter((p) => p.tokens === 0 && !p.out).sort(cmpExit);
+    for (const group of groupsOf(zeros, cmpExit)) {
+      const pos = finishCount + 1;
+      for (const p of group) { exit(p); p.finishPos = pos; }
+      if (group.length > 1) (s.tieGroups ??= []).push(group.map((p) => p.id));
+    }
   } else if (s.phase === 'decharge') {
     const payer = getPlayer(s, payerId);
     if (payer.tokens === 0 && !payer.out) exit(payer);
@@ -394,18 +426,75 @@ function resolveRound(s: GameState) {
     return;
   }
 
+  // Garde-fou : au-delà de MAX_ROUNDS, on arrête et on classe au nombre de jetons restants.
+  if (s.round >= MAX_ROUNDS) {
+    const byTokens = (a: PlayerState, b: PlayerState) => a.tokens - b.tokens;
+    const left = remaining.sort(byTokens);
+    const groups = groupsOf(left, byTokens);
+    const worst = groups[groups.length - 1];
+    addLog(s, 'info', `Limite de ${MAX_ROUNDS} manches atteinte : classement au nombre de jetons restants.`);
+    const outIds = s.players.filter((p) => p.out).sort((a, b) => a.finishPos! - b.finishPos!).map((p) => p.id);
+    finish(s, [...outIds, ...left.map((p) => p.id)], worst.length === 1 ? worst[0].id : null, groups.filter((g) => g.length > 1).map((g) => g.map((p) => p.id)));
+    return;
+  }
+
   s.round++;
   startRound(s, cfg.loserStarts ? loser : nextSeat(s, s.roundStarter));
 }
 
-function finish(s: GameState, ranking: string[], loserId: string | null) {
+/** Découpe une liste déjà triée en groupes d'éléments égaux selon `cmp`. */
+function groupsOf<T>(sorted: T[], cmp: (a: T, b: T) => number): T[][] {
+  const out: T[][] = [];
+  for (const x of sorted) {
+    const last = out[out.length - 1];
+    if (last && cmp(last[0], x) === 0) last.push(x); else out.push([x]);
+  }
+  return out;
+}
+
+function finish(s: GameState, ranking: string[], loserId: string | null, ties: string[][] = []) {
   s.phase = 'fini';
   s.ranking = ranking;
   s.loserId = loserId;
   s.dice = [...s.dice];
+  s.tieGroups = [...(s.tieGroups ?? []), ...ties];
+  const top = s.tieGroups.find((g) => g.includes(ranking[0]));
+  s.tiedWinners = top && top.length > 1 ? [...top] : null;
+  const names = (ids: string[]) => ids.map((id) => nameOf(s, id)).join(' et ');
+  const best = s.tiedWinners ? names(s.tiedWinners) : nameOf(s, ranking[0]);
   addLog(s, 'info', loserId
-    ? `Partie terminée : ${nameOf(s, loserId)} a perdu. Bravo à ${nameOf(s, ranking[0])} !`
-    : `Partie terminée : victoire de ${nameOf(s, ranking[0])} !`);
+    ? `Partie terminée : ${nameOf(s, loserId)} a perdu. Bravo à ${best} !`
+    : s.tiedWinners ? `Partie terminée : égalité parfaite entre ${best} !` : `Partie terminée : victoire de ${best} !`);
+}
+
+/**
+ * Tournoi : quand il faut absolument départager de vrais ex æquo, le serveur tire au sort.
+ * `must` reçoit les places concernées (0 = première) et dit si ce groupe doit être départagé.
+ * Le classement (et les places des joueurs déjà sortis) est réordonné, et le tirage annoncé au journal.
+ */
+export function drawTies(s: GameState, randomBelow: (n: number) => number, must: (places: number[]) => boolean): string[] {
+  const texts: string[] = [];
+  s.tieGroups = (s.tieGroups ?? []).filter((group) => {
+    const first = getPlayer(s, group[0]);
+    const start = s.ranking.length ? Math.min(...group.map((id) => s.ranking.indexOf(id))) : (first.finishPos ?? 1) - 1;
+    if (!must(group.map((_, i) => start + i))) return true;
+    const order = [...group];
+    for (let i = order.length - 1; i > 0; i--) { const j = randomBelow(i + 1); [order[i], order[j]] = [order[j], order[i]]; }
+    order.forEach((id, i) => {
+      if (s.ranking.length) s.ranking[start + i] = id;
+      const p = getPlayer(s, id);
+      if (p.finishPos != null) p.finishPos = start + i + 1;
+    });
+    const text = `Égalité parfaite entre ${group.map((id) => nameOf(s, id)).join(', ')} : tirage au sort du serveur, ${nameOf(s, order[0])} passe devant.`;
+    addLog(s, 'info', text);
+    texts.push(text);
+    return false;
+  });
+  if (s.tiedWinners) {
+    const top = s.tieGroups.find((g) => g.includes(s.ranking[0]));
+    s.tiedWinners = top ? [...top] : null;
+  }
+  return texts;
 }
 
 // ---------------------------------------------------------------------------------------------

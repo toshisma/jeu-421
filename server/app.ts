@@ -11,12 +11,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Server, type Socket } from 'socket.io';
 import { DEFAULT_CONFIG, isSuddenDeath, sanitizeConfig, type GameConfig } from '../shared/config';
-import { createGame, currentPlayerId, rollAction, stopAction, type GameState } from '../shared/engine';
+import { createGame, currentPlayerId, drawTies, rollAction, stopAction, type GameState } from '../shared/engine';
 import { decide, type Difficulty } from '../shared/ai';
 import { AVATARS, MAX_SPECTATORS, isReaction, type Ack, type LiveEntry, type PublicRoom } from '../shared/protocol';
 import { sanitizeGesture, type ThrowGesture } from '../shared/gesture';
 import {
-  MIN_TOURNAMENT_PLAYERS, prizes, qualifiersOf, sanitizeTable, sanitizeTournament, splitTables,
+  MIN_TOURNAMENT_PLAYERS, prizes, qualifiersOf, sanitizeTable, sanitizeTournament, splitPot, splitTables,
   type LobbyEntry, type PublicTournament, type TableSettings, type TournamentEntry, type TournamentSettings,
 } from '../shared/tournament';
 import { Store } from './db';
@@ -66,6 +66,8 @@ interface Member {
    * pas un abandon. Comme tout joueur parti (`left`), il ne peut plus revenir à cette partie.
    */
   quit?: 'cashed';
+  /** Identifiant d'appareil annoncé par le client (exclusion des invités). */
+  device?: string;
 }
 
 type TableStats = { count421: number; combos: Partial<Record<ComboKind, number>>; gestures: number; roundsLost: number; maxTokens: number; keys: string[]; best: { label: string; rank: number } | null };
@@ -74,7 +76,7 @@ interface Room {
   code: string;
   title: string;
   hostId: string;
-  /** Comptes retirés par l'hôte : ils ne peuvent pas revenir. */
+  /** Retirés par l'hôte (compte, « d:appareil » ou « s:socket » pour les invités) : ils ne peuvent pas revenir. */
   kicked?: Set<string>;
   members: Member[];
   config: GameConfig;
@@ -153,6 +155,8 @@ interface Tournament {
   lastActivity: number;
   /** Finalistes sortis avant la fin de la finale : gain de tournoi déjà versé. */
   paidEarly?: Set<string>;
+  /** Total des gains déjà versés à ces finalistes. */
+  paidEarlySum?: number;
   /** Tournoi programmé (11h / 21h) : rendez-vous, départ, partants, annulation. */
   sched?: { slot: string; hour: number; startsAt: number; beginsAt: number; starters: number | null; cancelled: string | null };
 }
@@ -213,6 +217,8 @@ const cleanDice = (v: unknown) => {
 /** Les ordinateurs en ligne jouent avec un dé de collection commun ou rare. */
 const botDice = () => { const pool = COLLECTION.filter((c) => c.rarity === 'commun' || c.rarity === 'rare'); return pool[randomInt(pool.length)].id; };
 const cleanCode = (v: unknown) => (typeof v === 'string' && /^[A-Z0-9]{5}$/.test(v.toUpperCase()) ? v.toUpperCase() : null);
+/** Identifiant d'appareil du client (« sans-stockage » est partagé par tous : inutilisable). */
+const cleanDevice = (v: unknown) => (typeof v === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(v) && v !== 'sans-stockage' ? v : undefined);
 const BOTS = COUNTER_BOTS;
 const DIFFS: Difficulty[] = ['facile', 'normal', 'difficile'];
 const cleanDiff = (v: unknown): Difficulty => (DIFFS.includes(v as Difficulty) ? (v as Difficulty) : 'normal');
@@ -595,6 +601,7 @@ export async function startServer(opts: ServerOptions) {
   function afterAction(r: Room, res: ReturnType<typeof rollAction>, gesture?: ThrowGesture) {
     if (!res.ok || !r.game) return;
     r.lastActivity = Date.now();
+    tournamentDraw(r);
     if (res.roll) {
       const st = r.stats.get(res.roll.playerId) ?? emptyStats();
       st.combos[res.roll.combo.kind] = (st.combos[res.roll.combo.kind] ?? 0) + 1;
@@ -631,6 +638,21 @@ export async function startServer(opts: ServerOptions) {
     }
   }
 
+  /**
+   * Tournoi : de vrais ex æquo qui chevauchent la limite de qualification (ou en finale, où chaque
+   * place compte) sont départagés par un tirage au sort du serveur, annoncé à la table.
+   */
+  function tournamentDraw(r: Room) {
+    const g = r.game!;
+    if (!r.tournament || !g.tieGroups?.length) return;
+    const t = tournaments.get(r.tournament);
+    const round = t?.rounds.at(-1);
+    const tb = round?.tables.find((x) => x.code === r.code);
+    if (!round || !tb) return;
+    const final = round.tables.length === 1;
+    for (const text of drawTies(g, (n) => randomInt(n), (pl) => final || (pl.some((x) => x < tb.qualified) && pl.some((x) => x >= tb.qualified)))) notice(r, text);
+  }
+
   /** Parts de cagnotte selon la place (poids n, n-1, …, 1), le reste d'arrondi au premier. */
   const rankShares = (pot: number, n: number) => {
     if (n <= 0) return [];
@@ -655,8 +677,20 @@ export async function startServer(opts: ServerOptions) {
     const g = r.game!;
     const all = inGameMembers(r);
     if (r.pot <= 0 || all.length !== g.players.length || all.some((m) => !m.userId)) return null;
-    const shares = rankShares(r.pot, g.players.length - 1);
-    return shares[finalPlace(g, id) - 1] ?? 0;
+    const me = g.players.find((p) => p.id === id)!;
+    // Ceux qui ont abandonné ne comptent plus : leur mise reste dans la cagnotte.
+    const quitters = new Set(all.filter(abandoned).map((m) => m.id));
+    const keep = g.players.filter((p) => !quitters.has(p.id));
+    const slots = quitters.size ? keep.length : keep.length - 1;
+    if (slots <= 0) return 0;
+    const shares = rankShares(r.pot, slots);
+    const ahead = keep.filter((p) => p.out && p.finishPos != null && p.finishPos < me.finishPos!).length;
+    const tied = keep.filter((p) => p.out && p.finishPos === me.finishPos).length;
+    // Sortis ex æquo : ils se partagent les parts de leurs places (l'arrondi reste dans la cagnotte).
+    let sum = 0;
+    for (let k = 0; k < tied; k++) sum += shares[ahead + k] ?? 0;
+    const paid = [...r.potPaid.values()].reduce((a, b) => a + b, 0);
+    return Math.min(Math.floor(sum / tied), r.pot - paid);
   }
 
   /**
@@ -717,6 +751,65 @@ export async function startServer(opts: ServerOptions) {
     }
   }
 
+  /** Rembourse les mises encore en jeu (tout le monde a abandonné) : exactement ce qui reste dans la cagnotte. */
+  function refundPot(r: Room, via?: Socket) {
+    const rest = r.pot - [...r.potPaid.values()].reduce((a, b) => a + b, 0);
+    const who = inGameMembers(r).filter((m) => m.userId);
+    const amounts = splitPot(rest, who.length);
+    who.forEach((m, i) => {
+      if (amounts[i] <= 0) return;
+      const profile = accounts.adjust(m.userId!, amounts[i]);
+      r.potPaid.set(m.id, (r.potPaid.get(m.id) ?? 0) + amounts[i]);
+      sendProfile(m.socketId ?? (via?.data.playerId === m.id ? via.id : null), profile);
+    });
+    r.pot = 0;
+    accounts.release(`R:${r.code}:${r.games}`);
+  }
+
+  /**
+   * Distribue ce qui reste de la cagnotte (mise des abandons comprise) : tous sauf le dernier,
+   * poids selon la place, abandons exclus (ils comptent comme derniers). Les vrais ex æquo se
+   * partagent les parts de leurs places. La somme versée est toujours égale à la cagnotte.
+   */
+  function distributePot(r: Room) {
+    const g = r.game!;
+    const member = (id: string) => r.members.find((x) => x.id === id);
+    const eligible = g.ranking.filter((id) => { const m = member(id); return !!m?.userId && !abandoned(m); });
+    const remaining = r.pot - [...r.potPaid.values()].reduce((a, b) => a + b, 0);
+    if (!eligible.length) { refundPot(r); notice(r, 'Tous les joueurs ont abandonné : les mises sont remboursées.'); return; }
+    const hasQuitters = g.ranking.some((id) => { const m = member(id); return !!m && abandoned(m); });
+    const slots = Math.max(1, hasQuitters ? eligible.length : eligible.length - 1);
+    // Blocs de joueurs à la même place (un seul joueur la plupart du temps).
+    type Block = { ids: string[]; weight: number };
+    const blocks: Block[] = [];
+    eligible.forEach((id, i) => {
+      const group = g.tieGroups?.find((x) => x.includes(id));
+      const last = blocks[blocks.length - 1];
+      if (group && last && group.includes(last.ids[0])) { last.ids.push(id); last.weight += Math.max(0, slots - i); }
+      else blocks.push({ ids: [id], weight: Math.max(0, slots - i) });
+    });
+    let targets = blocks.flatMap((b) => {
+      const unpaid = b.ids.filter((id) => !r.potPaid.has(id));
+      return unpaid.length && b.weight > 0 ? [{ ids: unpaid, weight: (b.weight * unpaid.length) / b.ids.length }] : [];
+    });
+    if (!targets.length) targets = [{ ids: blocks[0].ids, weight: 1 }]; // reste d'arrondi : aux premiers
+    const total = targets.reduce((a, b) => a + b.weight, 0);
+    const amounts = targets.map((b) => Math.floor((remaining * b.weight) / total));
+    amounts[0] += remaining - amounts.reduce((a, b) => a + b, 0);
+    targets.forEach((b, k) => {
+      // Partage équitable ; l'éventuelle pièce d'arrondi est tirée au sort, jamais donnée au siège.
+      const ids = [...b.ids];
+      for (let i = ids.length - 1; i > 0; i--) { const j = randomInt(i + 1); [ids[i], ids[j]] = [ids[j], ids[i]]; }
+      splitPot(amounts[k], ids.length).forEach((amount, i) => {
+        const m = member(ids[i])!;
+        r.potPaid.set(m.id, (r.potPaid.get(m.id) ?? 0) + amount);
+        if (amount > 0) sendProfile(m.socketId, accounts.winPot(m.userId!, amount)?.profile);
+      });
+    });
+    notice(r, `Cagnotte de ${r.pot} pièces : ${eligible.filter((id) => r.potPaid.get(id)).map((id) => `${nameIn(r, id)} +${r.potPaid.get(id)}`).join(', ')}.`);
+    r.pot = 0;
+  }
+
   /**
    * Fin de partie en ligne : la cagnotte éventuelle va au(x) gagnant(s), puis chaque joueur
    * pas encore récompensé reçoit sa récompense (calculée ici).
@@ -724,21 +817,7 @@ export async function startServer(opts: ServerOptions) {
   function rewardOnline(r: Room) {
     r.rewarded = true;
     const g = r.game!;
-    if (r.pot > 0) {
-      // Cagnotte répartie entre tous sauf le dernier, selon la place : le premier touche le plus,
-      // les suivants moins (parfois moins que leur mise). À deux, le gagnant rafle tout.
-      // Les parts déjà versées (joueurs sortis avant la fin) ne le sont pas une deuxième fois.
-      const ranked = g.ranking.slice(0, -1).filter((id) => r.members.find((x) => x.id === id)?.userId);
-      const shares = rankShares(r.pot, ranked.length);
-      ranked.forEach((id, i) => {
-        if (r.potPaid.has(id)) return;
-        const m = r.members.find((x) => x.id === id)!;
-        r.potPaid.set(id, shares[i]);
-        sendProfile(m.socketId, accounts.winPot(m.userId!, shares[i])?.profile);
-      });
-      notice(r, ranked.length ? `Cagnotte de ${r.pot} pièces : ${ranked.map((id) => `${nameIn(r, id)} +${r.potPaid.get(id) ?? 0}`).join(', ')}.` : 'Cagnotte rendue impossible : aucun gagnant avec un compte.');
-      r.pot = 0;
-    }
+    if (r.pot > 0) distributePot(r);
     accounts.release(`R:${r.code}:${r.games}`);
     for (const m of inGameMembers(r)) rewardMember(r, m);
     // Statistiques : la partie est terminée, on l'enregistre une fois.
@@ -773,6 +852,10 @@ export async function startServer(opts: ServerOptions) {
     }
     if (over() && !r.rewarded) rewardOnline(r);
   }
+
+  /** Retiré de cette table par l'hôte (compte, appareil ou connexion) ? */
+  const kickedFrom = (r: Room, userId?: string, device?: string, socketId?: string) =>
+    !!r.kicked && ((!!userId && r.kicked.has(userId)) || (!!device && r.kicked.has(`d:${device}`)) || (!!socketId && r.kicked.has(`s:${socketId}`)));
 
   /** Un compte bloqué par (ou ayant bloqué) quelqu'un de la table ne peut pas s'y asseoir. */
   const blockedAt = (userId: string | undefined, others: { userId?: string }[]) =>
@@ -880,23 +963,40 @@ export async function startServer(opts: ServerOptions) {
     broadcastRoom(r);
   }
 
-  function removeIfEmpty(r: Room) {
+  /**
+   * Table à mise qu'il faut fermer alors que la partie n'est pas finie : s'il reste un joueur ayant
+   * droit à sa part, la fin est jouée d'un coup ; sinon (tous ont abandonné) les mises sont rendues.
+   */
+  function closeStakes(r: Room, via?: Socket) {
+    if (inGameMembers(r).some((m) => m.userId && !abandoned(m))) playOutNow(r);
+    if (r.pot > 0) refundPot(r, via);
+  }
+
+  function removeIfEmpty(r: Room, via?: Socket) {
     if (r.tournament) return; // les tables de tournoi vivent avec le tournoi
     if (r.members.every((m) => m.socketId == null || m.left)) {
       const g = r.game;
-      // 0.43 : le dernier joueur humain a quitté une partie en cours sans empocher : la table reste
-      // en pause (le ménage la ferme au bout de 10 min) pour qu'il puisse revenir depuis l'accueil.
-      if (r.status === 'playing' && g && g.phase !== 'fini' && r.paid.size === 0 && r.members.some((m) => !m.bot && m.left && m.quit !== 'cashed')) {
-        if (r.turnTimer) { clearTimeout(r.turnTimer); r.turnTimer = null; }
-        r.lastActivity = Date.now();
-        return;
-      }
-      // Partie en cours où quelqu'un a déjà empoché : on la mène à son terme plutôt que de l'effacer.
-      if (r.status === 'playing' && g && g.phase !== 'fini' && r.paid.size > 0) {
-        const stillIn = r.members.filter((m) => g.players.some((p) => p.id === m.id && !p.out));
-        // Des joueurs encore en jeu sont seulement déconnectés : le serveur joue pour eux, la partie se termine normalement.
-        if (stillIn.some((m) => !m.bot && !m.left)) return;
-        playOutNow(r);
+      const running = r.status === 'playing' && !!g && g.phase !== 'fini';
+      if (running && r.pot > 0) {
+        // Table à mise : un joueur seulement déconnecté garde ses droits, le serveur finit la partie pour lui.
+        if (inGameMembers(r).some((m) => !m.bot && !m.left)) return;
+        // Il ne reste que des partis : clôture immédiate, l'argent va où il doit.
+        closeStakes(r, via);
+      } else {
+        // 0.43 : le dernier joueur humain a quitté une partie en cours sans empocher : la table reste
+        // en pause (le ménage la ferme au bout de 10 min) pour qu'il puisse revenir depuis l'accueil.
+        if (running && r.paid.size === 0 && r.members.some((m) => !m.bot && m.left && m.quit !== 'cashed')) {
+          if (r.turnTimer) { clearTimeout(r.turnTimer); r.turnTimer = null; }
+          r.lastActivity = Date.now();
+          return;
+        }
+        // Partie en cours où quelqu'un a déjà empoché : on la mène à son terme plutôt que de l'effacer.
+        if (running && r.paid.size > 0) {
+          const stillIn = r.members.filter((m) => g!.players.some((p) => p.id === m.id && !p.out));
+          // Des joueurs encore en jeu sont seulement déconnectés : le serveur joue pour eux, la partie se termine normalement.
+          if (stillIn.some((m) => !m.bot && !m.left)) return;
+          playOutNow(r);
+        }
       }
       if (r.turnTimer) clearTimeout(r.turnTimer);
       if (r.hostTimer) clearTimeout(r.hostTimer);
@@ -934,13 +1034,13 @@ export async function startServer(opts: ServerOptions) {
    * (sur invitation) et tournois privés : seulement les comptes amis d'un des joueurs.
    * Renvoie un message d'erreur, ou null.
    */
-  function watchProblem(r: Room, userId: string | undefined): string | null {
+  function watchProblem(r: Room, userId: string | undefined, device?: string, socketId?: string): string | null {
     if (r.status !== 'playing' || !r.game) return 'Aucune partie en cours à cette table pour l’instant.';
     const t = r.tournament ? tournaments.get(r.tournament) : undefined;
     const isPrivate = t ? t.settings.visibility === 'private' : r.table.visibility === 'private';
     if (userId && r.members.some((m) => m.userId === userId && !m.left && !m.bot)) return 'Vous êtes joueur à cette table.';
     if (blockedAt(userId, r.members)) return 'Impossible de regarder cette partie.';
-    if (userId && r.kicked?.has(userId)) return 'Impossible de regarder cette partie.';
+    if (kickedFrom(r, userId, device, socketId)) return 'Impossible de regarder cette partie.';
     // Un joueur de la table qui a empoché et quitté peut regarder la fin de sa partie.
     const wasPlayer = !!userId && r.members.some((m) => m.userId === userId && m.quit === 'cashed');
     if (isPrivate && !wasPlayer) {
@@ -1099,7 +1199,12 @@ export async function startServer(opts: ServerOptions) {
       if (!paid.has(id) && p.userId) {
         paid.add(id);
         const gains = prizes(t.pot, t.players.length, t.settings.payout);
-        sendProfile(p.socketId, accounts.tournamentEnd(p.userId, place, gains[place] ?? 0)?.profile);
+        // Les abandons mieux classés ne prennent aucune place payée.
+        const me = r.game!.players.find((x) => x.id === id)!;
+        const above = inGameMembers(r).filter((m) => abandoned(m) && (r.game!.players.find((x) => x.id === m.id)?.finishPos ?? 99) < me.finishPos!).length;
+        const prize = Math.min(gains[place - above] ?? 0, t.pot - (t.paidEarlySum ?? 0));
+        t.paidEarlySum = (t.paidEarlySum ?? 0) + prize;
+        sendProfile(p.socketId, accounts.tournamentEnd(p.userId, place - above, prize)?.profile);
         accounts.release(`T:${t.code}`, p.userId);
         if (t.sched) sched.award(t.sched.slot, p.userId, place);
       }
@@ -1122,13 +1227,31 @@ export async function startServer(opts: ServerOptions) {
     t.status = 'termine';
     t.nextRoundAt = null;
     const gains = prizes(t.pot, t.players.length, t.settings.payout);
+    // Un joueur qui a abandonné ne touche rien : sa mise reste dans la cagnotte, qui revient aux autres.
+    const tp = (id: string) => t.players.find((x) => x.id === id)!;
+    const quitter = (p: TPlayer) => p.left && !p.finished;
+    const eligible = standings.filter((id) => tp(id).userId && !quitter(tp(id)));
+    const planned = new Map<string, number>();
+    eligible.forEach((id, i) => { if (!t.paidEarly?.has(id)) planned.set(id, gains[i] ?? 0); });
+    let leftover = t.pot - (t.paidEarlySum ?? 0) - [...planned.values()].reduce((a, b) => a + b, 0);
+    if (leftover > 0 && !eligible.length) {
+      // Tout le monde a abandonné : les droits d'entrée sont rendus.
+      for (const p of t.players) if (p.userId) sendProfile(p.socketId, accounts.adjust(p.userId, t.settings.stake));
+      leftover = 0;
+    } else if (leftover > 0) {
+      const target = eligible.find((id) => planned.has(id));
+      if (target) planned.set(target, planned.get(target)! + leftover);
+      else sendProfile(tp(eligible[0]).socketId, accounts.winPot(tp(eligible[0]).userId!, leftover)?.profile);
+    }
     standings.forEach((id, place) => {
-      const p = t.players.find((x) => x.id === id)!;
-      if (p.userId && !t.paidEarly?.has(id)) sendProfile(p.socketId, accounts.tournamentEnd(p.userId, place, gains[place] ?? 0)?.profile);
+      const p = tp(id);
+      if (!p.userId || t.paidEarly?.has(id)) return;
+      if (quitter(p)) { accounts.tournamentEnd(p.userId, standings.length - 1, 0); return; }
+      sendProfile(p.socketId, accounts.tournamentEnd(p.userId, eligible.indexOf(id), planned.get(id) ?? 0)?.profile);
     });
     accounts.release(`T:${t.code}`);
     admin.tournamentFinished();
-    const champ = t.players.find((p) => p.id === standings[0])!;
+    const champ = t.players.find((p) => p.id === (eligible[0] ?? standings[0]))!;
     if (t.sched) {
       // Tournoi programmé : sacs de dés selon la place et le nombre de partants (enregistré en base).
       const bags = sched.finish(t.sched.slot, standings.map((id) => t.players.find((x) => x.id === id)!.userId!));
@@ -1140,7 +1263,7 @@ export async function startServer(opts: ServerOptions) {
           `Vous finissez ${place === 0 ? '1er' : `${place + 1}e`} sur ${standings.length}${bags[place] ? ` : ${bagsLabel(bags[place])} de dés gagnés !` : '.'}`, '/?tournois=1');
       });
     } else
-    tNotice(t, `${champ.name} remporte le tournoi${gains[0] ? ` et ${gains[0]} pièces` : ''} !`);
+    tNotice(t, `${champ.name} remporte le tournoi${planned.get(champ.id) ? ` et ${planned.get(champ.id)} pièces` : ''} !`);
     broadcastT(t);
     // Les tables restent consultables un moment, puis tout est rangé.
     setTimeout(() => {
@@ -1230,6 +1353,7 @@ export async function startServer(opts: ServerOptions) {
     const now = Date.now();
     for (const r of rooms.values())
       if (!r.tournament && r.members.every((m) => m.socketId == null) && now - r.lastActivity > 10 * 60_000) {
+        if (r.status === 'playing' && r.game && r.game.phase !== 'fini' && r.pot > 0) closeStakes(r);
         if (r.turnTimer) clearTimeout(r.turnTimer);
         if (r.quick?.timer) clearTimeout(r.quick.timer);
         closeSpectators(r, 'La table a été fermée.');
@@ -1273,7 +1397,7 @@ export async function startServer(opts: ServerOptions) {
       const table = sanitizeTable(p?.table);
       const problem = stakeProblem(userId, table.stake);
       if (problem) return reply({ ok: false, error: problem });
-      const m: Member = { id: randomUUID(), token: randomUUID(), name, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), ready: true, socketId: null, left: false, disconnectedAt: null, userId, day: today() };
+      const m: Member = { id: randomUUID(), token: randomUUID(), name, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), ready: true, socketId: null, left: false, disconnectedAt: null, userId, day: today(), device: cleanDevice(p?.device) };
       const r = makeRoom({ title: `Table de ${name}`, host: m, members: [m], config: sanitizeConfig(p?.config ?? DEFAULT_CONFIG), table });
       attach(r, m);
       reply({ ok: true, code: r.code, playerId: m.id, token: m.token });
@@ -1322,13 +1446,24 @@ export async function startServer(opts: ServerOptions) {
       const seat = seatName(p);
       if ('error' in seat) return { ok: false, error: seat.error };
       const name = seat.name;
+      const seatUser = accounts.userFromToken(p?.auth)?.id;
+      if (kickedFrom(r, seatUser, cleanDevice(p?.device), socket.id)) return { ok: false, error: 'L’hôte vous a retiré de cette table.' };
+      // Même compte déjà assis (autre onglet, page rechargée) : il reprend sa place, même partie commencée.
+      const seated = seatUser ? r.members.find((x) => x.userId === seatUser && !x.left && !x.bot) : undefined;
+      if (seated && r.status !== 'lobby') {
+        const wasAway = seated.socketId == null;
+        attach(r, seated);
+        broadcastRoom(r);
+        if (r.game) socket.emit('game:state', { state: r.game });
+        if (wasAway && r.game && currentPlayerId(r.game) === seated.id) scheduleTurn(r, STOP_GRACE);
+        return { ok: true, code: r.code, playerId: seated.id, token: seated.token };
+      }
       if (r.status !== 'lobby') return { ok: false, error: 'La partie a déjà commencé.' };
       if (seatsTaken(r) >= r.table.maxPlayers) return { ok: false, error: `Le salon est complet (${r.table.maxPlayers} joueurs).` };
       const userId = accounts.userFromToken(p?.auth)?.id;
       const problem = stakeProblem(userId, r.table.stake);
       if (problem) return { ok: false, error: problem };
       if (blockedAt(userId, r.members)) return { ok: false, error: 'Impossible de rejoindre cette table.' };
-      if (userId && r.kicked?.has(userId)) return { ok: false, error: 'L’hôte vous a retiré de cette table.' };
       // Même compte déjà assis (autre onglet, double clic, invitation) : on reprend sa place, pas de doublon.
       const same = userId ? r.members.find((x) => x.userId === userId && !x.left && !x.bot) : undefined;
       if (same) {
@@ -1340,7 +1475,7 @@ export async function startServer(opts: ServerOptions) {
       let finalName = wanted;
       for (let k = 2; r.members.some((m) => m.name === finalName); k++) finalName = `${wanted} ${k}`;
       // Partie rapide : pas de bouton « prêt », le départ est automatique.
-      const m: Member = { id: randomUUID(), token: randomUUID(), name: finalName, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), ready: !!r.quick, socketId: null, left: false, disconnectedAt: null, userId, day: today() };
+      const m: Member = { id: randomUUID(), token: randomUUID(), name: finalName, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), ready: !!r.quick, socketId: null, left: false, disconnectedAt: null, userId, day: today(), device: cleanDevice(p?.device) };
       // Un vrai joueur prend la place d'un ordinateur de complément.
       const filler = [...r.members].reverse().find((x) => x.filler);
       if (filler) r.members = r.members.filter((x) => x !== filler);
@@ -1363,11 +1498,11 @@ export async function startServer(opts: ServerOptions) {
       const humansAt = (r: Room) => r.members.filter((m) => !m.bot).length;
       const candidates = [...rooms.values()].filter((r) => r.status === 'lobby' && !r.tournament && r.table.visibility === 'public' && r.table.stake === 0
         && seatsTaken(r) < r.table.maxPlayers && r.members.some((m) => m.socketId != null) && !blockedAt(userId, r.members)
-        && !(userId && r.kicked?.has(userId)))
+        && !kickedFrom(r, userId, cleanDevice(p?.device), socket.id))
         .sort((a, b) => humansAt(b) - humansAt(a) || Number(!!b.quick) - Number(!!a.quick) || a.startedAt - b.startedAt);
       if (candidates.length) return reply(seatNew(candidates[0], p));
       const name = seat.name;
-      const m: Member = { id: randomUUID(), token: randomUUID(), name, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), ready: true, socketId: null, left: false, disconnectedAt: null, userId, day: today() };
+      const m: Member = { id: randomUUID(), token: randomUUID(), name, avatar: cleanAvatar(p?.avatar), dice: cleanDice(p?.dice), ready: true, socketId: null, left: false, disconnectedAt: null, userId, day: today(), device: cleanDevice(p?.device) };
       const r = makeRoom({ title: `Partie rapide de ${name}`, host: m, members: [m], config: DEFAULT_CONFIG, table: { visibility: 'public', maxPlayers: 4, stake: 0 } });
       r.quick = { waitSince: Date.now(), fillAt: null, startAt: null, timer: null };
       attach(r, m);
@@ -1547,7 +1682,7 @@ export async function startServer(opts: ServerOptions) {
         if (r.game) socket.emit('game:state', { state: r.game });
         return;
       }
-      const problem = watchProblem(r, user?.id);
+      const problem = watchProblem(r, user?.id, cleanDevice(p?.device), socket.id);
       if (problem) return reply({ ok: false, error: problem });
       unwatch(socket);
       const name = user?.username ?? guestLabel(cleanName(p?.name), adminNames) ?? 'Spectateur';
@@ -1585,8 +1720,13 @@ export async function startServer(opts: ServerOptions) {
       socket.data.code = null;
       m.socketId = null;
       const wasHost = m.id === r.hostId;
+      const ended = r.game?.phase === 'fini';
       if (r.status === 'lobby') r.members = r.members.filter((x) => x.id !== m.id);
-      else if (r.game && r.game.phase !== 'fini' && r.paid.has(m.id) && !m.left) {
+      else if (r.game?.phase === 'fini') {
+        // Partie terminée : ce n'est ni un abandon, ni une partie à jouer à sa place.
+        m.left = true;
+        notice(r, `${m.name} a quitté la table.`);
+      } else if (r.game && r.paid.has(m.id) && !m.left) {
         // Sa partie était finie (sorti, récompensé) : il empoche et s'en va, ce n'est pas un abandon.
         m.left = true;
         m.quit = 'cashed';
@@ -1596,10 +1736,10 @@ export async function startServer(opts: ServerOptions) {
         notice(r, `${m.name} a quitté la partie : le serveur jouera à sa place.`, 'warning');
         scheduleTurn(r);
       }
-      if (wasHost) transferHost(r, `L'hôte ${m.name} a quitté la partie.`);
+      if (wasHost) transferHost(r, `L'hôte ${m.name} a quitté la ${ended ? 'table' : 'partie'}.`);
       if (r.status === 'lobby') quickPlan(r);
       broadcastRoom(r);
-      removeIfEmpty(r);
+      removeIfEmpty(r, socket);
     }
     socket.on('room:leave', (_p: unknown, ack: unknown) => { leave(); safeAck(ack)({ ok: true }); });
     // L'hôte retire un joueur du salon (avant le début de la partie). Un compte retiré ne peut pas revenir.
@@ -1613,7 +1753,11 @@ export async function startServer(opts: ServerOptions) {
       const target = r.members.find((x) => x.id === String(p?.playerId ?? ''));
       if (!target || target.id === m.id) return reply({ ok: false, error: 'Joueur introuvable.' });
       r.members = r.members.filter((x) => x.id !== target.id);
-      if (target.userId) (r.kicked ??= new Set()).add(target.userId);
+      const kicked = (r.kicked ??= new Set());
+      if (target.userId) kicked.add(target.userId);
+      // Invité : on retient aussi son appareil et sa connexion (il ne revient pas sous un autre nom).
+      if (target.device) kicked.add(`d:${target.device}`);
+      if (target.socketId) kicked.add(`s:${target.socketId}`);
       const ts = target.socketId && io.sockets.sockets.get(target.socketId);
       if (ts) { ts.emit('room:kicked', { text: 'L’hôte vous a retiré de la table.' }); ts.leave(r.code); ts.data.code = null; }
       reply({ ok: true });

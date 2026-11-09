@@ -28,12 +28,15 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 export function EndOverlay({ reward, state, meta, meId, canRematch, online, onRematch, onExit, exitLabel, note, referral }: Props) {
   const points = state.config.variant === 'manches';
   const winner = state.ranking[0];
-  const scoreOf = (id: string) => state.players.find((p) => p.id === id)!.score;
-  // Aux points, les ex æquo partagent la même place.
-  const place = (i: number): number => (points && i > 0 && scoreOf(state.ranking[i]) === scoreOf(state.ranking[i - 1]) ? place(i - 1) : i);
-  const coWinners = points ? state.ranking.filter((_, i) => place(i) === 0) : [winner];
+  // Vrais ex æquo (départagés ni par les points, ni par la combinaison) : même place, pas de vainqueur seul.
+  const place = (i: number): number => {
+    const g = state.tieGroups?.find((x) => x.includes(state.ranking[i]));
+    return g ? Math.min(...g.map((id) => state.ranking.indexOf(id))) : i;
+  };
+  const coWinners = state.tiedWinners?.length ? state.tiedWinners : [winner];
   const tie = coWinners.length > 1;
-  const iWon = coWinners.includes(meId) && !tie;
+  const inTie = tie && coWinners.includes(meId);
+  const iWon = !tie && winner === meId;
   const iLost = state.loserId === meId;
   const confetti = useMemo(() => Array.from({ length: 60 }, (_, i) => ({
     left: Math.random() * 100, delay: Math.random() * 2.5, dur: 3 + Math.random() * 3,
@@ -50,11 +53,11 @@ export function EndOverlay({ reward, state, meta, meId, canRematch, online, onRe
       </div>
       <div className={`end-card${iWon ? ' won' : ''}`}>
         {iWon && <VictoryBurst />}
-        <h2>{tie ? 'Égalité !' : iWon ? 'Victoire !' : iLost ? 'Perdu…' : 'Partie terminée'}</h2>
+        <h2>{inTie ? 'Égalité !' : iWon ? 'Victoire !' : iLost ? 'Perdu…' : 'Partie terminée'}</h2>
         <p className="muted">
+          {tie && <>Ex æquo : <b>{coWinners.map((id) => m(id)?.name).join(' et ')}</b>{state.loserId ? '. ' : '.'}</>}
           {state.loserId ? <>C'est <b>{m(state.loserId)?.name}</b> qui garde les jetons{state.config.variant === 'classique' ? ' et paie la tournée' : ''}.</>
-            : tie ? <>Ex æquo : <b>{coWinners.map((id) => m(id)?.name).join(' et ')}</b>.</>
-              : iWon ? <>Vous l'emportez !</> : <>Victoire de <b>{m(winner)?.name}</b>.</>}
+            : tie ? null : iWon ? <>Vous l'emportez !</> : <>Victoire de <b>{m(winner)?.name}</b>.</>}
         </p>
         <ol className="ranking">
           {state.ranking.map((id, i) => {
@@ -65,7 +68,7 @@ export function EndOverlay({ reward, state, meta, meId, canRematch, online, onRe
                 <span className="rk">{last ? '🍺' : MEDALS[place(i)] ?? `${place(i) + 1}.`}</span>
                 <span className="av">{m(id)?.avatar}</span>
                 <span className="nm">{m(id)?.name ?? p.name}</span>
-                <span className="sc">{points ? `${p.score} pts` : last ? `${p.tokens} jetons` : 'sorti'}</span>
+                <span className="sc">{points ? `${p.score} pts` : last || !p.out ? `${p.tokens} jetons` : 'sorti'}</span>
               </li>
             );
           })}

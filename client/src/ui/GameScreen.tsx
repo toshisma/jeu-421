@@ -146,6 +146,8 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   const onGameEndRef = useRef(onGameEnd);
   onGameEndRef.current = onGameEnd;
   const queue = useRef<GameEvent[]>([]);
+  /** Retour sur l'onglet avec des événements en attente : on les passe sans animation. */
+  const catchingUp = useRef(false);
   const busy = useRef(false);
 
   const metaOf = useCallback((id: string) => {
@@ -252,7 +254,12 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
         if (k && !albumKeys.current.includes(k)) albumKeys.current.push(k);
         if (!bestRoll.current || ev.roll.combo.rank > bestRoll.current.rank) bestRoll.current = { label: ev.roll.combo.label, rank: ev.roll.combo.rank };
       }
-      if (ev.type === 'roll') {
+      // En ligne, onglet caché ou retour sur l'onglet : pas d'animation en différé, on rattrape l'état
+      // officiel tout de suite (sinon le joueur voit d'anciens lancers pendant que son temps court).
+      const catchUp = controller.mode === 'online' && (document.hidden || catchingUp.current);
+      if (ev.type === 'roll' && catchUp) {
+        tray.current?.showValues(ev.roll.dice);
+      } else if (ev.type === 'roll') {
         tray.current?.setInteractive(false);
         const big = ev.roll.combo.kind === '421' || ev.roll.combo.kind === '111';
         anyRoll.current = true;
@@ -295,7 +302,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
           const from = sum.phase === 'charge' ? document.querySelector('.tracker') : sum.winnerId ? cardEls.current[sum.winnerId] : null;
           flyTokens(from, cardEls.current[sum.loserId], sum.amount);
         }
-        await wait(ev.state.phase === 'fini' ? 600 : 1500);
+        if (!catchUp) await wait(ev.state.phase === 'fini' ? 600 : 1500);
       }
       const me = controller.meId;
       // Joueur sorti avant la fin : sa place est définitive, sa récompense est calculée tout de suite
@@ -310,12 +317,14 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
       }
       if (prev && prev.phase !== 'fini' && ev.state.phase === 'fini') {
         if (onGameStartRef.current) setPresence('menu'); // partie solo terminée : plus « en cours »
-        if (ev.state.ranking[0] === me) sound.win();
+        if (ev.state.tiedWinners?.includes(me)) sound.validate(); // égalité : ni fanfare ni défaite
+        else if (ev.state.ranking[0] === me) sound.win();
         else if (ev.state.loserId === me || ev.state.ranking[ev.state.ranking.length - 1] === me) sound.lose();
         else sound.win();
         if (!rewardAsked.current) { rewardAsked.current = true; askRewardRef.current(ev.state); }
       }
     }
+    catchingUp.current = false;
     busy.current = false;
     setAnimating(false);
     controller.notifyIdle();
@@ -326,6 +335,14 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
     const offM = controller.subscribeMeta(() => { setMeta([...controller.getMeta()]); setThinking(controller.thinkingId()); });
     return () => { offE(); offM(); };
   }, [controller, pump]);
+
+  // Retour sur l'onglet : les lancers accumulés ne sont pas rejoués un par un.
+  useEffect(() => {
+    if (controller.mode !== 'online') return;
+    const onVis = () => { if (!document.hidden && queue.current.length) catchingUp.current = true; };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [controller]);
 
   useEffect(() => {
     if (!toast) return;
@@ -478,7 +495,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   // Écran de fin affiché : invitation à créer un compte (invités ; App décide).
   useGuestInviteAtEnd('421', !!s && s.phase === 'fini' && !animating && guestInvite !== false && (!guestInvite || guestInvite(s)));
 
-  const phaseLabel = !s ? '' : s.isRolloff ? 'Barrage'
+  const phaseLabel = !s ? '' : s.phase === 'fini' ? 'Partie terminée' : s.isRolloff ? 'Barrage'
     : s.phase === 'charge' ? `Charge, ${s.pot} jeton${s.pot > 1 ? 's' : ''} au pot`
       : s.phase === 'decharge' ? 'Décharge'
         : s.phase === 'manche' ? `Manche ${s.round}/${s.config.rounds}` : 'Partie terminée';
