@@ -594,7 +594,7 @@ function EndDialog({ s, seats, reward, groschen, buttons, waiting, bags = 0, que
             {onBags && <button className="btn small primary" onClick={onBags}>{tr(isAccount ? 'dm.open' : 'dm.see')}</button>}
           </div>
         )}
-        {quests.length > 0 && <ul className="dm-quests">{quests.map((q) => <li key={q}><Icon name="check" size={14} /> {tr('dm.quest', { q })}</li>)}</ul>}
+        {quests.length > 0 && <ul className="dm-quests">{quests.map((q) => <li key={q}><Icon name="check" size={14} /> {tr('dm.quest', { q: trServer(q) })}</li>)}</ul>}
         {waiting && <p className="muted small">{waiting}</p>}
         <div className="dm-end-btns">{buttons}</div>
       </div>

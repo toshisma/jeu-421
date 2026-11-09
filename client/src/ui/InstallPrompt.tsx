@@ -50,16 +50,16 @@ export function InstallPrompt({ compact = false }: { compact?: boolean }) {
         await d.userChoice.catch(() => null);
         deferred = null;
         force((n) => n + 1);
-      }}>📲 {compact ? tr('plus.install') : "Installer l'application"}</button>
+      }}>📲 {compact ? tr('plus.install') : tr('app.installer_l_application')}</button>
     );
   }
   if (isIos()) {
     return (
       <span className={compact ? 'install-wrap' : undefined} ref={wrap}>
-        <button className={compact ? 'install-chip' : 'btn ghost'} aria-expanded={iosHelp} onClick={() => setIosHelp((v) => !v)}>📲 {compact ? tr('plus.install') : "Installer sur l'iPhone"}</button>
+        <button className={compact ? 'install-chip' : 'btn ghost'} aria-expanded={iosHelp} onClick={() => setIosHelp((v) => !v)}>📲 {compact ? tr('plus.install') : tr('app.installer_sur_l_iphone')}</button>
         {iosHelp && (compact
-          ? <FloatingPop anchor={wrap} onClose={() => setIosHelp(false)} className="install-pop" label="Installer"><p>Dans Safari, touchez <b>Partager</b> (le carré avec une flèche), puis <b>Sur l'écran d'accueil</b>.</p></FloatingPop>
-          : <p className="muted small center">Dans Safari, touchez <b>Partager</b> (le carré avec une flèche), puis <b>Sur l'écran d'accueil</b>.</p>)}
+          ? <FloatingPop anchor={wrap} onClose={() => setIosHelp(false)} className="install-pop" label={tr('app.installer')}><p>{tr('app.dans_safari_touchez')} <b>{tr('app.partager')}</b> {tr('app.le_carre_avec_une_fleche_puis')} <b>{tr('app.sur_l_ecran_d_accueil')}</b>.</p></FloatingPop>
+          : <p className="muted small center">{tr('app.dans_safari_touchez')} <b>{tr('app.partager')}</b> {tr('app.le_carre_avec_une_fleche_puis')} <b>{tr('app.sur_l_ecran_d_accueil')}</b>.</p>)}
       </span>
     );
   }

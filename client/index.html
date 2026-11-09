@@ -58,6 +58,29 @@
         </nav>
       </main>
     </div>
+    <script>
+      /* Écran de chargement hors français (le HTML ci-dessus reste le français pour le référencement). */
+      (function () {
+        var m = /[?&]lang=(en|de|nl)\b/.exec(location.search), s = null;
+        try { s = localStorage.getItem('421.lang'); } catch (e) { /* */ }
+        var l = s === 'en' || s === 'de' || s === 'nl' ? s : (s === 'fr' ? null : m && m[1]);
+        if (!l) return;
+        var T = {
+          en: ['421 online, the bar dice game', 'A real multiplayer 421, free, in your browser: roll the dice in a 3D tray against the computer, in quick games, tournaments, or at a private table with friends.', 'Loading the game…'],
+          de: ['421 online, das Würfelspiel vom Tresen', 'Ein echtes 421 für mehrere Spieler, kostenlos im Browser: Würfle in einer 3D-Schale gegen den Computer, in schnellen Spielen, Turnieren oder am privaten Tisch mit Freunden.', 'Das Spiel wird geladen…'],
+          nl: ['421 online, het dobbelspel van de toog', 'Een echte 421 voor meerdere spelers, gratis in je browser: gooi de stenen in een 3D-bak tegen de computer, in snelle spellen, toernooien of aan een privétafel met vrienden.', 'Het spel wordt geladen…'],
+        }[l];
+        var main = document.querySelector('#root main');
+        if (!main) return;
+        var ps = main.querySelectorAll('p');
+        main.querySelector('h1').textContent = T[0];
+        if (ps[0]) ps[0].textContent = T[1];
+        for (var i = 1; i < ps.length - 1; i++) ps[i].style.display = 'none';
+        if (ps.length) ps[ps.length - 1].textContent = T[2];
+        var nav = main.querySelector('nav');
+        if (nav) nav.style.display = 'none';
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

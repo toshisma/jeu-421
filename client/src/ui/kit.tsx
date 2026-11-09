@@ -3,7 +3,7 @@
  * barre d'action collée en bas, sections titrées, onglets en pastilles, interrupteurs, compteurs,
  * choix en cartes, état vide utile et toasts.
  */
-import { tr } from '../i18n/lang';
+import { loc, tr } from '../i18n/lang';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon';
 
@@ -97,10 +97,10 @@ export function Stepper({ label, hint, value, min, max, onChange, disabled, unit
     <div className={`k-row k-stepper${disabled ? ' off' : ''}`}>
       <span className="k-row-text"><b>{label}</b>{hint && <small>{hint}</small>}</span>
       <span className="k-step">
-        <button type="button" disabled={disabled || value <= min} onClick={() => set(value - 1)} aria-label="Moins">−</button>
+        <button type="button" disabled={disabled || value <= min} onClick={() => set(value - 1)} aria-label={tr('app.moins')}>−</button>
         <input type="number" inputMode="numeric" min={min} max={max} value={value} disabled={disabled} aria-label={typeof label === 'string' ? label : undefined}
           onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n)) set(n); }} />
-        <button type="button" disabled={disabled || value >= max} onClick={() => set(value + 1)} aria-label="Plus">+</button>
+        <button type="button" disabled={disabled || value >= max} onClick={() => set(value + 1)} aria-label={tr('app.plus')}>+</button>
         {unit && <small>{unit}</small>}
       </span>
     </div>
@@ -142,7 +142,7 @@ export function useToast(ms = 2800): [React.ReactNode, (text: string, kind?: 'ok
 
 /** Pastille de pièces (laiton). */
 export function Coins({ n, label }: { n: number; label?: string }) {
-  return <span className="k-coins"><i aria-hidden />{n.toLocaleString('fr-BE')}{label && <small> {label}</small>}</span>;
+  return <span className="k-coins"><i aria-hidden />{n.toLocaleString(loc())}{label && <small> {label}</small>}</span>;
 }
 
 /** Initiale dans une pastille ronde (joueurs sans photo dans les listes). */

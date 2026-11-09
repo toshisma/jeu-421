@@ -1,9 +1,11 @@
+import { titleL, ofMonthL, shortDateL } from '../i18n/data';
+import { loc, tr } from '../i18n/lang';
 import { chestWait } from '../../../shared/progress/profile';
 import { useEffect, useState } from 'react';
-import { activeEvent, coinBoost, eventEnd, happyHour, shortDate } from '../../../shared/progress/events';
+import { activeEvent, coinBoost, eventEnd, happyHour } from '../../../shared/progress/events';
 import { getItem } from '../../../shared/progress/catalog';
 import {
-  DAILY_REWARDS, PASS_TIERS, passProgress, passThreshold, availableTitles, dailyStatus, ofMonth, passReward, seasonOf, titleLabel,
+  DAILY_REWARDS, PASS_TIERS, passProgress, passThreshold, availableTitles, dailyStatus, passReward, seasonOf,
 } from '../../../shared/progress/profile';
 import { today } from '../../../shared/progress/quests';
 import { BOSS_COINS, bossOfWeek, weekKey } from '../../../shared/progress/boss';
@@ -24,7 +26,7 @@ export function HappyHourBanner() {
   return (
     <section className="happy-hour" aria-live="polite">
       <span className="hh-ico" aria-hidden>🍻</span>
-      <div><b>Happy hour !</b><span>Toutes les parties rapportent deux fois plus de pièces jusqu'à {String((hh.hour + 1) % 24).padStart(2, '0')} h. Encore {left} min.</span></div>
+      <div><b>{tr('app.happy_hour')}</b><span>{tr('app.toutes_les_parties_rapportent_deux_f')} {String((hh.hour + 1) % 24).padStart(2, '0')} {tr('app.h_encore_min', { left })}</span></div>
     </section>
   );
 }
@@ -37,11 +39,11 @@ export function EventBanner({ onShop }: { onShop: () => void }) {
   return (
     <section className="event-banner">
       <div>
-        <b>{e ? e.name : 'Week-end pièces doublées'}</b>
-        <span>{e ? `${e.description} Jusqu’au ${shortDate(eventEnd(e, day)).replace(/\.$/, '')}.` : 'Toutes les parties rapportent deux fois plus de pièces.'}</span>
-        {boost && <span className="boost">{e ? `Pièces ×${String(boost.factor).replace('.', ',')}${boost.factor === 2 ? ' ce week-end' : ''} sur toutes les parties` : boost.label}</span>}
+        <b>{e ? e.name : tr('app.week_end_pieces_doublees')}</b>
+        <span>{e ? tr('app.jusqu_au', { description: e.description, v: shortDateL(eventEnd(e, day)).replace(/\.$/, '') }) : tr('app.toutes_les_parties_rapportent_deux_f_2')}</span>
+        {boost && <span className="boost">{e ? tr('app.pieces_sur_toutes_les_parties', { v: String(boost.factor).replace('.', ','), v2: boost.factor === 2 ? tr('app.ce_week_end') : '' }) : boost.label}</span>}
       </div>
-      {e && <button className="btn small" onClick={onShop}>Objets exclusifs</button>}
+      {e && <button className="btn small" onClick={onShop}>{tr('app.objets_exclusifs')}</button>}
     </section>
   );
 }
@@ -55,24 +57,24 @@ export function DailyStreak({ pa }: { pa: ProfileApi }) {
     const err = await pa.claimDailyReward();
     if (err) { setMsg(err); return; }
     sound.chips(st.cycleDay === 7 ? 8 : 3);
-    setMsg(`+${r.coins} pièces${r.xp ? ` et +${r.xp} XP` : ''}`);
+    setMsg(tr('app.pieces_4', { coins: r.coins, v: r.xp ? tr('app.et_xp', { xp: r.xp }) : '' }));
   };
   const done = st.canClaim ? st.cycleDay - 1 : st.cycleDay;
   return (
     <section className="streak">
       <header>
-        <h3>{(() => { const n = st.canClaim ? st.count - 1 : st.count; return n > 0 ? `Série de ${n} jour${n > 1 ? 's' : ''}` : 'Récompense du jour'; })()}</h3>
-        <span className="muted small">{st.canClaim ? 'Revenez chaque jour : le 7e, un coffre.' : 'À demain !'}</span>
+        <h3>{(() => { const n = st.canClaim ? st.count - 1 : st.count; return n > 0 ? tr(n > 1 ? 'app.serie_de_jour.p' : 'app.serie_de_jour', { n }) : tr('app.recompense_du_jour'); })()}</h3>
+        <span className="muted small">{st.canClaim ? tr('app.revenez_chaque_jour_le_7e_un_coffre') : tr('app.a_demain')}</span>
       </header>
       <ol className="streak-days">
         {DAILY_REWARDS.map((r, i) => (
           <li key={i} className={`${i < done ? 'got' : ''}${i === st.cycleDay - 1 && st.canClaim ? ' today' : ''}${i === 6 ? ' chest' : ''}`}>
-            <small>J{i + 1}</small>
+            <small>{tr('app.j')}{i + 1}</small>
             <b>{i === 6 ? '🎁' : r.coins}</b>
           </li>
         ))}
       </ol>
-      {st.canClaim ? <button className="btn primary wide" onClick={claim}>Récupérer la récompense du jour</button>
+      {st.canClaim ? <button className="btn primary wide" onClick={claim}>{tr('app.recuperer_la_recompense_du_jour')}</button>
         : msg && <p className="ok small center">{msg}</p>}
     </section>
   );
@@ -86,8 +88,8 @@ export function PassSummary({ pa, onOpen }: { pa: ProfileApi; onOpen: () => void
   return (
     <button className="pass-summary" onClick={onOpen}>
       <span className="ps-left">
-        <b>Pass {ofMonth(s.id).replace(/ \d+$/, '')}</b>
-        <span className="muted small">Palier {tier} sur {PASS_TIERS}{ready ? `, ${ready} récompense${ready > 1 ? 's' : ''} à récupérer` : ''}</span>
+        <b>{tr('app.pass')} {ofMonthL(s.id).replace(/ \d+$/, '')}</b>
+        <span className="muted small">{tr('app.palier_sur', { tier })} {PASS_TIERS}{ready ? tr(ready > 1 ? 'app.recompense_a_recuperer.p' : 'app.recompense_a_recuperer', { ready }) : ''}</span>
         <span className="q-bar"><i style={{ width: `${(100 * into) / need}%` }} /></span>
       </span>
       {ready > 0 && <span className="ps-badge">{ready}</span>}
@@ -98,9 +100,9 @@ export function PassSummary({ pa, onOpen }: { pa: ProfileApi; onOpen: () => void
 
 const rewardText = (r: ReturnType<typeof passReward>) => {
   const parts: string[] = [];
-  if (r.item) parts.push(getItem(r.item)?.name.replace(' (pass)', '') ?? 'Objet');
-  if (r.coins) parts.push(`${r.coins} pièces`);
-  if (r.title) parts.push(`titre « ${titleLabel(r.title)} »`);
+  if (r.item) parts.push(getItem(r.item)?.name.replace(' (pass)', '') ?? tr('app.objet'));
+  if (r.coins) parts.push(tr('app.pieces_5', { coins: r.coins }));
+  if (r.title) parts.push(tr('app.titre_2', { v: titleL(r.title) }));
   return parts.join(' + ');
 };
 
@@ -114,18 +116,18 @@ export function PassScreen({ pa, onBack }: { pa: ProfileApi; onBack: () => void 
     const err = await pa.claimPass(t);
     if (err) { showToast(err, 'err'); return; }
     sound.chips(4);
-    showToast(`Palier ${t} : ${rewardText(passReward(t, s.id))}.`);
+    showToast(tr('app.palier_2', { t, v: rewardText(passReward(t, s.id)) }));
   };
-  const claimAll = async () => { for (const t of ready) { const err = await pa.claimPass(t); if (err) { showToast(err, 'err'); return; } } sound.chips(6); showToast(`${ready.length} récompense${ready.length > 1 ? 's' : ''} récupérée${ready.length > 1 ? 's' : ''} !`); };
+  const claimAll = async () => { for (const t of ready) { const err = await pa.claimPass(t); if (err) { showToast(err, 'err'); return; } } sound.chips(6); showToast(tr(ready.length > 1 ? 'app.recompense_recuperee.p' : 'app.recompense_recuperee', { n: ready.length })); };
   return (
-    <Shell title={`Pass ${ofMonth(s.id)}`} onBack={onBack} icon="ticket" sub="Gratuit · repart à zéro le 1er du mois"
-      foot={ready.length > 0 ? <BigAction icon="gift" tone="gold" label={ready.length > 1 ? `Tout récupérer (${ready.length})` : `Récupérer le palier ${ready[0]}`} sub={rewardText(passReward(ready[0], s.id))} onClick={() => void claimAll()} /> : undefined}>
+    <Shell title={tr('app.pass_2', { v: ofMonthL(s.id) })} onBack={onBack} icon="ticket" sub={tr('app.gratuit_repart_a_zero_le_1er_du')}
+      foot={ready.length > 0 ? <BigAction icon="gift" tone="gold" label={ready.length > 1 ? tr('app.tout_recuperer', { n: ready.length }) : tr('app.recuperer_le_palier', { v: ready[0] })} sub={rewardText(passReward(ready[0], s.id))} onClick={() => void claimAll()} /> : undefined}>
       <div className="pass-hero">
-        <span className="pass-tier"><small>Palier</small><b>{tier}</b><small>sur {PASS_TIERS}</small></span>
+        <span className="pass-tier"><small>{tr('app.palier_3')}</small><b>{tier}</b><small>{tr('app.sur')} {PASS_TIERS}</small></span>
         <div className="pass-hero-main">
-          <div className="pass-total"><b>{s.points.toLocaleString('fr-FR')}</b> points<span> sur {passThreshold(PASS_TIERS).toLocaleString('fr-FR')}</span></div>
+          <div className="pass-total"><b>{s.points.toLocaleString(loc())}</b> {tr('app.points')}<span> {tr('app.sur')} {passThreshold(PASS_TIERS).toLocaleString(loc())}</span></div>
           <span className="pv-lvl-bar"><i style={{ width: `${tier >= PASS_TIERS ? 100 : (100 * into) / need}%` }} /></span>
-          <small className="k-hint">Chaque point d'XP gagné ce mois-ci fait avancer le pass. Les objets « pass » ne s'achètent pas.</small>
+          <small className="k-hint">{tr('app.chaque_point_d_xp_gagne_ce_mois')}</small>
         </div>
       </div>
       <ol className="pass-tiers">
@@ -136,9 +138,9 @@ export function PassScreen({ pa, onBack }: { pa: ProfileApi; onBack: () => void 
           return (
             <li key={t} className={`${reached ? 'reached' : ''}${got ? ' got' : ''}${r.item ? ' special' : ''}`}>
               <span className="pt-n">{t}</span>
-              <span className="pt-r">{rewardText(r)}<small>{passThreshold(t).toLocaleString('fr-FR')} points</small></span>
+              <span className="pt-r">{rewardText(r)}<small>{passThreshold(t).toLocaleString(loc())} {tr('app.points')}</small></span>
               {got ? <span className="ok"><Icon name="check" size={18} /></span>
-                : reached ? <button className="btn small primary" onClick={() => claim(t)}>Récupérer</button>
+                : reached ? <button className="btn small primary" onClick={() => claim(t)}>{tr('app.recuperer')}</button>
                   : <Icon name="lock" size={18} />}
             </li>
           );
@@ -153,13 +155,13 @@ export function PassScreen({ pa, onBack }: { pa: ProfileApi; onBack: () => void 
 export function TitlePicker({ pa }: { pa: ProfileApi }) {
   const ids = availableTitles(pa.profile);
   const [err, setErr] = useState<string | null>(null);
-  if (!ids.length) return <p className="muted small">Débloquez des succès pour gagner des titres à afficher sous votre pseudo.</p>;
+  if (!ids.length) return <p className="muted small">{tr('app.debloquez_des_succes_pour_gagner_des')}</p>;
   return (
     <label className="field">
-      <span>Titre affiché sous votre pseudo</span>
+      <span>{tr('app.titre_affiche_sous_votre_pseudo')}</span>
       <select value={pa.profile.title ?? ''} onChange={async (e) => setErr(await pa.chooseTitle(e.target.value || null))}>
-        <option value="">Aucun</option>
-        {ids.map((id) => <option key={id} value={id}>{titleLabel(id)}</option>)}
+        <option value="">{tr('app.aucun')}</option>
+        {ids.map((id) => <option key={id} value={id}>{titleL(id)}</option>)}
       </select>
       {err && <span className="error">{err}</span>}
     </label>
@@ -176,12 +178,12 @@ export function BossCard({ pa, onPlay }: { pa: ProfileApi; onPlay: () => void })
     <section className="boss-card">
       <span className="boss-face" aria-hidden>{persona?.avatar ?? '🎩'}</span>
       <div>
-        <small>Patron de la semaine</small>
+        <small>{tr('app.patron_de_la_semaine')}</small>
         <b>{b.name}</b>
         <span>{b.twist}</span>
-        <span className="boss-prize">{beaten ? 'Battu cette semaine. Revanche possible, sans récompense.' : `Première victoire : ${BOSS_COINS} pièces, un trophée et le titre « ${titleLabel(`patron:${b.id}`)} ».`}</span>
+        <span className="boss-prize">{beaten ? tr('app.battu_cette_semaine_revanche_possibl') : tr('app.premiere_victoire_pieces_un_trophee_', { BOSS_COINS, v: titleL(`patron:${b.id}`) })}</span>
       </div>
-      <button className={`btn ${beaten ? '' : 'primary'}`} onClick={onPlay}>Défier</button>
+      <button className={`btn ${beaten ? '' : 'primary'}`} onClick={onPlay}>{tr('app.defier')}</button>
     </section>
   );
 }
@@ -195,13 +197,13 @@ export function EveningChest({ pa }: { pa: ProfileApi }) {
   const wait = chestWait(pa.profile, now);
   const ready = wait === 0;
   const h = Math.floor(wait / 3600_000), m = Math.floor((wait % 3600_000) / 60_000), sec = Math.floor((wait % 60_000) / 1000);
-  const left = `${h} h ${String(m).padStart(2, '0')} min ${String(sec).padStart(2, '0')} s`;
+  const left = tr('app.h_min_s', { h, v: String(m).padStart(2, '0'), v2: String(sec).padStart(2, '0') });
   return (
     <section className={`chest-card ${ready ? 'ready' : 'later'}${opening ? ' opening' : ''}`}>
       <span className="chest-ico" aria-hidden>{res && !ready ? '✨' : '🧰'}</span>
       <div className="chest-text">
-        <b>Coffre du comptoir</b>
-        <span>{ready ? 'Votre coffre est prêt : des pièces, et parfois un sac de dés !' : <>{res && <>{res} · </>}Prochain coffre dans <b className="chest-timer">{left}</b></>}</span>
+        <b>{tr('app.coffre_du_comptoir')}</b>
+        <span>{ready ? tr('app.votre_coffre_est_pret_des_pieces_et') : <>{res && <>{res} · </>}{tr('app.prochain_coffre_dans')} <b className="chest-timer">{left}</b></>}</span>
       </div>
       {ready && (
         <button className="btn primary small" disabled={opening} onClick={async () => {
@@ -211,8 +213,8 @@ export function EveningChest({ pa }: { pa: ProfileApi }) {
           setOpening(false);
           if ('error' in r) { setRes(r.error); return; }
           sound.treasure();
-          setRes(`+${r.coins} pièces${r.bag ? ' et un sac de dés !' : ''}`);
-        }}>Ouvrir</button>
+          setRes(tr('app.pieces_4', { coins: r.coins, v: r.bag ? tr('app.et_un_sac_de_des') : '' }));
+        }}>{tr('app.ouvrir')}</button>
       )}
     </section>
   );

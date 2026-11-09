@@ -2,6 +2,7 @@
  * Messages privés entre amis : bouton de l'accueil (pastille des non-lus), liste des conversations
  * et fil de discussion. Le texte est toujours affiché comme du texte (React l'échappe), jamais en HTML.
  */
+import { getLang, loc, tr } from '../i18n/lang';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
@@ -9,6 +10,7 @@ import { onPm, setUnread, useUnread, type PmMessage } from '../messages';
 import { BigAction, Empty, Initial, Section, Shell } from './kit';
 import { Icon } from './Icon';
 import { ReportDialog, ReportMsgButton, type ReportTarget } from './Report';
+const hhmm = (m: string, h: string, mi: string) => (getLang() === 'fr' ? `${h} h ${mi}` : m);
 
 const PM_MAX = 500;
 
@@ -19,17 +21,17 @@ export function pmWhen(t: number, now = Date.now()): string {
   const d = new Date(t), n = new Date(now);
   const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const diff = Math.round((day(n) - day(d)) / 86400_000);
-  if (diff <= 0) return d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }).replace(/(\d{1,2}):(\d{2})/, '$1 h $2');
+  if (diff <= 0) return d.toLocaleTimeString(loc(), { hour: '2-digit', minute: '2-digit' }).replace(/(\d{1,2}):(\d{2})/, hhmm);
   if (diff === 1) return 'hier';
-  if (diff < 7) return d.toLocaleDateString('fr-BE', { weekday: 'short' });
-  return d.toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit' });
+  if (diff < 7) return d.toLocaleDateString(loc(), { weekday: 'short' });
+  return d.toLocaleDateString(loc(), { day: '2-digit', month: '2-digit' });
 }
 
 /** Bulle de discussion à côté du bouton Amis, avec le nombre de messages non lus. */
 export function MessagesButton({ pa, onOpen }: { pa: ProfileApi; onOpen: () => void }) {
   const n = useUnread(pa.token);
   return (
-    <button className="bell" onClick={onOpen} aria-label={n ? `Messages : ${n} non lu${n > 1 ? 's' : ''}` : 'Messages'}>
+    <button className="bell" onClick={onOpen} aria-label={n ? tr(n > 1 ? 'app.messages_non_lu.p' : 'app.messages_non_lu', { n }) : tr('app.messages')}>
       <Icon name="chat" size={22} />
       {n > 0 && <i className="bell-badge">{n > 9 ? '9+' : n}</i>}
     </button>
@@ -41,8 +43,8 @@ export function MessagesScreen({ pa, initial, onBack, onAccount }: { pa: Profile
   const [open, setOpen] = useState<string | null>(initial ?? null);
   if (!pa.isAccount) {
     return (
-      <Shell title="Messages" onBack={onBack} icon="chat" foot={<BigAction icon="key" tone="gold" label="Créer mon compte" sub="Gratuit, sans adresse e-mail" onClick={onAccount} />}>
-        <Empty icon="chat">Avec un compte, écrivez à vos amis : vos messages les attendront même s’ils ne sont pas en ligne.</Empty>
+      <Shell title={tr('app.messages')} onBack={onBack} icon="chat" foot={<BigAction icon="key" tone="gold" label={tr('app.creer_mon_compte')} sub={tr('app.gratuit_sans_adresse_e_mail')} onClick={onAccount} />}>
+        <Empty icon="chat">{tr('app.avec_un_compte_ecrivez_a_vos_amis')}</Empty>
       </Shell>
     );
   }
@@ -64,10 +66,10 @@ function Conversations({ pa, onBack, onOpen }: { pa: ProfileApi; onBack: () => v
   const without = friends.filter((f) => !list?.some((c) => c.username === f));
   const unread = list?.reduce((n, c) => n + c.unread, 0) ?? 0;
   return (
-    <Shell title="Messages" onBack={onBack} icon="chat" sub={list ? (unread ? `${unread} non lu${unread > 1 ? 's' : ''}` : `${list.length} conversation${list.length > 1 ? 's' : ''}`) : undefined}>
+    <Shell title={tr('app.messages')} onBack={onBack} icon="chat" sub={list ? (unread ? tr(unread > 1 ? 'app.non_lu.p' : 'app.non_lu', { unread }) : tr(list.length > 1 ? 'app.conversation.p' : 'app.conversation', { n: list.length })) : undefined}>
       {err && <p className="error small">{err}</p>}
-      {!list && !err && <p className="muted">Chargement…</p>}
-      {list?.length === 0 && <Empty icon="chat">{friends.length ? 'Aucune conversation pour le moment. Écrivez à un ami ci-dessous.' : 'Ajoutez d’abord des amis depuis l’écran Amis : vous pourrez ensuite leur écrire.'}</Empty>}
+      {!list && !err && <p className="muted">{tr('app.chargement')}</p>}
+      {list?.length === 0 && <Empty icon="chat">{friends.length ? tr('app.aucune_conversation_pour_le_moment_e') : tr('app.ajoutez_d_abord_des_amis_depuis_l')}</Empty>}
       {!!list?.length && (
         <ul className="pm-convs">
           {list.map((c) => (
@@ -76,16 +78,16 @@ function Conversations({ pa, onBack, onOpen }: { pa: ProfileApi; onBack: () => v
                 <Initial name={c.username} />
                 <span className="pm-conv-main">
                   <span className="pm-conv-top"><b>{c.username}</b><small>{pmWhen(c.last.at)}</small></span>
-                  <span className="pm-conv-last">{c.last.mine ? 'Vous : ' : ''}{c.last.text}</span>
+                  <span className="pm-conv-last">{c.last.mine ? tr('app.vous_2') : ''}{c.last.text}</span>
                 </span>
-                {c.unread > 0 && <i className="pm-count" aria-label={`${c.unread} non lu${c.unread > 1 ? 's' : ''}`}>{c.unread > 9 ? '9+' : c.unread}</i>}
+                {c.unread > 0 && <i className="pm-count" aria-label={tr(c.unread > 1 ? 'app.non_lu.p' : 'app.non_lu', { unread: c.unread })}>{c.unread > 9 ? '9+' : c.unread}</i>}
               </button>
             </li>
           ))}
         </ul>
       )}
       {without.length > 0 && (
-        <Section title="Écrire à un ami">
+        <Section title={tr('app.ecrire_a_un_ami')}>
           <div className="pm-new">{without.map((f) => <button key={f} className="pm-new-btn" onClick={() => onOpen(f)}><Initial name={f} /><span>{f}</span><Icon name="chat" size={18} /></button>)}</div>
         </Section>
       )}
@@ -156,23 +158,23 @@ function Thread({ pa, username, onBack }: { pa: ProfileApi; username: string; on
   return (
     <div className="pm-thread" style={vh ? { height: vh } : undefined}>
       <header className="pm-head">
-        <button className="icon-btn" onClick={onBack} aria-label="Retour"><Icon name="back" /></button>
+        <button className="icon-btn" onClick={onBack} aria-label={tr('app.retour')}><Icon name="back" /></button>
         <Initial name={username} />
         <h2>{username}</h2>
       </header>
       <div className="pm-scroll" ref={box} aria-live="polite">
-        {!msgs && !err && <p className="muted center">Chargement…</p>}
-        {msgs?.length === 0 && <p className="muted center small">Aucun message. Dites bonjour à {username} !</p>}
+        {!msgs && !err && <p className="muted center">{tr('app.chargement')}</p>}
+        {msgs?.length === 0 && <p className="muted center small">{tr('app.aucun_message_dites_bonjour_a', { username })}</p>}
         {msgs?.map((m, i) => {
           const prev = msgs[i - 1];
           const newDay = !prev || new Date(prev.at).toDateString() !== new Date(m.at).toDateString();
           return (
             <div key={m.id} className="pm-row-wrap">
-              {newDay && <p className="pm-day">{new Date(m.at).toLocaleDateString('fr-BE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>}
+              {newDay && <p className="pm-day">{new Date(m.at).toLocaleDateString(loc(), { weekday: 'long', day: 'numeric', month: 'long' })}</p>}
               <div className={`pm-line ${m.mine ? 'mine' : 'theirs'}`}>
                 <div className={`pm-msg ${m.mine ? 'mine' : 'theirs'}`}>
                   <span className="pm-text">{m.text}</span>
-                  <small>{new Date(m.at).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }).replace(/(\d{1,2}):(\d{2})/, '$1 h $2')}{m === lastMine && m.read ? ' · Lu' : ''}</small>
+                  <small>{new Date(m.at).toLocaleTimeString(loc(), { hour: '2-digit', minute: '2-digit' }).replace(/(\d{1,2}):(\d{2})/, hhmm)}{m === lastMine && m.read ? tr('app.lu') : ''}</small>
                 </div>
                 {!m.mine && <ReportMsgButton name={username} onClick={() => setReport({ username, message: { place: 'prive', id: m.id, text: m.text } })} />}
               </div>
@@ -183,13 +185,13 @@ function Thread({ pa, username, onBack }: { pa: ProfileApi; username: string; on
       {err && <p className="error small pm-err">{err}</p>}
       {friend ? (
         <form className="pm-input" onSubmit={(e) => { e.preventDefault(); void send(); }}>
-          <textarea ref={input} value={text} rows={1} maxLength={PM_MAX} placeholder={`Message à ${username}`} aria-label={`Message à ${username}`}
+          <textarea ref={input} value={text} rows={1} maxLength={PM_MAX} placeholder={tr('app.message_a', { username })} aria-label={tr('app.message_a', { username })}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) { e.preventDefault(); void send(); } }} />
-          <button className="btn primary pm-send" disabled={!text.trim() || sending} aria-label="Envoyer"><Icon name="send" size={20} /></button>
+          <button className="btn primary pm-send" disabled={!text.trim() || sending} aria-label={tr('app.envoyer')}><Icon name="send" size={20} /></button>
           {text.length > PM_MAX - 100 && <small className="pm-left">{PM_MAX - text.length}</small>}
         </form>
-      ) : <p className="muted small pm-closed">Vous n’êtes plus amis avec {username} : vous ne pouvez plus lui écrire.</p>}
+      ) : <p className="muted small pm-closed">{tr('app.vous_n_etes_plus_amis_avec_vous', { username })}</p>}
       {report && <ReportDialog pa={pa} target={report} onClose={() => setReport(null)} />}
     </div>
   );

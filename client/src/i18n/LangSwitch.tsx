@@ -16,7 +16,6 @@ export function LangSwitch({ full }: { full?: boolean }) {
 
 /** Hors français : discrète précision sur ce qui reste en français. */
 export function FrenchOnlyNote() {
-  const lang = useLang();
-  if (lang === 'fr') return null;
-  return <p className="lang-note">{tr('lang.frenchOnly')}</p>;
+  // Tout le jeu est traduit : plus de précision à afficher.
+  return null;
 }

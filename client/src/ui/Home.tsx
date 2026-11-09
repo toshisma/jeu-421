@@ -1,4 +1,5 @@
-import { getLang, tr } from '../i18n/lang';
+import { titleL } from '../i18n/data';
+import { loc, tr } from '../i18n/lang';
 /**
  * Menu principal (écran d'arrivée) : le joueur (profil, niveau, pièces = monnaie générale), la
  * vitrine 3D de son bac, les trois jeux en grandes entrées (avec ce qui les attend), les récompenses
@@ -9,7 +10,7 @@ import { getLang, tr } from '../i18n/lang';
 import { useCallback, useEffect, useState } from 'react';
 import { BagIcon } from './BagIcon';
 import { accessoryEmoji } from '../../../shared/progress/catalog';
-import { DAILY_REWARDS, chestWait, collectionCount, dailyStatus, levelInfo, passProgress, seasonOf, titleLabel, type Profile } from '../../../shared/progress/profile';
+import { DAILY_REWARDS, chestWait, collectionCount, dailyStatus, levelInfo, passProgress, seasonOf, type Profile } from '../../../shared/progress/profile';
 import { dailyQuests, questsFor, today } from '../../../shared/progress/quests';
 import { activeEvent, coinBoost, happyHour } from '../../../shared/progress/events';
 import type { ProfileApi } from '../account/useProfile';
@@ -94,12 +95,12 @@ export function Home(props: HomeProps) {
   useEffect(() => {
     const r = takeDiscordReturn();
     if (!r) return;
-    setDiscordMsg({ ok: r === 'ok', text: DISCORD_RESULTS[r] ?? DISCORD_RESULTS.erreur });
+    setDiscordMsg({ ok: r === 'ok', text: DISCORD_RESULTS()[r] ?? DISCORD_RESULTS().erreur });
     setSheet('discord');
     if (r === 'ok') { sound.treasure(); pa.refresh(); reloadDiscord(); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const li = levelInfo(profile.xp);
-  const name = pa.session?.username ?? (props.displayName || 'Invité');
+  const name = pa.session?.username ?? (props.displayName || tr('app.invite'));
   const acc = pa.isAccount && !STANDALONE;
   const day = today();
 
@@ -113,7 +114,7 @@ export function Home(props: HomeProps) {
   const season = seasonOf(profile);
   const pass = passProgress(season.points);
   const passReady = Array.from({ length: pass.tier }, (_, i) => i + 1).filter((t) => !season.claimed.includes(t)).length;
-  const hLeft = (ms: number) => { const m = Math.ceil(ms / 60000); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`; };
+  const hLeft = (ms: number) => { const m = Math.ceil(ms / 60000); return m < 60 ? tr('app.min', { m }) : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}`; };
   const bags = profile.bags ?? 0;
   const coll = collectionCount(profile);
   // Dernier dé de collection obtenu (le profil garde l'ordre d'arrivée).
@@ -124,8 +125,8 @@ export function Home(props: HomeProps) {
     setBurst({ kind: 'chest', phase: 'opening' });
     const [r] = await Promise.all([pa.openEveningChest(), new Promise((ok) => setTimeout(ok, 650))]);
     if ('error' in r) { setBurst(null); setToast(r.error); return; }
-    sound.treasure(); setToast(`Coffre : +${r.coins} pièces${r.bag ? ' et un sac de dés !' : ''}`);
-    setBurst({ kind: 'chest', phase: 'open', title: `+${r.coins} pièces`, detail: r.bag ? 'et un sac de dés !' : 'Coffre du comptoir' });
+    sound.treasure(); setToast(tr('app.coffre_pieces', { coins: r.coins, v: r.bag ? tr('app.et_un_sac_de_des') : '' }));
+    setBurst({ kind: 'chest', phase: 'open', title: tr('app.pieces', { coins: r.coins }), detail: r.bag ? tr('app.et_un_sac_de_des_2') : tr('app.coffre_du_comptoir') });
   };
   const claimDaily = async () => {
     const r = DAILY_REWARDS[daily.cycleDay - 1];
@@ -134,64 +135,63 @@ export function Home(props: HomeProps) {
     const [err] = await Promise.all([pa.claimDailyReward(), new Promise((ok) => setTimeout(ok, 550))]);
     if (err) { setBurst(null); setToast(err); return; }
     sound.chips(daily.cycleDay === 7 ? 8 : 3);
-    setToast(`Cadeau du jour : +${r.coins} pièces${r.xp ? ` et +${r.xp} XP` : ''}`);
-    setBurst({ kind: 'gift', phase: 'open', title: `+${r.coins} pièces`, detail: r.xp ? `et +${r.xp} XP · jour ${daily.cycleDay}` : `Jour ${daily.cycleDay}` });
+    setToast(tr('app.cadeau_du_jour_pieces', { coins: r.coins, v: r.xp ? tr('app.et_xp', { xp: r.xp }) : '' }));
+    setBurst({ kind: 'gift', phase: 'open', title: tr('app.pieces', { coins: r.coins }), detail: r.xp ? tr('app.et_xp_jour', { xp: r.xp, cycleDay: daily.cycleDay }) : tr('app.jour', { cycleDay: daily.cycleDay }) });
   };
   const rewards: { id: string; title: string; sub: React.ReactNode; hot: boolean; badge?: string; art: React.ReactNode; go: () => void }[] = [
-    { id: 'cadeau', title: 'Cadeau', hot: daily.canClaim, badge: daily.canClaim ? `J${daily.cycleDay}` : undefined, art: <GiftArt size={36} />,
-      sub: daily.canClaim ? `+${DAILY_REWARDS[daily.cycleDay - 1].coins} pièces` : 'demain', go: () => (daily.canClaim ? void claimDaily() : setSheet('cadeau')) },
-    { id: 'coffre', title: 'Coffre', hot: chestLeft === 0, badge: chestLeft === 0 ? '!' : undefined, art: <ChestArt open={chestLeft === 0} size={38} />,
-      sub: chestLeft === 0 ? 'Ouvrir' : hLeft(chestLeft), go: () => (chestLeft === 0 ? void openChest() : setSheet('coffre')) },
-    { id: 'missions', title: 'Défis du jour', hot: qReady > 0, badge: qReady ? String(qReady) : undefined, art: <ScrollArt size={34} done={qDone + qReady} total={qDefs.length} />,
-      sub: qReady ? 'à récupérer' : `${qDone}/${qDefs.length} faits`, go: () => setSheet('missions') },
-    { id: 'pass', title: 'Pass', hot: passReady > 0, badge: passReady ? String(passReady) : undefined, art: <TicketArt size={38} label={pass.tier} />,
-      sub: `Palier ${pass.tier}`, go: props.onPass },
+    { id: 'cadeau', title: tr('app.cadeau'), hot: daily.canClaim, badge: daily.canClaim ? tr('app.m_j', { n: daily.cycleDay }) : undefined, art: <GiftArt size={36} />,
+      sub: daily.canClaim ? tr('app.pieces', { coins: DAILY_REWARDS[daily.cycleDay - 1].coins }) : 'demain', go: () => (daily.canClaim ? void claimDaily() : setSheet('cadeau')) },
+    { id: 'coffre', title: tr('app.coffre'), hot: chestLeft === 0, badge: chestLeft === 0 ? '!' : undefined, art: <ChestArt open={chestLeft === 0} size={38} />,
+      sub: chestLeft === 0 ? tr('app.ouvrir') : hLeft(chestLeft), go: () => (chestLeft === 0 ? void openChest() : setSheet('coffre')) },
+    { id: 'missions', title: tr('app.m_daily_short'), hot: qReady > 0, badge: qReady ? String(qReady) : undefined, art: <ScrollArt size={34} done={qDone + qReady} total={qDefs.length} />,
+      sub: qReady ? tr('app.a_recuperer') : `${qDone}/${qDefs.length} faits`, go: () => setSheet('missions') },
+    { id: 'pass', title: tr('app.pass'), hot: passReady > 0, badge: passReady ? String(passReady) : undefined, art: <TicketArt size={38} label={pass.tier} />,
+      sub: tr('app.palier', { tier: pass.tier }), go: props.onPass },
   ];
   const ready = rewards.filter((r) => r.hot).length;
 
   // --- Une seule bannière : la plus utile ---------------------------------------------------------------
   const ev = activeEvent(day) || coinBoost(day);
   const banner = (() => {
-    if (getLang() !== 'fr' && !props.resume) return <button className="home-banner gift" onClick={props.onDixMille}><Icon name="dice" size={20} /><span><b>{tr('lang.homeBanner')}</b><small>{tr('lang.homeSub')}</small></span><em>{tr('lang.homeGo')}</em></button>;
-    if (props.resume && !STANDALONE) return <button className="home-banner resume" onClick={props.onResume}><Icon name="resume" size={20} /><span><b>{props.resume.tournament ? 'Tournoi du 421 en cours' : props.resume.courtisan ? 'Partie du Courtisan en cours' : 'Partie de 421 en cours'}</b><small>Table {props.resume.code}</small></span><em>Reprendre</em></button>;
+    if (props.resume && !STANDALONE) return <button className="home-banner resume" onClick={props.onResume}><Icon name="resume" size={20} /><span><b>{props.resume.tournament ? tr('app.tournoi_du_421_en_cours') : props.resume.courtisan ? tr('app.partie_du_courtisan_en_cours') : tr('app.partie_de_421_en_cours')}</b><small>{tr('app.table')} {props.resume.code}</small></span><em>{tr('app.reprendre')}</em></button>;
     const salon = prog?.slots.find((x) => x.status === 'salon' && x.registered && x.code);
-    if (salon && props.onJoinScheduled) return <button className="home-banner resume" onClick={() => props.onJoinScheduled!(salon.code!, false)}><Icon name="trophy" size={20} /><span><b>Votre tournoi de {salon.hour} h commence !</b><small>Le salon est ouvert : rejoignez-le</small></span><em>Rejoindre</em></button>;
-    if (pa.welcomeBack) return <button className="home-banner gift" onClick={() => { pa.dismissWelcome(); props.onCollection(true); }}><Icon name="gift" size={20} /><span><b>Content de vous revoir !</b><small>Un sac de dés vous attend dans la Collection.</small></span></button>;
-    if (!STANDALONE && !pa.isAccount) return <button className="home-banner account" onClick={props.onAccount}><Icon name="key" size={20} /><span><b>Gardez votre progression</b><small>Compte gratuit : amis, classements, tous les jeux</small></span><em>Créer</em></button>;
+    if (salon && props.onJoinScheduled) return <button className="home-banner resume" onClick={() => props.onJoinScheduled!(salon.code!, false)}><Icon name="trophy" size={20} /><span><b>{tr('app.votre_tournoi_de_h_commence', { hour: salon.hour })}</b><small>{tr('app.le_salon_est_ouvert_rejoignez_le')}</small></span><em>{tr('app.rejoindre')}</em></button>;
+    if (pa.welcomeBack) return <button className="home-banner gift" onClick={() => { pa.dismissWelcome(); props.onCollection(true); }}><Icon name="gift" size={20} /><span><b>{tr('app.content_de_vous_revoir')}</b><small>{tr('app.un_sac_de_des_vous_attend_dans')}</small></span></button>;
+    if (!STANDALONE && !pa.isAccount) return <button className="home-banner account" onClick={props.onAccount}><Icon name="key" size={20} /><span><b>{tr('app.gardez_votre_progression')}</b><small>{tr('app.compte_gratuit_amis_classements_tous')}</small></span><em>{tr('app.creer')}</em></button>;
     if (happyHour(now)) return <HappyHourBanner />;
     if (ev) return <EventBanner onShop={props.onShop} />;
-    if (acc && discord?.invite && discord.verify && !discord.claimed) return <button className="home-banner discord" onClick={() => setSheet('discord')}><BagIcon size={26} color="bleu" /><span><b>Rejoignez le Discord du jeu</b><small>Un sac de dés offert, une fois vérifié</small></span><em>Voir</em></button>;
+    if (acc && discord?.invite && discord.verify && !discord.claimed) return <button className="home-banner discord" onClick={() => setSheet('discord')}><BagIcon size={26} color="bleu" /><span><b>{tr('app.rejoignez_le_discord_du_jeu')}</b><small>{tr('app.un_sac_de_des_offert_une_fois')}</small></span><em>{tr('app.voir')}</em></button>;
     return null;
   })();
 
   // --- Les trois jeux : ce qui les attend ---------------------------------------------------------------
   const t = tournamentInfo(prog, now);
   const classicRes = props.resume && !props.resume.courtisan && !STANDALONE;
-  const classic = classicRes ? { status: <><b className="mm-hot">Partie en cours</b> · table {props.resume!.code}</>, hot: true }
-    : !STANDALONE && t.registered ? { status: <><b className="mm-hot">Inscrit</b> · tournoi de {t.label} {t.open ? '· salon ouvert' : inTime(t.minutes)}</>, hot: t.open, badge: t.open ? 'Go !' : undefined }
-    : { status: STANDALONE ? 'Contre l’ordinateur, entre amis' : <>{online != null && <><i className="live-dot" aria-hidden />{online} en ligne · </>}Tournoi {t.label} {inTime(t.minutes)}</> };
-  const cardsSt = !acc ? { status: 'Le 421 aux cartes · essai gratuit' }
-    : !cf ? { status: 'Bluff, fouine et coups bas' }
-    : !cf.discovered ? { status: <><b className="mm-hot">Nouveau</b> · 3 boosters offerts</>, hot: true, badge: 'Nouveau' }
-    : cf.boosters > 0 ? { status: <><b className="mm-hot">{cf.boosters} booster{cf.boosters > 1 ? 's' : ''}</b> à ouvrir{cf.division ? ` · ${cf.division}` : ''}</>, hot: true, badge: String(cf.boosters) }
-    : { status: `${cf.division ?? 'Ligue'} · missions ${cf.missionsDone}/${cf.missions}` };
+  const classic = classicRes ? { status: <><b className="mm-hot">{tr('app.partie_en_cours')}</b> {tr('app.table_2')} {props.resume!.code}</>, hot: true }
+    : !STANDALONE && t.registered ? { status: <><b className="mm-hot">{tr('app.inscrit')}</b> {tr('app.tournoi_de')} {t.label} {t.open ? tr('app.salon_ouvert') : inTime(t.minutes)}</>, hot: t.open, badge: t.open ? tr('app.go') : undefined }
+    : { status: STANDALONE ? tr('app.contre_l_ordinateur_entre_amis') : <>{online != null && <><i className="live-dot" aria-hidden />{online} {tr('app.en_ligne')} </>}{tr('app.tournoi')} {t.label} {inTime(t.minutes)}</> };
+  const cardsSt = !acc ? { status: tr('app.le_421_aux_cartes_essai_gratuit') }
+    : !cf ? { status: tr('app.bluff_fouine_et_coups_bas') }
+    : !cf.discovered ? { status: <><b className="mm-hot">{tr('app.nouveau')}</b> {tr('app.3_boosters_offerts')}</>, hot: true, badge: tr('app.nouveau') }
+    : cf.boosters > 0 ? { status: <><b className="mm-hot">{cf.boosters} {tr(cf.boosters > 1 ? 'app.booster.p' : 'app.booster')}</b> {tr('app.a_ouvrir')}{cf.division ? ` · ${cf.division}` : ''}</>, hot: true, badge: String(cf.boosters) }
+    : { status: tr('app.missions', { v: cf.division ?? tr('app.ligue'), missionsDone: cf.missionsDone, missions: cf.missions }) };
   const courtRes = props.resume?.courtisan && !STANDALONE;
-  const courtSt = courtRes ? { status: <><b className="mm-hot">Partie en cours</b> · table {props.resume!.code}</>, hot: true }
-    : gr?.giftReady ? { status: <><b className="mm-hot">Cadeau du jour</b> : +{GROSCHEN_DAILY} Groschen</>, hot: true, badge: `+${GROSCHEN_DAILY}` }
-    : gr ? { status: `${gr.balance.toLocaleString('fr-BE')} Groschen · 2 à 6 joueurs` }
-    : { status: 'Le Dix mille à 6 dés' };
+  const courtSt = courtRes ? { status: <><b className="mm-hot">{tr('app.partie_en_cours')}</b> {tr('app.table_2')} {props.resume!.code}</>, hot: true }
+    : gr?.giftReady ? { status: <><b className="mm-hot">{tr('app.cadeau_du_jour')}</b>{tr('app.groschen', { GROSCHEN_DAILY })}</>, hot: true, badge: `+${GROSCHEN_DAILY}` }
+    : gr ? { status: tr('app.groschen_2_a_6_joueurs', { v: gr.balance.toLocaleString(loc()) }) }
+    : { status: tr('app.le_dix_mille_a_6_des') };
 
   return (
     <div className="home2 v2 main-menu">
       <header className="h2-bar">
-        <button className="h2-me" onClick={() => setShowProfile(true)} aria-label="Mon profil">
+        <button className="h2-me" onClick={() => setShowProfile(true)} aria-label={tr('app.mon_profil')}>
           <Avatar photo={pa.photo} emoji={props.avatar} size={42} accessory={accessoryEmoji(profile.equipped.accessoire)} />
           <span className="h2-me-text">
-            <span><b>{name}</b><em>Niv. {li.level}</em></span>
-            <span className="h2-coins" title="Pièces : la monnaie du jeu, pour la boutique"><i aria-hidden />{profile.coins.toLocaleString('fr-BE')}<small>pièces</small></span>
+            <span><b>{name}</b><em>{tr('app.niv')} {li.level}</em></span>
+            <span className="h2-coins" title={tr('app.pieces_la_monnaie_du_jeu_pour_la')}><i aria-hidden />{profile.coins.toLocaleString(loc())}<small>{tr('app.pieces_2')}</small></span>
           </span>
         </button>
-        {!STANDALONE && !pa.isAccount && <button className="h2-login" onClick={props.onLogin}>Connexion</button>}
+        {!STANDALONE && !pa.isAccount && <button className="h2-login" onClick={props.onLogin}>{tr('app.connexion')}</button>}
         {acc && <MessagesButton pa={pa} onOpen={props.onMessages} />}
         {acc && <NotifBell count={notifs?.count ?? 0} onOpen={() => { setShowNotifs(true); reload(); }} />}
       </header>
@@ -201,43 +201,43 @@ export function Home(props: HomeProps) {
         {/* Vitrine 3D : le bac du joueur, avec ses dés (on peut lancer) */}
         <section className="h2-hero mm-hero">
           <HeroTray pa={pa} settings={props.settings} />
-          <h1 className="mm-brand"><span className="plaque" aria-hidden>421</span><span aria-hidden>online</span><span className="sr-only">421 en ligne : jeux de dés et de cartes multijoueurs gratuits</span></h1>
-          {titleLabel(profile.title) && <span className="h2-title-chip">{titleLabel(profile.title)}</span>}
+          <h1 className="mm-brand"><span className="plaque" aria-hidden>421</span><span aria-hidden>online</span><span className="sr-only">{tr('app.421_en_ligne_jeux_de_des_et')}</span></h1>
+          {titleL(profile.title) && <span className="h2-title-chip">{titleL(profile.title)}</span>}
           {!STANDALONE && <div className="h2-news"><NewsTicker /></div>}
         </section>
 
-        <nav className="mm-modes" aria-label="Les jeux">
-          <ModeCard tone="classique" title="421 classique" onClick={props.onClassic} {...classic}
+        <nav className="mm-modes" aria-label={tr('app.les_jeux')}>
+          <ModeCard tone="classique" title={tr('app.421_classique')} onClick={props.onClassic} {...classic}
             art={<span className="mm-plate">421</span>} />
           <ModeCard tone="cartes" title="Coups Fourrés" onClick={props.onCards} {...cardsSt}
             art={<span className="mm-fan"><i className="h" /><i className="v" /><i className="p" /></span>} />
-          <ModeCard tone="dixmille" title="Le Courtisan" onClick={props.onDixMille} {...courtSt}
+          <ModeCard tone="dixmille" title={tr('app.le_courtisan')} onClick={props.onDixMille} {...courtSt}
             art={<span className="mm-dice"><DieCube id={profile.equipped.dice} size={30} /></span>} />
         </nav>
 
         {/* Sacs de dés et collection : bien en vue (communs aux trois jeux). */}
-        {!STANDALONE && <section className="mm-coll" aria-label="Sacs de dés et collection">
+        {!STANDALONE && <section className="mm-coll" aria-label={tr('app.sacs_de_des_et_collection')}>
           <button className={`mm-bags${bags > 0 ? ' on' : ''}`} onClick={() => props.onCollection(bags > 0)}>
             <span className="mm-bags-art" aria-hidden><BagIcon size={46} />{bags > 0 && <em className="mm-bags-n">{bags > 99 ? '99+' : bags}</em>}</span>
             <span className="mm-coll-text">
-              <b>Sacs de dés</b>
-              <small className={bags > 0 ? 'mm-hot' : ''}>{bags > 0 ? (acc ? `${bags} à ouvrir ›` : `${bags} gardé${bags > 1 ? 's' : ''} ›`) : 'À gagner en jouant'}</small>
+              <b>{tr('app.sacs_de_des')}</b>
+              <small className={bags > 0 ? 'mm-hot' : ''}>{bags > 0 ? (acc ? tr('app.a_ouvrir_2', { bags }) : tr(bags > 1 ? 'app.garde.p' : 'app.garde', { bags })) : tr('app.a_gagner_en_jouant')}</small>
             </span>
-            {bags > 0 && <i className="mm-bags-go">{acc ? 'Ouvrir' : 'Voir'}</i>}
+            {bags > 0 && <i className="mm-bags-go">{acc ? tr('app.ouvrir') : tr('app.voir')}</i>}
           </button>
           <button className="mm-dicecoll" onClick={() => props.onCollection()}>
             <span className="mm-dicecoll-art" aria-hidden><DieCube id={lastDie ?? 'dc-dragon'} size={34} spin={!!lastDie} locked={!lastDie} /></span>
             <span className="mm-coll-text">
-              <b>Collection</b>
-              <small>{coll.owned}/{coll.total} dés</small>
+              <b>{tr('app.collection')}</b>
+              <small>{coll.owned}{tr('app.des', { total: coll.total })}</small>
               <span className="tile-bar"><i style={{ width: `${(100 * coll.owned) / Math.max(1, coll.total)}%` }} /></span>
             </span>
           </button>
         </section>}
 
-        <section className="v2-shelf tex-wood mm-shelf" aria-label={ready ? `Récompenses du jour : ${ready} à récupérer` : 'Récompenses du jour'}>
+        <section className="v2-shelf tex-wood mm-shelf" aria-label={ready ? tr('app.recompenses_du_jour_a_recuperer', { ready }) : tr('app.recompenses_du_jour')}>
           {rewards.map((r) => (
-            <button key={r.id} className={`v2-rw${r.hot ? ' on' : ''}`} onClick={r.go} aria-label={`${r.title}${r.hot ? ' : prêt' : ''}`}>
+            <button key={r.id} className={`v2-rw${r.hot ? ' on' : ''}`} onClick={r.go} aria-label={`${r.title}${r.hot ? tr('app.pret') : ''}`}>
               <span className="v2-medal">{r.hot && <Rays />}{r.art}</span>
               {r.badge && <em className="v2-cnt">{r.badge}</em>}
               <b>{r.title}</b>
@@ -251,9 +251,9 @@ export function Home(props: HomeProps) {
       {toast && <div className="h2-toast" role="status">{toast}</div>}
       {burst && <RewardBurst kind={burst.kind} phase={burst.phase} title={burst.title} detail={burst.detail} onClose={closeBurst} />}
       {sheet === 'discord' && discord && <Sheet title="Discord" onClose={() => { setSheet(null); setDiscordMsg(null); }}>{discordMsg && <p className={`discord-msg${discordMsg.ok ? ' ok' : ''}`}>{discordMsg.text}</p>}<DiscordCard pa={pa} state={discord} onAccount={() => { setSheet(null); props.onAccount(); }} /></Sheet>}
-      {sheet === 'coffre' && <Sheet title="Coffre du comptoir" onClose={() => setSheet(null)}><EveningChest pa={pa} /></Sheet>}
-      {sheet === 'cadeau' && <Sheet title="Cadeau du jour" onClose={() => setSheet(null)}><DailyStreak pa={pa} /></Sheet>}
-      {sheet === 'missions' && <Sheet title="Défis du jour" onClose={() => setSheet(null)}><QuestsPanel profile={profile} onClaim={pa.claim} /></Sheet>}
+      {sheet === 'coffre' && <Sheet title={tr('app.coffre_du_comptoir')} onClose={() => setSheet(null)}><EveningChest pa={pa} /></Sheet>}
+      {sheet === 'cadeau' && <Sheet title={tr('app.cadeau_du_jour')} onClose={() => setSheet(null)}><DailyStreak pa={pa} /></Sheet>}
+      {sheet === 'missions' && <Sheet title={tr('app.defis_du_jour')} onClose={() => setSheet(null)}><QuestsPanel profile={profile} onClaim={pa.claim} /></Sheet>}
       {showNotifs && <NotifPanel pa={pa} notifs={notifs} reload={reload} onClose={() => { setShowNotifs(false); reload(); }}
         onPlay={(d) => { setShowNotifs(false); props.onDuelPlay(d); }} onDuels={() => { setShowNotifs(false); props.onDuels(); }} />}
       {showProfile && <ProfileView pa={pa} displayName={props.displayName} avatar={props.avatar} onClose={() => setShowProfile(false)} />}

@@ -1,8 +1,9 @@
+import { ofMonthL } from '../i18n/data';
+import { tr } from '../i18n/lang';
 import { useEffect, useState, type CSSProperties } from 'react';
 import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
 import { getItem } from '../../../shared/progress/catalog';
-import { ofMonth } from '../../../shared/progress/profile';
 import type { Division } from '../../../shared/season';
 import { DieCube } from './DiceCollection';
 
@@ -19,7 +20,7 @@ export function SeasonView({ pa, onOpen }: { pa: ProfileApi; onOpen: (username: 
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => { api<Season>('/season', { token: pa.token }).then(setS).catch((e) => setErr(e.message)); }, [pa.token]);
   if (err) return <p className="error">{err}</p>;
-  if (!s) return <p className="muted">Chargement…</p>;
+  if (!s) return <p className="muted">{tr('app.chargement')}</p>;
   const days = Math.max(0, Math.ceil((Date.parse(`${s.endsOn}T00:00:00+01:00`) - Date.now()) / 86400_000));
   const pts = s.me?.points ?? 0;
   const di = s.divisions.findIndex((d) => d.id === (s.me?.division ?? 'comptoir'));
@@ -30,9 +31,9 @@ export function SeasonView({ pa, onOpen }: { pa: ProfileApi; onOpen: (username: 
       <section className="season-card" style={{ '--dc': DIV_COLOR[cur.id] } as CSSProperties}>
         <div className="season-top">
           <div>
-            <small className="muted">Saison {ofMonth(s.season)}, encore {days} jour{days > 1 ? 's' : ''}</small>
+            <small className="muted">{tr('app.saison')} {ofMonthL(s.season)}{tr(days > 1 ? 'app.encore_jour.p' : 'app.encore_jour', { days })}</small>
             <b className="season-div">{cur.name}</b>
-            <span>{pts} points{s.me?.rank ? `, ${s.me.rank}e` : ''}{s.me ? ` · ${s.me.wins} victoire${s.me.wins > 1 ? 's' : ''} en ${s.me.games} partie${s.me.games > 1 ? 's' : ''}` : ''}</span>
+            <span>{pts} {tr('app.points')}{s.me?.rank ? `, ${tr('app.m_ord', { n: s.me.rank })}` : ''}{s.me ? ` · ${tr(s.me.wins > 1 ? 'app.m_wins.p' : 'app.m_wins', { wins: s.me.wins })} ${tr('app.m_in')} ${tr(s.me.games > 1 ? 'app.m_games.p' : 'app.m_games', { games: s.me.games })}` : ''}</span>
           </div>
           <figure className="season-die">
             <DieCube id={s.die} size={64} spin />
@@ -40,37 +41,37 @@ export function SeasonView({ pa, onOpen }: { pa: ProfileApi; onOpen: (username: 
           </figure>
         </div>
         {next && (
-          <div className="season-bar" aria-label={`${pts} points sur ${next.min} pour ${next.name}`}>
+          <div className="season-bar" aria-label={tr('app.points_sur_pour', { pts, min: next.min, name: next.name })}>
             <i style={{ width: `${Math.min(100, (100 * (pts - cur.min)) / (next.min - cur.min))}%` }} />
-            <span>Encore {next.min - pts} points pour {next.name}</span>
+            <span>{tr('app.encore')} {next.min - pts} {tr('app.points_pour')} {next.name}</span>
           </div>
         )}
-        <p className="muted small">Comptent : les parties en ligne entre au moins deux vrais joueurs (pas les ordinateurs, pas la mort subite). Le premier gagne des points, le dernier en perd. Tout repart à zéro le 1er du mois.</p>
+        <p className="muted small">{tr('app.comptent_les_parties_en_ligne_entre_')}</p>
       </section>
 
-      <h3>Récompenses de fin de saison</h3>
+      <h3>{tr('app.recompenses_de_fin_de_saison')}</h3>
       <ul className="season-rewards">
         {s.divisions.map((d, i) => (
           <li key={d.id} className={i <= di ? 'reached' : ''} style={{ '--dc': DIV_COLOR[d.id] } as CSSProperties}>
-            <b>{d.name}</b><small>{d.min}+ pts</small>
+            <b>{d.name}</b><small>{d.min}{tr('app.pts')}</small>
             <span>
-              {[d.bags ? `${d.bags} sac${d.bags > 1 ? 's' : ''}` : null,
-                i >= s.divisions.findIndex((x) => x.id === s.dieFrom) ? 'le dé de saison' : null,
-                i >= s.divisions.findIndex((x) => x.id === s.titleFrom) ? `le titre « ${d.name} ${ofMonth(s.season)} »` : null].filter(Boolean).join(', ') || 'rien, mais l’honneur'}
+              {[d.bags ? tr(d.bags > 1 ? 'app.sac.p' : 'app.sac', { bags: d.bags }) : null,
+                i >= s.divisions.findIndex((x) => x.id === s.dieFrom) ? tr('app.le_de_de_saison') : null,
+                i >= s.divisions.findIndex((x) => x.id === s.titleFrom) ? tr('app.le_titre', { name: d.name, v: ofMonthL(s.season) }) : null].filter(Boolean).join(', ') || tr('app.rien_mais_l_honneur')}
             </span>
           </li>
         ))}
       </ul>
-      <p className="muted small">Le dé « {getItem(s.die)?.name} » ne pourra plus jamais être obtenu une fois la saison finie.</p>
+      <p className="muted small">{tr('app.le_de_ne_pourra_plus_jamais_etre', { name: getItem(s.die)?.name })}</p>
 
-      <h3>Meilleurs joueurs de la saison</h3>
+      <h3>{tr('app.meilleurs_joueurs_de_la_saison')}</h3>
       <ol className="board">
-        {s.top.length === 0 && <li className="muted">Personne encore : jouez une partie en ligne contre de vrais joueurs !</li>}
+        {s.top.length === 0 && <li className="muted">{tr('app.personne_encore_jouez_une_partie_en__2')}</li>}
         {s.top.map((r) => (
           <li key={r.username} className={`${r.username === pa.session?.username ? 'me ' : ''}clickable`} onClick={() => onOpen(r.username)}>
             <span className="b-rank">{r.rank}</span>
             <span className="b-name">{r.username}<small style={{ color: DIV_COLOR[r.division] }}>{nameOf(r.division)}</small></span>
-            <span className="b-wins"><b>{r.points}</b> <small>pts</small></span>
+            <span className="b-wins"><b>{r.points}</b> <small>{tr('app.pts_2')}</small></span>
           </li>
         ))}
       </ol>

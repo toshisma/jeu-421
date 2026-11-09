@@ -9,16 +9,17 @@ import type { ProfileApi } from '../account/useProfile';
 import type { ProgrammeView } from '../../../shared/scheduled';
 import type { CfState } from '../../../shared/cards/progress';
 import { STANDALONE } from './Screens';
+import { tr } from '../i18n/lang';
 
 /** Prochain tournoi programmé (11 h et 21 h, heure de Bruxelles) : heure affichée et minutes restantes. */
 export function nextTournamentSlot(now = Date.now()): { label: string; minutes: number } {
   const parts = new Intl.DateTimeFormat('fr-BE', { timeZone: 'Europe/Brussels', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(now));
   const h = Number(parts.find((p) => p.type === 'hour')?.value ?? 0), m = Number(parts.find((p) => p.type === 'minute')?.value ?? 0);
   const cur = h * 60 + m;
-  for (const slot of [11 * 60, 21 * 60]) if (cur < slot + 5) return { label: `${slot / 60} h`, minutes: slot - cur };
-  return { label: '11 h', minutes: 24 * 60 - cur + 11 * 60 };
+  for (const slot of [11 * 60, 21 * 60]) if (cur < slot + 5) return { label: tr('app.m_hour', { h: slot / 60 }), minutes: slot - cur };
+  return { label: tr('app.m_hour', { h: 11 }), minutes: 24 * 60 - cur + 11 * 60 };
 }
-export const inTime = (min: number) => (min <= 0 ? 'salon ouvert !' : min < 60 ? `dans ${min} min` : `dans ${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`);
+export const inTime = (min: number) => (min <= 0 ? tr('app.m_open') : min < 60 ? tr('app.m_in_min', { n: min }) : tr('app.m_in_h', { h: Math.floor(min / 60), m: String(min % 60).padStart(2, '0') }));
 
 /** Prochain tournoi programmé vu par le serveur (sinon l'horaire calculé ici). */
 export function tournamentInfo(prog: ProgrammeView | null, now: number) {
@@ -26,7 +27,7 @@ export function tournamentInfo(prog: ProgrammeView | null, now: number) {
   const slot = nextTournamentSlot(now);
   return {
     sv, open: sv?.status === 'salon', registered: !!sv?.registered,
-    label: sv ? `${sv.hour} h` : slot.label,
+    label: sv ? tr('app.m_hour', { h: sv.hour }) : slot.label,
     minutes: sv ? Math.ceil((sv.startsAt - now) / 60000) : slot.minutes,
     count: sv?.count ?? null,
   };

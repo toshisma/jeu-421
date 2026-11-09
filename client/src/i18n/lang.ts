@@ -3,8 +3,9 @@
  * Choix enregistré du joueur (Réglages, sélecteur du Courtisan) > `?lang=` > navigateur (si AUTO_LANG) > français.
  */
 import { useSyncExternalStore } from 'react';
-import { isLang, numberIn, resolveLang, translate, type Lang, type MessageKey } from '../../../shared/i18n';
+import { LANG_LOCALE, isLang, numberIn, resolveLang, translate, type Lang, type MessageKey } from '../../../shared/i18n';
 import { translateServerText } from '../../../shared/i18n/server-texts';
+import { applyDataLang } from './data';
 
 export type { Lang };
 const KEY = '421.lang';
@@ -17,6 +18,7 @@ const param = hasWindow ? langParam(location.search) : null;
 
 let current: Lang = resolveLang({ saved: hasWindow ? readSaved() : null, param, browser: hasWindow ? navigator.language : '' });
 const listeners = new Set<() => void>();
+applyDataLang(current);
 if (hasWindow) document.documentElement.lang = current;
 
 /** Langue en cours (hors React : messages, confirmations). */
@@ -25,7 +27,7 @@ export const getLang = (): Lang => current;
 export function setLang(l: Lang) {
   try { localStorage.setItem(KEY, l); } catch { /* */ }
   if (hasWindow) document.documentElement.lang = l;
-  if (l !== current) { current = l; listeners.forEach((f) => f()); }
+  if (l !== current) { current = l; applyDataLang(l); listeners.forEach((f) => f()); }
 }
 
 /** Pour un composant React : il se réaffiche quand la langue change. */
@@ -37,8 +39,10 @@ export function useLang(): Lang {
 export const keptLangSearch = (): string => (param ? `?lang=${param}` : '');
 
 /** Texte d'une clé dans la langue en cours ; `{x}` remplacés. */
-export const tr = (key: MessageKey, vars?: Record<string, string | number>): string => translate(current, key, vars);
+export const tr = (key: MessageKey, vars?: Record<string, string | number | null | undefined>): string => translate(current, key, vars as Record<string, string | number> | undefined);
 /** Message du serveur (toujours en français à l'origine) dans la langue en cours. */
 export const trServer = (text: string): string => translateServerText(current, text);
 /** Nombre selon la langue. */
 export const fmtNum = (n: number) => numberIn(current, n);
+/** Locale de la langue en cours (nombres et dates). */
+export const loc = () => LANG_LOCALE[current];

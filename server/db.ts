@@ -217,6 +217,7 @@ export class Store {
       try { this.db.exec(`ALTER TABLE users ADD COLUMN ${col}`); } catch { /* déjà présente */ }
     }
     try { this.db.exec('ALTER TABLE solo_tokens ADD COLUMN boss TEXT'); } catch { /* déjà présente */ }
+    try { this.db.exec('ALTER TABLE push_subs ADD COLUMN lang TEXT'); } catch { /* déjà présente */ }
     // Demandes d'amis : dernier envoi et dernier refus, par expéditeur et destinataire (voir server/social.ts).
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS friend_request_limits (
@@ -537,11 +538,12 @@ export class Store {
   duelsOpenBefore(t: number) { return this.db.prepare(`SELECT * FROM duels WHERE status = 'ouvert' AND created_at < ?`).all(t) as unknown as DuelRow[]; }
 
   // --- Notifications push ---
-  pushAdd(userId: string, endpoint: string, p256dh: string, auth: string) {
-    this.db.prepare('INSERT OR REPLACE INTO push_subs (endpoint, user_id, p256dh, auth, created_at) VALUES (?, ?, ?, ?, ?)').run(endpoint, userId, p256dh, auth, Date.now());
+  pushAdd(userId: string, endpoint: string, p256dh: string, auth: string, lang: string | null = null) {
+    this.db.prepare('INSERT OR REPLACE INTO push_subs (endpoint, user_id, p256dh, auth, created_at, lang) VALUES (?, ?, ?, ?, ?, ?)').run(endpoint, userId, p256dh, auth, Date.now(), lang);
   }
+  pushSetLang(endpoint: string, userId: string, lang: string) { this.db.prepare('UPDATE push_subs SET lang = ? WHERE endpoint = ? AND user_id = ?').run(lang, endpoint, userId); }
   pushRemove(endpoint: string) { this.db.prepare('DELETE FROM push_subs WHERE endpoint = ?').run(endpoint); }
-  pushOf(userId: string) { return this.db.prepare('SELECT endpoint, p256dh, auth FROM push_subs WHERE user_id = ?').all(userId) as unknown as { endpoint: string; p256dh: string; auth: string }[]; }
+  pushOf(userId: string) { return this.db.prepare('SELECT endpoint, p256dh, auth, lang FROM push_subs WHERE user_id = ?').all(userId) as unknown as { endpoint: string; p256dh: string; auth: string; lang: string | null }[]; }
   pushUsers(): string[] { return (this.db.prepare('SELECT DISTINCT user_id FROM push_subs').all() as unknown as { user_id: string }[]).map((r) => r.user_id); }
 
   // --- Saisons classées ---

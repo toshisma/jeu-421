@@ -1,3 +1,4 @@
+import { loc, tr } from '../i18n/lang';
 import { useEffect, useState } from 'react';
 import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
@@ -24,14 +25,14 @@ interface AdminStats extends PublicStats {
 }
 
 const REFRESH_MS = 12_000;
-const nf = (n: number) => n.toLocaleString('fr-BE');
+const nf = (n: number) => n.toLocaleString(loc());
 const plural = (n: number, one: string, many: string) => `${nf(n)} ${n > 1 ? many : one}`;
 function duration(sec: number): string {
   const h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60);
   if (h >= 1) return `${nf(h)} h ${m.toString().padStart(2, '0')}`;
-  return `${m} min`;
+  return tr('app.min', { m });
 }
-const dayLabel = (d: string, long = false) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-BE', long ? { weekday: 'long', day: 'numeric', month: 'long' } : { day: 'numeric', month: 'short', timeZone: 'UTC' });
+const dayLabel = (d: string, long = false) => new Date(`${d}T12:00:00Z`).toLocaleDateString(loc(), long ? { weekday: 'long', day: 'numeric', month: 'long' } : { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const dateTime = (t: number) => new Date(t).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).replace(/(\d{1,2}):(\d{2})/, '$1 h $2');
 
 /** Statistiques rafraîchies toutes les 12 secondes, en pause quand l'onglet est caché. */
@@ -57,10 +58,10 @@ export function LiveStrip({ onOpen }: { onOpen: () => void }) {
   const { data } = usePolling<PublicStats>('/stats', null, 15_000);
   if (!data) return null;
   return (
-    <button className="live-strip" onClick={onOpen} aria-label="Voir les statistiques du jeu">
+    <button className="live-strip" onClick={onOpen} aria-label={tr('app.voir_les_statistiques_du_jeu')}>
       <span className="live-dot" aria-hidden />
-      <b>{plural(data.live.online, 'joueur en ligne', 'joueurs en ligne')}</b>
-      <span>{plural(data.live.gamesInProgress, 'partie en cours', 'parties en cours')}</span>
+      <b>{plural(data.live.online, tr('app.joueur_en_ligne'), tr('app.joueurs_en_ligne'))}</b>
+      <span>{plural(data.live.gamesInProgress, tr('app.partie_en_cours_2'), tr('app.parties_en_cours'))}</span>
     </button>
   );
 }
@@ -86,10 +87,10 @@ function DayChart({ days, metric }: { days: PublicStats['days']; metric: 'games'
   return (
     <figure className="day-chart">
       <figcaption>
-        <span><b>{nf(d[metric])}</b> {d[metric] > 1 ? name[1] : name[0]}, {sel === null ? "aujourd'hui" : dayLabel(d.day, true)}</span>
-        <span className="muted">{metric === 'games' ? `${plural(total, 'partie', 'parties')} sur la période` : `${nf(Math.max(...days.map((x) => x.players)))} au plus en un jour`}</span>
+        <span><b>{nf(d[metric])}</b> {d[metric] > 1 ? name[1] : name[0]}, {sel === null ? tr('app.aujourd_hui') : dayLabel(d.day, true)}</span>
+        <span className="muted">{metric === 'games' ? tr('app.sur_la_periode', { v: plural(total, 'partie', 'parties') }) : tr('app.au_plus_en_un_jour', { v: nf(Math.max(...days.map((x) => x.players))) })}</span>
       </figcaption>
-      <svg viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label={`${metric === 'games' ? 'Parties' : 'Joueurs'} par jour sur ${days.length} jours`}
+      <svg viewBox="0 0 100 40" preserveAspectRatio="none" role="img" aria-label={tr('app.par_jour_sur_jours', { v: metric === 'games' ? tr('app.parties') : tr('app.joueurs_2'), n: days.length })}
         onMouseLeave={() => setSel(null)}>
         {[0.5, 1].map((f) => <line key={f} x1="0" x2="100" y1={40 - 38 * f} y2={40 - 38 * f} className="grid" />)}
         {days.map((x, i) => {
@@ -119,39 +120,39 @@ export function StatsScreen({ pa, onBack, onAdmin }: { pa: ProfileApi; onBack: (
   }, [pa.token]);
 
   return (
-    <Shell title="Statistiques" onBack={onBack} icon="stats" wide sub="Chiffres du jeu, mis à jour toutes les 12 s">
-      {!s && !error && <p className="muted">Chargement…</p>}
-      {!s && error && <p className="error">Statistiques indisponibles pour l'instant : {error}</p>}
+    <Shell title={tr('app.statistiques')} onBack={onBack} icon="stats" wide sub={tr('app.chiffres_du_jeu_mis_a_jour_toutes')}>
+      {!s && !error && <p className="muted">{tr('app.chargement')}</p>}
+      {!s && error && <p className="error">{tr('app.statistiques_indisponibles_pour_l_in')} {error}</p>}
       {s && (
         <div className="stats">
           <section className="stats-live" aria-live="polite">
-            <div className="live-head"><span className="live-dot" aria-hidden /> En direct</div>
+            <div className="live-head"><span className="live-dot" aria-hidden /> {tr('app.en_direct')}</div>
             <div className="stat-row big">
-              <Counter value={nf(s.live.online)} label={s.live.online > 1 ? 'joueurs en ligne' : 'joueur en ligne'} hint="Appareils avec le jeu ouvert et reliés au serveur en ce moment" />
-              <Counter value={nf(s.live.gamesInProgress)} label={s.live.gamesInProgress > 1 ? 'parties en cours' : 'partie en cours'} hint="Parties en ligne en cours, et parties solo en cours sur un appareil relié" />
-              <Counter value={nf(s.live.inRooms)} label={s.live.inRooms > 1 ? 'joueurs aux tables' : 'joueur à une table'} hint="Joueurs connectés à une table en ligne (salon ou partie)" />
+              <Counter value={nf(s.live.online)} label={s.live.online > 1 ? tr('app.joueurs_en_ligne') : tr('app.joueur_en_ligne')} hint={tr('app.appareils_avec_le_jeu_ouvert_et_reli')} />
+              <Counter value={nf(s.live.gamesInProgress)} label={s.live.gamesInProgress > 1 ? tr('app.parties_en_cours') : tr('app.partie_en_cours_2')} hint={tr('app.parties_en_ligne_en_cours_et_parties')} />
+              <Counter value={nf(s.live.inRooms)} label={s.live.inRooms > 1 ? 'joueurs aux tables' : tr('app.joueur_a_une_table')} hint={tr('app.joueurs_connectes_a_une_table_en_lig')} />
             </div>
           </section>
 
           <div className="cols">
             <section>
-              <h3>Aujourd'hui <small className="k-count">{dayLabel(s.today.day, true)}</small></h3>
+              <h3>{tr('app.aujourd_hui_2')} <small className="k-count">{dayLabel(s.today.day, true)}</small></h3>
               <div className="stat-row">
-                <Counter value={nf(s.today.games)} label="parties jouées" />
-                <Counter value={nf(s.today.players)} label="joueurs différents" />
+                <Counter value={nf(s.today.games)} label={tr('app.parties_jouees')} />
+                <Counter value={nf(s.today.players)} label={tr('app.joueurs_differents')} />
                 <Counter value={nf(s.today.signups)} label="nouveaux inscrits" />
-                <Counter value={nf(s.today.wins)} label="victoires" hint="Victoires de joueurs (les ordinateurs ne comptent pas)" />
+                <Counter value={nf(s.today.wins)} label="victoires" hint={tr('app.victoires_de_joueurs_les_ordinateurs')} />
               </div>
             </section>
             <section>
-              <h3>Depuis le début</h3>
+              <h3>{tr('app.depuis_le_debut')}</h3>
               <div className="stat-row">
                 <Counter value={nf(s.totals.users)} label="joueurs inscrits" />
-                <Counter value={nf(s.totals.games)} label="parties jouées" />
-                <Counter value={nf(s.totals.multiplayer)} label="parties à plusieurs" hint="Au moins deux joueurs humains" />
-                <Counter value={nf(s.totals.vsAi)} label="parties contre l'ordinateur" />
+                <Counter value={nf(s.totals.games)} label={tr('app.parties_jouees')} />
+                <Counter value={nf(s.totals.multiplayer)} label={tr('app.parties_a_plusieurs')} hint={tr('app.au_moins_deux_joueurs_humains')} />
+                <Counter value={nf(s.totals.vsAi)} label={tr('app.parties_contre_l_ordinateur')} />
                 <Counter value={duration(s.totals.playSeconds)} label="de jeu au total" />
-                <Counter value={nf(s.peak.n)} label="record de joueurs en ligne" hint={s.peak.at ? `Le ${dateTime(s.peak.at)}` : undefined} />
+                <Counter value={nf(s.peak.n)} label={tr('app.record_de_joueurs_en_ligne')} hint={s.peak.at ? tr('app.le', { v: dateTime(s.peak.at) }) : undefined} />
               </div>
             </section>
           </div>
@@ -159,21 +160,19 @@ export function StatsScreen({ pa, onBack, onAdmin }: { pa: ProfileApi; onBack: (
           <section className="stats-chart">
             <div className="chart-tools">
               <div className="seg">
-                <button className={metric === 'games' ? 'on' : ''} onClick={() => setMetric('games')}>Parties</button>
-                <button className={metric === 'players' ? 'on' : ''} onClick={() => setMetric('players')}>Joueurs</button>
+                <button className={metric === 'games' ? 'on' : ''} onClick={() => setMetric('games')}>{tr('app.parties')}</button>
+                <button className={metric === 'players' ? 'on' : ''} onClick={() => setMetric('players')}>{tr('app.joueurs_2')}</button>
               </div>
               <div className="seg">
-                <button className={range === 7 ? 'on' : ''} onClick={() => setRange(7)}>7 jours</button>
-                <button className={range === 30 ? 'on' : ''} onClick={() => setRange(30)}>30 jours</button>
+                <button className={range === 7 ? 'on' : ''} onClick={() => setRange(7)}>{tr('app.7_jours')}</button>
+                <button className={range === 30 ? 'on' : ''} onClick={() => setRange(30)}>{tr('app.30_jours')}</button>
               </div>
             </div>
             <DayChart days={s.days.slice(-range)} metric={metric} />
           </section>
 
           <p className="muted small stats-note">
-            Chiffres calculés par le serveur à partir des parties réellement terminées (solo et en ligne{s.totals.since ? `, depuis le ${dayLabel(s.totals.since, true)}` : ''}).
-            Une partie abandonnée ne compte pas ; les soirées sur un seul téléphone et le mode arbitre ne passent pas par le serveur et ne sont pas comptés.
-            Jours à l'heure de Bruxelles. Aucune donnée personnelle n'est affichée.
+            {tr('app.chiffres_calcules_par_le_serveur_a_p')}{s.totals.since ? tr('app.depuis_le_2', { v: dayLabel(s.totals.since, true) }) : ''}{tr('app.une_partie_abandonnee_ne_compte_pas_')}
           </p>
           {admin && <button className="btn secondary" onClick={onAdmin}><Icon name="settings" size={18} /> Tableau de bord (administration)</button>}
         </div>

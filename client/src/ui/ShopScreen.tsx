@@ -1,3 +1,5 @@
+import { shortDateL } from '../i18n/data';
+import { loc, tr } from '../i18n/lang';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Icon } from './Icon';
 import {
@@ -11,7 +13,7 @@ import { DieCube } from './DiceCollection';
 import { useThumb, useThumbHost } from '../three/shopThumbs';
 import { ProfileChip } from './Screens';
 import { Avatar } from './Avatar';
-import { activeEvent, eventEnd, shortDate } from '../../../shared/progress/events';
+import { activeEvent, eventEnd } from '../../../shared/progress/events';
 import { today } from '../../../shared/progress/quests';
 
 const CATS: Category[] = ['decor', 'felt', 'rim', 'shape', 'dice', 'accessoire'];
@@ -103,7 +105,7 @@ export function ShopScreen({ profile, settings, onBuy, onEquip, onBack }: Props)
     setBusy(false);
     if (err) { setMsg(err); return; }
     sound.chips(4);
-    setMsg(`${item.name} acheté et installé !`);
+    setMsg(tr('app.achete_et_installe', { name: item.name }));
   };
   const doEquip = async () => {
     sound.unlock();
@@ -112,7 +114,7 @@ export function ShopScreen({ profile, settings, onBuy, onEquip, onBack }: Props)
     setBusy(false);
     if (err) { setMsg(err); return; }
     sound.click();
-    setMsg(`${item.name} installé.`);
+    setMsg(tr('app.installe', { name: item.name }));
   };
   const tryRoll = async () => {
     if (rolling) return;
@@ -125,18 +127,18 @@ export function ShopScreen({ profile, settings, onBuy, onEquip, onBack }: Props)
 
   useThumbHost();
   const items = itemsOf(cat).filter(visible);
-  const action = equipped ? <button className="btn shop-buy" disabled>✓ Installé</button>
-    : owned ? <button className="btn primary shop-buy" disabled={busy} onClick={doEquip}>Installer</button>
-      : check.ok ? <button className="btn shop-buy shop-buy-gold" disabled={busy} onClick={doBuy}>{item.price === 0 ? 'Prendre' : `Acheter · ${item.price.toLocaleString('fr-BE')}`}</button>
+  const action = equipped ? <button className="btn shop-buy" disabled>{tr('app.installe_2')}</button>
+    : owned ? <button className="btn primary shop-buy" disabled={busy} onClick={doEquip}>{tr('app.installer')}</button>
+      : check.ok ? <button className="btn shop-buy shop-buy-gold" disabled={busy} onClick={doBuy}>{item.price === 0 ? tr('app.prendre') : tr('app.acheter', { v: item.price.toLocaleString(loc()) })}</button>
         : <button className="btn shop-buy" disabled>
-          {check.reason === 'level' ? `Niveau ${item.level} requis` : check.reason === 'pass' ? 'Se gagne avec le pass' : check.reason === 'event' ? 'Événement terminé' : `Il manque ${item.price - profile.coins} pièces`}
+          {check.reason === 'level' ? tr('app.niveau_requis', { level: item.level }) : check.reason === 'pass' ? tr('app.se_gagne_avec_le_pass') : check.reason === 'event' ? tr('app.evenement_termine') : tr('app.il_manque_pieces', { v: item.price - profile.coins })}
         </button>;
 
   return (
     <div className="shop shop-v2">
       <header className="shop-head">
-        <button className="icon-btn" onClick={onBack} aria-label="Retour"><Icon name="back" /></button>
-        <h2>Boutique</h2>
+        <button className="icon-btn" onClick={onBack} aria-label={tr('app.retour')}><Icon name="back" /></button>
+        <h2>{tr('app.boutique')}</h2>
         <ProfileChip profile={profile} />
       </header>
 
@@ -146,11 +148,11 @@ export function ShopScreen({ profile, settings, onBuy, onEquip, onBack }: Props)
           {cat === 'accessoire' && (
             <div className="acc-preview"><Avatar emoji={settings.avatar} size={120} accessory={item.category === 'accessoire' ? item.emoji : undefined} /></div>
           )}
-          <span className="shop-hero-tag">Aperçu</span>
-          {cat !== 'accessoire' && <button className="shop-hero-roll" disabled={rolling} onClick={tryRoll}><Icon name="dice" size={18} /> Lancer</button>}
+          <span className="shop-hero-tag">{tr('app.apercu')}</span>
+          {cat !== 'accessoire' && <button className="shop-hero-roll" disabled={rolling} onClick={tryRoll}><Icon name="dice" size={18} /> {tr('app.lancer')}</button>}
         </section>
 
-        <nav className="shop-tabs" aria-label="Catégories">
+        <nav className="shop-tabs" aria-label={tr('app.categories')}>
           {CATS.map((c) => <button key={c} className={c === cat ? 'on' : ''} aria-pressed={c === cat} onClick={(e) => { setCat(c); e.currentTarget.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); }}>{CATEGORY_LABELS[c]}</button>)}
         </nav>
 
@@ -159,20 +161,20 @@ export function ShopScreen({ profile, settings, onBuy, onEquip, onBack }: Props)
             const own = profile.owned.includes(it.id);
             const eq = profile.equipped[cat] === it.id;
             const locked = !own && level < it.level;
-            const tag = it.event && !own ? `Jusqu'au ${shortDate(eventEnd(event!, day))}` : it.pass ? 'Pass de saison' : '';
+            const tag = it.event && !own ? tr('app.jusqu_au_2', { v: shortDateL(eventEnd(event!, day)) }) : it.pass ? tr('app.pass_de_saison') : '';
             return (
               <button key={it.id} className={`shop-card${it.id === selected ? ' sel' : ''}${locked ? ' locked' : ''}`} onClick={() => { setSelected(it.id); setMsg(null); }}>
                 <Thumb item={it} base={profile.equipped} />
                 <b className="shop-card-name">{it.name}</b>
                 <span className={`shop-card-state${eq ? ' eq' : own ? ' own' : locked ? ' lock' : ' price'}`}>
                   {locked && <Icon name="lock" size={13} />}
-                  {eq ? 'Installé' : own ? 'Possédé' : locked ? `Niveau ${it.level}` : it.price === 0 ? 'Gratuit' : `${it.price.toLocaleString('fr-BE')} pièces`}
+                  {eq ? tr('app.installe_3') : own ? tr('app.possede') : locked ? tr('app.niveau_4', { level: it.level }) : it.price === 0 ? tr('app.gratuit') : tr('app.pieces_6', { v: it.price.toLocaleString(loc()) })}
                 </span>
                 {tag && <span className="shop-card-tag">{tag}</span>}
               </button>
             );
           })}
-          <p className="shop-fine">Les pièces sont la monnaie de tout le jeu : elles se gagnent en jouant aux trois jeux (421 classique, Coups Fourrés, Le Courtisan), avec le cadeau du jour, le coffre et les défis. Elles ne s'achètent pas et ne servent qu'aux objets de la boutique.</p>
+          <p className="shop-fine">{tr('app.les_pieces_sont_la_monnaie_de_tout')}</p>
         </div>
 
         <footer className="shop-foot">

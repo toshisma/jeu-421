@@ -3,6 +3,7 @@
  * Adresse de contact et adresse postale de l'éditeur : obligatoires pour un site accessible
  * au public en Belgique.
  */
+import { tr } from './i18n/lang';
 export const LEGAL = {
   owner: 'Sam Renson',
   /** Adresse e-mail de contact (droits RGPD, signalements). */
@@ -17,7 +18,7 @@ export const LEGAL = {
 /** Lien « Signaler un problème » : un e-mail prérempli avec les informations utiles. */
 export function reportUrl(): string {
   const body = [
-    'Décrivez le problème (ce que vous faisiez, ce qui s’est passé) :',
+    tr('app.decrivez_le_probleme_ce_que_vous_fai'),
     '',
     '',
     '---',
