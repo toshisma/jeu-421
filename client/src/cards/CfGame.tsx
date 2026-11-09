@@ -350,7 +350,8 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   useEffect(() => { if (!mine) setJosiane(false); }, [mine]);
   useEffect(() => { if (mine && ((decision === 'turn' && meP?.r.throwsUsed === 0) || decision === 'respond' || decision === 'lastword')) sound.turn(); }, [mine, decision]); // eslint-disable-line react-hooks/exhaustive-deps
   // L'écran a fini d'animer : le minuteur de la décision peut partir.
-  useEffect(() => { if (!animating && snap && snap.legal.length) controller.ready?.(); }, [animating, snap, controller]);
+  // Pendant la visite guidée (bulles du parcours), le minuteur reste arrêté.
+  useEffect(() => { if (!animating && snap && snap.legal.length && tourAt === null) controller.ready?.(); }, [animating, snap, controller, tourAt]);
   // La fiche d'une carte de la main se ferme si la carte n'y est plus.
   useEffect(() => { if (fiche?.uid && !fiche.owner && !fiche.trapUid && !meP?.hand?.some((k) => k.uid === fiche.uid)) setFiche(null); }, [meP, fiche]);
 
@@ -469,7 +470,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       if (round !== v.round) break;
       if (!ev.player || !ACTS.includes(ev.kind) || (id ? ev.player !== id : ev.player === me)) continue;
       const n = nameIn(v, ev.player);
-      return { who: ev.player, text: ev.text.startsWith(n) ? ev.text.slice(n.length).trim().replace(/\.$/, '') : ev.text.replace(/\.$/, '') };
+      return { who: ev.player, text: (ev.text.startsWith(n) ? ev.text.slice(n.length).trim() : ev.text).replace(/\.$/, '').replace(/ sur Vous\b/, ' sur vous') };
     }
     return null;
   };

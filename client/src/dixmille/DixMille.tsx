@@ -1103,7 +1103,7 @@ const HELP_PAGES = [
 const helpUrl = (path: string) => (NO_SERVER || !/^https?:$/.test(location.protocol) ? `https://421online.com${path}` : path);
 
 const GR_REASON: Record<string, string> = { cadeau: 'Cadeau du jour', mise: 'Mise', gain: 'Pot emporté', remboursement: 'Mise rendue', admin: 'Ajustement' };
-const fmtWhen = (t: number) => new Intl.DateTimeFormat('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(t));
+const fmtWhen = (t: number) => new Intl.DateTimeFormat('fr-BE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(t)).replace(/(\d{1,2}):(\d{2})/, '$1 h $2');
 
 function DmMenu({ pa, groschen, onHome, onAccount, onRules, onSetup, onOnline, onCollection }: {
   pa: ProfileApi; groschen: ReturnType<typeof useGroschen>;

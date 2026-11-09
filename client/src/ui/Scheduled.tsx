@@ -29,7 +29,7 @@ export function useServerNow(serverNow: number | undefined, ms = 1000) {
   return now;
 }
 
-/** « aujourd'hui à 21h00 », « demain à 11h00 ». */
+/** « 21 h », « demain 11 h ». */
 function whenLabel(s: SlotView, now: number) {
   const d = brusselsDay(s.startsAt), today = brusselsDay(now);
   const tomorrow = brusselsDay(now + 86400_000);
@@ -130,7 +130,7 @@ export function ScheduledCard({ pa, onJoin, onAccount, compact }: {
     <section className={`sched-card${compact ? ' compact' : ''}`} aria-live="polite">
       <header>
         <Icon name="trophy" />
-        <span><b>Tournois de 11h et 21h</b><small>Rendez-vous quotidien, heure de Bruxelles</small></span>
+        <span><b>Tournois de 11 h et 21 h</b><small>Rendez-vous quotidien, heure de Bruxelles</small></span>
       </header>
       {last && (
         <div className={`sc-last ${last.status}`}>
@@ -155,7 +155,7 @@ export function ScheduledCard({ pa, onJoin, onAccount, compact }: {
         </button>
       )}
       {first && <p className="sc-prize"><BagIcon size="1em" /> {first.count >= SCHED_MIN
-        ? <>À {first.count} joueurs : {bagPrizes(first.count).map((b, i) => `${placeLabel(i)} ${bagsLabel(b)}`).join(', ')}{nextTier(first.count) ? `. Dès ${first.count + nextTier(first.count)!.missing} : ${bagsLabel(nextTier(first.count)!.bags[0])} au 1er` : ''}.</>
+        ? <>À {first.count} joueur{first.count > 1 ? 's' : ''} : {bagPrizes(first.count).map((b, i) => `${placeLabel(i)} ${bagsLabel(b)}`).join(', ')}{nextTier(first.count) ? `. Dès ${first.count + nextTier(first.count)!.missing} : ${bagsLabel(nextTier(first.count)!.bags[0])} au 1er` : ''}.</>
         : <>Gains en sacs de dés : de 1 sac (4 joueurs) à 5 sacs au 1er (16 joueurs).</>}</p>}
       <button className="btn ghost small sc-toggle" aria-expanded={showBag} onClick={() => setShowBag((v) => !v)}>
         {showBag ? 'Masquer' : 'Voir'} les gains et le déroulé
@@ -189,12 +189,12 @@ export function ScheduledLobby({ t, meId }: { t: PublicTournament; meId: string 
       <div className="sl-clock" role="timer" aria-label={`Départ dans ${formatDelay(left)}`}>
         <small>Départ dans</small>
         <b>{formatClock(left)}</b>
-        <small>{left > 0 ? `à ${hourLabel(s.hour).replace('h00', 'h05')}` : 'Départ…'}</small>
+        <small>{left > 0 ? `à ${s.hour} h 05` : 'Départ…'}</small>
       </div>
       <p className="sl-status">
         {n < SCHED_MIN
           ? `${n} joueur${n > 1 ? 's' : ''} dans le salon : il en faut au moins ${SCHED_MIN}, sinon le tournoi est annulé et remboursé.`
-          : `${n} joueurs dans le salon. À gagner : ${bags.map((b, i) => `${placeLabel(i)} ${bagsLabel(b)}`).join(', ')}.`}
+          : `${n} joueur${n > 1 ? 's' : ''} dans le salon. À gagner : ${bags.map((b, i) => `${placeLabel(i)} ${bagsLabel(b)}`).join(', ')}.`}
         {next && n >= SCHED_MIN ? ` Encore ${next.missing} joueur${next.missing > 1 ? 's' : ''} et le 1er gagne ${bagsLabel(next.bags[0])}.` : ''}
       </p>
       {absent > 0 && <p className="muted small">{absent} inscrit{absent > 1 ? 's' : ''} pas encore là. Absent au départ = retiré et remboursé.</p>}

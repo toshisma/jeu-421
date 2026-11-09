@@ -859,7 +859,7 @@ export function createDixMilleOnline(c: Ctx) {
         quickPlan(t);
         if (m.id === t.hostId) setTimeout(() => { if (m.socketId == null && t.hostId === m.id) { transferHost(t, `L’hôte ${m.name} est parti.`); broadcast(t); } }, 15_000);
       } else if (t.game && t.game.phase !== 'fini') {
-        notice(t, `${m.name} s'est déconnecté.`, 'warning');
+        notice(t, `${m.name} a perdu la connexion.`, 'warning');
         if (currentPlayer(t.game).id === m.id || !t.members.some((y) => humanHere(y) && t.players.includes(y.id))) schedule(t, 0);
       }
       broadcast(t);

@@ -141,7 +141,7 @@ export function Home(props: HomeProps) {
       sub: daily.canClaim ? `+${DAILY_REWARDS[daily.cycleDay - 1].coins} pièces` : 'demain', go: () => (daily.canClaim ? void claimDaily() : setSheet('cadeau')) },
     { id: 'coffre', title: 'Coffre', hot: chestLeft === 0, badge: chestLeft === 0 ? '!' : undefined, art: <ChestArt open={chestLeft === 0} size={38} />,
       sub: chestLeft === 0 ? 'Ouvrir' : hLeft(chestLeft), go: () => (chestLeft === 0 ? void openChest() : setSheet('coffre')) },
-    { id: 'missions', title: 'Défis', hot: qReady > 0, badge: qReady ? String(qReady) : undefined, art: <ScrollArt size={34} done={qDone + qReady} total={qDefs.length} />,
+    { id: 'missions', title: 'Défis du jour', hot: qReady > 0, badge: qReady ? String(qReady) : undefined, art: <ScrollArt size={34} done={qDone + qReady} total={qDefs.length} />,
       sub: qReady ? 'à récupérer' : `${qDone}/${qDefs.length} faits`, go: () => setSheet('missions') },
     { id: 'pass', title: 'Pass', hot: passReady > 0, badge: passReady ? String(passReady) : undefined, art: <TicketArt size={38} label={pass.tier} />,
       sub: `Palier ${pass.tier}`, go: props.onPass },

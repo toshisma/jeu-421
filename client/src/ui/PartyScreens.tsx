@@ -173,7 +173,7 @@ export function RefereeScreen({ names, config, onExit }: { names: string[]; conf
               {ranked.map((p) => (
                 <li key={p.id} className={p.id === pid ? 'me' : ''}>
                   <span className="nm">{p.name}{p.out ? ' (sorti)' : ''}</span>
-                  <span className="sc">{points ? `${p.score} pts` : `${p.tokens} jeton${p.tokens > 1 ? 's' : ''}`}</span>
+                  <span className="sc">{points ? `${p.score} pt${p.score > 1 ? 's' : ''}` : `${p.tokens} jeton${p.tokens > 1 ? 's' : ''}`}</span>
                 </li>
               ))}
             </ol>

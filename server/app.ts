@@ -1823,7 +1823,7 @@ export async function startServer(opts: ServerOptions) {
       m.socketId = null;
       m.disconnectedAt = Date.now();
       r.lastActivity = Date.now();
-      notice(r, `${m.name} s'est déconnecté.`, 'warning');
+      notice(r, `${m.name} a perdu la connexion.`, 'warning');
       if (r.status === 'playing' && r.game && currentPlayerId(r.game) === m.id) scheduleTurn(r);
       if (r.status === 'lobby') quickPlan(r);
       if (m.id === r.hostId && !r.tournament) {

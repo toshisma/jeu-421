@@ -11,7 +11,7 @@ import { askConfirm } from './confirm';
 import { Shell } from './kit';
 
 const when = (t: number | null | undefined) => (t ? new Date(t).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–');
-const hour = (t: number) => new Date(t).toLocaleTimeString('fr-BE', { timeZone: 'Europe/Brussels', hour: '2-digit', minute: '2-digit' });
+const hour = (t: number) => new Date(t).toLocaleTimeString('fr-BE', { timeZone: 'Europe/Brussels', hour: '2-digit', minute: '2-digit' }).replace(/(\d{1,2}):(\d{2})/, '$1 h $2');
 
 interface Frozen { author: string; text: string; at: number }
 export interface ModReport {

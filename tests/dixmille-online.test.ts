@@ -145,7 +145,7 @@ describe('Le Courtisan en ligne', () => {
     await until(() => !!b.state);
     // B se déconnecte : le serveur finit par jouer pour lui.
     b.s.close();
-    await until(() => a.notices.some((n) => /déconnecté/.test(n)));
+    await until(() => a.notices.some((n) => /perdu la connexion/.test(n)));
     const start = a.version;
     // A joue ses tours ; ceux de B sont joués par le serveur.
     for (let i = 0; i < 40 && !a.notices.some((n) => /ne répond pas/.test(n)); i++) {

@@ -63,6 +63,8 @@ export interface CfOnlineOptions {
   presenceMs?: number;
   /** Délai avant que le serveur joue pour un joueur parti (partie à 3-4). */
   autoplayMs?: number;
+  /** Délai maximal laissé à l'écran pour finir d'animer avant de lancer les 30 s (0 dans les tests). */
+  animGraceMs?: number;
 }
 
 interface Ctx {
@@ -206,6 +208,8 @@ export function createCfOnline(c: Ctx) {
   const CHALLENGE = o.challengeMs ?? 120_000;
   const PRESENCE = o.presenceMs ?? 90_000;
   const AUTOPLAY = o.autoplayMs ?? 800;
+  /** Temps laissé à l'écran pour finir ses animations avant que les 30 s partent (si l'écran ne dit rien avant). */
+  const ANIM_GRACE = o.animGraceMs ?? (o.decisionMs !== undefined ? 0 : 20_000);
   const ns: Namespace = io.of('/cf');
 
   const games = new Map<string, Game>();
@@ -344,7 +348,8 @@ export function createCfOnline(c: Ctx) {
         g.autoTimer ??= setTimeout(() => { g.autoTimer = null; autoPlay(g); }, AUTOPLAY);
         continue;
       }
-      if (!g.since.has(pid)) g.since.set(pid, now());
+      // Le minuteur commence quand l'écran du joueur a fini d'animer (cf:ready), au plus tard après ANIM_GRACE.
+      if (!g.since.has(pid)) g.since.set(pid, now() + ANIM_GRACE);
       if (!g.timers.has(pid)) {
         const left = g.since.get(pid)! + DECISION + seat.reserveMs - now();
         g.timers.set(pid, setTimeout(() => timeout(g, pid), Math.max(0, left)));
@@ -408,6 +413,11 @@ export function createCfOnline(c: Ctx) {
     }
   }
 
+  const helloFor = (userId: string): CfHelloMsg => {
+    const g = liveGameOf(userId) ?? rejoinableOf(userId);
+    return { game: g ? { id: g.id, mode: g.mode, ranked: g.ranked } : null, table: tableOf(userId)?.code ?? null, queue: queue.has(userId), challenges: challengesFor(userId) };
+  };
+
   /** Fin de partie : classement, gains (enregistrés par cards.recordCfGame), minuteurs arrêtés. */
   function finishGame(g: Game, standings: string[], abandonSeat: string | null) {
     if (g.ended) return;
@@ -431,6 +441,8 @@ export function createCfOnline(c: Ctx) {
     }
     for (const r of rewards) g.rewards.set(r.userId, r);
     recordStats(g, standings, abandonSeat);
+    // Le menu ne doit plus proposer de reprendre cette partie (joueurs partis d'une table à 3-4 compris).
+    for (const sk of ns.sockets.values()) if (g.seats.some((x) => x.userId === sk.data.cfUserId)) sk.emit('cf:hello', helloFor(sk.data.cfUserId as string));
     const end: CfGameEnd = { id: g.id, mode: g.mode, winner: user(standings[0]), losers: standings.slice(1).map(user), abandon: abandonSeat ? user(abandonSeat) : null };
     for (const cb of endSubs) { try { cb(end); } catch (e) { console.warn('[cf] fin de partie', e); } }
     // Les parties finies restent un moment (dernier écran, reprise), puis sont effacées.
@@ -628,11 +640,8 @@ export function createCfOnline(c: Ctx) {
     };
 
     // Ce que le serveur sait déjà (reprise après rechargement de la page).
-    {
-      const g = liveGameOf(userId) ?? rejoinableOf(userId);
-      const hello: CfHelloMsg = { game: g ? { id: g.id, mode: g.mode, ranked: g.ranked } : null, table: tableOf(userId)?.code ?? null, queue: queue.has(userId), challenges: challengesFor(userId) };
-      socket.emit('cf:hello', hello);
-    }
+    socket.data.cfUserId = userId;
+    socket.emit('cf:hello', helloFor(userId));
 
     socket.on('cf:presence', (p: { in?: boolean } | undefined, a: unknown) => {
       if (p?.in === false) menu.delete(userId);
@@ -823,6 +832,19 @@ export function createCfOnline(c: Ctx) {
       if (err) return fail(a, err);
       ack(a)({ ok: true });
     });
+    // L'écran a fini ses animations et montre la décision : les 30 s partent maintenant.
+    socket.on('cf:ready', (p: { id?: unknown } | undefined, a: unknown) => {
+      ack(a)({ ok: true });
+      const x = myGame(p?.id);
+      if (!x || x.g.ended || x.seat.left) return;
+      const since = x.g.since.get(x.seat.id);
+      if (since === undefined || since <= now() || !waitingFor(x.g.state).includes(x.seat.id)) return;
+      x.g.since.set(x.seat.id, now());
+      const t = x.g.timers.get(x.seat.id);
+      if (t) clearTimeout(t);
+      x.g.timers.set(x.seat.id, setTimeout(() => timeout(x.g, x.seat.id), DECISION + x.seat.reserveMs));
+      publish(x.g, []);
+    });
     socket.on('cf:leave', (p: { id?: unknown } | undefined, a: unknown) => {
       const x = myGame(p?.id);
       if (x && !x.g.ended && !x.seat.left) abandon(x.g, x.seat, `${x.seat.name} abandonne la partie.`);
@@ -917,7 +939,7 @@ export function createCfOnline(c: Ctx) {
         seat.socketId = null;
         if (g.ended || seat.left) continue;
         seat.awayAt = now();
-        notice(g, `${seat.name} s’est déconnecté : ${Math.round(AWAY / 1000)} s pour revenir.`);
+        notice(g, `${seat.name} a perdu la connexion : ${Math.round(AWAY / 1000)} s pour revenir.`);
         seat.awayTimer = setTimeout(() => awayExpired(g, seat), AWAY);
         publish(g, []);
       }

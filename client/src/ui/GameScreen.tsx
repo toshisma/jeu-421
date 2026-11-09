@@ -482,6 +482,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
     : s.phase === 'charge' ? `Charge, ${s.pot} jeton${s.pot > 1 ? 's' : ''} au pot`
       : s.phase === 'decharge' ? 'Décharge'
         : s.phase === 'manche' ? `Manche ${s.round}/${s.config.rounds}` : 'Partie terminée';
+  const phaseShort = s?.phase === 'charge' && !s.isRolloff ? `Charge · ${s.pot}` : phaseLabel;
   const currentCombo = s && s.throwsUsed > 0 ? evaluate(s.dice, s.config.values) : null;
   // Ce que le joueur actif doit battre (la plus mauvaise main de la manche), ou le meilleur coup aux points.
   const target = useMemo(() => {
@@ -502,7 +503,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
           <button className="icon-btn" onClick={leave} aria-label="Quitter la partie"><Icon name="back" /></button>
           <div className="phase">
             <span className={`logo-mini${bigShot ? " neon" : ""}`}>421</span>
-            <span>{phaseLabel}</span>
+            <span className="ph-long">{phaseLabel}</span><span className="ph-short">{phaseShort}</span>
             {s && s.phase !== 'manche' && s.phase !== 'fini' && <span className="muted">manche {s.round}</span>}
           </div>
           <div className="top-actions">
@@ -683,7 +684,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
       <div className="float-layer" aria-live="polite">
         {Object.entries(speech).map(([id, text]) => {
           const r = cardEls.current[id]?.getBoundingClientRect();
-          return r ? <div key={`s${id}${text}`} className="bubble" style={{ left: r.left + r.width / 2, top: r.bottom + 8 }}>{text}</div> : null;
+          return r ? <div key={`s${id}${text}`} className="bubble" style={{ left: r.left + r.width / 2, top: r.top + 6 }}>{text}</div> : null;
         })}
         {Object.entries(emotes).map(([id, em]) => {
           const r = cardEls.current[id]?.getBoundingClientRect();

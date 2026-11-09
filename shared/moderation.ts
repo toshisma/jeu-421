@@ -46,7 +46,7 @@ export const decisionLabel = (d: string | null | undefined) => DECISIONS.find((x
 /** Date et heure à Bruxelles : « 5 novembre 2026 à 21:04 ». */
 export function brusselsDateTime(t: number): string {
   const d = new Date(t).toLocaleDateString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'long', year: 'numeric' });
-  const h = new Date(t).toLocaleTimeString('fr-BE', { timeZone: 'Europe/Brussels', hour: '2-digit', minute: '2-digit' });
+  const h = new Date(t).toLocaleTimeString('fr-BE', { timeZone: 'Europe/Brussels', hour: '2-digit', minute: '2-digit' }).replace(/(\d{1,2}):(\d{2})/, '$1 h $2');
   return `${d} à ${h}`;
 }
 

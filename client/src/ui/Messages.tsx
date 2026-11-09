@@ -14,12 +14,12 @@ const PM_MAX = 500;
 
 interface Conversation { username: string; unread: number; friend: boolean; last: { text: string; at: number; mine: boolean } }
 
-/** Heure courte : « 14:05 », « hier », « lun. », « 12/10 ». */
+/** Heure courte : « 14 h 05 », « hier », « lun. », « 12/10 ». */
 export function pmWhen(t: number, now = Date.now()): string {
   const d = new Date(t), n = new Date(now);
   const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const diff = Math.round((day(n) - day(d)) / 86400_000);
-  if (diff <= 0) return d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' });
+  if (diff <= 0) return d.toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }).replace(/(\d{1,2}):(\d{2})/, '$1 h $2');
   if (diff === 1) return 'hier';
   if (diff < 7) return d.toLocaleDateString('fr-BE', { weekday: 'short' });
   return d.toLocaleDateString('fr-BE', { day: '2-digit', month: '2-digit' });
@@ -172,7 +172,7 @@ function Thread({ pa, username, onBack }: { pa: ProfileApi; username: string; on
               <div className={`pm-line ${m.mine ? 'mine' : 'theirs'}`}>
                 <div className={`pm-msg ${m.mine ? 'mine' : 'theirs'}`}>
                   <span className="pm-text">{m.text}</span>
-                  <small>{new Date(m.at).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}{m === lastMine && m.read ? ' · Lu' : ''}</small>
+                  <small>{new Date(m.at).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' }).replace(/(\d{1,2}):(\d{2})/, '$1 h $2')}{m === lastMine && m.read ? ' · Lu' : ''}</small>
                 </div>
                 {!m.mine && <ReportMsgButton name={username} onClick={() => setReport({ username, message: { place: 'prive', id: m.id, text: m.text } })} />}
               </div>

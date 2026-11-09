@@ -63,11 +63,11 @@ function playableLabel(v: CfView, legal: CfAction[], uid: string, id: string): s
     case 'calcul-mental': return 'Garder 1 sur 3';
     case 'pari-comptoir': return 'Pari ±2 jetons';
     case 'double-tournee': return 'Gain doublé';
-    case 'de-sous-table': return 'Relancer son dé';
+    case 'de-sous-table': return opts.length && opts.every((o) => o.target === p.id) ? 'Relancer votre dé' : 'Relancer son dé';
     case 'tournee-generale': return 'Tout relancer';
     case 'domino': { const o = v.players.find((x) => x.id === opts[0]?.target); const n = o ? o.tournees : 0; return `Lui ôter ${plural(n, 'Tournée')}`; }
     case 'fermeture': return v.players.some((o) => o.id !== p.id && o.habitues.length) ? 'Chasser un Habitué' : `+${FERMETURE_TOURNEES} Tournées`;
-    case 'grand-enchainement': return p.r.lastCoup ? `Rejouer ${cardName(p.r.lastCoup).split(' ')[0]}` : 'Rejouer';
+    case 'grand-enchainement': return p.r.lastCoup ? 'Rejouer le Coup' : 'Piocher 2 cartes';
     case 'note-salee': return '+2 jetons donnés';
     case 'ticket-caisse': case 'reaction-chaine': case 'pot-aux-roses': return 'Annuler sa carte';
     case 'pourboire': return p.tokens <= 1 ? 'Dernier jeton : gagné !' : '1 jeton donné, 1 carte';
@@ -152,8 +152,7 @@ export function cardHint(v: CfView, legal: CfAction[], k: { uid: string; id: str
   const second = playsAfter(v, p.id);
   switch (k.id) {
     case 'tete-tourne': case 'coup-pouce': case 'bon-numero': return wait('Après un lancer');
-    case 'de-sous-table': return wait(second ? 'Ses dés d’abord' : 'En second');
-    case 'tournee-generale': return wait(second ? 'Après un lancer' : 'En second');
+    case 'de-sous-table': case 'tournee-generale': return wait('Après un lancer');
     case 'fermeture': return wait('Protégés par le Patron');
     case 'grand-enchainement': return wait('Après un Coup');
     case 'petite-soeur': case 'boucle': return wait('Aucun Coup défaussé');
@@ -229,7 +228,10 @@ export function decisionBanner(v: CfView, legal: CfAction[], spectator = false):
       const left = lim - p.r.throwsUsed;
       const c = comboOf(v, p);
       const have = c ? `Vous avez ${shortCombo(c.label)} · ` : '';
-      const lead2 = have ? lead.replace(/^Battez/, 'battez').replace(/^Vous menez/, 'vous menez').replace(/^À vous de lancer$/, '') : lead;
+      // Déjà devant (ou à égalité) : on ne demande plus de « battre » une combinaison déjà battue.
+      const myRank = evalPlayer({ values: v.values }, p).rank;
+      const bestRank = beat ? Math.max(...v.players.filter((o) => o.id !== p.id && !o.out && o.r.done && v.order.includes(o.id)).map((o) => evalPlayer({ values: v.values }, o).rank)) : -Infinity;
+      const lead2 = !have ? lead : beat && myRank > bestRank ? 'vous menez' : beat && myRank === bestRank ? `égalité avec ${beat.label}` : lead.replace(/^Battez/, 'battez').replace(/^Vous menez/, 'vous menez').replace(/^À vous de lancer$/, '');
       const head = `${have}${lead2}`.replace(/ · $/, '');
       return { mine, title: 'À vous !', text: left > 0 ? `${head} · encore ${plural(left, 'lancer')} sur ${lim}` : `${head} · plus de lancer : une carte, ou arrêtez-vous`, tone: 'gold' };
     }
@@ -648,8 +650,11 @@ export function threatLine(v: CfView): string {
   switch (top.cardId) {
     case 'de-sous-table': {
       const t = playerOf(v, pr.target ?? me.id) ?? me;
+      const face = dieOf(t, pr.die) === 1 ? 'as' : dieOf(t, pr.die);
+      if (t.id === top.owner) return `Ici : personne n’a fini son tour, il relance son ${face} sans utiliser de lancer.`;
+      if (t.id !== me.id) return `Ici : il relance le ${face} de ${t.name}.`;
       const c = comboOf(v, t);
-      return `Ici : il relance votre ${dieOf(t, pr.die)}${c ? ` → votre ${shortCombo(c.label)} est menacé` : ''}.`;
+      return `Ici : il relance votre ${face}${c ? ` → votre ${shortCombo(c.label)} est menacé` : ''}.`;
     }
     case 'tete-tourne': case 'coup-pouce': case 'recompter': case 'bon-numero': {
       if (!o || pr.die === undefined) break;
@@ -658,7 +663,11 @@ export function threatLine(v: CfView): string {
       const dice = [...o.r.dice]; dice[pr.die] = to;
       return `Ici : son ${from} devient un ${to} → il passe à ${shortCombo(comboWith(v, o, dice).label)}.`;
     }
-    case 'tournee-generale': return 'Ici : vous relancez tous vos dés, lui aussi, puis il peut encore en relancer un.';
+    case 'tournee-generale': {
+      if (!pr.target) return 'Ici : personne n’a fini son tour, il relance tous ses dés sans utiliser de lancer.';
+      if (pr.target !== me.id) return `Ici : ${nameIn(v, pr.target)} et lui relancent tous leurs dés, puis il peut encore en relancer un.`;
+      return 'Ici : vous relancez tous vos dés, lui aussi, puis il peut encore en relancer un.';
+    }
     case 'domino': return `Ici : vous perdez toutes vos Tournées (${me.tournees}).`;
     case 'fermeture': { if (!pr.habitue) return `Ici : il gagne ${FERMETURE_TOURNEES} Tournées.`; const h = v.players.flatMap((p) => p.habitues).find((x) => x.uid === pr.habitue); return `Ici : ${cardName(h?.id)} rentre chez lui (défaussé).`; }
     case 'double-tournee': return 'Ici : s’il gagne la manche, sa combinaison vaut le double.';

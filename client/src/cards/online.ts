@@ -62,6 +62,14 @@ export class CfOnlineController implements CfController {
   emote(playerId: string, emote: string) { for (const cb of this.emoteSubs) cb(playerId, emote); }
 
   current() { return this.snap; }
+  /** L'écran a fini d'animer : les 30 s de la décision partent (le serveur ne compte pas avant). */
+  private readySent = -1;
+  ready() {
+    const v = this.snap?.view;
+    if (this.spectator || this.closed || !v || this.readySent === v.version) return;
+    this.readySent = v.version;
+    void this.session.call('cf:ready', { id: this.id });
+  }
   subscribe(cb: (snap: CfSnapshot, events: CfEvent[]) => void) {
     this.subs.add(cb);
     if (this.snap) cb(this.snap, []);

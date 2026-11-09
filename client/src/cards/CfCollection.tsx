@@ -70,7 +70,8 @@ export function BoosterOpening({ token, state, onState, onDone, onCollection, on
   };
   const revealAll = () => {
     if (!cards) return;
-    cards.forEach((_, i) => { if (!shown[i]) timers.current.push(setTimeout(() => reveal(i), 380 * timers.current.length)); });
+    let n = 0; // délai compté pour CE booster (avant : il s'allongeait à chaque booster ouvert)
+    cards.forEach((_, i) => { if (!shown[i]) timers.current.push(setTimeout(() => reveal(i), 380 * n++)); });
   };
   const allShown = !!cards && shown.every(Boolean);
   const big = cards && focus !== null ? cards[focus] : null;
@@ -116,7 +117,7 @@ export function BoosterOpening({ token, state, onState, onDone, onCollection, on
                 onClick={() => reveal(i)} aria-label={shown[i] ? `${cardDef(c.id)?.name}${c.isNew ? ', nouvelle' : ''}` : `Carte ${i + 1}, face cachée`}>
                 <span className="cf-flip-in">
                   <span className="cf-flip-back"><CardBack width={58} /></span>
-                  <span className="cf-flip-front"><CardView id={c.id} width={58} shiny={c.shiny} zoom="press" />{c.isNew && <em className="cf-new">Nouveau</em>}</span>
+                  <span className="cf-flip-front"><CardView id={c.id} width={58} shiny={c.shiny} zoom="press" />{c.isNew && <em className="cf-new">Nouvelle</em>}</span>
                 </span>
               </button>
             ))}

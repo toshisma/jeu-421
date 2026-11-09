@@ -17,7 +17,7 @@ export const TERMS: Term[] = [
   { re: /tournées?/i, title: 'Tournée', text: `Ce que coûtent les cartes (le chiffre dans le petit verre), à ne pas confondre avec les jetons. ${R.tourneesPerRound} de plus à chaque manche (${R.tourneesPerRound + R.tourneesLoserBonus} pour le perdant de la manche d’avant), ${R.tourneesMax} au plus.` },
   { re: /habitués?/i, title: 'Habitué', text: `Carte qui s’installe devant vous et agit toute seule pendant ${R.habitueRounds} manches, puis rentre chez lui. ${R.maxHabitues} au plus, jamais deux fois le même.` },
   { re: /pièges?/i, title: 'Piège', text: `Posé face cachée devant un adversaire, il se déclenche tout seul quand sa condition arrive. L’adversaire voit qu’il y a un piège, pas lequel. ${R.maxTrapsOn} au plus devant un même joueur, et ${R.maxTraps} posés au plus par joueur.` },
-  { re: /ripostes?/i, title: 'Riposte', text: 'Carte jouée en réponse à une carte adverse, au moment où elle est jouée (vous avez 15 secondes).' },
+  { re: /ripostes?/i, title: 'Riposte', text: 'Carte jouée en réponse à une carte adverse, au moment où elle est jouée (15 secondes en ligne, 30 contre l’ordinateur).' },
   { re: /\bCoups?\b/, title: 'Coup', text: 'Carte jouée pendant votre tour, avant ou après un lancer, puis défaussée.' },
   { re: /meneur/i, title: 'Meneur', text: 'Celui qui joue en premier dans la manche. Son nombre de lancers fixe le maximum des autres.' },
   { re: /combinaisons?/i, title: 'Combinaison', text: 'Vos 3 dés une fois arrêtés : 4-2-1, trois as, brelan, suite… Elle vaut des jetons : le gagnant de la manche en donne autant au perdant.' },

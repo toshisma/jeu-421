@@ -1,7 +1,7 @@
 import { CHANGELOG } from '../../../shared/changelog';
 import { Shell } from './kit';
 
-const fmt = (d: string) => new Date(d).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+const fmt = (d: string) => new Date(d).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(/(\d{1,2}):(\d{2})/, '$1 h $2');
 
 /** Nouveautés : toutes les mises à jour, la plus récente en haut. */
 export function ChangelogScreen({ onBack }: { onBack: () => void }) {
