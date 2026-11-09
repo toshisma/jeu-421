@@ -2,7 +2,9 @@
  * Fenêtre de confirmation du jeu (remplace window.confirm, bloqué dans certains aperçus
  * intégrés et peu lisible sur téléphone). Renvoie true si le joueur confirme.
  */
-export function askConfirm(message: string, ok = 'Confirmer', cancel = 'Annuler'): Promise<boolean> {
+import { tr } from '../i18n/lang';
+
+export function askConfirm(message: string, ok = tr('common.confirm'), cancel = tr('common.cancel')): Promise<boolean> {
   return new Promise((resolve) => {
     const wrap = document.createElement('div');
     wrap.className = 'modal confirm-modal';

@@ -33,6 +33,7 @@ import { restartPresence, setPresence, startPresence } from './presence';
 import { MessagesScreen } from './ui/Messages';
 import { connectMessages } from './messages';
 import { cfModeParam, courtisanModeParam } from './cfLink';
+import { keptLangSearch, tr, useLang } from './i18n/lang';
 import { loadDmSession } from './dixmille/online';
 import type { DmPending } from './dixmille/DixMille';
 import { linkVisitor, trackVisit } from './visit';
@@ -122,7 +123,7 @@ type Screen =
  */
 function cleanUrl() {
   if (!/^https?:$/.test(location.protocol)) return;
-  try { history.replaceState(null, '', '/'); } catch { /* aperçu intégré : rien à nettoyer */ }
+  try { history.replaceState(null, '', `/${keptLangSearch()}`); } catch { /* aperçu intégré : rien à nettoyer */ }
 }
 
 export function App() {
@@ -175,6 +176,14 @@ export function App() {
   const { profile } = pa;
   // Messages privés : réception en direct tant que le compte a le jeu ouvert.
   useEffect(() => { if (!STANDALONE) connectMessages(pa.token ?? null); }, [pa.token]);
+
+  const lang = useLang();
+  useEffect(() => {
+    if (screen.name !== 'dixmille' || lang === 'fr') return;
+    const before = document.title;
+    document.title = tr('title.courtier');
+    return () => { document.title = before; };
+  }, [screen.name, lang]);
 
   const setSettings = (s: Settings) => { setSettingsState(s); saveSettings(s); };
   useEffect(() => { sound.configure({ volume: settings.volume, muted: settings.muted }); }, [settings.volume, settings.muted]);
@@ -416,7 +425,7 @@ export function App() {
     case 'changelog':
       return <ChangelogScreen onBack={home} />;
     case 'dixmille':
-      return <DixMilleMode key={`${JSON.stringify(screen.pending ?? null)}${screen.reset ?? ''}`} pending={screen.pending} onAccount={() => setScreen({ name: 'account' })} pa={pa} settings={settings} onSettings={setSettings} onHome={home}
+      return <DixMilleMode key={`${JSON.stringify(screen.pending ?? null)}${screen.reset ?? ''}`} pending={screen.pending} onAccount={() => setScreen({ name: 'account', ...(lang !== 'fr' ? { back: 'dixmille' as const } : {}) })} pa={pa} settings={settings} onSettings={setSettings} onHome={home}
         onCollection={(open) => setScreen({ name: 'collection', from: 'dixmille', open })}
         displayName={settings.name} avatar={settings.avatar} />;
     case 'cf':

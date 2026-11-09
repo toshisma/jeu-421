@@ -1,3 +1,5 @@
+import { tr } from '../i18n/lang';
+import { LangSwitch } from '../i18n/LangSwitch';
 import { BossCard, DailyStreak, EveningChest, EventBanner, HappyHourBanner, PassSummary } from './Progression';
 import { BagIcon } from './BagIcon';
 import { reportUrl } from '../legal';
@@ -324,6 +326,7 @@ export function SettingsScreen({ settings, onChange, onBack }: { settings: Setti
             </div>
           </div>
         </Section>
+        <Section title="Langue · Language · Sprache · Taal"><LangSwitch full /><p className="muted small">{tr('lang.note')}</p></Section>
         <Section title="Son" aside={<button className="btn ghost small" onClick={() => { sound.unlock(); sound.impact('paroi', 10); setTimeout(() => sound.impact('feutre', 9), 120); setTimeout(() => sound.impact('de', 8), 220); }}><Icon name="sound" size={18} /> Tester le son</button>}>
           <div className="k-card">
             <label className="k-range"><span><Icon name={vol ? 'sound' : 'mute'} size={20} /><b>Effets</b><em>{vol} %</em></span>

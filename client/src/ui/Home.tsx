@@ -1,3 +1,4 @@
+import { getLang, tr } from '../i18n/lang';
 /**
  * Menu principal (écran d'arrivée) : le joueur (profil, niveau, pièces = monnaie générale), la
  * vitrine 3D de son bac, les trois jeux en grandes entrées (avec ce qui les attend), les récompenses
@@ -151,6 +152,7 @@ export function Home(props: HomeProps) {
   // --- Une seule bannière : la plus utile ---------------------------------------------------------------
   const ev = activeEvent(day) || coinBoost(day);
   const banner = (() => {
+    if (getLang() !== 'fr' && !props.resume) return <button className="home-banner gift" onClick={props.onDixMille}><Icon name="dice" size={20} /><span><b>{tr('lang.homeBanner')}</b><small>{tr('lang.homeSub')}</small></span><em>{tr('lang.homeGo')}</em></button>;
     if (props.resume && !STANDALONE) return <button className="home-banner resume" onClick={props.onResume}><Icon name="resume" size={20} /><span><b>{props.resume.tournament ? 'Tournoi du 421 en cours' : props.resume.courtisan ? 'Partie du Courtisan en cours' : 'Partie de 421 en cours'}</b><small>Table {props.resume.code}</small></span><em>Reprendre</em></button>;
     const salon = prog?.slots.find((x) => x.status === 'salon' && x.registered && x.code);
     if (salon && props.onJoinScheduled) return <button className="home-banner resume" onClick={() => props.onJoinScheduled!(salon.code!, false)}><Icon name="trophy" size={20} /><span><b>Votre tournoi de {salon.hour} h commence !</b><small>Le salon est ouvert : rejoignez-le</small></span><em>Rejoindre</em></button>;

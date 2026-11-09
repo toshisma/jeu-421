@@ -15,8 +15,9 @@ import { useEffect, useRef } from 'react';
 import { currentPlayerId } from '../../shared/engine';
 import type { GameController } from './game/controller';
 import { sound } from './audio/sound';
+import { tr } from './i18n/lang';
 
-const ALERT_TITLE = '🎲 À vous de jouer !';
+const ALERT_TITLE = () => tr('alert.turn');
 const TAG = '421-tour';
 
 const away = () => document.visibilityState !== 'visible' || !document.hasFocus();
@@ -47,8 +48,8 @@ class Alerter {
     const link = iconLink();
     if (link) { baseIcon ??= link.href; link.href = badged(); }
     this.flip = true;
-    document.title = ALERT_TITLE;
-    this.timer = setInterval(() => { this.flip = !this.flip; document.title = this.flip ? ALERT_TITLE : this.title; }, 1000);
+    document.title = ALERT_TITLE();
+    this.timer = setInterval(() => { this.flip = !this.flip; document.title = this.flip ? ALERT_TITLE() : this.title; }, 1000);
     // Son discret : deux petites notes (rien si le son est coupé ou pas encore autorisé).
     sound.turn(); setTimeout(() => sound.turn(), 160);
     if (opts.notify && document.visibilityState !== 'visible') void this.showNotification();
@@ -57,13 +58,13 @@ class Alerter {
   private async showNotification() {
     try {
       if (!('Notification' in window) || Notification.permission !== 'granted') return;
-      const body = 'C\'est votre tour de lancer les dés.';
+      const body = tr('alert.body');
       const reg = await navigator.serviceWorker?.getRegistration?.();
       if (!this.timer) return;
       if (reg) {
-        await reg.showNotification(ALERT_TITLE, { body, tag: TAG, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', lang: 'fr', data: { focus: true } });
+        await reg.showNotification(ALERT_TITLE(), { body, tag: TAG, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', lang: 'fr', data: { focus: true } });
       } else {
-        this.notif = new Notification(ALERT_TITLE, { body, tag: TAG, icon: '/icons/icon-192.png', lang: 'fr' });
+        this.notif = new Notification(ALERT_TITLE(), { body, tag: TAG, icon: '/icons/icon-192.png', lang: 'fr' });
         this.notif.onclick = () => { window.focus(); this.notif?.close(); };
       }
     } catch { /* notifications indisponibles : le titre et l'icône suffisent */ }

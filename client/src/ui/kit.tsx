@@ -3,6 +3,7 @@
  * barre d'action collée en bas, sections titrées, onglets en pastilles, interrupteurs, compteurs,
  * choix en cartes, état vide utile et toasts.
  */
+import { tr } from '../i18n/lang';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon';
 
@@ -24,7 +25,7 @@ export function Shell({ title, onBack, children, wide, sub, right, foot, icon }:
     <div className={`screen scr${foot ? ' has-foot' : ''}`}>
       <header className="scr-head">
         <div className={`scr-head-in${wide ? ' wide' : ''}`}>
-          <button className="scr-back" onClick={onBack} aria-label="Retour"><Icon name="back" size={22} /></button>
+          <button className="scr-back" onClick={onBack} aria-label={tr('common.back')}><Icon name="back" size={22} /></button>
           {icon && <span className="scr-ic" aria-hidden><Icon name={icon} size={18} /></span>}
           <div className="scr-title"><h2>{title}</h2>{sub && <small>{sub}</small>}</div>
           {right && <div className="scr-right">{right}</div>}
@@ -159,7 +160,7 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
     <div className="sheet-back" onClick={onClose}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label={title} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-grip" aria-hidden />
-        <header className="sheet-head"><h2>{title}</h2><button className="icon-btn" onClick={onClose} aria-label="Fermer"><Icon name="close" /></button></header>
+        <header className="sheet-head"><h2>{title}</h2><button className="icon-btn" onClick={onClose} aria-label={tr('common.close')}><Icon name="close" /></button></header>
         <div className="sheet-body">{children}</div>
       </div>
     </div>

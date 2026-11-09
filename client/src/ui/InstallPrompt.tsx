@@ -1,3 +1,4 @@
+import { tr } from '../i18n/lang';
 import { useEffect, useRef, useState } from 'react';
 import { FloatingPop } from './FloatingPop';
 import { isNativeApp } from '../platform';
@@ -49,13 +50,13 @@ export function InstallPrompt({ compact = false }: { compact?: boolean }) {
         await d.userChoice.catch(() => null);
         deferred = null;
         force((n) => n + 1);
-      }}>📲 {compact ? 'Installer' : "Installer l'application"}</button>
+      }}>📲 {compact ? tr('plus.install') : "Installer l'application"}</button>
     );
   }
   if (isIos()) {
     return (
       <span className={compact ? 'install-wrap' : undefined} ref={wrap}>
-        <button className={compact ? 'install-chip' : 'btn ghost'} aria-expanded={iosHelp} onClick={() => setIosHelp((v) => !v)}>📲 {compact ? 'Installer' : "Installer sur l'iPhone"}</button>
+        <button className={compact ? 'install-chip' : 'btn ghost'} aria-expanded={iosHelp} onClick={() => setIosHelp((v) => !v)}>📲 {compact ? tr('plus.install') : "Installer sur l'iPhone"}</button>
         {iosHelp && (compact
           ? <FloatingPop anchor={wrap} onClose={() => setIosHelp(false)} className="install-pop" label="Installer"><p>Dans Safari, touchez <b>Partager</b> (le carré avec une flèche), puis <b>Sur l'écran d'accueil</b>.</p></FloatingPop>
           : <p className="muted small center">Dans Safari, touchez <b>Partager</b> (le carré avec une flèche), puis <b>Sur l'écran d'accueil</b>.</p>)}

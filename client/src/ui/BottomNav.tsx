@@ -22,6 +22,8 @@ import { QuestsPanel } from './AccountScreens';
 import { ReferralCard } from './Referral';
 import { DiscordCard, type useDiscord } from './Discord';
 import { ProfileView } from './ProfileView';
+import { tr, useLang } from '../i18n/lang';
+import { FrenchOnlyNote } from '../i18n/LangSwitch';
 
 export type NavTab = 'home' | 'friends' | 'collection' | 'shop' | null;
 export type PlusSheet = 'menu' | 'profile' | 'missions' | 'parrainage' | 'discord';
@@ -58,31 +60,31 @@ function PlusMenu({ a, pa, settings, onChangeSettings, discord, unread, onSheet,
   const admin = role.admin;
   type Item = { label: string; icon: IconName; go: () => void; show?: boolean; dot?: boolean; keys?: string; /** Montré seulement quand on cherche. */ search?: boolean };
   const groups: { title: string; items: Item[] }[] = [
-    { title: 'Mon jeu', items: [
-      { label: 'Profil et succès', icon: 'user', go: () => onSheet('profile'), keys: 'titre avatar photo succes niveau' },
-      { label: 'Pass du mois', icon: 'ticket', go: a.onPass, keys: 'saison paliers' },
-      { label: 'Défis du jour', icon: 'check', go: () => onSheet('missions'), keys: 'missions quetes' },
-      { label: 'Récap du mois', icon: 'chart', go: a.onRecap },
-      { label: 'Parrainage', icon: 'gift', go: () => (acc ? onSheet('parrainage') : a.onAccount()), show: !STANDALONE, keys: 'inviter ami sac offert' },
-      { label: "Bac d'essai", icon: 'dice', go: a.onSandbox, keys: 'lancer entrainement des effets' },
+    { title: tr('plus.g.mine'), items: [
+      { label: tr('plus.profile'), icon: 'user', go: () => onSheet('profile'), keys: 'titre avatar photo succes niveau' },
+      { label: tr('plus.pass'), icon: 'ticket', go: a.onPass, keys: 'saison paliers' },
+      { label: tr('plus.quests'), icon: 'check', go: () => onSheet('missions'), keys: 'missions quetes' },
+      { label: tr('plus.recap'), icon: 'chart', go: a.onRecap },
+      { label: tr('plus.referral'), icon: 'gift', go: () => (acc ? onSheet('parrainage') : a.onAccount()), show: !STANDALONE, keys: 'inviter ami sac offert' },
+      { label: tr('plus.sandbox'), icon: 'dice', go: a.onSandbox, keys: 'lancer entrainement des effets' },
     ] },
-    { title: 'Entre joueurs', items: [
-      { label: 'Messages', icon: 'chat', go: a.onMessages, show: acc, dot: unread > 0, keys: 'messages prives discuter' },
-      { label: 'Club', icon: 'club', go: a.onClub, show: !STANDALONE },
-      { label: 'Défis entre amis', icon: 'target', go: a.onDuels, show: !STANDALONE, keys: 'duels' },
-      { label: 'Discord du jeu', icon: 'chat', go: () => onSheet('discord'), show: !STANDALONE && !!discord?.invite, dot: discordPending(pa, discord), keys: 'discord communaute serveur sac offert' },
-      { label: 'Statistiques', icon: 'stats', go: a.onStats, show: !STANDALONE, keys: 'en ligne joueurs' },
+    { title: tr('plus.g.players'), items: [
+      { label: tr('plus.messages'), icon: 'chat', go: a.onMessages, show: acc, dot: unread > 0, keys: 'messages prives discuter' },
+      { label: tr('plus.club'), icon: 'club', go: a.onClub, show: !STANDALONE },
+      { label: tr('plus.duels'), icon: 'target', go: a.onDuels, show: !STANDALONE, keys: 'duels' },
+      { label: tr('plus.discord'), icon: 'chat', go: () => onSheet('discord'), show: !STANDALONE && !!discord?.invite, dot: discordPending(pa, discord), keys: 'discord communaute serveur sac offert' },
+      { label: tr('plus.stats'), icon: 'stats', go: a.onStats, show: !STANDALONE, keys: 'en ligne joueurs' },
     ] },
-    { title: 'Réglages et compte', items: [
-      { label: 'Réglages', icon: 'settings', go: a.onSettings, keys: 'son vibration qualite graphismes secouer gobelet alerte' },
-      { label: acc ? 'Mon compte' : 'Compte', icon: 'key', go: acc ? a.onAccount : a.onLogin, show: !STANDALONE, keys: 'connexion mot de passe' },
+    { title: tr('plus.g.settings'), items: [
+      { label: tr('plus.settings'), icon: 'settings', go: a.onSettings, keys: 'son vibration qualite graphismes secouer gobelet alerte' },
+      { label: tr(acc ? 'plus.myAccount' : 'plus.account'), icon: 'key', go: acc ? a.onAccount : a.onLogin, show: !STANDALONE, keys: 'connexion mot de passe' },
       { label: 'Administration', icon: 'settings', go: a.onAdmin, show: admin, dot: role.pending > 0, keys: 'admin bannir pieces tableau de bord signalements moderation cartes' },
       { label: 'Modération', icon: 'flag', go: a.onModeration, show: role.moderator && !admin, dot: role.pending > 0, keys: 'signalements sanctions moderateur' },
     ] },
-    { title: 'Les jeux', items: [
-      { label: '421 classique', icon: 'dice', go: a.onClassic, keys: 'jeu de base solo en ligne' },
-      { label: 'Coups Fourrés', icon: 'cards', go: a.onCards, keys: 'cartes mode cartes deck booster capsules ligue' },
-      { label: 'Le Courtisan', icon: 'dice', go: a.onDixMille, keys: '10000 dix mille farkle six des courtisan groschen' },
+    { title: tr('plus.g.games'), items: [
+      { label: tr('plus.classic'), icon: 'dice', go: a.onClassic, keys: 'jeu de base solo en ligne' },
+      { label: tr('plus.cf'), icon: 'cards', go: a.onCards, keys: 'cartes mode cartes deck booster capsules ligue' },
+      { label: tr('plus.courtier'), icon: 'dice', go: a.onDixMille, keys: '10000 dix mille farkle six des courtisan groschen' },
       // Le 421 : seulement à la recherche (tout est dans son menu).
       { label: 'Règles du 421', icon: 'rules', go: a.onRules, search: true, keys: 'regles combinaisons charge decharge' },
       { label: 'Partie guidée (421)', icon: 'resume', go: a.onTutorial, search: true, keys: 'tuto apprendre' },
@@ -98,9 +100,9 @@ function PlusMenu({ a, pa, settings, onChangeSettings, discord, unread, onSheet,
   const nq = norm(q.trim());
   const pick = (go: () => void) => { onClose(); go(); };
   return (
-    <Sheet title="Plus" onClose={onClose}>
-      <div className="plus-audio"><span>Son</span><VolumeControl settings={settings} onSettings={onChangeSettings} /><button className="plus-set" onClick={() => pick(a.onSettings)}><Icon name="settings" size={18} />Réglages</button><InstallPrompt compact /></div>
-      <label className="plus-search"><Icon name="search" size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher : règles, réglages, club…" aria-label="Chercher dans le menu" /></label>
+    <Sheet title={tr('nav.more')} onClose={onClose}>
+      <div className="plus-audio"><span>{tr('plus.sound')}</span><VolumeControl settings={settings} onSettings={onChangeSettings} /><button className="plus-set" onClick={() => pick(a.onSettings)}><Icon name="settings" size={18} />{tr('plus.settings')}</button><InstallPrompt compact /></div>
+      <label className="plus-search"><Icon name="search" size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr('plus.search')} aria-label={tr('plus.searchLabel')} /></label>
       {groups.map((g) => {
         const items = g.items.filter((i) => i.show !== false && (nq ? norm(`${i.label} ${i.keys ?? ''}`).includes(nq) : !i.search));
         if (!items.length) return null;
@@ -108,15 +110,16 @@ function PlusMenu({ a, pa, settings, onChangeSettings, discord, unread, onSheet,
           <section key={g.title} className="plus-group">
             <h3>{g.title}</h3>
             <div className="plus-grid">
-              {items.map((i) => <button key={i.label} onClick={() => pick(i.go)}><Icon name={i.icon} size={22} /><span>{i.label}</span>{i.dot && <i className="plus-dot" aria-label="à voir" />}</button>)}
+              {items.map((i) => <button key={i.label} onClick={() => pick(i.go)}><Icon name={i.icon} size={22} /><span>{i.label}</span>{i.dot && <i className="plus-dot" aria-label={tr('plus.seen')} />}</button>)}
             </div>
           </section>
         );
       })}
+      <FrenchOnlyNote />
       <div className="plus-foot">
-        <button className="link small-link" onClick={() => pick(a.onChangelog)}>Nouveautés (v{CURRENT_VERSION}){changelogUnseen() && <i className="new-dot" aria-label="nouvelle version" />}</button>
-        <a className="link small-link" href={reportUrl()}>Signaler un problème</a>
-        <button className="link small-link" onClick={() => pick(a.onLegal)}>Confidentialité</button>
+        <button className="link small-link" onClick={() => pick(a.onChangelog)}>{tr('plus.news', { v: CURRENT_VERSION })}{changelogUnseen() && <i className="new-dot" aria-label={tr('plus.newVersion')} />}</button>
+        <a className="link small-link" href={reportUrl()}>{tr('plus.report')}</a>
+        <button className="link small-link" onClick={() => pick(a.onLegal)}>{tr('plus.privacy')}</button>
         {!STANDALONE && [...GUIDES_421, ...GUIDES_MORE].map(([href, label]) => <a key={href} className="link small-link" href={href}>{label}</a>)}
       </div>
     </Sheet>
@@ -144,6 +147,7 @@ export function BottomNav({ active, compact, plusOpen, pa, requests, bags, plusD
   active: NavTab; compact: boolean; plusOpen: boolean; pa: ProfileApi; requests: number; bags: number; plusDot: boolean;
   a: NavActions; onPlus: () => void;
 }) {
+  useLang();
   const unread = useUnread(pa.token);
   const friends = requests + (pa.isAccount ? unread : 0);
   const sz = compact ? 20 : 22;
@@ -155,13 +159,13 @@ export function BottomNav({ active, compact, plusOpen, pa, requests, bags, plusD
   );
   const dot = (n: number) => (n > 0 ? <i className="tab-dot">{n > 99 ? '99+' : n}</i> : null);
   return (
-    <nav className={`h2-tabs app-tabs${compact ? ' compact' : ''}`} aria-label="Navigation">
-      {tab('home', 'home', 'Accueil', a.onHome)}
-      {!STANDALONE && tab('friends', 'people', 'Amis', a.onFriends, dot(friends))}
-      {!STANDALONE && tab('collection', 'grid', 'Collection', () => a.onCollection(), dot(bags))}
-      {tab('shop', 'shop', 'Boutique', a.onShop)}
-      <button className={plusOpen ? 'on' : undefined} aria-label={compact ? 'Plus' : undefined} aria-expanded={plusOpen} onClick={onPlus}>
-        <Icon name="menu" size={sz} />{!compact && <span>Plus</span>}{plusDot && <i className="tab-dot small" />}
+    <nav className={`h2-tabs app-tabs${compact ? ' compact' : ''}`} aria-label={tr('nav.label')}>
+      {tab('home', 'home', tr('nav.home'), a.onHome)}
+      {!STANDALONE && tab('friends', 'people', tr('nav.friends'), a.onFriends, dot(friends))}
+      {!STANDALONE && tab('collection', 'grid', tr('nav.collection'), () => a.onCollection(), dot(bags))}
+      {tab('shop', 'shop', tr('nav.shop'), a.onShop)}
+      <button className={plusOpen ? 'on' : undefined} aria-label={compact ? tr('nav.more') : undefined} aria-expanded={plusOpen} onClick={onPlus}>
+        <Icon name="menu" size={sz} />{!compact && <span>{tr('nav.more')}</span>}{plusDot && <i className="tab-dot small" />}
       </button>
     </nav>
   );

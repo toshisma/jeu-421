@@ -221,3 +221,84 @@ describe('pages Le Courtisan (Dix mille)', () => {
     for (const slug of slugs) expect(read(slug)).not.toMatch(/chacun des autres joue/);
   });
 });
+
+describe('pages anglaises', () => {
+  const pub = join(process.cwd(), 'client', 'public');
+  const read = (slug: string) => readFileSync(join(pub, `${slug}.html`), 'utf8');
+  const ld = (h: string) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => JSON.parse(m[1])['@graph']);
+  const pairs = [['dix-mille-en-ligne', 'play-farkle-online'], ['regles-du-dix-mille', 'farkle-rules'], ['jeu-de-des-kingdom-come-deliverance-2', 'kingdom-come-deliverance-2-dice-game']];
+  const site = 'https://421online.com';
+  const NOTICE = '421online.com is an independent website, not affiliated with Warhorse Studios, Deep Silver or Plaion; Kingdom Come: Deliverance is a trademark of its owners.';
+
+  it('hreflang réciproques, x-default vers le français, sur les deux versions', () => {
+    for (const [fr, en] of pairs) {
+      for (const h of [read(fr), read(en)]) {
+        expect(h).toContain(`<link rel="alternate" hreflang="fr" href="${site}/${fr}">`);
+        expect(h).toContain(`<link rel="alternate" hreflang="en" href="${site}/${en}">`);
+        expect(h).toContain(`<link rel="alternate" hreflang="x-default" href="${site}/${fr}">`);
+      }
+    }
+    const home = readFileSync(join(process.cwd(), 'client', 'index.html'), 'utf8');
+    expect(home).not.toContain('hreflang');
+    expect(home).toContain('<link rel="canonical" href="https://421online.com/" />');
+  });
+
+  it('le HTML français ne contient de nouveau que les hreflang', () => {
+    for (const [fr] of pairs) {
+      const h = read(fr);
+      expect(h.startsWith('<!doctype html>\n<html lang="fr">')).toBe(true);
+      expect(h).toContain('<meta property="og:locale" content="fr_BE">');
+      expect(h).not.toContain('og:locale" content="en_US');
+      expect(h).toContain('Mis à jour le');
+    }
+    // Les pages françaises sans version anglaise n'ont aucun hreflang, et leur pied ne cite pas les pages anglaises.
+    const other = read('regles-du-421');
+    expect(other).not.toContain('hreflang');
+    expect(other).not.toContain('play-farkle-online');
+    expect(other).toContain('<html lang="fr">');
+  });
+
+  it('lang, og:locale, boutons Jouer, navigation anglaise, données structurées', () => {
+    for (const [, en] of pairs) {
+      const h = read(en);
+      expect(h.startsWith('<!doctype html>\n<html lang="en">')).toBe(true);
+      expect(h).toContain('<meta property="og:locale" content="en_US">');
+      expect(h).toContain('href="/?mode=courtisan&amp;lang=en" data-play>Play</a>');
+      expect(h).toContain('<h2 id="questions">Frequently asked questions</h2>');
+      expect(h).toContain('aria-label="Breadcrumb"');
+      expect(h).toContain('Updated <time');
+      expect(h).not.toMatch(/Mis à jour|Questions fréquentes|À lire aussi/);
+      const g = ld(h);
+      expect(g.find((x) => x['@type'] === 'Article').inLanguage).toBe('en');
+      for (const q of g.find((x) => x['@type'] === 'FAQPage').mainEntity) expect(h).toContain(`<summary>${q.name}</summary>`);
+      expect(g.flatMap((x) => (x.aggregateRating || x.review ? [x] : []))).toHaveLength(0);
+      expect(h).toMatch(/Only The Courtier .*is available in English|only The Courtier is in English|Only The Courtier/i);
+    }
+    const game = ld(read('play-farkle-online')).find((x) => x['@type'] === 'VideoGame');
+    expect(game).toMatchObject({ inLanguage: 'en', isAccessibleForFree: true, offers: { price: '0' }, numberOfPlayers: { minValue: 1, maxValue: 6 } });
+    expect(game.aggregateRating).toBeUndefined();
+  });
+
+  it('valeurs conformes au moteur, mention d’indépendance, aucun nom du jeu vidéo', () => {
+    const h = read('farkle-rules');
+    for (const t of DM_TARGETS) expect(h).toContain(t.toLocaleString('en-US'));
+    for (let f = 1; f <= 6; f++) for (const n of [3, 4, 5, 6]) expect(h).toContain(`<td>${kindValue(f, n).toLocaleString('en-US')}</td>`);
+    expect(h).toContain('Straight 1–5');
+    expect(h).toContain('>500<');
+    expect(h).toContain('>750<');
+    expect(h).toContain('1,500');
+    for (const [, en] of pairs) expect(read(en)).toContain(NOTICE);
+    const kcd = read('kingdom-come-deliverance-2-dice-game');
+    expect(kcd).not.toMatch(/Henry|Ottokar|Trosky|Kuttenberg|Hans Capon|Holy Trinity|Painted Die|Weighted Die/);
+    expect(kcd).toMatch(/not an official/);
+  });
+
+  it('plan du site : alternates', () => {
+    const sitemap = readFileSync(join(pub, 'sitemap.xml'), 'utf8');
+    for (const [fr, en] of pairs) {
+      expect(sitemap).toContain(`<loc>${site}/${en}</loc>`);
+      expect(sitemap).toContain(`<xhtml:link rel="alternate" hreflang="en" href="${site}/${en}"/>`);
+      expect(sitemap).toContain(`<xhtml:link rel="alternate" hreflang="x-default" href="${site}/${fr}"/>`);
+    }
+  });
+});

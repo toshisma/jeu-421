@@ -1,3 +1,4 @@
+import { tr } from '../i18n/lang';
 import { useEffect, useState } from 'react';
 import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
@@ -168,7 +169,7 @@ export function InviteBanner({ pa, onJoin }: { pa: ProfileApi; onJoin: (code: st
   return (
     <div className="invite-banner" role="alert">
       <span aria-hidden>🎲</span>
-      <span className="ib-text"><b>{inv.from}</b> vous invite à sa table{inv.game === 'courtisan' ? ' du Courtisan' : ''}</span>
+      <span className="ib-text"><b>{inv.from}</b>{tr('inv.from')}{inv.game === 'courtisan' ? tr('inv.courtier') : ''}</span>
       <button className="btn primary small" onClick={() => { drop(); onJoin(inv.code, inv.game); }}>Accepter</button>
       <button className="btn ghost small" onClick={drop}>Refuser</button>
     </div>

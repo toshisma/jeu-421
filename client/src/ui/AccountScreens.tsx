@@ -1,3 +1,4 @@
+import { tr, trServer } from '../i18n/lang';
 import { useEffect, useState } from 'react';
 import { askConfirm } from './confirm';
 import { Icon } from './Icon';
@@ -88,19 +89,19 @@ export function AccountScreen({ pa, onBack, onPrivacy, onRegistered, initial = '
   const run = async (fn: () => Promise<string | void>) => {
     setBusy(true); setErr(null);
     try { const r = await fn(); if (typeof r === 'string') setRecovery(r); setPassword(''); }
-    catch (e) { setErr((e as Error).message); }
+    catch (e) { setErr(trServer((e as Error).message)); }
     setBusy(false);
   };
 
   if (recovery) {
     const done = () => { setRecovery(null); if (justRegistered && onRegistered) onRegistered(); };
     return (
-      <Shell title="Code de récupération" onBack={done} icon="key"
-        foot={<BigAction icon="check" tone="green" label="C'est noté" onClick={done} />}>
+      <Shell title={tr('ac.recoveryTitle')} onBack={done} icon="key"
+        foot={<BigAction icon="check" tone="green" label={tr('ac.noted')} onClick={done} />}>
         <div className="k-stack">
-          <p className="k-warn">Notez ce code et gardez-le en lieu sûr : c'est <b>le seul moyen</b> de récupérer votre compte si vous oubliez votre mot de passe (il n'y a pas d'adresse e-mail).</p>
+          <p className="k-warn">{tr('ac.recoveryWarn1')}<b>{tr('ac.recoveryWarn2')}</b>{tr('ac.recoveryWarn3')}</p>
           <div className="recovery">{recovery}</div>
-          <button className="btn" onClick={() => { navigator.clipboard?.writeText(recovery).then(() => showToast('Code copié')).catch(() => {}); }}><Icon name="copy" size={18} /> Copier le code</button>
+          <button className="btn" onClick={() => { navigator.clipboard?.writeText(recovery).then(() => showToast(tr('ac.copied'))).catch(() => {}); }}><Icon name="copy" size={18} /> {tr('ac.copy')}</button>
         </div>
         {toast}
       </Shell>
@@ -187,46 +188,46 @@ export function AccountScreen({ pa, onBack, onPrivacy, onRegistered, initial = '
     else void run(() => pa.recover(username, code, password));
   };
   return (
-    <Shell title={tab === 'register' ? 'Créer un compte' : tab === 'login' ? 'Se connecter' : 'Mot de passe oublié'} onBack={onBack} icon="key"
-      sub="Gratuit, sans adresse e-mail"
+    <Shell title={tr(tab === 'register' ? 'ac.register' : tab === 'login' ? 'ac.login' : 'ac.forgot')} onBack={onBack} icon="key"
+      sub={tr('ac.free')}
       foot={<BigAction type="button" onClick={submit} disabled={!canSubmit} icon={tab === 'register' ? 'plus' : tab === 'login' ? 'key' : 'resume'}
         tone={tab === 'register' ? 'gold' : 'blue'}
-        label={busy ? 'Un instant…' : tab === 'register' ? 'Créer mon compte' : tab === 'login' ? 'Se connecter' : 'Changer le mot de passe'} />}>
+        label={tr(busy ? 'ac.wait' : tab === 'register' ? 'ac.registerBtn' : tab === 'login' ? 'ac.login' : 'ac.changePw')} />}>
       <div className="k-stack">
-        {tab !== 'recover' && <Tabs label="Compte" value={tab} onChange={(v) => { setTab(v); setErr(null); }}
-          options={[{ v: 'register', label: 'Nouveau compte', icon: 'plus' }, { v: 'login', label: "J'ai un compte", icon: 'key' }]} />}
+        {tab !== 'recover' && <Tabs label={tr('ac.tabs')} value={tab} onChange={(v) => { setTab(v); setErr(null); }}
+          options={[{ v: 'register', label: tr('ac.new'), icon: 'plus' }, { v: 'login', label: tr('ac.have'), icon: 'key' }]} />}
         {tab === 'register' && (
           <ul className="acct-perks">
-            <li><Icon name="check" size={18} />Progression sauvegardée sur tous vos appareils</li>
-            <li><Icon name="check" size={18} />Classements, ligues, clubs et amis</li>
+            <li><Icon name="check" size={18} />{tr('ac.perk1')}</li>
+            <li><Icon name="check" size={18} />{tr('ac.perk2')}</li>
             {forCf
               ? <li><Icon name="check" size={18} />Coups Fourrés : vos cartes, vos decks, des boosters offerts, parties classées</li>
-              : <li><Icon name="check" size={18} />Tables avec mise et tournois de 11 h et 21 h</li>}
+              : <li><Icon name="check" size={18} />{tr('ac.perk3')}</li>}
           </ul>
         )}
-        {tab === 'recover' && <p className="k-hint">Entrez votre pseudo, le code de récupération reçu à l'inscription et un nouveau mot de passe.</p>}
+        {tab === 'recover' && <p className="k-hint">{tr('ac.recoverHint')}</p>}
         <form className="k-form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
-          <label className="k-field"><span className="k-label">Pseudo</span>
-            <input className="k-input" value={username} maxLength={20} autoComplete="username" onChange={(e) => setUsername(e.target.value)} placeholder="3 à 20 caractères" /></label>
+          <label className="k-field"><span className="k-label">{tr('ac.username')}</span>
+            <input className="k-input" value={username} maxLength={20} autoComplete="username" onChange={(e) => setUsername(e.target.value)} placeholder={tr('ac.usernamePh')} /></label>
           {tab === 'recover' && (
-            <label className="k-field"><span className="k-label">Code de récupération</span>
+            <label className="k-field"><span className="k-label">{tr('ac.recoveryTitle')}</span>
               <input className="k-input" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="XXXX-XXXX-XXXX-XXXX" /></label>
           )}
-          <label className="k-field"><span className="k-label">{tab === 'recover' ? 'Nouveau mot de passe' : 'Mot de passe'}</span>
-            <input className="k-input" type="password" value={password} autoComplete={tab === 'login' ? 'current-password' : 'new-password'} onChange={(e) => setPassword(e.target.value)} placeholder="8 caractères minimum" /></label>
+          <label className="k-field"><span className="k-label">{tr(tab === 'recover' ? 'ac.newPw' : 'ac.pw')}</span>
+            <input className="k-input" type="password" value={password} autoComplete={tab === 'login' ? 'current-password' : 'new-password'} onChange={(e) => setPassword(e.target.value)} placeholder={tr('ac.pwPh')} /></label>
           {tab === 'register' && (
-            <label className="k-field"><span className="k-label">Code de parrainage <small>Facultatif : le pseudo de l'ami qui vous a invité.</small></span>
-              <input className="k-input" value={referrer} maxLength={20} onChange={(e) => setReferrer(e.target.value)} placeholder="Pseudo du parrain" /></label>
+            <label className="k-field"><span className="k-label">{tr('ac.refCode')} <small>{tr('ac.refHint')}</small></span>
+              <input className="k-input" value={referrer} maxLength={20} onChange={(e) => setReferrer(e.target.value)} placeholder={tr('ac.refPh')} /></label>
           )}
           {tab === 'register' && (
-            <Toggle label="Reprendre la progression de cet appareil" hint={`Niveau ${levelInfo(pa.profile.xp).level}, ${pa.profile.coins} pièces`} checked={importGuest} onChange={setImportGuest} />
+            <Toggle label={tr('ac.import')} hint={tr('ac.importHint', { level: levelInfo(pa.profile.xp).level, coins: pa.profile.coins })} checked={importGuest} onChange={setImportGuest} />
           )}
           {err && <p className="error">{err}</p>}
           <button type="submit" hidden aria-hidden tabIndex={-1} />
         </form>
-        {tab === 'login' && <button type="button" className="btn ghost small" onClick={() => { setTab('recover'); setErr(null); }}>Mot de passe oublié ?</button>}
-        {tab === 'recover' && <button type="button" className="btn ghost small" onClick={() => { setTab('login'); setErr(null); }}>Retour à la connexion</button>}
-        {tab === 'register' && <p className="k-hint">En créant un compte, vous acceptez la <button type="button" className="link" onClick={onPrivacy}>politique de confidentialité</button>. Aucune adresse e-mail n'est demandée. Vous pouvez aussi jouer sans compte.</p>}
+        {tab === 'login' && <button type="button" className="btn ghost small" onClick={() => { setTab('recover'); setErr(null); }}>{tr('ac.forgotQ')}</button>}
+        {tab === 'recover' && <button type="button" className="btn ghost small" onClick={() => { setTab('login'); setErr(null); }}>{tr('ac.backLogin')}</button>}
+        {tab === 'register' && <p className="k-hint">{tr('ac.legal1')}<button type="button" className="link" onClick={onPrivacy}>{tr('ac.legal2')}</button>{tr('ac.legal3')}</p>}
       </div>
     </Shell>
   );

@@ -10,6 +10,7 @@ import { BagIcon } from './BagIcon';
 import { Icon } from './Icon';
 import { BoosterPack } from '../cards/components';
 import type { InviteGame, WelcomeGift } from './guestInvite';
+import { tr } from '../i18n/lang';
 
 /** Illustration : trois sacs de dés et trois boosters, sous une lumière de comptoir. */
 function GiftArt({ small, bags = true, packs = true }: { small?: boolean; bags?: boolean; packs?: boolean }) {
@@ -53,35 +54,31 @@ function Popup({ onClose, children }: { label: string; onClose: () => void; chil
       {/* 0.49 : pas de fermeture en touchant à côté (Sam : le joueur la ferme lui-même, croix ou « Plus tard »). */}
       <div className="gi-card" ref={card} tabIndex={-1}>
         <span className="gi-rays" aria-hidden />
-        <button type="button" className="gi-x" onClick={onClose} aria-label="Fermer"><Icon name="close" size={22} /></button>
+        <button type="button" className="gi-x" onClick={onClose} aria-label={tr('common.close')}><Icon name="close" size={22} /></button>
         {children}
       </div>
     </div>
   );
 }
 
-const LEAD: Record<InviteGame, string> = {
-  '421': 'Belle partie !',
-  cf: 'Belle partie de cartes !',
-  courtisan: 'Belle partie de Courtisan !',
-};
+const lead = (g: InviteGame) => tr(`gi.lead.${g}`);
 
 export function GuestInvitePopup({ game, onCreate, onClose }: { game: InviteGame; onCreate: () => void; onClose: () => void }) {
   return (
     <Popup label="Créez un compte gratuit" onClose={onClose}>
-      <p className="gi-kicker">{LEAD[game]}</p>
-      <h2 id="gi-title" className="gi-title">Un cadeau vous attend</h2>
+      <p className="gi-kicker">{lead(game)}</p>
+      <h2 id="gi-title" className="gi-title">{tr('gi.title')}</h2>
       <GiftArt />
-      <p className="gi-offer">Créez un compte gratuit : <b>3 sacs de dés + 3 boosters Coups Fourrés</b> offerts</p>
+      <p className="gi-offer">{tr('gi.offer1')}<b>{tr('gi.offer2')}</b>{tr('gi.offer3')}</p>
       <ul className="gi-perks">
-        <li><span className="gi-ic"><Icon name="album" size={18} /></span>Agrandissez votre collection de dés et de cartes</li>
-        <li><span className="gi-ic"><Icon name="lock" size={18} /></span>Progression sauvegardée, sur tous vos appareils</li>
-        <li><span className="gi-ic"><Icon name="trophy" size={18} /></span>Parties en ligne, classées et tournois</li>
-        <li><span className="gi-ic"><Icon name="people" size={18} /></span>Amis, messages et Groschen au Courtisan</li>
+        <li><span className="gi-ic"><Icon name="album" size={18} /></span>{tr('gi.perk1')}</li>
+        <li><span className="gi-ic"><Icon name="lock" size={18} /></span>{tr('gi.perk2')}</li>
+        <li><span className="gi-ic"><Icon name="trophy" size={18} /></span>{tr('gi.perk3')}</li>
+        <li><span className="gi-ic"><Icon name="people" size={18} /></span>{tr('gi.perk4')}</li>
       </ul>
-      <button type="button" className="btn big gi-cta" onClick={onCreate}><Icon name="plus" size={20} /> Créer un compte</button>
-      <p className="gi-fine">Gratuit, sans adresse e-mail, en une minute.</p>
-      <button type="button" className="btn ghost small gi-later" onClick={onClose}>Plus tard</button>
+      <button type="button" className="btn big gi-cta" onClick={onCreate}><Icon name="plus" size={20} /> {tr('gi.create')}</button>
+      <p className="gi-fine">{tr('gi.fine')}</p>
+      <button type="button" className="btn ghost small gi-later" onClick={onClose}>{tr('gi.later')}</button>
     </Popup>
   );
 }
@@ -92,24 +89,24 @@ export function WelcomeGiftPopup({ gift, bags, onBags, onBoosters, onClose }: {
   const both = gift.bags && gift.boosters;
   return (
     <Popup label="Votre cadeau de bienvenue" onClose={onClose}>
-      <p className="gi-kicker">Bienvenue, {gift.user} !</p>
-      <h2 id="gi-title" className="gi-title">{both ? '3 sacs de dés et 3 boosters vous attendent' : gift.bags ? 'Vos sacs de dés vous attendent' : 'Vos 3 boosters vous attendent'}</h2>
+      <p className="gi-kicker">{tr('gi.welcome', { user: gift.user })}</p>
+      <h2 id="gi-title" className="gi-title">{tr(both ? 'gi.both' : gift.bags ? 'gi.bags' : 'gi.packs')}</h2>
       <GiftArt small bags={gift.bags} packs={gift.boosters} />
-      <p className="gi-offer">Ouvrez-les quand vous voulez : leur contenu est tiré au hasard, à l'ouverture.</p>
+      <p className="gi-offer">{tr('gi.openAny')}</p>
       <div className="gi-gifts">
         {gift.bags && (
           <button type="button" className="btn big gi-cta" onClick={onBags}>
-            <BagIcon size={26} /> Ouvrir mes sacs de dés{bags > 0 ? ` (${bags})` : ''}
+            <BagIcon size={26} /> {tr('gi.openBags')}{bags > 0 ? ` (${bags})` : ''}
           </button>
         )}
         {gift.boosters && (
           <button type="button" className="btn big gi-cta violet" onClick={onBoosters}>
-            <Icon name="cards" size={22} /> Ouvrir mes 3 boosters
+            <Icon name="cards" size={22} /> {tr('gi.openPacks')}
           </button>
         )}
       </div>
-      <button type="button" className="btn ghost small gi-later" onClick={onClose}>Plus tard</button>
-      <p className="gi-fine">Vos sacs restent dans la Collection, vos boosters dans Coups Fourrés.</p>
+      <button type="button" className="btn ghost small gi-later" onClick={onClose}>{tr('gi.later')}</button>
+      <p className="gi-fine">{tr('gi.keep')}</p>
     </Popup>
   );
 }

@@ -4532,3 +4532,10 @@ button.mode-chip { cursor: pointer; }
 .cfn-cmd { min-height: 28px; display: inline-flex; align-items: center; }
 .cfn-ttl:has(.cfn-cmd) { height: auto; min-height: 38px; padding-top: 2px; padding-bottom: 2px; }
 .cfn-keep button { padding: 8px; min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; }
+
+/* Sélecteur de langue (Réglages, Courtisan) */
+.lang-switch select { background: rgba(255,255,255,.1); color: inherit; border: 1px solid rgba(255,255,255,.22); border-radius: 8px; font: inherit; font-size: 12px; font-weight: 700; padding: 5px 4px; min-height: 30px; max-width: 92px; cursor: pointer; }
+.lang-switch select option { color: #111; }
+.lang-switch.full select { font-size: 15px; padding: 9px 10px; max-width: none; width: 100%; }
+.lang-switch.full { display: block; }
+.lang-note { font-size: 12px; opacity: .65; text-align: center; margin: 12px 8px 0; }

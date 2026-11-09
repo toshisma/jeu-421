@@ -4,6 +4,7 @@
  * règles). Le général (amis, boutique, collection, réglages…) est dans le menu principal.
  */
 import { Icon } from './Icon';
+import { tr } from '../i18n/lang';
 
 export type ModeTone = 'classique' | 'cartes' | 'dixmille';
 
@@ -14,8 +15,8 @@ export function ModeBar({ tone, title, onBack, children }: {
 }) {
   return (
     <header className={`mode-bar ${tone}`}>
-      <button className="mode-back" onClick={onBack} aria-label="Retour au menu principal">
-        <Icon name="back" size={20} /><span>Menu</span>
+      <button className="mode-back" onClick={onBack} aria-label={tr('common.backHome')}>
+        <Icon name="back" size={20} /><span>{tr('common.menu')}</span>
       </button>
       {/* Le nom du mode est déjà en grand juste dessous (vitrine) : ici, seulement pour les lecteurs d'écran. */}
       <span className="sr-only">{title}</span>
