@@ -1,4 +1,5 @@
 import { ITEMS } from './catalog';
+import type { DmStats } from '../dixmille/stats';
 
 /**
  * Succès : objectifs permanents, débloqués automatiquement, chacun avec une récompense en pièces.
@@ -39,7 +40,7 @@ export const EMPTY_STATS: Stats = {
 };
 
 /** Ce dont un succès a besoin pour mesurer sa progression. */
-export interface AchievementInput { stats: Stats; level: number; purchases: number; owned?: string[] }
+export interface AchievementInput { stats: Stats; level: number; purchases: number; owned?: string[]; /** Statistiques du Courtisan. */ dm?: DmStats }
 
 /** Nombre d'objets payants du catalogue (pour « tout posséder »). */
 export const PAID_ITEMS = ITEMS.filter((i) => i.price > 0).length;
@@ -55,10 +56,40 @@ export interface AchievementDef {
   rare?: boolean;
   /** Succès secret : nom et description cachés tant qu'il n'est pas débloqué. */
   secret?: boolean;
+  /** Succès propre à un mode (affiché à part, et dans le menu de ce mode). */
+  game?: 'courtisan';
   value: (a: AchievementInput) => number;
 }
 
 const st = (k: keyof Stats) => (a: AchievementInput) => a.stats[k];
+const dm = (k: keyof DmStats) => (a: AchievementInput) => a.dm?.[k] ?? 0;
+const bits = (n: number) => (n & 1) + ((n >> 1) & 1) + ((n >> 2) & 1);
+
+/**
+ * Succès du Courtisan (0.53). Récompenses basses, à l'échelle des autres (divisées par 4 en 0.30).
+ * Tous reposent sur des faits que le serveur connaît (parties qu'il joue lui-même : en ligne, ou contre
+ * l'ordinateur à une table du serveur), SAUF les deux premiers (victoires) : une partie gratuite contre
+ * l'ordinateur jouée sur le téléphone compte aussi, avec ses bornes (20 s au moins, 40 parties par jour).
+ */
+function DM_ACHIEVEMENTS(): AchievementDef[] {
+  const c = { game: 'courtisan' as const };
+  return [
+    { ...c, id: 'dm-premiere', icon: '🎲', name: 'Premier courtisan', description: 'Gagner une partie du Courtisan', target: 1, coins: 5, value: dm('wins') },
+    { ...c, id: 'dm-gagnant-25', icon: '👑', name: 'Favori de la cour', description: 'Gagner 25 parties du Courtisan', target: 25, coins: 15, value: dm('wins') },
+    { ...c, id: 'dm-en-ligne', icon: '🌐', name: 'Duel à la cour', description: 'Gagner une partie du Courtisan en ligne contre un autre joueur', target: 1, coins: 10, value: dm('onlineWins') },
+    { ...c, id: 'dm-en-ligne-10', icon: '🏰', name: 'Maître de la cour', description: 'Gagner 10 parties du Courtisan en ligne contre d’autres joueurs', target: 10, coins: 20, value: dm('onlineWins') },
+    { ...c, id: 'dm-gros-tour', icon: '💰', name: 'Bourse pleine', description: 'Encaisser 1 000 points en un seul tour (partie en ligne)', target: 1000, coins: 5, value: dm('vBestTurn') },
+    { ...c, id: 'dm-tresor', icon: '💎', name: 'Le trésor du roi', description: 'Encaisser 2 500 points en un seul tour (partie en ligne)', target: 2500, coins: 25, rare: true, value: dm('vBestTurn') },
+    { ...c, id: 'dm-main-pleine', icon: '🔥', name: 'Main brûlante', description: 'Faire deux mains pleines dans le même tour (partie en ligne)', target: 2, coins: 10, value: dm('hotMax') },
+    { ...c, id: 'dm-six-des', icon: '✋', name: 'Six d’un coup', description: 'Mettre de côté les 6 dés d’un même lancer (partie en ligne)', target: 1, coins: 5, value: dm('six') },
+    { ...c, id: 'dm-grande-suite', icon: '🌈', name: 'Grande suite', description: 'Faire une grande suite, de 1 à 6 (partie en ligne)', target: 1, coins: 5, value: dm('straight') },
+    { ...c, id: 'dm-sans-rate', icon: '🛡️', name: 'Sans faux pas', description: 'Gagner une partie en 4 000 points ou plus sans un seul « Raté » (partie en ligne)', target: 1, coins: 5, value: dm('cleanWins') },
+    { ...c, id: 'dm-niveaux', icon: '🧠', name: 'Tour de la cour', description: 'Battre un ordinateur de chaque niveau (Débutant, Habitué, Fine fouine) à une table en ligne', target: 3, coins: 10, value: (a) => bits(a.dm?.beaten ?? 0) },
+    { ...c, id: 'dm-serie-3', icon: '☄️', name: 'Main heureuse', description: 'Gagner 3 parties en ligne du Courtisan d’affilée', target: 3, coins: 5, value: dm('bestStreak') },
+    { ...c, id: 'dm-pot', icon: '🪙', name: 'Le pot est à moi', description: 'Emporter un pot de Groschen', target: 1, coins: 5, value: dm('pots') },
+    { ...c, id: 'dm-six-identiques', icon: '🎰', name: 'Six fois la même', description: 'Six dés identiques en un seul lancer (partie en ligne)', target: 1, coins: 15, secret: true, value: dm('sixKind') },
+  ];
+}
 
 export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'premiere-victoire', icon: '🥇', name: 'Première victoire', description: 'Gagner une partie', target: 1, coins: 5, value: st('won') },
@@ -113,6 +144,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'secret-brillant', icon: '✨', name: 'Ça brille !', description: 'Trouver un dé brillant dans un sac', target: 1, coins: 10, secret: true, value: (a) => (a.owned ?? []).filter((id) => id.endsWith('-brillant')).length },
   { id: 'secret-legende', icon: '🐉', name: 'Ça, c’est une légende', description: 'Posséder un dé légendaire', target: 1, coins: 10, secret: true, value: (a) => (a.owned ?? []).filter((id) => ['dc-perron', 'dc-dragon', 'dc-aurore'].includes(id.replace('-brillant', ''))).length },
   { id: 'patron-10', icon: '🥊', name: 'Terreur des patrons', description: 'Battre 10 patrons de la semaine', target: 10, coins: 100, rare: true, value: st('bossWins') },
+  ...DM_ACHIEVEMENTS(),
 ];
 
 /** Succès débloqués par la situation actuelle et pas encore enregistrés. */

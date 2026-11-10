@@ -177,7 +177,7 @@ export function Home(props: HomeProps) {
     : { status: tr('app.missions', { v: cf.division ?? tr('app.ligue'), missionsDone: cf.missionsDone, missions: cf.missions }) };
   const courtRes = props.resume?.courtisan && !STANDALONE;
   const courtSt = courtRes ? { status: <><b className="mm-hot">{tr('app.partie_en_cours')}</b> {tr('app.table_2')} {props.resume!.code}</>, hot: true }
-    : gr?.giftReady ? { status: <><b className="mm-hot">{tr('app.cadeau_du_jour')}</b>{tr('app.groschen', { GROSCHEN_DAILY })}</>, hot: true, badge: `+${GROSCHEN_DAILY}` }
+    : gr?.giftReady ? { status: <><b className="mm-hot">{tr('app.cadeau_du_jour')}</b>{tr('app.groschen', { GROSCHEN_DAILY: gr.giftAmount || GROSCHEN_DAILY })}</>, hot: true, badge: `+${gr.giftAmount || GROSCHEN_DAILY}` }
     : gr ? { status: tr('app.groschen_2_a_6_joueurs', { v: gr.balance.toLocaleString(loc()) }) }
     : { status: tr('app.le_dix_mille_a_6_des') };
 

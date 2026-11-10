@@ -22,7 +22,7 @@ import { cfCoinReward } from '../../../shared/cards/coins';
 
 export interface EndReward { reward: Reward; applied: Applied }
 /** Fin d'une partie du Courtisan : récompense, sacs de dés trouvés, défis du jour accomplis. */
-export interface DmEndResult { reward: Reward; levelBefore: number; levelAfter: number; bags: number; quests: string[] }
+export interface DmEndResult { reward: Reward; levelBefore: number; levelAfter: number; bags: number; quests: string[]; /** Succès débloqués (identifiants). */ achievements?: string[] }
 
 /** Défi du jour déjà joué sur cet appareil (affichage et récompense des invités). */
 const DEFI = '421.defi';
@@ -355,13 +355,13 @@ export function useProfile(enabled: boolean) {
       const reward = dixMilleReward({ ...r, minutes, day, now: Date.now() });
       const applied = applyDixMilleGame(ref.current.profile, reward, day, { won: r.won, players: r.opponents + 1, minutes, mode: 'solo', level: r.level, bestTurn: r.bestTurn, declared: true });
       setProfile(applied.profile);
-      return { reward, levelBefore: applied.levelBefore, levelAfter: applied.levelAfter, bags: applied.bagsFound, quests: applied.questsDone.map((q) => q.text) };
+      return { reward, levelBefore: applied.levelBefore, levelAfter: applied.levelAfter, bags: applied.bagsFound, quests: applied.questsDone.map((q) => q.text), achievements: applied.achievementsDone.map((a) => a.id) };
     }
     if (!g.token) return null;
     try {
-      const res = await api<{ reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { text: string }[] } }>('/dixmille/end', { token: s.token, body: { gameToken: g.token, ...r } });
+      const res = await api<{ reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { text: string }[]; achievementsDone?: { id: string }[] } }>('/dixmille/end', { token: s.token, body: { gameToken: g.token, ...r } });
       setProfile(sanitizeProfile(res.applied.profile));
-      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter, bags: res.applied.bagsFound ?? 0, quests: (res.applied.questsDone ?? []).map((q) => q.text) };
+      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter, bags: res.applied.bagsFound ?? 0, quests: (res.applied.questsDone ?? []).map((q) => q.text), achievements: (res.applied.achievementsDone ?? []).map((a) => a.id) };
     } catch {
       return null; // partie trop courte, plafond atteint ou hors connexion : pas de récompense
     }

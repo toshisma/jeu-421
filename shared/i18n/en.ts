@@ -1,3 +1,4 @@
+import { courtisan2En } from './zones/courtisan2.en';
 import { communEn } from './zones/commun.en';
 import { cartesEn } from './zones/cartes.en';
 import type { MessageKey } from './fr';
@@ -7,6 +8,7 @@ import { g421En } from './zones/jeu421.en';
 export const en: Partial<Record<MessageKey, string>> = {
   ...communEn,
   ...(cartesEn as Partial<Record<MessageKey, string>>),
+  ...(courtisan2En as Partial<Record<MessageKey, string>>),
   "common.back": "Back",
   "common.close": "Close",
   "common.cancel": "Cancel",

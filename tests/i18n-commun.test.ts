@@ -26,7 +26,7 @@ describe('zone commun', () => {
       if (/^(dc-|dl-|ds-)|-brillant$|^felt-serie-/.test(it.id)) continue;
       expect(keys, it.id).toContain(`app.item.${it.id}`);
     }
-    for (const a of ACHIEVEMENTS) expect(keys, a.id).toContain(`app.a.${a.id}`);
+    for (const a of ACHIEVEMENTS.filter((x) => !x.game)) expect(keys, a.id).toContain(`app.a.${a.id}`); // Courtisan : dm2.a.* (tests/courtisan2.test.ts)
     for (const q of QUESTS) expect(keys, q.id).toContain(`app.q.${q.id}`);
   });
   it('messages du serveur et textes composés traduits ; français rendu tel quel', () => {

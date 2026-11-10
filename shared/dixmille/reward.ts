@@ -5,7 +5,7 @@
  * statistiques propres au Courtisan et, avec une chance basse, un sac de dés (mêmes sacs que le 421).
  */
 import type { Difficulty } from '../ai';
-import { BAGS_MAX, BAG_PITY, applyPlainReward, bagChance, botTableRules, rewardFor, type Profile, type Reward } from '../progress/profile';
+import { BAGS_MAX, BAG_PITY, applyPlainReward, bagChance, botTableRules, checkAchievements, rewardFor, type Profile, type Reward } from '../progress/profile';
 import { applySummary } from '../progress/quests';
 import { randomFloat } from '../random';
 import type { DmLevel } from './engine';
@@ -62,11 +62,57 @@ export interface DmGameFacts {
   bestTurn?: number;
   /** Pot emporté (Groschen). */
   potWon?: number;
+  /** Heure (date des succès débloqués). */
+  now?: number;
   /**
    * Résultat annoncé par le téléphone (partie gratuite contre l'ordinateur) : il ne change PAS la
    * chance de sac, qui est alors celle d'une défaite (seule la durée, mesurée par le serveur, compte).
    */
   declared?: boolean;
+  /**
+   * Exploits relevés par le SERVEUR pendant une partie qu'il a jouée lui-même (en ligne, ou contre
+   * l'ordinateur à une table du serveur). Seuls ces faits font avancer les succès du Courtisan
+   * (hors « victoires », qui comptent aussi la partie gratuite sur le téléphone).
+   */
+  verified?: {
+    /** Au moins un autre joueur humain à la table. */
+    online: boolean;
+    target: number;
+    /** « Raté » du joueur pendant la partie. */
+    misses: number;
+    /** Niveaux des ordinateurs assis à la table. */
+    botLevels: DmLevel[];
+    hotMax: number; six: number; straight: number; sixKind: number;
+  };
+}
+
+const LEVEL_BIT: Record<DmLevel, number> = { debutant: 1, habitue: 2, fouine: 4 };
+
+/** Statistiques du Courtisan après une partie (faits vérifiés seulement s'ils viennent du serveur). */
+export function nextDmStats(prev: DmStats | undefined, won: boolean, f: DmGameFacts): DmStats {
+  const st: DmStats = { ...EMPTY_DM_STATS, ...prev };
+  const turn = Math.min(DM_TURN_MAX, Math.max(0, Math.floor(f.bestTurn ?? 0)));
+  const pot = Math.max(0, Math.floor(f.potWon ?? 0));
+  const dm: DmStats = {
+    ...st, games: st.games + 1, wins: st.wins + (won ? 1 : 0),
+    bestTurn: Math.max(st.bestTurn, turn), bestPot: Math.max(st.bestPot, pot), pots: st.pots + (pot > 0 ? 1 : 0),
+  };
+  const v = f.declared ? undefined : f.verified;
+  if (!v) return dm;
+  const n = (x: number) => Math.max(0, Math.floor(x || 0));
+  dm.vGames++;
+  dm.vBestTurn = Math.max(st.vBestTurn, turn);
+  dm.hotMax = Math.max(st.hotMax, Math.min(50, n(v.hotMax)));
+  dm.six += n(v.six); dm.straight += n(v.straight); dm.sixKind += n(v.sixKind);
+  if (won) {
+    dm.vWins++;
+    if (v.online) dm.onlineWins++;
+    if (v.target >= 4000 && n(v.misses) === 0) dm.cleanWins++;
+    for (const l of v.botLevels) dm.beaten |= LEVEL_BIT[l] ?? 0;
+    dm.streak = st.streak + 1;
+    dm.bestStreak = Math.max(st.bestStreak, dm.streak);
+  } else dm.streak = 0;
+  return dm;
 }
 
 /**
@@ -93,12 +139,12 @@ export function applyDixMilleGame(p: Profile, r: Reward, day: string, f: DmGameF
   const { quests, completed } = applySummary(a.profile.quests, {
     won: r.won, mode: f.mode, difficulty: f.level ? DM_DIFFICULTY[f.level] : undefined, opponents: Math.max(1, Math.floor(f.players) - 1), combos: {}, gestureThrows: 0,
   }, day);
-  const st = p.dm ?? EMPTY_DM_STATS;
-  const dm: DmStats = {
-    games: st.games + 1, wins: st.wins + (r.won ? 1 : 0),
-    bestTurn: Math.max(st.bestTurn, Math.min(DM_TURN_MAX, Math.max(0, Math.floor(f.bestTurn ?? 0)))),
-    bestPot: Math.max(st.bestPot, Math.max(0, Math.floor(f.potWon ?? 0))),
-  };
+  const dm = nextDmStats(p.dm, r.won, f);
   const bag = dixMilleBagRoll({ ...a.profile, quests, dm }, f, rng);
-  return { ...a, profile: bag.profile, bagsFound: bag.found, questsDone: completed.map((q) => ({ id: q.id, text: q.text })) };
+  // Succès (ceux du Courtisan, et ceux du niveau atteint) : pièces versées tout de suite.
+  const ach = checkAchievements(bag.profile, f.now);
+  return {
+    ...a, profile: ach.profile, bagsFound: bag.found, questsDone: completed.map((q) => ({ id: q.id, text: q.text })),
+    achievementsDone: ach.unlocked.map((x) => ({ id: x.id, icon: x.icon, name: x.name, coins: x.coins })),
+  };
 }

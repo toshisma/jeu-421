@@ -98,10 +98,11 @@ export function useCfPeek(pa: ProfileApi) {
 
 /** Aperçu des Groschen (comptes) : solde et cadeau du jour à recevoir, sans le verser (il l'est à l'ouverture du mode). */
 export function useGroschenPeek(pa: ProfileApi) {
-  const [v, setV] = useState<{ balance: number; giftReady: boolean } | null>(null);
+  const [v, setV] = useState<{ balance: number; giftReady: boolean; giftAmount?: number } | null>(null);
   useEffect(() => {
     if (STANDALONE || !pa.token) { setV(null); return; }
-    api<{ balance: number; giftReady: boolean }>('/dixmille/wallet?peek=1', { token: pa.token }).then((r) => setV({ balance: r.balance, giftReady: !!r.giftReady })).catch(() => {});
+    // giftAmount (0.53) : cadeau du jour, plus le bonus de bienvenue s'il n'a pas encore été reçu.
+    api<{ balance: number; giftReady: boolean; giftAmount?: number }>('/dixmille/wallet?peek=1', { token: pa.token }).then((r) => setV({ balance: r.balance, giftReady: !!r.giftReady, giftAmount: r.giftAmount })).catch(() => {});
   }, [pa.token]);
   return v;
 }

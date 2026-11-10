@@ -56,13 +56,13 @@ describe('Sacs de dés du Courtisan : règle partagée', () => {
   it('statistiques du mode, défis du jour généraux, garde-fous', () => {
     const reward = dixMilleReward({ won: true, place: 1, opponents: 1, level: 'fouine', minutes: 6, day, now });
     const a = applyDixMilleGame(newProfile(), reward, day, { won: true, players: 2, minutes: 6, mode: 'solo', level: 'fouine', bestTurn: 999_999, potWon: 40 }, () => 0.99);
-    expect(a.profile.dm).toEqual({ games: 1, wins: 1, bestTurn: 30_000, bestPot: 40 });
+    expect(a.profile.dm).toMatchObject({ games: 1, wins: 1, bestTurn: 30_000, bestPot: 40, vGames: 0, vBestTurn: 0 });
     expect(a.profile.quests?.day).toBe(day);
     expect(Object.values(a.profile.quests!.progress).some((v) => v > 0)).toBe(true);
     // Pas de statistiques du 421.
     expect(a.profile.stats.played).toBe(0);
     // Un profil trafiqué est nettoyé.
-    expect(sanitizeProfile({ dm: { games: 2, wins: 9, bestTurn: -5, bestPot: 'x' } }).dm).toEqual({ games: 2, wins: 2, bestTurn: 0, bestPot: 0 });
+    expect(sanitizeProfile({ dm: { games: 2, wins: 9, bestTurn: -5, bestPot: 'x', vWins: 50 } }).dm).toMatchObject({ games: 2, wins: 2, bestTurn: 0, bestPot: 0, vWins: 0 });
     expect(sanitizeProfile({ dm: 'n’importe quoi' }).dm).toBeUndefined();
   });
 });

@@ -15,7 +15,8 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Namespace, Server, Socket } from 'socket.io';
 import { act, currentPlayer, newGame, placeOf, DM_TARGETS, type DmAction, type DmEvent, type DmLevel, type DmState } from '../shared/dixmille/engine';
-import { cleanStake } from '../shared/dixmille/groschen';
+import { DM_BOT_GAIN_DAILY, DM_NO_STAKE_LEVEL, cleanStake } from '../shared/dixmille/groschen';
+import { trackFeats, type DmFeats } from '../shared/dixmille/feats';
 import type { GroschenApi } from './groschen';
 import { decide } from '../shared/dixmille/ai';
 import { DM_DECISION_SECONDS, DM_TABLE_MAX, type DmPublicTable, type DmRewardMsg, type DmUpdate } from '../shared/dixmille/protocol';
@@ -45,6 +46,16 @@ export interface DmOnlineOptions {
   quickStartMs?: number;
 }
 
+/** Ce que le serveur sait d'un joueur en fin de partie (récompense, statistiques, succès). */
+export interface DmEndFacts {
+  won: boolean; place: number; players: number; humans: number; botLevels: DmLevel[]; minutes: number; day: string; abandoned: boolean; bestTurn?: number; potWon?: number;
+  /** Exploits relevés par le serveur pendant la partie (succès du Courtisan). */
+  target?: number; misses?: number; feats?: { hotMax: number; six: number; straight: number; sixKind: number };
+}
+
+/** Pas de mise à une table où un ordinateur Débutant est assis (Groschen trop faciles à gagner). */
+export const NO_STAKE_WITH_BEGINNER = 'Pas de mise contre un ordinateur Débutant : choisissez Habitué ou Fine fouine, ou jouez gratuitement.';
+
 interface Ctx {
   io: Server;
   store: Store;
@@ -54,8 +65,8 @@ interface Ctx {
   publicInfo: (userId: string) => { account: string; photo?: string | null; accessory?: string; dice?: string; trail?: string } | null;
   isBlocked: (a: string, b: string) => boolean;
   /** Récompense d'un compte en fin de partie (calculée par les comptes). */
-  reward: (userId: string, o: { won: boolean; place: number; players: number; humans: number; botLevels: DmLevel[]; minutes: number; day: string; abandoned: boolean; bestTurn?: number; potWon?: number })
-    => { reward: Reward; applied: { profile: unknown; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { id: string; text: string }[] } } | null;
+  reward: (userId: string, o: DmEndFacts)
+    => { reward: Reward; applied: { profile: unknown; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { id: string; text: string }[]; achievementsDone?: { id: string }[] } } | null;
   recordChat: (e: TableChatEntry) => void;
   /** Pseudos administrateurs : un invité ne peut pas les prendre à table. */
   adminNames: string[];
@@ -112,6 +123,8 @@ interface Table {
   autoOf: string | null;
   startedAt: number;
   rewarded: boolean;
+  /** Exploits de la partie en cours, par joueur (relevés ici, pour les succès). */
+  feats: DmFeats;
   lastActivity: number;
   spectators: Map<string, { name: string; userId?: string }>;
   quick?: { waitSince: number; fillAt: number | null; startAt: number | null; timer: NodeJS.Timeout | null };
@@ -205,7 +218,7 @@ export function createDixMilleOnline(c: Ctx) {
   function makeTable(host: Member, title: string, target: number, visibility: 'private' | 'public', stake = 0): Table {
     const t: Table = {
       code: newCode(), title, hostId: host.id, members: [host], kicked: new Set(), target, visibility, stake, pot: 0, ref: '', games: 0, status: 'lobby', game: null, version: 0, players: [],
-      timer: null, deadline: null, autoOf: null, startedAt: Date.now(), rewarded: false, lastActivity: Date.now(), spectators: new Map(),
+      timer: null, deadline: null, autoOf: null, startedAt: Date.now(), rewarded: false, feats: {}, lastActivity: Date.now(), spectators: new Map(),
     };
     tables.set(t.code, t);
     return t;
@@ -274,6 +287,7 @@ export function createDixMilleOnline(c: Ctx) {
   function startGame(t: Table): string | null {
     const players = t.members.filter((m) => !m.left);
     for (const m of t.members) m.quit = false;
+    if (t.stake > 0 && players.some((m) => m.bot === DM_NO_STAKE_LEVEL)) return NO_STAKE_WITH_BEGINNER;
     if (t.stake > 0) {
       for (const m of players.filter((x) => !x.bot)) {
         const problem = stakeProblem(m.userId, t.stake);
@@ -298,6 +312,7 @@ export function createDixMilleOnline(c: Ctx) {
     t.version = 1;
     t.autoOf = null;
     t.rewarded = false;
+    t.feats = {};
     t.startedAt = (o.now ?? Date.now)();
     t.lastActivity = Date.now();
     ns.to(t.code).emit('game:state', snapshot(t));
@@ -357,6 +372,8 @@ export function createDixMilleOnline(c: Ctx) {
     // Hasard officiel : nouvelle graine secrète avant chaque action.
     const r = act({ ...g, seed: randomInt(2 ** 31), draws: 0 }, a);
     if ('error' in r) return r.error;
+    // Exploits (succès) : seulement les décisions du joueur lui-même, pas celles que le serveur prend pour lui.
+    trackFeats(t.feats, g, a, r.state, !auto || auto === 'bot');
     t.game = r.state;
     t.version++;
     t.lastActivity = Date.now();
@@ -385,12 +402,17 @@ export function createDixMilleOnline(c: Ctx) {
     // Le pot : au gagnant s'il est encore là. S'il a quitté (le serveur jouait pour lui), il ne touche
     // rien : les joueurs restés récupèrent leur mise, les mises des partants sont perdues.
     let potTo: string | null = null;
+    let potPaid = 0;
     if (t.pot > 0) {
       const w = memberOf(t, g.winner!)!;
       if (!w.bot && !w.quit && w.userId) {
         potTo = w.userId;
-        c.groschen.payWinner(t.ref, w.userId, t.pot);
-        notice(t, `${w.name} emporte le pot : ${t.pot} Groschen !`);
+        // Part misée par les ordinateurs : plafonnée par jour (au-delà, seules les mises des joueurs sont versées).
+        const fromBots = t.stake * inGame.filter((m) => m.bot).length;
+        const pay = c.groschen.payWinner(t.ref, w.userId, t.pot, fromBots);
+        potPaid = pay.paid;
+        notice(t, `${w.name} emporte le pot : ${potPaid} Groschen !`);
+        if (pay.capped) notice(t, `Plafond du jour atteint : la part des ordinateurs n’est versée que jusqu’à ${DM_BOT_GAIN_DAILY} Groschen par jour.`, 'warning');
       } else if (!w.bot) {
         c.groschen.refund(t.ref, inGame.filter((m) => !m.bot && !m.quit && m.userId).map((m) => m.userId!));
         notice(t, `${w.name} a quitté la table avant la fin : les joueurs restés récupèrent leur mise.`);
@@ -404,10 +426,12 @@ export function createDixMilleOnline(c: Ctx) {
       if (!m.userId) continue;
       const out = c.reward(m.userId, {
         won: g.winner === m.id, place: placeOf(g, m.id), players: g.players.length, humans, botLevels, minutes, day: c.groschen.today(), abandoned: !!m.quit,
-        bestTurn: g.players.find((p) => p.id === m.id)?.best ?? 0, potWon: potTo === m.userId ? t.pot : 0,
+        bestTurn: g.players.find((p) => p.id === m.id)?.best ?? 0, potWon: potTo === m.userId ? potPaid : 0,
+        target: g.target, misses: g.players.find((p) => p.id === m.id)?.misses ?? 0, feats: t.feats[m.id],
       });
       if (out && m.socketId) sock(m.socketId)?.emit('profile:reward', { reward: out.reward, levelBefore: out.applied.levelBefore, levelAfter: out.applied.levelAfter, profile: out.applied.profile,
-        bags: out.applied.bagsFound ?? 0, quests: (out.applied.questsDone ?? []).map((q) => q.text) } satisfies DmRewardMsg);
+        bags: out.applied.bagsFound ?? 0, quests: (out.applied.questsDone ?? []).map((q) => q.text),
+        achievements: (out.applied.achievementsDone ?? []).map((x) => x.id), ...(potTo === m.userId ? { potPaid } : {}) } satisfies DmRewardMsg);
     }
   }
 
@@ -619,6 +643,7 @@ export function createDixMilleOnline(c: Ctx) {
       t.solo = true;
       const n = Math.min(3, Math.max(1, Math.floor(Number(p?.opponents) || 1)));
       const level = cleanLevel(p?.level);
+      if (level === DM_NO_STAKE_LEVEL) return reply({ ok: false, error: NO_STAKE_WITH_BEGINNER });
       const names: { name: string; avatar: string }[] = Array.isArray(p?.bots) ? p.bots.slice(0, n).map((b: any) => ({ name: cleanName(b?.name) ?? '', avatar: typeof b?.avatar === 'string' ? b.avatar.slice(0, 8) : '🎲' })) : [];
       for (let i = 0; i < n; i++) {
         addBot(t, level);
@@ -643,6 +668,7 @@ export function createDixMilleOnline(c: Ctx) {
       const x = hostOnly(reply);
       if (!x) return;
       if (x.t.members.length >= DM_TABLE_MAX) return reply({ ok: false, error: 'La table est complète.' });
+      if (x.t.stake > 0 && cleanLevel(p?.level) === DM_NO_STAKE_LEVEL) return reply({ ok: false, error: NO_STAKE_WITH_BEGINNER });
       addBot(x.t, cleanLevel(p?.level));
       reply({ ok: true });
       quickPlan(x.t);
@@ -653,6 +679,7 @@ export function createDixMilleOnline(c: Ctx) {
       const x = hostOnly(reply);
       if (!x) return;
       const n = x.t.members.length;
+      if (x.t.stake > 0 && cleanLevel(p?.level) === DM_NO_STAKE_LEVEL) return reply({ ok: false, error: NO_STAKE_WITH_BEGINNER });
       const added = fillWithBots(x.t, n < QUICK_TARGET ? QUICK_TARGET : n + 1, cleanLevel(p?.level));
       if (!added) return reply({ ok: false, error: 'La table est complète.' });
       reply({ ok: true });
@@ -705,6 +732,7 @@ export function createDixMilleOnline(c: Ctx) {
         const problem = stakeProblem(x.m.userId, stake);
         if (problem) return reply({ ok: false, error: problem });
         if (x.t.quick && stake > 0) return reply({ ok: false, error: 'Pas de mise en partie rapide.' });
+        if (stake > 0 && x.t.members.some((m) => m.bot === DM_NO_STAKE_LEVEL)) return reply({ ok: false, error: NO_STAKE_WITH_BEGINNER });
         x.t.stake = stake;
       }
       // Changer les réglages annule les « prêt » : chacun doit relire.

@@ -4543,3 +4543,28 @@ button.mode-chip { cursor: pointer; }
 .lang-switch.full select { font-size: 15px; padding: 9px 10px; max-width: none; width: 100%; }
 .lang-switch.full { display: block; }
 .lang-note { font-size: 12px; opacity: .65; text-align: center; margin: 12px 8px 0; }
+
+/* --- Le Courtisan 0.53 : succès du mode, bandeau de déblocage, mise refusée contre Débutant (préfixe dm2-) --- */
+.dm2-ach-row { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; padding: 9px 12px; border: 0; border-radius: 14px; cursor: pointer; color: inherit; text-align: left;
+  background: linear-gradient(180deg, rgba(0,0,0,.28), rgba(0,0,0,.18)); box-shadow: inset 0 0 0 1px rgba(243,207,122,.22); }
+.dm2-ach-row:active { transform: translateY(1px); }
+.dm2-ach-row-title { display: flex; flex-direction: column; gap: 1px; flex: 0 0 auto; }
+.dm2-ach-row-title b { font: 800 15.5px/1.1 var(--cond); color: var(--dm-or, #f1cc7d); }
+.dm2-ach-row-title small { font-size: 11.5px; color: #d9c3a0; }
+.dm2-ach-row-icons { flex: 1; min-width: 0; display: flex; gap: 2px; overflow: hidden; justify-content: flex-end; }
+.dm2-ach-row-icons i { font-style: normal; font-size: 17px; line-height: 1; filter: grayscale(1); opacity: .35; }
+.dm2-ach-row-icons i.on { filter: none; opacity: 1; }
+.dm2-ach .ach-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.ach-group { margin: 16px 0 8px; font: 800 16px/1.1 var(--cond); color: var(--laiton, #e0b155); }
+.dm2-ach-won li b { color: #f3cf7a; }
+.dm2-ach-won li em { font-style: normal; color: #d9c3a0; font-size: 12px; }
+.dm2-nostake { color: #f0b36b; }
+.dm2-ach-toast { position: fixed; z-index: 70; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 12px); transform: translateX(-50%); display: flex; align-items: center; gap: 10px;
+  max-width: calc(100vw - 24px); padding: 8px 14px 8px 10px; border-radius: 14px; cursor: pointer; color: #f6ecd8;
+  background: linear-gradient(180deg, #4a2a10, #2a1606); box-shadow: 0 8px 24px rgba(0,0,0,.45), inset 0 0 0 1.5px #f3cf7a; animation: dm2Toast .45s cubic-bezier(.2,1.5,.4,1) both; }
+.dm2-ach-toast-ic { font-size: 28px; line-height: 1; }
+.dm2-ach-toast > span:nth-child(2) { display: flex; flex-direction: column; min-width: 0; }
+.dm2-ach-toast small { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #f3cf7a; }
+.dm2-ach-toast b { font: 800 16px/1.15 var(--cond); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dm2-ach-toast em { font-style: normal; font-size: 12px; color: #d9c3a0; white-space: nowrap; }
+@keyframes dm2Toast { from { opacity: 0; transform: translate(-50%, -16px) scale(.92); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }

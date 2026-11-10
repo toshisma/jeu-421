@@ -228,14 +228,16 @@ describe('Le Courtisan : les Groschen', () => {
   it('cadeau de connexion : une fois par jour (horloge du serveur)', async () => {
     const { token } = await account();
     const w1 = await api('/dixmille/wallet', undefined, token);
-    expect(w1).toMatchObject({ ok: true, gift: 20, balance: 20 });
+    // 0.53 : bonus de bienvenue (80) + cadeau du jour (20) = 100 au départ.
+    expect(w1).toMatchObject({ ok: true, gift: 20, welcome: 80, newcomer: true, balance: 100 });
     const w2 = await api('/dixmille/wallet', undefined, token);
-    expect(w2).toMatchObject({ gift: 0, balance: 20 });
+    expect(w2).toMatchObject({ gift: 0, balance: 100 });
+    expect(w2.welcome).toBeUndefined();
     // Un en-tête de date envoyé par le téléphone n'y change rien.
     const r = await fetch(`${url}/api/dixmille/wallet`, { headers: { Authorization: `Bearer ${token}`, 'X-Day': '2030-01-01' } });
     expect((await r.json()).gift).toBe(0);
     clock += 86400_000;
-    expect(await api('/dixmille/wallet', undefined, token)).toMatchObject({ gift: 20, balance: 40 });
+    expect(await api('/dixmille/wallet', undefined, token)).toMatchObject({ gift: 20, balance: 120 });
     expect((await api('/dixmille/wallet')).status).toBe(401);
   });
 
@@ -243,9 +245,9 @@ describe('Le Courtisan : les Groschen', () => {
     const u = await account();
     await api('/dixmille/wallet', undefined, u.token);
     const a = await client();
-    expect((await emit(a, 'table:create', { name: 'Riche', stake: 21, auth: u.token, balance: 9999 })).error).toMatch(/Il faut 21/);
+    expect((await emit(a, 'table:create', { name: 'Riche', stake: 101, auth: u.token, balance: 9999 })).error).toMatch(/Il faut 101/);
     expect((await emit(a, 'table:create', { name: 'Invité', stake: 5 })).error).toMatch(/compte/);
-    expect((await emit(a, 'table:solo', { stake: 21, auth: u.token, balance: 9999 })).error).toMatch(/Il faut/);
+    expect((await emit(a, 'table:solo', { stake: 101, auth: u.token, balance: 9999 })).error).toMatch(/Il faut/);
     const ok = await emit(a, 'table:create', { name: 'Riche', stake: 20, auth: u.token });
     expect(ok.ok).toBe(true);
     const g = await client();
@@ -278,11 +280,11 @@ describe('Le Courtisan : les Groschen', () => {
       expect((await emit(cs[0], 'table:start')).ok).toBe(true);
       await until(() => cs.every((c) => !!c.state));
       expect(cs[0].table!.pot).toBe(5 * (humans + bots));
-      for (const x of accs) expect(await bal(x.token)).toBe(15); // mise prélevée au lancement
+      for (const x of accs) expect(await bal(x.token)).toBe(95); // mise prélevée au lancement
       const end = await playOut(cs, 40_000);
       await wait(50);
       const winner = cs.findIndex((c) => c.id === end.winner);
-      for (const [i, x] of accs.entries()) expect(await bal(x.token)).toBe(i === winner ? 15 + 5 * (humans + bots) : 15);
+      for (const [i, x] of accs.entries()) expect(await bal(x.token)).toBe(i === winner ? 95 + 5 * (humans + bots) : 95);
       for (const c of cs) c.s.close();
     }, 60_000);
   }
@@ -297,8 +299,8 @@ describe('Le Courtisan : les Groschen', () => {
     await wait(50);
     // La table est rangée (ménage) avant la fin de la partie.
     srv.closeDmTable(code);
-    expect(await bal(accs[0].token)).toBe(13); // abandon : mise perdue
-    expect(await bal(accs[1].token)).toBe(20); // remboursé
+    expect(await bal(accs[0].token)).toBe(93); // abandon : mise perdue
+    expect(await bal(accs[1].token)).toBe(100); // remboursé
     cs[0].s.close();
   });
 
@@ -314,8 +316,8 @@ describe('Le Courtisan : les Groschen', () => {
     await until(() => !!back.state);
     const end = await playOut([back, cs[1]], 40_000);
     await wait(50);
-    expect(await bal(accs[0].token)).toBe(16);
-    expect(await bal(accs[1].token)).toBe(end.winner === cs[1].id ? 16 + 8 : 20);
+    expect(await bal(accs[0].token)).toBe(96);
+    expect(await bal(accs[1].token)).toBe(end.winner === cs[1].id ? 96 + 8 : 100);
     for (const c of [...cs, back]) c.s.close();
   }, 60_000);
 
@@ -323,18 +325,18 @@ describe('Le Courtisan : les Groschen', () => {
     const u = await account();
     await api('/dixmille/wallet', undefined, u.token);
     const a = await client();
-    const r = await emit(a, 'table:solo', { stake: 10, opponents: 2, level: 'debutant', target: 2000, auth: u.token, name: 'Moi' });
+    const r = await emit(a, 'table:solo', { stake: 10, opponents: 2, level: 'habitue', target: 2000, auth: u.token, name: 'Moi' });
     expect(r.ok).toBe(true);
     a.id = r.playerId;
     await until(() => !!a.state);
     expect(a.state!.players.length).toBe(3);
-    expect(await bal(u.token)).toBe(10);
+    expect(await bal(u.token)).toBe(90);
     // Personne d'autre ne peut s'asseoir à cette table.
     const g = await client();
     expect((await emit(g, 'table:join', { code: r.code, name: 'Intrus' })).ok).toBe(false);
     const end = await playOut([a], 40_000);
     await wait(50);
-    expect(await bal(u.token)).toBe(end.winner === a.id ? 10 + 30 : 10);
+    expect(await bal(u.token)).toBe(end.winner === a.id ? 90 + 30 : 90);
     a.s.close(); g.s.close();
   }, 60_000);
 });

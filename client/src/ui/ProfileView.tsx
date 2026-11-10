@@ -53,8 +53,11 @@ function Achievements({ unlocked, progress }: { unlocked: Record<string, number>
   return (
     <section className="pv-ach">
       <p className="pv-ach-sum"><b>{n}</b> {tr('app.succes_sur')} {ACHIEVEMENTS.length}<span className="tile-bar"><i style={{ width: `${(100 * n) / ACHIEVEMENTS.length}%` }} /></span></p>
+      {/* 0.53 : succès du Courtisan rangés à part, sous leur titre. */}
+      {[ACHIEVEMENTS.filter((a) => !a.game), ACHIEVEMENTS.filter((a) => a.game === 'courtisan')].map((group, gi) => <div key={gi}>
+      {gi > 0 && <h4 className="ach-group">{tr('dm2.ach.profile')}</h4>}
       <ul className="ach-grid">
-        {ACHIEVEMENTS.map((a) => {
+        {group.map((a) => {
           const at = unlocked[a.id];
           const v = Math.min(a.target, progress?.(a.id) ?? 0);
           if (a.secret && !at) {
@@ -78,6 +81,7 @@ function Achievements({ unlocked, progress }: { unlocked: Record<string, number>
           );
         })}
       </ul>
+      </div>)}
     </section>
   );
 }
@@ -194,7 +198,7 @@ export function ProfileView({ pa, username, displayName, avatar, onClose, onInvi
     const p = pa.profile;
     const li = levelInfo(p.xp);
     const s = { ...EMPTY_STATS, ...p.stats };
-    const input = { stats: s, level: li.level, purchases: purchases(p), owned: p.owned };
+    const input = { stats: s, level: li.level, purchases: purchases(p), owned: p.owned, dm: p.dm };
     const progress = (id: string) => ACHIEVEMENTS.find((a) => a.id === id)!.value(input);
     const name = pa.session?.username ?? (displayName || tr('app.invite'));
     body = (

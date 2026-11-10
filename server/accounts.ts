@@ -417,7 +417,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const level: DmLevel = levels.includes(b.level) ? b.level : 'habitue';
     const applied = applyDixMilleGame(store.profileOf(u), reward, day, {
       won: !!b.won, players: opponents + 1, minutes: (clock() - g.startedAt) / 60000, mode: 'solo', level,
-      bestTurn: Math.min(DM_DECLARED_TURN_MAX, Math.max(0, Math.floor(Number(b.bestTurn) || 0))), declared: true,
+      bestTurn: Math.min(DM_DECLARED_TURN_MAX, Math.max(0, Math.floor(Number(b.bestTurn) || 0))), declared: true, now: clock(),
     });
     store.saveProfile(u.id, applied.profile);
     leagueGain(u.id, reward.xp);
@@ -428,7 +428,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
    * Fin d'une partie du Courtisan en ligne (appelée par le serveur de jeu) : récompense calculée ici.
    * Un joueur parti ne touche rien. Avec des ordinateurs : plafond quotidien des parties contre l'ordinateur.
    */
-  function dixMilleOnlineEnd(userId: string, o: { won: boolean; place: number; players: number; humans: number; botLevels: DmLevel[]; minutes: number; day: string; abandoned: boolean; bestTurn?: number; potWon?: number }) {
+  function dixMilleOnlineEnd(userId: string, o: { won: boolean; place: number; players: number; humans: number; botLevels: DmLevel[]; minutes: number; day: string; abandoned: boolean; bestTurn?: number; potWon?: number;
+    target?: number; misses?: number; feats?: { hotMax: number; six: number; straight: number; sixKind: number } }) {
     const u = store.userById(userId);
     if (!u || o.abandoned) return null;
     if (o.botLevels.length && store.bumpSolo(userId, o.day) > SOLO_CAP) return null;
@@ -437,7 +438,9 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const easiest = (['debutant', 'habitue', 'fouine'] as DmLevel[]).find((l) => o.botLevels.includes(l));
     const applied = applyDixMilleGame(store.profileOf(u), reward, o.day, {
       won: o.won, players: o.players, minutes: o.minutes, mode: o.humans >= 2 ? 'online' : 'solo', level: o.humans >= 2 ? undefined : easiest,
-      bestTurn: o.bestTurn, potWon: o.potWon,
+      bestTurn: o.bestTurn, potWon: o.potWon, now: clock(),
+      // Partie jouée par le serveur : ses exploits comptent pour les succès du Courtisan.
+      verified: { online: o.humans >= 2, target: o.target ?? 0, misses: o.misses ?? 0, botLevels: o.botLevels, hotMax: o.feats?.hotMax ?? 0, six: o.feats?.six ?? 0, straight: o.feats?.straight ?? 0, sixKind: o.feats?.sixKind ?? 0 },
     });
     store.saveProfile(userId, applied.profile);
     leagueGain(userId, reward.xp);

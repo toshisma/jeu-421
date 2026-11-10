@@ -22,7 +22,7 @@ import { happyHour } from './events';
 import { DIVISIONS } from '../season';
 import { randomFloat } from '../random';
 import { BOSSES, BOSS_COINS, bossOfWeek, weekKey } from './boss';
-import { cleanDmStats, type DmStats } from '../dixmille/stats';
+import { EMPTY_DM_STATS, cleanDmStats, type DmStats } from '../dixmille/stats';
 
 export interface Profile {
   version: 1;
@@ -306,9 +306,10 @@ export function capGuestImport(p: Profile): Profile {
   }
   if (p.vsAi) base.vsAi = Object.fromEntries(Object.entries(p.vsAi).map(([n, x]) => [n, { w: cap(x.w), l: cap(x.l) }]));
   // Courtisan : parties et meilleur tour ; pas de pot (les Groschen n'existent qu'avec un compte).
-  if (p.dm) base.dm = { games: cap(p.dm.games), wins: Math.min(cap(p.dm.wins), cap(p.dm.games)), bestTurn: p.dm.bestTurn, bestPot: 0 };
+  // Les faits vérifiés par le serveur (succès du Courtisan) n'existent pas chez un invité : remis à zéro.
+  if (p.dm) base.dm = { ...EMPTY_DM_STATS, games: cap(p.dm.games), wins: Math.min(cap(p.dm.wins), cap(p.dm.games)), bestTurn: p.dm.bestTurn };
   // Succès : seulement ceux que les statistiques reprises justifient.
-  const input = { stats, level, purchases: purchases(base), owned };
+  const input = { stats, level, purchases: purchases(base), owned, dm: base.dm };
   for (const a of ACHIEVEMENTS) if (p.achievements[a.id] && a.value(input) >= a.target) base.achievements[a.id] = p.achievements[a.id];
   if (p.title && availableTitles(base).includes(p.title)) base.title = p.title;
   return base;
@@ -451,7 +452,7 @@ export const purchases = (p: Profile) => p.owned.filter((id) => (getItem(id)?.pr
 
 /** Débloque les succès atteints et verse leurs pièces. */
 export function checkAchievements(p: Profile, now = Date.now()): { profile: Profile; unlocked: AchievementDef[] } {
-  const unlocked = newlyUnlocked({ stats: p.stats, level: levelInfo(p.xp).level, purchases: purchases(p), owned: p.owned }, p.achievements);
+  const unlocked = newlyUnlocked({ stats: p.stats, level: levelInfo(p.xp).level, purchases: purchases(p), owned: p.owned, dm: p.dm }, p.achievements);
   if (!unlocked.length) return { profile: p, unlocked };
   const achievements = { ...p.achievements };
   for (const a of unlocked) achievements[a.id] = now;

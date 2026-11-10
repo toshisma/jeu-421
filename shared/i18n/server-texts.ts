@@ -9,10 +9,12 @@ import { COMMON_RULES, translateCommonText } from './zones/serveur-commun';
 import type { Lang } from './index';
 import { translateG421 } from './zones/jeu421-server';
 import { translateCfRule } from './zones/cartes-rules';
+import { DM2_RULES } from './zones/courtisan2-server';
 
 const N = '(.+)';
 const RULES: [RegExp, Record<Foreign, string>][] = [
   ...COMMON_RULES,
+  ...DM2_RULES,
   [/^Connexion au serveur impossible$/, { en: 'Can’t reach the server', de: 'Verbindung zum Server nicht möglich', nl: 'Kan de server niet bereiken' }],
   [/^Le serveur ne répond pas$/, { en: 'The server isn’t responding', de: 'Der Server antwortet nicht', nl: 'De server reageert niet' }],
   [/^Impossible de joindre le serveur de jeu$/, { en: 'Can’t reach the game server', de: 'Spielserver nicht erreichbar', nl: 'Kan de spelserver niet bereiken' }],

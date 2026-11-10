@@ -49,7 +49,7 @@ for (const key of Object.keys(FX_KIND_LABEL)) add(FX_KIND_LABEL, key, `app.fxk.$
 for (const key of Object.keys(RARITY_LABEL)) add(RARITY_LABEL, key, `app.rar.${key}`);
 for (const key of Object.keys(CATEGORY_LABELS)) add(CATEGORY_LABELS, key, `app.cat.${key}`);
 for (const q of QUESTS) add(q, 'text', `app.q.${q.id}`);
-for (const a of ACHIEVEMENTS) { add(a, 'name', `app.a.${a.id}`); add(a, 'description', `app.a.${a.id}.d`); }
+for (const a of ACHIEVEMENTS) { const z = a.game === 'courtisan' ? 'dm2' : 'app'; add(a, 'name', `${z}.a.${a.id}`); add(a, 'description', `${z}.a.${a.id}.d`); }
 for (const e of EVENTS) { add(e, 'name', `app.ev.${e.id}`); add(e, 'description', `app.ev.${e.id}.d`); }
 for (const b of BOSSES) { add(b, 'twist', `app.boss.${b.id}.t`); if (b.id === 'baron') dyn(b, 'name', (l) => (l === 'fr' ? 'Le Baron' : BARON[l])); }
 for (const d of DIVISIONS) add(d, 'name', `app.div.${d.id}`);

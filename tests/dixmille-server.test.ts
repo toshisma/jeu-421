@@ -44,7 +44,9 @@ describe('Dix mille : récompenses', () => {
     expect(end.ok).toBe(true);
     expect(end.reward.coins).toBeGreaterThanOrEqual(1);
     expect(end.reward.coins).toBeLessThanOrEqual(15);
-    expect(end.applied.profile.coins).toBe(before.coins + end.reward.coins + end.applied.levelBonusCoins);
+    // 0.53 : la première victoire débloque « Premier courtisan » (+5).
+    expect(end.applied.achievementsDone.map((x: { id: string }) => x.id)).toEqual(['dm-premiere']);
+    expect(end.applied.profile.coins).toBe(before.coins + end.reward.coins + end.applied.levelBonusCoins + 5);
     // Pas de partie comptée dans les statistiques du 421 (succès, défis).
     expect(end.applied.profile.stats.played).toBe(before.stats.played);
     expect((await api('/dixmille/end', { gameToken: g2.gameToken, won: true }, token)).status).toBe(400); // jeton à usage unique

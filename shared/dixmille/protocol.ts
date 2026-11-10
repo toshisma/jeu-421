@@ -38,4 +38,6 @@ export interface DmRewardMsg {
   reward: Reward; levelBefore: number; levelAfter: number; profile: unknown;
   /** Sacs de dés trouvés (tirés par le serveur), défis du jour accomplis. */
   bags?: number; quests?: string[];
+  /** Succès débloqués par cette partie (identifiants), Groschen vraiment versés au gagnant (plafond de la part des ordinateurs). */
+  achievements?: string[]; potPaid?: number;
 }
