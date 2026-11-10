@@ -46,6 +46,8 @@ export interface CfTourDeps {
   userFromToken: (t: unknown) => UserRow | undefined;
   push: (userId: string, title: string, body: string, url?: string) => void;
   discord?: (ev: CfTournamentEvent) => unknown;
+  /** Vainqueur du tournoi (bistrots entre amis) : son compte et le nombre de partants. */
+  onChampion?: (userId: string, players: number) => unknown;
   opts?: CfTourOptions;
 }
 
@@ -255,6 +257,7 @@ export function createCfTournament(d: CfTourDeps) {
     }
     const f = cfFinal(a.bracket);
     const podium = champion ? [champion, ...[f.a, f.b].filter((x): x is string => !!x && x !== champion)] : [];
+    if (champion) { try { d.onChampion?.(champion, n); } catch { /* sans effet sur le tournoi */ } }
     if (champion) void d.discord?.({ kind: 'fin', id: a.id, players: n, podium: podium.map(nameOf), boosters: cfTourBoostersFor(1, n) });
   }
 

@@ -1,3 +1,4 @@
+import { clubsDe } from './zones/clubs.de';
 import { communDe } from './zones/commun.de';
 import { cartesDe } from './zones/cartes.de';
 import type { MessageKey } from './fr';
@@ -6,6 +7,7 @@ import { g421De } from './zones/jeu421.de';
 /** Textes allemands (« du », ton direct). Une clé absente s'affiche en français. */
 export const de: Partial<Record<MessageKey, string>> = {
   ...communDe,
+  ...clubsDe,
   ...(cartesDe as Partial<Record<MessageKey, string>>),
   'common.back': 'Zurück', 'common.close': 'Schließen', 'common.cancel': 'Abbrechen', 'common.confirm': 'Bestätigen', 'common.backHome': 'Zurück zum Hauptmenü', 'common.menu': 'Menü',
   'lang.title': 'Sprache', 'lang.switch': 'Sprache', 'lang.note': "Gilt für das ganze Spiel.",

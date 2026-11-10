@@ -1,4 +1,5 @@
 import { ChangelogScreen } from './ui/Changelog';
+import { captureBistrotLink } from './bistrots';
 import { FriendOnlineToast, FriendsScreen, InviteBanner } from './ui/Friends';
 import { Suspense, useEffect, useRef, useMemo, useState } from 'react';
 import type { GameConfig } from '../../shared/config';
@@ -146,6 +147,8 @@ export function App() {
   const courtInvite = useMemo(() => { const v = new URLSearchParams(location.search).get('courtisan'); return v && /^[A-Za-z0-9]{5}$/.test(v) ? v.toUpperCase() : null; }, []);
   const openCourt = useMemo(() => { const v = courtisanModeParam(location.search); if (v) cleanUrl(); return v; }, []);
   const openDefi = useMemo(() => { const v = new URLSearchParams(location.search).has('defi'); if (v) cleanUrl(); return v; }, []);
+  // Bistrots entre amis : lien d'invitation (/?bistrot=CODE) ou notification : écran Amis.
+  const openBistrot = useMemo(() => captureBistrotLink(), []);
   const openNotifs = useMemo(() => { const v = new URLSearchParams(location.search).has('notifs'); if (v) cleanUrl(); return v; }, []);
   // Lien de parrainage : le pseudo du parrain est retenu pour la création du compte.
   useMemo(() => {
@@ -160,7 +163,7 @@ export function App() {
       : watchLink ? { name: 'watch', code: watchLink.toUpperCase(), back: { name: 'home' } }
       : invite ? { name: 'online', mode: { kind: 'join', code: invite.toUpperCase() } }
         : tInvite && settings.name ? { name: 'tournament', mode: { kind: 'join', code: tInvite.toUpperCase() } }
-          : tInvite || tSched ? { name: 'hub', tab: 'tournois' } : openCf ? { name: 'cf', ...(openCf === 'tournoi' ? { pending: { tournoi: true } } : {}) } : openDefi ? { name: 'challenge' } : openPm ? { name: 'messages', with: openPm } : { name: 'home' });
+          : tInvite || tSched ? { name: 'hub', tab: 'tournois' } : openCf ? { name: 'cf', ...(openCf === 'tournoi' ? { pending: { tournoi: true } } : {}) } : openDefi ? { name: 'challenge' } : openPm ? { name: 'messages', with: openPm } : openBistrot ? { name: 'friends' } : { name: 'home' });
   const [resume, setResume] = useState(loadSession);
   const [courtResume, setCourtResume] = useState(loadDmSession);
   /** Rejoindre une table : du 421, ou du Courtisan (`game`). */

@@ -91,7 +91,7 @@ interface Ctx {
 export const CF_RESPONSE_WINDOW_MS = 15000;
 export const CF_KEEP_WINDOW_MS = 15000;
 /** Fin d'une partie en ligne (tournoi du samedi : avancement du tableau). */
-export interface CfGameEnd { id: string; mode: CfGameMode; winner: string; losers: string[]; abandon: string | null }
+export interface CfGameEnd { id: string; mode: CfGameMode; winner: string; losers: string[]; abandon: string | null; /** Comptes partis en cours de partie (le serveur jouait pour eux). */ left?: string[] }
 
 // --- Parties contre l'ordinateur ------------------------------------------------------------------
 import { CF_BOT_NAMES } from '../shared/bot-names';
@@ -441,7 +441,7 @@ export function createCfOnline(c: Ctx) {
     recordStats(g, standings, abandonSeat);
     // Le menu ne doit plus proposer de reprendre cette partie (joueurs partis d'une table à 3-4 compris).
     for (const sk of ns.sockets.values()) if (g.seats.some((x) => x.userId === sk.data.cfUserId)) sk.emit('cf:hello', helloFor(sk.data.cfUserId as string));
-    const end: CfGameEnd = { id: g.id, mode: g.mode, winner: user(standings[0]), losers: standings.slice(1).map(user), abandon: abandonSeat ? user(abandonSeat) : null };
+    const end: CfGameEnd = { id: g.id, mode: g.mode, winner: user(standings[0]), losers: standings.slice(1).map(user), abandon: abandonSeat ? user(abandonSeat) : null, left: g.seats.filter((s) => s.left).map((s) => s.userId) };
     for (const cb of endSubs) { try { cb(end); } catch (e) { console.warn('[cf] fin de partie', e); } }
     // Les parties finies restent un moment (dernier écran, reprise), puis sont effacées.
     setTimeout(() => { if (games.get(g.id) === g) games.delete(g.id); }, 10 * 60_000).unref?.();

@@ -24,6 +24,7 @@ import { createAccounts, type AccountsOptions } from './accounts';
 import { createStats, type StatsOptions } from './stats';
 import { createAdmin } from './admin';
 import { createModeration, type TableChatEntry } from './moderation';
+import { createBistrots } from './bistrots';
 import { muteText } from '../shared/moderation';
 import { today } from '../shared/progress/quests';
 import { COUNTER_BOTS } from '../shared/bot-names';
@@ -326,6 +327,13 @@ export async function startServer(opts: ServerOptions) {
     },
   });
   app.use('/api', moderation.router);
+  // Bistrots entre amis : classement de la semaine nourri par les parties arbitrées ici (voir server/bistrots.ts).
+  const bistrots = createBistrots({
+    store, userFromToken: accounts.userFromToken, isStaff: moderation.isStaff, log: admin.log, now: opts.accounts?.now,
+    push: (u, title, body, url) => void accounts.social.push(u, title, body, url), rollEveryMs: process.env.VITEST ? 0 : undefined,
+  });
+  accounts.setVerifiedGame((g) => bistrots.recordGame(g));
+  app.use('/api', bistrots.router);
 
   // Le Courtisan en ligne (créé plus bas) : sa présence s'ajoute à celle des tables du 421.
   let dmPresence: (userId: string) => ReturnType<Parameters<typeof accounts.setPresence>[0]> = () => null;
@@ -449,10 +457,12 @@ export async function startServer(opts: ServerOptions) {
     now: opts.accounts?.now, opts: { minBotMs: opts.accounts?.minSoloMs, ...opts.cf }, stats: cfStats,
   });
   cfMount.use(cfOnline.router);
+  cfOnline.onEnd((e) => bistrots.recordGame({ game: 'cf', players: [e.winner, ...e.losers].map((id) => ({ userId: id, won: id === e.winner, abandoned: id === e.abandon || !!e.left?.includes(id) })) }));
   // Tournoi Coups Fourrés du samedi (20 h 30). Essais : SCHED_TEST_NOW (horloge), SCHED_TEST_QUICK=1 (duels à 3 jetons, pauses de 10 s).
   const cfTour = createCfTournament({
     store, cards: accounts.cards, online: cfOnline, now: clock, userFromToken: accounts.userFromToken,
     push: (u, title, body, url) => void accounts.social.push(u, title, body, url), discord: (ev) => dHooks.cfTournament(ev),
+    onChampion: (userId, players) => bistrots.tournamentWin(userId, players, 'cf'),
     opts: opts.cfTour ?? (testing && process.env.SCHED_TEST_QUICK ? { pauseMs: 10_000, config: { startTokens: 3 } } : undefined),
   });
   cfMount.use(cfTour.router);
@@ -464,7 +474,7 @@ export async function startServer(opts: ServerOptions) {
   cfMount.use(groschen.router);
   const dmOnline = createDixMilleOnline({
     io, store, userFromToken: accounts.userFromToken, banOf: admin.banOf, muteOf: moderation.muteOf, publicInfo: accounts.publicInfo,
-    isBlocked: accounts.isBlocked, reward: accounts.dixMilleOnlineEnd, groschen,
+    isBlocked: accounts.isBlocked, reward: accounts.dixMilleOnlineEnd, groschen, verifiedGame: (g) => bistrots.recordGame(g),
     recordChat: (e) => { tableChat.push(e); if (tableChat.length > TABLE_CHAT_KEEP) tableChat.splice(0, tableChat.length - TABLE_CHAT_KEEP); },
     adminNames,
     taken: (code) => rooms.has(code) || tournaments.has(code), opts: opts.dm,
@@ -830,6 +840,10 @@ export async function startServer(opts: ServerOptions) {
     // Rivalités entre comptes : qui a fini devant qui.
     const ranked = g.ranking.map((id) => r.members.find((m) => m.id === id)?.userId).filter((x): x is string => !!x);
     if (ranked.length > 1) accounts.recordRivalry(ranked);
+    // Bistrots : comptes humains de la table (les ordinateurs ne comptent pas).
+    const feat = inGameMembers(r).find((m) => m.userId && didWin(g, m.id) && (r.stats.get(m.id)?.count421 ?? 0) > 0);
+    bistrots.recordGame({ game: '421', players: inGameMembers(r).filter((m) => m.userId && !m.bot).map((m) => ({ userId: m.userId!, won: didWin(g, m.id), abandoned: abandoned(m) })),
+      feat: feat ? { userId: feat.userId!, kind: '421' } : undefined });
   }
 
   /**
@@ -1252,6 +1266,7 @@ export async function startServer(opts: ServerOptions) {
     accounts.release(`T:${t.code}`);
     admin.tournamentFinished();
     const champ = t.players.find((p) => p.id === (eligible[0] ?? standings[0]))!;
+    if (champ.userId && !quitter(champ)) bistrots.tournamentWin(champ.userId, new Set(t.players.filter((p) => p.userId && !p.bot).map((p) => p.userId)).size, '421');
     if (t.sched) {
       // Tournoi programmé : sacs de dés selon la place et le nombre de partants (enregistré en base).
       const bags = sched.finish(t.sched.slot, standings.map((id) => t.players.find((x) => x.id === id)!.userId!));
@@ -2015,8 +2030,10 @@ export async function startServer(opts: ServerOptions) {
     cfOnline,
     cfTour,
     cfStats,
+    bistrots,
     close: () => new Promise<void>((resolve) => {
       accounts.social.close();
+      bistrots.close();
       cfTour.close();
       cfOnline.close();
       dmOnline.close();

@@ -9,6 +9,7 @@ import { COMMON_RULES, translateCommonText } from './zones/serveur-commun';
 import type { Lang } from './index';
 import { translateG421 } from './zones/jeu421-server';
 import { translateCfRule } from './zones/cartes-rules';
+import { translateClubRule } from './zones/clubs-server';
 
 const N = '(.+)';
 const RULES: [RegExp, Record<Foreign, string>][] = [
@@ -105,6 +106,7 @@ export function translateServerText(lang: Lang, text: string): string {
   if (lang === 'fr') return text;
   const g421 = translateG421(lang, text); if (g421 !== null) return g421;
   const cf = translateCfRule(lang, text); if (cf !== null) return cf;
+  const club = translateClubRule(lang, text); if (club !== null) return club;
   for (const [re, t] of RULES) {
     if (re.test(text)) {
       const out = text.replace(re, t[lang]).replace(/\bLe Baron\b/g, BARON[lang]);

@@ -1,3 +1,4 @@
+import { clubsEn } from './zones/clubs.en';
 import { communEn } from './zones/commun.en';
 import { cartesEn } from './zones/cartes.en';
 import type { MessageKey } from './fr';
@@ -6,6 +7,7 @@ import { g421En } from './zones/jeu421.en';
 /** Textes anglais. Ton : direct et simple ; vocabulaire de Farkle (farkle, bank, hot dice). */
 export const en: Partial<Record<MessageKey, string>> = {
   ...communEn,
+  ...clubsEn,
   ...(cartesEn as Partial<Record<MessageKey, string>>),
   "common.back": "Back",
   "common.close": "Close",
