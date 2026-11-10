@@ -161,7 +161,7 @@ export function ShopScreen({ profile, settings, onBuy, onEquip, onBack }: Props)
             const own = profile.owned.includes(it.id);
             const eq = profile.equipped[cat] === it.id;
             const locked = !own && level < it.level;
-            const tag = it.event && !own ? tr('app.jusqu_au_2', { v: shortDateL(eventEnd(event!, day)) }) : it.pass ? tr('app.pass_de_saison') : '';
+            const tag = it.event && !own ? tr('app.jusqu_au_2', { v: shortDateL(eventEnd(event!, day)) }) : it.pass ? (it.id.startsWith('felt-tdc-') ? tr('tdc.title') : tr('app.pass_de_saison')) : '';
             return (
               <button key={it.id} className={`shop-card${it.id === selected ? ' sel' : ''}${locked ? ' locked' : ''}`} onClick={() => { setSelected(it.id); setMsg(null); }}>
                 <Thumb item={it} base={profile.equipped} />

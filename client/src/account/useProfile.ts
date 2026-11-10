@@ -20,6 +20,7 @@ import { applyDixMilleGame, dixMilleBagRoll, dixMilleReward } from '../../../sha
 import type { DmLevel } from '../../../shared/dixmille/engine';
 import { cfCoinReward } from '../../../shared/cards/coins';
 import { applyFetesGame, claimAdvent } from '../../../shared/progress/fetes';
+import { applyTdc, type TdcFacts } from '../../../shared/progress/comptoirs';
 
 export interface EndReward { reward: Reward; applied: Applied }
 /** Fin d'une partie du Courtisan : récompense, sacs de dés trouvés, défis du jour accomplis. */
@@ -255,14 +256,14 @@ export function useProfile(enabled: boolean) {
   /** Début d'une partie solo : avec un compte, le serveur délivre un jeton de partie. */
   // Invités : un jeton de partie pour les statistiques publiques (aucune donnée personnelle).
   const statToken = useRef<string | null>(null);
-  const onSoloStart = useCallback((boss?: string) => {
+  const onSoloStart = useCallback((boss?: string, tdc?: string) => {
     soloToken.current = null;
     statToken.current = null;
     if (!enabled) return;
     setPresence('solo');
     trackEvent('solo');
     const s = ref.current.session;
-    if (s) api<{ gameToken: string }>('/solo/start', { body: boss ? { boss } : {}, token: s.token }).then((r) => { soloToken.current = r.gameToken; }).catch(() => {});
+    if (s) api<{ gameToken: string }>('/solo/start', { body: tdc ? { tdc } : boss ? { boss } : {}, token: s.token }).then((r) => { soloToken.current = r.gameToken; }).catch(() => {});
     else api<{ token: string }>('/stats/solo/start', { body: {} }).then((r) => { statToken.current = r.token; }).catch(() => {});
   }, [enabled]);
 
@@ -318,6 +319,12 @@ export function useProfile(enabled: boolean) {
     } catch {
       return null; // partie trop courte, plafond atteint ou hors connexion : pas de récompense
     }
+  }, [setProfile]);
+
+  /** Tournée des comptoirs, invité : étoiles sur le profil de l'appareil (les comptes : le serveur, à /solo/end). */
+  const onTdcGuestEnd = useCallback((bistro: string, f: TdcFacts) => {
+    if (ref.current.session) return;
+    setProfile(applyTdc(ref.current.profile, bistro, f).profile);
   }, [setProfile]);
 
   // --- Le Dix mille contre l'ordinateur ---------------------------------------------------------
@@ -394,7 +401,7 @@ export function useProfile(enabled: boolean) {
     register, login, recover, logout, deleteAccount,
     submitChallenge,
     buyItem, equipItem, claim, blocked, block, isBlocked, claimDailyReward, openEveningChest, claimPass, chooseTitle, finishTutorial, prestige, openAdventBox,
-    onSoloStart, onGameEnd, onCfGuestEnd, onDixMilleStart, onDixMilleEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
+    onSoloStart, onGameEnd, onTdcGuestEnd, onCfGuestEnd, onDixMilleStart, onDixMilleEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
     token: session?.token ?? null,
   };
 }

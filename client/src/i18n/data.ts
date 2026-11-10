@@ -18,6 +18,7 @@ import { BOSSES } from '../../../shared/progress/boss';
 import { DIVISIONS } from '../../../shared/season';
 import { ALBUM, monthName, ofMonth, titleLabel } from '../../../shared/progress/profile';
 import { PLACE_LABEL, REPORT_REASONS } from '../../../shared/moderation';
+import { TDC_FELTS } from '../../../shared/progress/comptoirs';
 
 type Dyn = Record<string, unknown>;
 const k = (s: string) => s as MessageKey;
@@ -37,6 +38,7 @@ for (const it of ITEMS) {
   const base = it.id.replace(SHINY_SUFFIX, '');
   if (it.id !== base) { dyn(it, 'name', (l) => translate(l, k('app.shiny'), { name: translate(l, k(`app.dc.${base}`)) })); add(it, 'flavor', `app.dc.${base}.f`); continue; }
   if (/^ds-\d{4}-\d{2}$/.test(it.id)) { const ym = it.id.slice(3); dyn(it, 'name', (l) => translate(l, k('app.season_die'), { month: monthYear(l, ym) })); dyn(it, 'flavor', (l) => translate(l, k('app.season_die_f'))); continue; }
+  if (TDC_FELTS.some((f) => f.id === it.id)) { add(it, 'name', `tdc.felt.${it.id}`); add(it, 'description', 'tdc.felt.d'); continue; }
   const s = seriesFelt.get(it.id);
   if (s) { dyn(it, 'name', (l) => translate(l, k('app.series_felt'), { name: translate(l, k(`app.series.${s.id}`)) })); dyn(it, 'description', (l) => translate(l, k('app.series_felt_d'), { name: translate(l, k(`app.series.${s.id}`)) })); continue; }
   if (has(`app.item.${it.id}`)) { add(it, 'name', `app.item.${it.id}`); add(it, 'description', `app.item.${it.id}.d`); continue; }

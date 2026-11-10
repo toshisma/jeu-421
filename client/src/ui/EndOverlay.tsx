@@ -23,12 +23,14 @@ interface Props {
   note?: string;
   /** Pseudo du joueur connecté : propose de partager son lien de parrainage après une victoire. */
   referral?: string;
+  /** Encart propre au mode (Tournée des comptoirs : étoiles gagnées). */
+  extra?: React.ReactNode;
 }
 
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 /** Écran de fin : classement animé et confettis. */
-export function EndOverlay({ reward, state, meta, meId, canRematch, online, onRematch, onExit, exitLabel, note, referral }: Props) {
+export function EndOverlay({ reward, state, meta, meId, canRematch, online, onRematch, onExit, exitLabel, note, referral, extra }: Props) {
   const points = state.config.variant === 'manches';
   const winner = state.ranking[0];
   // Vrais ex æquo (départagés ni par les points, ni par la combinaison) : même place, pas de vainqueur seul.
@@ -77,6 +79,7 @@ export function EndOverlay({ reward, state, meta, meId, canRematch, online, onRe
           })}
         </ol>
         {note && <p className="end-note">{note}</p>}
+        {extra}
         {reward && <RewardBox r={reward} />}
         {iWon && referral && (
           <div className="end-share">

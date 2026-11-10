@@ -4,6 +4,7 @@ import { cartesDe } from './zones/cartes.de';
 import type { MessageKey } from './fr';
 import { g421De } from './zones/jeu421.de';
 import { fetesDe } from './zones/fetes.de';
+import { tdcDe } from './zones/comptoirs.de';
 
 /** Textes allemands (« du », ton direct). Une clé absente s'affiche en français. */
 export const de: Partial<Record<MessageKey, string>> = {
@@ -54,4 +55,5 @@ export const de: Partial<Record<MessageKey, string>> = {
   'dm.lv.debutant': 'Anfänger', 'dm.lv.habitue': 'Stammgast', 'dm.lv.fouine': 'Fuchs', 'dm.lh.debutant': 'Riskiert zu viel', 'dm.lh.habitue': 'Spielt vernünftig', 'dm.lh.fouine': 'Berechnet die Chancen',
   ...g421De,
   ...fetesDe,
+  ...tdcDe,
 };

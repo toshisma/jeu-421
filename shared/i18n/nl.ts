@@ -4,6 +4,7 @@ import { cartesNl } from './zones/cartes.nl';
 import type { MessageKey } from './fr';
 import { g421Nl } from './zones/jeu421.nl';
 import { fetesNl } from './zones/fetes.nl';
+import { tdcNl } from './zones/comptoirs.nl';
 
 /** Textes néerlandais (« je », ton direct). Une clé absente s'affiche en français. */
 export const nl: Partial<Record<MessageKey, string>> = {
@@ -54,4 +55,5 @@ export const nl: Partial<Record<MessageKey, string>> = {
   'dm.lv.debutant': 'Beginner', 'dm.lv.habitue': 'Vaste klant', 'dm.lv.fouine': 'Sluwe vos', 'dm.lh.debutant': 'Waagt te veel', 'dm.lh.habitue': 'Speelt verstandig', 'dm.lh.fouine': 'Berekent de kansen',
   ...g421Nl,
   ...fetesNl,
+  ...tdcNl,
 };

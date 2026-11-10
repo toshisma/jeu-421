@@ -11,6 +11,7 @@ import { translateG421 } from './zones/jeu421-server';
 import { translateCfRule } from './zones/cartes-rules';
 import { DM2_RULES } from './zones/courtisan2-server';
 import { translateFetes } from './zones/fetes-server';
+import { translateTdc } from './zones/comptoirs-server';
 
 const N = '(.+)';
 const RULES: [RegExp, Record<Foreign, string>][] = [
@@ -109,6 +110,7 @@ export function translateServerText(lang: Lang, text: string): string {
   const g421 = translateG421(lang, text); if (g421 !== null) return g421;
   const cf = translateCfRule(lang, text); if (cf !== null) return cf;
   const fet = translateFetes(lang, text); if (fet !== null) return fet;
+  const tdc = translateTdc(lang, text); if (tdc !== null) return tdc;
   for (const [re, t] of RULES) {
     if (re.test(text)) {
       const out = text.replace(re, t[lang]).replace(/\bLe Baron\b/g, BARON[lang]);

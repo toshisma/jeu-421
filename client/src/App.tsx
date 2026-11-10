@@ -20,7 +20,7 @@ import { fetePersonas } from './fetes/personas';
 import { today } from '../../shared/progress/quests';
 import { PartyController } from './game/party';
 import { TutorialController } from './game/tutorial';
-import { titleLabel } from '../../shared/progress/profile';
+import { didWin, titleLabel } from '../../shared/progress/profile';
 import { accessoryEmoji } from '../../shared/progress/catalog';
 import { AccountScreen, LeaderboardScreen } from './ui/AccountScreens';
 import { RulesScreen, Sandbox, SettingsScreen, SoloSetup, STANDALONE } from './ui/Screens';
@@ -49,6 +49,8 @@ import { changelogUnseen } from './ui/Changelog';
 import { loadTrayScene } from './ui/DiceTray';
 import { INVITE_DELAY_MS, inviteDue, lastInviteClosed, loadWelcomeGift, markInviteClosed, onGuestInvite, saveWelcomeGift, type InviteGame, type WelcomeGift } from './ui/guestInvite';
 import { syncPushLang } from './push';
+import type { TdcController } from './comptoirs/controller';
+import { tdcBistro, tdcFactsFrom, type TdcBistro, type TdcProgress } from '../../shared/progress/comptoirs';
 
 // Écrans secondaires : chargés à la demande (voir lazy.ts). L'accueil n'attend aucun d'eux.
 const GameScreen = lazyScreen(() => import('./ui/GameScreen'), 'GameScreen');
@@ -67,6 +69,9 @@ const RecapScreen = lazyScreen(() => import('./ui/Collection'), 'RecapScreen');
 const ShopScreen = lazyScreen(() => import('./ui/ShopScreen'), 'ShopScreen');
 const AdminDashboard = lazyScreen(() => import('./ui/AdminDashboard'), 'AdminDashboard');
 const ModerationScreen = lazyScreen(() => import('./ui/Moderation'), 'ModerationScreen');
+/** Tournée des comptoirs (carrière solo du 421). */
+const TourneeScreen = lazyScreen(() => import('./comptoirs/Tournee'), 'TourneeScreen');
+const TdcEndPanel = lazyScreen(() => import('./comptoirs/Tournee'), 'TdcEndPanel');
 /** Coups Fourrés, le mode cartes : tout le mode est chargé à part, seulement quand on l'ouvre. */
 const CfMode = lazyScreen(() => import('./cards/CfMode'), 'CfMode');
 const DixMilleMode = lazyScreen(() => import('./dixmille/DixMille'), 'DixMilleMode');
@@ -79,7 +84,7 @@ const LIKELY = [GameScreen, OnlineHub, OnlineFlow, TournamentFlow, ShopScreen, S
 /** D'où l'on vient (pour revenir au bon menu) : menu principal, ou le menu d'un des trois jeux. */
 type Back = 'home' | 'classic' | 'cf' | 'dixmille';
 /** Écrans du 421 classique (la barre y ramène au menu du 421 en retour). */
-const CLASSIC_SCREENS = new Set(['classic', 'solo-setup', 'solo', 'hub', 'online', 'watch', 'tournament', 'rules', 'tutorial', 'boss', 'party-setup', 'party', 'referee', 'album', 'challenge']);
+const CLASSIC_SCREENS = new Set(['classic', 'solo-setup', 'solo', 'hub', 'online', 'watch', 'tournament', 'rules', 'tutorial', 'boss', 'party-setup', 'party', 'referee', 'album', 'challenge', 'tdc', 'tdc-game']);
 
 type Screen =
   | { name: 'home' }
@@ -117,7 +122,9 @@ type Screen =
   | { name: 'duels' }
   | { name: 'duel'; duel: DuelPlay }
   | { name: 'admin'; from?: 'stats' }
-  | { name: 'moderation' };
+  | { name: 'moderation' }
+  | { name: 'tdc' }
+  | { name: 'tdc-game'; controller: TdcController };
 
 /**
  * Nettoie l'adresse (lien d'invitation, page de confidentialité) sans recharger la page.
@@ -211,7 +218,7 @@ export function App() {
     return () => window.removeEventListener('421:banned', onBan);
   }, [pa.logout]);
   useEffect(() => {
-    setPresence(screen.name === 'solo' || screen.name === 'boss' || screen.name === 'dixmille' ? 'solo' : screen.name === 'online' || screen.name === 'tournament' ? 'online' : 'menu', screen.name);
+    setPresence(screen.name === 'solo' || screen.name === 'boss' || screen.name === 'tdc-game' || screen.name === 'dixmille' ? 'solo' : screen.name === 'online' || screen.name === 'tournament' ? 'online' : 'menu', screen.name);
   }, [screen.name]);
 
   // Une fois l'accueil affiché : la 3D puis les écrans les plus probables se chargent en arrière-plan.
@@ -255,6 +262,15 @@ export function App() {
     if (!b) return;
     sound.unlock();
     setScreen({ name: 'boss', controller: new BossController(b.def, meInfo(), fetePersonas(b.cast)) });
+  };
+
+  // --- Tournée des comptoirs -------------------------------------------------------------------------
+  /** Progression au début de la partie de la Tournée (pour montrer les étoiles nouvelles à la fin). */
+  const [tdcBefore, setTdcBefore] = useState<TdcProgress>({});
+  const [tdcPending, setTdcPending] = useState(false);
+  const startTdc = (b: TdcBistro) => {
+    sound.unlock();
+    void import('./comptoirs/controller').then(({ TdcController }) => setScreen({ name: 'tdc-game', controller: new TdcController(b, meInfo()) }));
   };
   const startTutorial = () => {
     sound.unlock();
@@ -350,7 +366,7 @@ export function App() {
         onLeaderboard={() => setScreen({ name: 'leaderboard' })} onRules={() => setScreen({ name: 'rules' })} onTutorial={startTutorial}
         onTournaments={() => setScreen({ name: 'hub', tab: 'tournois' })} onAlbum={() => setScreen({ name: 'album' })} onParty={() => setScreen({ name: 'party-setup' })}
         onOnline={() => setScreen({ name: 'hub', tab: 'tables' })} onChallenge={() => { sound.unlock(); setScreen({ name: 'challenge' }); }}
-        onJoinScheduled={onJoinScheduled} notif={notif} discord={discord} onFeteBoss={startFeteBoss}
+        onJoinScheduled={onJoinScheduled} notif={notif} discord={discord} onFeteBoss={startFeteBoss} onTournee={() => setScreen({ name: 'tdc' })}
         resume={resume ?? (courtResume ? { code: courtResume.code, courtisan: true } : null)} onResume={resumeGame} />;
     case 'classic':
       return <ClassicMenu profile={profile} pa={pa} settings={settings} onBack={home}
@@ -364,6 +380,7 @@ export function App() {
         onChallenge={() => { sound.unlock(); setScreen({ name: 'challenge' }); }}
         onBoss={startBoss}
         onFeteBoss={startFeteBoss}
+        onTournee={() => setScreen({ name: 'tdc' })}
         onAlbum={() => setScreen({ name: 'album' })}
         onLeaderboard={() => setScreen({ name: 'leaderboard', from: 'classic' })}
         onStats={() => setScreen({ name: 'stats', from: 'classic' })}
@@ -416,6 +433,24 @@ export function App() {
       return <GameScreen controller={c} personas={c.cast} settings={settings} onSettings={setSettings} onExit={classic}
         appearance={profile.equipped} onGameStart={() => pa.onSoloStart(c.boss.id)} pa={pa} bossId={c.boss.id}
         onGameEnd={(st, ctx) => pa.onGameEnd(st, c.meId, ctx)} />;
+    }
+    case 'tdc':
+      return <TourneeScreen pa={pa} onBack={classic} onPlay={startTdc} />;
+    case 'tdc-game': {
+      const c = screen.controller, b = c.bistro;
+      return <GameScreen controller={c} personas={c.personas} settings={settings} onSettings={setSettings} onExit={() => setScreen({ name: 'tdc' })}
+        appearance={{ ...profile.equipped, ...b.look }} pa={pa}
+        onGameStart={() => { setTdcBefore({ ...(pa.profile.tdc ?? {}) }); setTdcPending(false); pa.onSoloStart(undefined, b.id); }}
+        onGameEnd={async (st, ctx) => {
+          setTdcPending(true);
+          const r = await pa.onGameEnd(st, c.meId, ctx);
+          const won = didWin(st, c.meId);
+          if (!pa.isAccount) pa.onTdcGuestEnd(b.id, tdcFactsFrom({ won, place: ctx.place, rounds: st.round, roundsLost: ctx.roundsLost, count421: ctx.count421, combos: ctx.combos, elapsedMs: (ctx.minutes ?? 0) * 60000 }));
+          else if (!r) pa.refresh(); // plafond du jour atteint, réseau : les étoiles sont relues sur le serveur
+          setTdcPending(false);
+          return r;
+        }}
+        endExtra={tdcBistro(b.id) ? <Suspense fallback={null}><TdcEndPanel b={b} before={tdcBefore} now={profile.tdc ?? {}} pending={tdcPending} /></Suspense> : null} />;
     }
     case 'party-setup':
       return <PartySetup settings={settings} onBack={classic} onStart={(kind, names, cfg) => setScreen(kind === 'referee'

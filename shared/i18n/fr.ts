@@ -6,11 +6,13 @@ import { cartesFr } from './zones/cartes.fr';
  */
 import { g421Fr } from "./zones/jeu421.fr";
 import { fetesFr } from "./zones/fetes.fr";
+import { tdcFr } from "./zones/comptoirs.fr";
 
 export const fr = {
   ...communFr,
   ...cartesFr,
   ...courtisan2Fr,
+  ...tdcFr,
   "common.back": "Retour",
   "common.close": "Fermer",
   "common.cancel": "Annuler",

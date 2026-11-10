@@ -24,7 +24,7 @@ describe('zone commun', () => {
   });
   it('catalogues : boutique, succès, défis ont leurs clés', () => {
     for (const it of ITEMS) {
-      if (/^(dc-|dl-|ds-)|-brillant$|^felt-serie-/.test(it.id)) continue;
+      if (/^(dc-|dl-|ds-)|-brillant$|^felt-serie-|^felt-tdc-/.test(it.id)) continue;
       expect([...keys, ...Object.keys(fetesFr)], it.id).toContain(`app.item.${it.id}`); // objets de saison : zone fetes
     }
     for (const a of ACHIEVEMENTS.filter((x) => !x.game)) expect(keys, a.id).toContain(`app.a.${a.id}`); // Courtisan : dm2.a.* (tests/courtisan2.test.ts)
