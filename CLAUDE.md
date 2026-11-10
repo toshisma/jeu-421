@@ -43,6 +43,9 @@ Le jeu existe en **français (référence, vouvoiement), anglais, allemand, née
 | Styles (un seul fichier) | `client/src/styles.css` |
 | Coups Fourrés (mode cartes) | `shared/cards/` (catalog = cartes et réglages, engine = règles, ai, botmatch = parties contre l'ordinateur rejouables, autodeck, progress, protocol), `server/cards.ts` (collection, decks, capsules, boosters, ligue, missions), `server/cards-online.ts` (en ligne, classé, présence), `client/src/cards/` (écrans, cartes, art.tsx = illustrations, local.ts / online.ts = contrôleurs, CfGame + BoardParts = écran de partie sobre, effects.ts = effets en cours et texte court de chaque carte, tour.ts = visite guidée de l'écran) ; parcours débutant `shared/cards/parcours.ts` ; énigme du jour `shared/cards/puzzles.ts` + `server/cf-enigme.ts` ; commandes du comptoir dans `engine.ts` (COMMANDES) ; simulations : `npx tsx scripts/cf-simulate.ts --games 20000` ; tournoi du samedi `server/cf-tournament.ts`, stats admin `server/cf-stats.ts` |
 | Le Courtisan (Dix mille / Farkle, 6 dés) | `shared/dixmille/` (moteur, IA, récompenses, protocole), `client/src/dixmille/` (écrans), `server/dixmille-online.ts` (en ligne 2 à 6, Groschen : cadeau 20/jour serveur, mises, pot, remboursements), lien direct `/?mode=courtisan` ; simulation `npx tsx scripts/dixmille-simulate.ts` ; pages d'aide `scripts/seo-courtisan-pages.mjs` (dont page KCD2 descriptive avec mention d'indépendance : pas d'image, de texte ni de noms du jeu vidéo) |
+| Bistrots entre amis (clubs, classement de la semaine sur parties en ligne, champion du lundi) | `shared/bistrots.ts`, `server/bistrots.ts`, `client/src/ui/Bistrots.tsx` |
+| Saint-Nicolas / fêtes (avent, défis, adversaires spéciaux, décor 3D) | `shared/progress/fetes.ts`, `server/fetes.ts`, `client/src/fetes/`, `client/src/three/seasonDecor.ts` |
+| Jouer en un geste (`/?jouer=1|courtisan|cartes|amis`), mesure « première partie » dans l'admin | `client/src/quickPlay.ts` |
 | Pages SEO statiques | `scripts/build-seo.mjs` → `client/public/*.html` ; pages « une intention = une page » (amis, jeux de dés, bistrot, Farkle, apéro) : `scripts/seo-growth-pages.mjs` |
 
 ## Principes à respecter
@@ -81,7 +84,7 @@ Captures mobiles : scripts `puppeteer-core` dans `scripts/` (Chrome : `/usr/bin/
 - Le site est classé à tort « Pornography » par certains filtres (écoles) : reclassification demandée via FortiGuard & co.
 
 ## Idées validées pour la suite
-- **Tournée des comptoirs** : carrière de bistrots (solo + réputation en multi), étoiles, règles maison.
+- **Tournée des comptoirs** (faite en 0.53 : `shared/progress/comptoirs.ts`, `server/comptoirs.ts`, `client/src/comptoirs/`) : reste la réputation visible en multi.
 - Charge rapide, mode spectateur, alerte d'onglet « À toi de jouer » (faits). Pas de musique : Sam l'a fait retirer.
 
 ## État au 9 novembre 2026 (reprise dans une nouvelle conversation)
@@ -101,7 +104,7 @@ Dernière version publiée : **0.52** (tout le jeu et les pages d’aide en 4 la
 - Les anciens joueurs gardent l'ancienne version des decks de départ (pas de bouton « mettre à jour »).
 
 ### Le Courtisan : points en suspens
-- 20 Groschen au départ seulement (bonus de bienvenue 100 proposé, pas validé) ; les ordinateurs « Débutant » permettent de gagner des Groschen facilement ; succès propres au Courtisan proposés, pas faits.
+- 0.53 : 100 Groschen au départ (+80 une fois aux anciens, table `dm_once`), 14 succès, pas de mise contre Débutant, part des ordinateurs plafonnée à 100 Groschen/jour (`DM_BOT_GAIN_DAILY`). Comptes en série toujours exploitables.
 
 ### Idées proposées à Sam, pas faites
 Statistiques admin par carte (taux de jeu / de victoire réels), bouton « mettre à jour mes decks de départ », mode draft « Tirage au comptoir », défis de combo, partage de deck par code, Tournée des comptoirs. Sam a refusé les idées « tech » (secouer le téléphone, vidéo du 4-2-1, réalité augmentée…).
