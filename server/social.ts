@@ -14,6 +14,7 @@ import { playChallenge } from '../shared/challenge';
 import type { DuelRow, Store, UserRow } from './db';
 import { dailyStatus } from '../shared/progress/profile';
 import { happyHourOfDay } from '../shared/progress/events';
+import { fetePush } from '../shared/progress/fetes';
 import { isLang, type Lang } from '../shared/i18n';
 import { translateServerText } from '../shared/i18n/server-texts';
 
@@ -260,6 +261,12 @@ export function createSocial(c: Ctx) {
     if (hh && hour === hh.hour && store.getMeta('push_hh') !== day) {
       store.setMeta('push_hh', day);
       for (const id of store.pushUsers()) void push(id, 'Happy hour !', 'Pièces doublées sur toutes les parties pendant une heure.');
+    }
+    // Saint-Nicolas (6/12), réveillon (24/12), Nouvel An (1/1) : une notification vers 10 h.
+    const fp = fetePush(day);
+    if (fp && hour >= 10 && store.getMeta('push_fete') !== day) {
+      store.setMeta('push_fete', day);
+      for (const id of store.pushUsers()) void push(id, fp.title, fp.body);
     }
     // Série de connexions en danger : rappel vers 19 h, une fois par jour.
     if (hour >= 19 && store.getMeta('push_streak') !== day) {

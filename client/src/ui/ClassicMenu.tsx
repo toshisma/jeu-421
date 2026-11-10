@@ -25,6 +25,8 @@ import { inTime, tournamentInfo, useLiveTables, useOnlineCount, useOpenLobbies, 
 import { tr } from '../i18n/lang';
 import { botName, trn } from '../i18n/g421';
 import type { MessageKey } from '../../../shared/i18n';
+import { feteBoss, feteState } from '../../../shared/progress/fetes';
+import { FeteBossCard } from '../fetes/Fetes';
 
 export interface ClassicMenuProps {
   profile: Profile; pa: ProfileApi; settings: Settings;
@@ -35,6 +37,8 @@ export interface ClassicMenuProps {
   onLeaderboard: () => void; onStats: () => void; onAccount: () => void; onFriends: () => void;
   onJoinRoom: (code: string) => void;
   onJoinScheduled?: (code: string, pay: boolean) => void;
+  /** Adversaire spécial de Saint-Nicolas / des fêtes (pendant l'événement). */
+  onFeteBoss?: () => void;
   /** Partie du 421 à reprendre (table en ligne ou tournoi). */
   resume: { code: string; tournament?: boolean } | null; onResume: () => void;
 }
@@ -67,6 +71,8 @@ export function ClassicMenu(props: ClassicMenuProps) {
   const day = today();
   const boss = bossOfWeek(day);
   const bossBeaten = profile.bossWeek === weekKey(day);
+  const feteB = feteBoss(day); // Saint-Nicolas / fêtes : l'adversaire spécial s'ajoute au patron
+  const feteNew = !!feteB && !!props.onFeteBoss && !feteState(profile, day)?.boss;
   const chal = loadChallengeDone();
   const chalDone = chal?.day === day;
   const t = tournamentInfo(prog, now);
@@ -90,7 +96,7 @@ export function ClassicMenu(props: ClassicMenuProps) {
       tag: t.registered ? tr(t.open ? 'g421.menu.go' : 'g421.menu.registered') : tr('g421.hour', { h: parseInt(t.label, 10) }), tagGold: !t.registered,
       sub: t.open ? `${tr('g421.menu.lobbyOpenLow')}${t.count != null ? ` · ${trn('g421.menu.players', t.count)}` : ''}` : inTime(t.minutes),
       go: () => (props.onJoinScheduled ? setSheet('tournoi') : props.onTournaments()) }] : []),
-    { id: 'patron', title: tr('g421.menu.patron'), art: <TopHatArt size={46} />, tone: 'felt', hot: false, tag: bossBeaten ? tr('g421.menu.beaten') : undefined, tagGold: false,
+    { id: 'patron', title: tr('g421.menu.patron'), art: <TopHatArt size={46} />, tone: 'felt', hot: feteNew, tag: feteNew ? (feteB!.fete === 'fetes' ? '🎅' : '🍊') : bossBeaten ? tr('g421.menu.beaten') : undefined, tagGold: feteNew,
       sub: `${botName(boss.name)} · ${tr(bossBeaten ? 'g421.menu.beatenLow' : 'g421.menu.toBeat')}`, go: () => setSheet('patron') },
     { id: 'defi', title: tr('g421.menu.defi'), art: <TargetArt size={46} />, tone: 'felt', hot: false, tag: undefined, tagGold: false,
       sub: chalDone ? trn('g421.ptLong', chal!.points) : tr('g421.menu.oneTry'), go: () => setSheet('defi') },
@@ -163,7 +169,9 @@ export function ClassicMenu(props: ClassicMenuProps) {
         {/* Tournois perso (créés par les joueurs) : bien visibles sous le tournoi programmé. */}
         <button className="btn secondary wide" style={{ marginTop: 10 }} onClick={() => { setSheet(null); props.onTournaments(); }}><Icon name="trophy" size={18} /> {tr('g421.menu.tourPerso')}</button>
       </Sheet>}
-      {sheet === 'patron' && <Sheet title={tr('g421.menu.patronW')} onClose={() => setSheet(null)}><BossCard pa={pa} onPlay={() => { setSheet(null); props.onBoss(); }} /></Sheet>}
+      {sheet === 'patron' && <Sheet title={tr('g421.menu.patronW')} onClose={() => setSheet(null)}>
+        {feteB && props.onFeteBoss && <div style={{ marginBottom: 12 }}><FeteBossCard pa={pa} boss={feteB} onPlay={() => { setSheet(null); props.onFeteBoss!(); }} /></div>}
+        <BossCard pa={pa} onPlay={() => { setSheet(null); props.onBoss(); }} /></Sheet>}
       {sheet === 'defi' && <Sheet title={tr('g421.menu.defi')} onClose={() => setSheet(null)}><ChallengeCard onOpen={() => { setSheet(null); props.onChallenge(); }} /></Sheet>}
       {sheet === 'lobbies' && <Sheet title={tr('g421.menu.openLobbies')} onClose={() => setSheet(null)}><OpenLobbies onJoin={props.onJoinRoom} onAll={props.onOnline} /></Sheet>}
     </div>

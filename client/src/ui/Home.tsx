@@ -33,6 +33,7 @@ import { ChestArt, GiftArt, Rays, RewardBurst, ScrollArt, TicketArt } from './il
 import { Sheet } from './kit';
 import { inTime, tournamentInfo, useCfPeek, useGroschenPeek, useOnlineCount, useProgramme } from './menuData';
 import { GROSCHEN_DAILY } from '../../../shared/dixmille/groschen';
+import { FetesBanner, FetesSheet, fetesBannerDue } from '../fetes/Fetes';
 
 
 export interface HomeProps {
@@ -53,6 +54,8 @@ export interface HomeProps {
   resume: { code: string; tournament?: boolean; courtisan?: boolean } | null; onResume: () => void;
   /** Tournoi programmé dont le salon est ouvert (le joueur y est inscrit). */
   onJoinScheduled?: (code: string, pay: boolean) => void;
+  /** Adversaire spécial de Saint-Nicolas / des fêtes (pendant l'événement). */
+  onFeteBoss?: () => void;
   /** Notifications et Discord : chargés une fois par l'application (la barre du bas s'en sert aussi). */
   notif: ReturnType<typeof useNotifications>; discord: ReturnType<typeof useDiscord>;
 }
@@ -75,6 +78,7 @@ function ModeCard({ tone, title, art, status, hot, badge, onClick }: {
 export function Home(props: HomeProps) {
   const { pa, profile } = props;
   const [sheet, setSheet] = useState<SheetKind | null>(null);
+  const [feteOpen, setFeteOpen] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const { notifs, reload } = props.notif;
   const [showNotifs, setShowNotifs] = useState(!!props.openNotifs);
@@ -157,8 +161,12 @@ export function Home(props: HomeProps) {
     const salon = prog?.slots.find((x) => x.status === 'salon' && x.registered && x.code);
     if (salon && props.onJoinScheduled) return <button className="home-banner resume" onClick={() => props.onJoinScheduled!(salon.code!, false)}><Icon name="trophy" size={20} /><span><b>{tr('app.votre_tournoi_de_h_commence', { hour: salon.hour })}</b><small>{tr('app.le_salon_est_ouvert_rejoignez_le')}</small></span><em>{tr('app.rejoindre')}</em></button>;
     if (pa.welcomeBack) return <button className="home-banner gift" onClick={() => { pa.dismissWelcome(); props.onCollection(true); }}><Icon name="gift" size={20} /><span><b>{tr('app.content_de_vous_revoir')}</b><small>{tr('app.un_sac_de_des_vous_attend_dans')}</small></span></button>;
+    // Saint-Nicolas / fêtes : la case du jour du calendrier de l'avent passe avant le reste.
+    const fete = fetesBannerDue(profile, day);
+    if (fete === 'box') return <FetesBanner profile={profile} onOpen={() => setFeteOpen(true)} />;
     if (!STANDALONE && !pa.isAccount) return <button className="home-banner account" onClick={props.onAccount}><Icon name="key" size={20} /><span><b>{tr('app.gardez_votre_progression')}</b><small>{tr('app.compte_gratuit_amis_classements_tous')}</small></span><em>{tr('app.creer')}</em></button>;
     if (happyHour(now)) return <HappyHourBanner />;
+    if (fete) return <FetesBanner profile={profile} onOpen={() => setFeteOpen(true)} />;
     if (ev) return <EventBanner onShop={props.onShop} />;
     if (acc && discord?.invite && discord.verify && !discord.claimed) return <button className="home-banner discord" onClick={() => setSheet('discord')}><BagIcon size={26} color="bleu" /><span><b>{tr('app.rejoignez_le_discord_du_jeu')}</b><small>{tr('app.un_sac_de_des_offert_une_fois')}</small></span><em>{tr('app.voir')}</em></button>;
     return null;
@@ -256,6 +264,7 @@ export function Home(props: HomeProps) {
       {sheet === 'missions' && <Sheet title={tr('app.defis_du_jour')} onClose={() => setSheet(null)}><QuestsPanel profile={profile} onClaim={pa.claim} /></Sheet>}
       {showNotifs && <NotifPanel pa={pa} notifs={notifs} reload={reload} onClose={() => { setShowNotifs(false); reload(); }}
         onPlay={(d) => { setShowNotifs(false); props.onDuelPlay(d); }} onDuels={() => { setShowNotifs(false); props.onDuels(); }} />}
+      {feteOpen && <FetesSheet pa={pa} onClose={() => setFeteOpen(false)} onShop={props.onShop} onBoss={props.onFeteBoss} />}
       {showProfile && <ProfileView pa={pa} displayName={props.displayName} avatar={props.avatar} onClose={() => setShowProfile(false)} />}
     </div>
   );

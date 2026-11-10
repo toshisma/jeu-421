@@ -14,6 +14,9 @@ import { finishAnimated, lookFinish, type LookFinish } from './dieLooks';
 import { installDiceFx, setDiceFx, type DiceFxUniforms } from './diceFx';
 import { Trails } from './trails';
 import { Celebrations } from './celebrations';
+import { buildSeasonDecor } from './seasonDecor';
+import { seasonDecor } from '../../../shared/progress/fetes';
+import { today } from '../../../shared/progress/quests';
 import { getShape, clampInside, insideShape, offsetVerts, type TrayShape } from '../physics/trayShapes';
 import { getItem, resolveAppearance, type Appearance, type DiceItem, type ResolvedAppearance } from '../../../shared/progress/catalog';
 
@@ -526,6 +529,9 @@ export class TrayScene {
       cap.castShadow = true;
       g.add(cap);
     }
+    // Saint-Nicolas / fêtes : petit décor aux coins du bac (jamais sur les vignettes de la boutique).
+    const season = this.opts.thumbnail ? null : seasonDecor(today());
+    if (season) g.add(buildSeasonDecor(season, { rect: sh.id === 'rectangle', halfX: sh.halfX, halfZ: sh.halfZ, wall: T, height: H }));
     if (!this.opts.thumbnail) document.documentElement.style.setProperty('--accent', decor.accent);
     this.resize(); // recale caméra et brouillard sur la nouvelle forme
   }

@@ -29,6 +29,8 @@ import { muteText } from '../shared/moderation';
 import { createDiscord } from './discord';
 import { createCards } from './cards';
 import { createCfEnigme } from './cf-enigme';
+import { createFetes } from './fetes';
+import { applyFetesGame, feteBoss } from '../shared/progress/fetes';
 import { cfCoinReward } from '../shared/cards/progress';
 import type { CfLevel } from '../shared/cards/ai';
 import { DIVISIONS, SEASON_DIE_FROM, SEASON_TITLE_FROM, divisionIndex, divisionOf, nextSeasonStart, seasonDelta, seasonOf } from '../shared/season';
@@ -328,7 +330,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   router.post('/solo/start', auth, (req, res) => {
     const token = randomBytes(18).toString('base64url');
     // Patron : seulement celui de la semaine (jour du serveur), noté dès le début de la partie.
-    const boss = typeof req.body?.boss === 'string' && req.body.boss === bossOfWeek(today()).id ? req.body.boss : null;
+    // … ou l'adversaire spécial de Saint-Nicolas / des fêtes, pendant l'événement.
+    const boss = typeof req.body?.boss === 'string' && (req.body.boss === bossOfWeek(today()).id || req.body.boss === feteBoss(today())?.def.id) ? req.body.boss : null;
     soloGames.set(token, { userId: userOf(req).id, startedAt: Date.now(), boss });
     soloGames.prune(Date.now() - 12 * 3600_000);
     res.json({ ok: true, gameToken: token });
@@ -954,13 +957,16 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     // Sac de dés : la règle du 421 et du Courtisan (même chance, sac garanti au bout de 10 parties,
     // compteur commun), tirée ici ; rien pour une partie de moins de 1 min 30.
     const bag = dixMilleBagRoll(applied.profile, { won: o.won, players: o.players, minutes: o.minutes, mode: o.botLevel ? 'solo' : 'online' });
-    store.saveProfile(userId, bag.profile);
+    // Saint-Nicolas / fêtes : la partie compte pour les défis d'événement.
+    store.saveProfile(userId, applyFetesGame(bag.profile, { game: 'cf', won: o.won }, o.day).profile);
     leagueGain(userId, reward.xp);
     return { coins: reward.coins + applied.levelBonusCoins, xp: reward.xp, bags: bag.found };
   };
   const cards = createCards({ router, store, auth, userOf, fail, now: () => opts.now?.() ?? Date.now(), push: (u, t, b, url) => void social.push(u, t, b, url), rng: opts.cardsRng, generalReward: cfGeneralReward });
   // Coups Fourrés : l'énigme du jour (score recalculé ici, une validation par jour).
   const enigme = createCfEnigme({ router, store, auth, userOf, fail, now: () => opts.now?.() ?? Date.now() });
+  // Saint-Nicolas et fêtes : calendrier de l'avent (jour du serveur).
+  createFetes({ router, store, auth, userOf, fail, now: () => opts.now?.() ?? Date.now() });
 
   return { social, messages, cards, enigme, router, dixMilleOnlineEnd, setPresence, setCfPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
 }

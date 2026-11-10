@@ -7,6 +7,7 @@
 import type { Difficulty } from '../ai';
 import { BAGS_MAX, BAG_PITY, applyPlainReward, bagChance, botTableRules, rewardFor, type Profile, type Reward } from '../progress/profile';
 import { applySummary } from '../progress/quests';
+import { applyFetesGame } from '../progress/fetes';
 import { randomFloat } from '../random';
 import type { DmLevel } from './engine';
 import { DM_TURN_MAX, EMPTY_DM_STATS, type DmStats } from './stats';
@@ -100,5 +101,7 @@ export function applyDixMilleGame(p: Profile, r: Reward, day: string, f: DmGameF
     bestPot: Math.max(st.bestPot, Math.max(0, Math.floor(f.potWon ?? 0))),
   };
   const bag = dixMilleBagRoll({ ...a.profile, quests, dm }, f, rng);
-  return { ...a, profile: bag.profile, bagsFound: bag.found, questsDone: completed.map((q) => ({ id: q.id, text: q.text })) };
+  // Saint-Nicolas / fêtes : la partie compte pour les défis d'événement.
+  const fe = applyFetesGame(bag.profile, { game: 'dm', won: r.won }, day);
+  return { ...a, profile: fe.profile, bagsFound: bag.found, questsDone: completed.map((q) => ({ id: q.id, text: q.text })), achievementsDone: fe.done };
 }

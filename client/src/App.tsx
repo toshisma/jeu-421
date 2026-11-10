@@ -15,8 +15,9 @@ import { PassScreen } from './ui/Progression';
 import { ChallengeScreen } from './ui/ChallengeScreen';
 import { BossController } from './game/boss';
 import { bossOfWeek } from '../../shared/progress/boss';
+import { feteBoss } from '../../shared/progress/fetes';
+import { fetePersonas } from './fetes/personas';
 import { today } from '../../shared/progress/quests';
-import { PERSONAS } from './game/personas';
 import { PartyController } from './game/party';
 import { TutorialController } from './game/tutorial';
 import { titleLabel } from '../../shared/progress/profile';
@@ -248,6 +249,13 @@ export function App() {
     const c = new BossController(bossOfWeek(today()), meInfo());
     setScreen({ name: 'boss', controller: c });
   };
+  /** Adversaire spécial de Saint-Nicolas / des fêtes (pendant l'événement seulement). */
+  const startFeteBoss = () => {
+    const b = feteBoss(today());
+    if (!b) return;
+    sound.unlock();
+    setScreen({ name: 'boss', controller: new BossController(b.def, meInfo(), fetePersonas(b.cast)) });
+  };
   const startTutorial = () => {
     sound.unlock();
     setScreen({ name: 'tutorial', controller: new TutorialController({ name: settings.name || pa.session?.username || tr('g421.guestName'), avatar: settings.avatar, photo: pa.photo }) });
@@ -342,7 +350,7 @@ export function App() {
         onLeaderboard={() => setScreen({ name: 'leaderboard' })} onRules={() => setScreen({ name: 'rules' })} onTutorial={startTutorial}
         onTournaments={() => setScreen({ name: 'hub', tab: 'tournois' })} onAlbum={() => setScreen({ name: 'album' })} onParty={() => setScreen({ name: 'party-setup' })}
         onOnline={() => setScreen({ name: 'hub', tab: 'tables' })} onChallenge={() => { sound.unlock(); setScreen({ name: 'challenge' }); }}
-        onJoinScheduled={onJoinScheduled} notif={notif} discord={discord}
+        onJoinScheduled={onJoinScheduled} notif={notif} discord={discord} onFeteBoss={startFeteBoss}
         resume={resume ?? (courtResume ? { code: courtResume.code, courtisan: true } : null)} onResume={resumeGame} />;
     case 'classic':
       return <ClassicMenu profile={profile} pa={pa} settings={settings} onBack={home}
@@ -355,6 +363,7 @@ export function App() {
         onTutorial={startTutorial}
         onChallenge={() => { sound.unlock(); setScreen({ name: 'challenge' }); }}
         onBoss={startBoss}
+        onFeteBoss={startFeteBoss}
         onAlbum={() => setScreen({ name: 'album' })}
         onLeaderboard={() => setScreen({ name: 'leaderboard', from: 'classic' })}
         onStats={() => setScreen({ name: 'stats', from: 'classic' })}
@@ -404,8 +413,7 @@ export function App() {
       return <TutorialScreen controller={screen.controller} settings={settings} onSettings={setSettings} onExit={classic} appearance={profile.equipped} pa={pa} />;
     case 'boss': {
       const c = screen.controller;
-      const personas = Object.fromEntries(c.getMeta().filter((m) => m.isBot).map((m, i) => [m.id, PERSONAS.find((p) => p.name === m.name) ?? PERSONAS[i]]));
-      return <GameScreen controller={c} personas={personas} settings={settings} onSettings={setSettings} onExit={classic}
+      return <GameScreen controller={c} personas={c.cast} settings={settings} onSettings={setSettings} onExit={classic}
         appearance={profile.equipped} onGameStart={() => pa.onSoloStart(c.boss.id)} pa={pa} bossId={c.boss.id}
         onGameEnd={(st, ctx) => pa.onGameEnd(st, c.meId, ctx)} />;
     }
