@@ -6,6 +6,7 @@ import type { LobbyEntry } from '../../../shared/tournament';
 import { BigAction, Empty, Initial, Section, Shell, useToast } from './kit';
 import { ProfileView } from './ProfileView';
 import { Icon } from './Icon';
+import { BistrotGuestInvite, BistrotScreen, BistrotsSection } from './Bistrots';
 
 interface Friend {
   username: string; level: number; me?: boolean; lastSeen: number; online: boolean;
@@ -34,6 +35,8 @@ export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessa
   const [name, setName] = useState('');
   const [toast, showToast] = useToast();
   const [incoming, setIncoming] = useState<{ username: string; at: number }[]>([]);
+  /** Bistrot ouvert (bistrots entre amis). */
+  const [bistrot, setBistrot] = useState<string | null>(null);
   const load = () => {
     if (!pa.token) return;
     api<{ friends: Friend[] }>('/friends', { token: pa.token }).then((r) => setList(r.friends.filter((f) => !f.me))).catch(() => {});
@@ -52,10 +55,12 @@ export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessa
     return (
       <Shell title={tr('app.amis')} onBack={onBack} icon="people"
         foot={<BigAction icon="key" tone="gold" label={tr('app.creer_mon_compte')} sub={tr('app.gratuit_sans_adresse_e_mail')} onClick={onAccount} />}>
+        <BistrotGuestInvite onAccount={onAccount} />
         <Empty icon="people">{tr('app.avec_un_compte_ajoutez_des_amis_voye')}</Empty>
       </Shell>
     );
   }
+  if (bistrot) return <BistrotScreen pa={pa} id={bistrot} onBack={() => setBistrot(null)} />;
   const rank = (f: Friend) => (onCfChallenge && f.cf ? -1 : f.room?.joinable ? 0 : f.room ? 1 : f.online ? 2 : 3);
   const sorted = [...(list ?? [])].sort((a, b) => rank(a) - rank(b) || b.lastSeen - a.lastSeen);
   const onlineCount = sorted.filter((f) => f.online).length;
@@ -108,6 +113,7 @@ export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessa
           </ul>
         </Section>
       )}
+      <BistrotsSection pa={pa} onOpen={setBistrot} />
       {list?.length === 0 && incoming.length === 0 && <Empty icon="people">{tr('app.pas_encore_d_amis_ajoutez_un_pseudo')}</Empty>}
       {active.length > 0 && <Section title={tr('app.en_ligne_3')} count={active.length}><ul className="friends-list">{active.map(row)}</ul></Section>}
       {away.length > 0 && <Section title={tr('app.hors_ligne')} count={away.length}><ul className="friends-list">{away.map(row)}</ul></Section>}

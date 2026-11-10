@@ -39,6 +39,8 @@ interface Ctx {
   brusselsDate: (t: number) => string;
   brusselsHour: () => number;
   now: () => number;
+  /** Défi terminé (score rejoué ici) : compté pour les bistrots entre amis. */
+  onDuelEnd?: (g: { game: 'duel'; players: { userId: string; won: boolean }[] }) => void;
 }
 
 export function createSocial(c: Ctx) {
@@ -207,6 +209,7 @@ export function createSocial(c: Ctx) {
       if (n.stake) { if (w) c.adjust(w.id, n.stake * 2); else { c.adjust(a.id, n.stake); c.adjust(b.id, n.stake); } }
       store.duelUpdate(n.id, { status: 'fini', winner_id: w?.id ?? null, ended_at: c.now(), from_seen: isFrom ? 1 : 0, to_seen: isFrom ? 0 : 1 });
       n = store.duel(d.id)!;
+      try { c.onDuelEnd?.({ game: 'duel', players: [{ userId: a.id, won: w?.id === a.id }, { userId: b.id, won: w?.id === b.id }] }); } catch { /* bistrots : sans effet sur le défi */ }
       const other = isFrom ? n.to_id : n.from_id;
       const otherPts = isFrom ? n.to_points : n.from_points;
       const msg = !w ? `Égalité contre ${me.username} (${result.points} points chacun).` : w.id === other ? `Vous avez battu ${me.username} : ${otherPts} à ${result.points} !` : `${me.username} vous a battu : ${result.points} à ${otherPts}.`;

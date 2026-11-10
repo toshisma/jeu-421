@@ -68,6 +68,8 @@ interface Ctx {
   reward: (userId: string, o: DmEndFacts)
     => { reward: Reward; applied: { profile: unknown; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { id: string; text: string }[]; achievementsDone?: { id: string }[] } } | null;
   recordChat: (e: TableChatEntry) => void;
+  /** Partie arbitrée par le serveur (bistrots entre amis) : comptes humains de la table. */
+  verifiedGame?: (g: { game: 'courtisan'; players: { userId: string; won: boolean; abandoned: boolean }[] }) => unknown;
   /** Pseudos administrateurs : un invité ne peut pas les prendre à table. */
   adminNames: string[];
   /** Les Groschen (mises). */
@@ -433,6 +435,7 @@ export function createDixMilleOnline(c: Ctx) {
         bags: out.applied.bagsFound ?? 0, quests: (out.applied.questsDone ?? []).map((q) => q.text),
         achievements: (out.applied.achievementsDone ?? []).map((x) => x.id), ...(potTo === m.userId ? { potPaid } : {}) } satisfies DmRewardMsg);
     }
+    c.verifiedGame?.({ game: 'courtisan', players: inGame.filter((m) => m.userId && !m.bot).map((m) => ({ userId: m.userId!, won: g.winner === m.id, abandoned: !!m.quit })) });
   }
 
   // --- Présence (amis), invitations ---------------------------------------------------------------

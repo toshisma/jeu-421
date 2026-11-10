@@ -1,4 +1,5 @@
 import { courtisan2Nl } from './zones/courtisan2.nl';
+import { clubsNl } from './zones/clubs.nl';
 import { communNl } from './zones/commun.nl';
 import { cartesNl } from './zones/cartes.nl';
 import type { MessageKey } from './fr';
@@ -9,6 +10,7 @@ import { tdcNl } from './zones/comptoirs.nl';
 /** Textes néerlandais (« je », ton direct). Une clé absente s'affiche en français. */
 export const nl: Partial<Record<MessageKey, string>> = {
   ...communNl,
+  ...clubsNl,
   ...(cartesNl as Partial<Record<MessageKey, string>>),
   ...(courtisan2Nl as Partial<Record<MessageKey, string>>),
   'common.back': 'Terug', 'common.close': 'Sluiten', 'common.cancel': 'Annuleren', 'common.confirm': 'Bevestigen', 'common.backHome': 'Terug naar het hoofdmenu', 'common.menu': 'Menu',

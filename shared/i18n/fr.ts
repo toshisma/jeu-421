@@ -1,4 +1,5 @@
 import { courtisan2Fr } from './zones/courtisan2.fr';
+import { clubsFr } from './zones/clubs.fr';
 import { communFr } from './zones/commun.fr';
 import { cartesFr } from './zones/cartes.fr';
 /**
@@ -10,6 +11,7 @@ import { tdcFr } from "./zones/comptoirs.fr";
 
 export const fr = {
   ...communFr,
+  ...clubsFr,
   ...cartesFr,
   ...courtisan2Fr,
   ...tdcFr,

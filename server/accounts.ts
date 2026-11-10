@@ -24,6 +24,7 @@ import {
 import { SEASONS } from '../shared/progress/dice-collection';
 import { CAPSULES } from '../shared/cards/catalog';
 import { createSocial } from './social';
+import type { VerifiedGame } from './bistrots';
 import { createMessages } from './messages';
 import { muteText } from '../shared/moderation';
 import { createDiscord } from './discord';
@@ -953,7 +954,10 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const p = store.profileOf(u);
     return { account: u.username, photo: photoUrl(u), title: titleLabel(p.title) ?? undefined, accessory: accessoryEmoji(p.equipped.accessoire) || undefined, prestige: p.prestige || undefined, dice: p.equipped.dice, trail: p.fx?.trainee, fete: p.fx?.fete };
   };
-  const social = createSocial({ router, store, auth, userOf, fail, adjust, coinsOf, brusselsDate, brusselsHour, now: () => opts.now?.() ?? Date.now() });
+  /** Bistrots entre amis : partie arbitrée par le serveur (défis entre amis), branché par app.ts. */
+  let verifiedGame: (g: VerifiedGame) => void = () => {};
+  const setVerifiedGame = (f: (g: VerifiedGame) => void) => { verifiedGame = f; };
+  const social = createSocial({ router, store, auth, userOf, fail, adjust, coinsOf, brusselsDate, brusselsHour, now: () => opts.now?.() ?? Date.now(), onDuelEnd: (g) => verifiedGame(g) });
   const messages = createMessages({ router, store, auth, userOf, fail, push: social.push, userFromToken, now: () => opts.now?.() ?? Date.now() });
   createDiscord({ router, store, auth, userOf, userFromToken, now: () => opts.now?.() ?? Date.now(), env: opts.discord?.env, discordApi: opts.discord?.api });
   // Coups Fourrés (mode cartes) : collection, decks, boosters, ligue et missions.
@@ -981,5 +985,5 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   // Saint-Nicolas et fêtes : calendrier de l'avent (jour du serveur).
   createFetes({ router, store, auth, userOf, fail, now: () => opts.now?.() ?? Date.now() });
 
-  return { social, messages, cards, enigme, router, dixMilleOnlineEnd, setPresence, setCfPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked };
+  return { social, messages, cards, enigme, router, dixMilleOnlineEnd, setPresence, setCfPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked, setVerifiedGame };
 }

@@ -24,6 +24,7 @@ import type { DuelPlay } from './ChallengeScreen';
 import { QuestsPanel } from './AccountScreens';
 import { DieCube } from './DiceCollection';
 import { NewsTicker } from './Friends';
+import { BistrotChip } from './Bistrots';
 import { NotifBell, NotifPanel, useNotifications } from './Social';
 import { HeroTray } from './HeroTray';
 import { STANDALONE } from './Screens';
@@ -215,6 +216,7 @@ export function Home(props: HomeProps) {
           <h1 className="mm-brand"><span className="plaque" aria-hidden>421</span><span aria-hidden>online</span><span className="sr-only">{tr('app.421_en_ligne_jeux_de_des_et')}</span></h1>
           {titleL(profile.title) && <span className="h2-title-chip">{titleL(profile.title)}</span>}
           {props.onTournee && <TdcHomeChip profile={profile} onOpen={props.onTournee} />}
+          {acc && <BistrotChip pa={pa} onOpen={props.onFriends} />}
           {!STANDALONE && <div className="h2-news"><NewsTicker /></div>}
         </section>
 
