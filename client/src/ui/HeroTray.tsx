@@ -5,7 +5,8 @@ import { sound } from '../audio/sound';
 import { DiceTray, type DiceTrayHandle } from './DiceTray';
 
 /** Vitrine 3D : le vrai bac du joueur (ses dés, son tapis) ; on peut le toucher pour lancer. */
-export function HeroTray({ pa, settings, dice = 3 }: { pa: ProfileApi; settings: Settings; dice?: number }) {
+/** `bottom` : hauteur (px) cachée en bas de la vitrine (bouton posé dessus) : le bac est cadré au-dessus. */
+export function HeroTray({ pa, settings, dice = 3, bottom = 40 }: { pa: ProfileApi; settings: Settings; dice?: number; bottom?: number }) {
   const tray = useRef<DiceTrayHandle>(null);
   const rolling = useRef(false);
   const roll = async () => {
@@ -18,7 +19,7 @@ export function HeroTray({ pa, settings, dice = 3 }: { pa: ProfileApi; settings:
   useEffect(() => { tray.current?.setSwipeEnabled(true); }, []);
   return (
     <div className="hero-tray" onClick={() => void roll()}>
-      <DiceTray ref={tray} appearance={pa.profile.equipped} quality={settings.quality} insets={{ top: 0, bottom: 40, left: 0, right: 0 }} onSwipe={() => void roll()} />
+      <DiceTray ref={tray} appearance={pa.profile.equipped} quality={settings.quality} insets={{ top: 0, bottom, left: 0, right: 0 }} onSwipe={() => void roll()} />
     </div>
   );
 }

@@ -179,7 +179,35 @@ interface Visitors {
   referrers: { k: string; n: number; v: number }[]; countries: { k: string; n: number; v: number }[]; langs: { k: string; n: number; v: number }[];
   devices: { k: string; n: number; v: number }[]; landings: { k: string; n: number; v: number }[];
   utm: { source: string; medium: string; campaign: string; n: number }[];
-  funnel?: Funnel & { byLanding: (Funnel & { landing: string })[] };
+  funnel?: Funnel & { byLanding: (Funnel & { landing: string })[]; firstPlay?: FirstPlay };
+}
+interface FirstPlayRow { launched: number; rolled: number; medianPlayS: number | null; medianRollS: number | null; rollUnder30: number; rollUnder60: number }
+interface FirstPlay extends FirstPlayRow { visitors: number; byVia: (FirstPlayRow & { via: string })[]; byGame: { game: string; launched: number }[] }
+const VIA_LABEL: Record<string, string> = { accueil: 'Bouton « Lancer les dés » (accueil)', lien: 'Lien direct des pages d’aide (?jouer=)', menu: 'Menus du jeu' };
+const GAME_LABEL: Record<string, string> = { '421': '421', courtisan: 'Le Courtisan', cartes: 'Coups Fourrés', online: 'table en ligne' };
+const secs = (s: number | null) => (s == null ? '–' : s < 60 ? `${String(s).replace('.', ',')} s` : `${Math.floor(s / 60)} min ${String(Math.round(s % 60)).padStart(2, '0')}`);
+/** Première partie des nouveaux visiteurs : est-ce qu'ils jouent vite ? (bouton « Lancer les dés », liens ?jouer=). */
+function FirstPlayBlock({ f }: { f: FirstPlay }) {
+  return (
+    <section className="adm-card">
+      <h3>Première partie <small className="muted">nouveaux visiteurs de la période</small></h3>
+      <div className="stat-row">
+        <Kpi value={pct(f.launched, f.visitors)} label={`ont lancé une première partie (${nf(f.launched)})`} hint="421, Courtisan, Coups Fourrés ou table en ligne, compté une fois par visiteur" />
+        <Kpi value={secs(f.medianPlayS)} label="délai médian arrivée → partie" hint="Depuis l’ouverture de la page jusqu’au début de la première partie" />
+        <Kpi value={secs(f.medianRollS)} label="délai médian arrivée → premier lancer" hint="Jusqu’au premier lancer de dés fait par le joueur (421 ou Courtisan)" />
+        <Kpi value={pct(f.rollUnder30, f.rolled)} label={`premiers lancers en moins de 30 s (${nf(f.rollUnder30)})`} hint={`En moins d’une minute : ${pct(f.rollUnder60, f.rolled)}`} />
+      </div>
+      <div className="adm-table-wrap">
+        <table className="adm-table">
+          <thead><tr><th>Lancée depuis</th><th>Parties</th><th>Délai partie</th><th>Lancers</th><th>Délai lancer</th><th>&lt; 30 s</th></tr></thead>
+          <tbody>{f.byVia.map((r) => (
+            <tr key={r.via}><th>{VIA_LABEL[r.via] ?? r.via}</th><td>{nf(r.launched)}</td><td>{secs(r.medianPlayS)}</td><td>{nf(r.rolled)}</td><td>{secs(r.medianRollS)}</td><td>{pct(r.rollUnder30, r.rolled)}</td></tr>
+          ))}</tbody>
+        </table>
+      </div>
+      <p className="muted small">Premier jeu lancé : {f.byGame.map((g) => `${GAME_LABEL[g.game] ?? g.game} ${nf(g.launched)}`).join(' · ')}. Les délais sont des médianes (la moitié des visiteurs fait plus vite).</p>
+    </section>
+  );
 }
 interface Funnel { visitors: number; guidePlay: number; solo: number; online: number; cards?: number; played: number; invite: number; invited: number; returned: number }
 /** Parcours des nouveaux visiteurs : arrivée → partie lancée → multijoueur → invitation → retour. */
@@ -223,6 +251,7 @@ function VisitorsTab({ token }: { token: string | null }) {
       </div>
       <section className="adm-card"><Bars title="Visiteurs par jour" rows={v.days} series={[{ key: 'visitors', label: 'Visiteurs', cls: 's2' }]} /></section>
       {v.funnel && <FunnelBlock f={v.funnel} />}
+      {v.funnel?.firstPlay && <FirstPlayBlock f={v.funnel.firstPlay} />}
       <AudienceBlock token={token} range={range} />
       <div className="adm-grid">
         <TopList title="Provenance" rows={v.referrers} />

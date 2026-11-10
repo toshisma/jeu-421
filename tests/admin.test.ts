@@ -172,9 +172,47 @@ describe('administration', () => {
     expect(f.byLanding.find((r: { landing: string }) => r.landing === '/coups-fourres')).toMatchObject({ visitors: 1, guidePlay: 1, cards: 1, played: 1 });
     expect(f.byLanding.find((r: { landing: string }) => r.landing === '/strategie-421')).toMatchObject({ visitors: 1, guidePlay: 1, played: 1 });
   });
+
+  it('première partie : délai depuis l’arrivée, provenance (accueil, lien direct, menu), une seule fois', async () => {
+    const ua = { 'User-Agent': 'Mozilla/5.0 (Linux; Android 14) Mobile' };
+    await api('/visit', { device: 'premier-0001', ref: '', landing: '/' }, undefined, 'POST', ua);
+    expect((await api('/visit/event', { device: 'premier-0001', kind: 'first_play', ms: 4200, via: 'accueil', game: '421' }, undefined, 'POST', ua)).first).toBe(true);
+    expect((await api('/visit/event', { device: 'premier-0001', kind: 'first_play', ms: 99000, via: 'menu', game: '421' }, undefined, 'POST', ua)).first).toBe(false);
+    await api('/visit/event', { device: 'premier-0001', kind: 'first_roll', ms: 7000, via: 'accueil' }, undefined, 'POST', ua);
+    await api('/visit', { device: 'premier-0002', ref: 'https://www.google.com/', landing: '/regles-du-421' }, undefined, 'POST', ua);
+    await api('/visit/event', { device: 'premier-0002', kind: 'first_play', ms: 2500, via: 'lien', game: '421' }, undefined, 'POST', ua);
+    await api('/visit/event', { device: 'premier-0002', kind: 'first_roll', ms: 'n’importe quoi', via: 'pirate' }, undefined, 'POST', ua);
+    const fp = (await api('/admin/visitors', undefined, adminTok)).funnel.firstPlay;
+    expect(fp).toMatchObject({ launched: 2, rolled: 2, medianPlayS: 3.4, medianRollS: 7, rollUnder30: 1, rollUnder60: 1 });
+    expect(fp.byVia.find((v: { via: string }) => v.via === 'accueil')).toMatchObject({ launched: 1, rolled: 1, medianPlayS: 4.2, medianRollS: 7 });
+    expect(fp.byVia.find((v: { via: string }) => v.via === 'lien')).toMatchObject({ launched: 1, medianPlayS: 2.5 });
+    expect(fp.byVia.find((v: { via: string }) => v.via === 'menu')).toMatchObject({ launched: 0, rolled: 1 }); // provenance inconnue → menu
+    expect(fp.byGame.find((g: { game: string }) => g.game === '421').launched).toBe(2);
+  });
 });
 
-import { creditBeat, BEAT_MAX_S, DAY_MAX_S } from '../server/admin';
+import { creditBeat, BEAT_MAX_S, DAY_MAX_S, cleanDelayMs, firstPlayStats, median } from '../server/admin';
+
+describe('première partie (statistiques)', () => {
+  it('délai plausible seulement, médiane', () => {
+    expect(cleanDelayMs(1234.4)).toBe(1234);
+    expect(cleanDelayMs(-1)).toBeNull();
+    expect(cleanDelayMs('abc')).toBeNull();
+    expect(cleanDelayMs(7 * 3600_000)).toBeNull();
+    expect(median([])).toBeNull();
+    expect(median([5, 1, 3])).toBe(3);
+    expect(median([1, 2, 3, 10])).toBe(3);
+  });
+  it('écarte les visiteurs qui avaient déjà joué avant la mesure', () => {
+    const r = (visitor: string, kind: string, at: number, ms: number | null = null, via: string | null = null) => ({ visitor, kind, at, ms, via, game: kind === 'first_play' ? '421' : null });
+    const s = firstPlayStats(['a', 'b', 'c'], [
+      r('a', 'solo', 1000), r('a', 'first_play', 1500, 3000, 'accueil'), // même partie : gardé
+      r('b', 'solo', 0), r('b', 'first_play', 10 * 60_000, 600_000, 'menu'), r('b', 'first_roll', 10 * 60_000, 600_000, 'menu'), // ancien joueur : écarté
+      r('z', 'first_play', 0, 1000, 'lien'), // pas un nouveau visiteur de la période
+    ]);
+    expect(s).toMatchObject({ visitors: 3, launched: 1, rolled: 0, medianPlayS: 3 });
+  });
+});
 import { countryName, flag, guessCountry } from '../shared/geo';
 
 describe('pays d’après le fuseau horaire', () => {

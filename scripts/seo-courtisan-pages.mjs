@@ -25,7 +25,7 @@ export const DM_TARGETS = [2000, 4000, 10000];
 export const kindValue = (face, n) => (n < 3 ? 0 : (face === 1 ? 1000 : face * 100) * 2 ** (n - 3));
 
 /** Lien qui ouvre directement le mode dans le jeu. */
-export const CT_PLAY = '/?mode=courtisan';
+export const CT_PLAY = '/?jouer=courtisan';
 export const CT_OG = '/og-courtisan.jpg';
 
 const UPDATED = '2026-11-07';

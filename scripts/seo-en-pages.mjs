@@ -14,7 +14,7 @@ import { CT_OG, DM_TARGETS, kindValue } from './seo-courtisan-pages.mjs';
 import { CARDS, CF_RULES, DECK_RULES, DISCLAIMERS, UPDATED, V421, combosTable, helpers, playLinks } from './seo-i18n-common.mjs';
 
 /** Lien « Jouer » : le mode en anglais (écrit pour un attribut HTML). */
-export const EN_PLAY = '/?mode=courtisan&amp;lang=en';
+export const EN_PLAY = '/?jouer=courtisan&amp;lang=en';
 export const EN_DISCLAIMER = DISCLAIMERS.en;
 
 const nb = (n) => n.toLocaleString('en-US');
@@ -339,7 +339,7 @@ ${play421('Try a game', 'The game applies the rules and counts the tokens')}
     h1: 'A dice game to play online with friends',
     lead: `Your friends are far away and nobody has dice to hand? On <a href="${P.l421}" data-play>421online.com</a> you can open a private table in a minute. Everyone joins from a phone or a computer, nothing to install, and the 3D dice roll for everyone at the same time.`,
     body: `
-${play421('Create a table with friends', 'Free, no download')}
+${H.play(P.amis, 'Create a table with friends', 'Free, no download')}
 ${H.toc('Contents', [['steps', 'Invite friends, step by step'], ['choose', 'Which game to play?'], ['install', 'Nothing to install'], ['ideas', 'Game-night ideas'], ['fair', 'Nobody can rig the dice']])}
 
 <h2 id="steps">Invite friends, step by step</h2>
@@ -372,7 +372,7 @@ ${H.toc('Contents', [['steps', 'Invite friends, step by step'], ['choose', 'Whic
 
 <h2 id="fair">Nobody can rig the dice</h2>
 <p>In online games the dice are drawn by the server, not by anyone’s phone, and everyone sees the same result.</p>
-${play421('Invite my friends', 'One link is enough')}
+${H.play(P.amis, 'Invite my friends', 'One link is enough')}
 `,
     faq: [
       ['How can I play dice with friends online?', 'Open a private table on 421online.com and send your friends the code or link. They join in their browser, with nothing to install.'],

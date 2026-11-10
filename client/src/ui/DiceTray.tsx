@@ -113,7 +113,7 @@ export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ ap
   }, [lookKey, ready]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { scene.current?.setQuality(quality); }, [quality, ready]);
   useEffect(() => { scene.current?.setOptions({ cup }); }, [cup, ready]);
-  useEffect(() => { if (insets) scene.current?.setInsets(insets); }, [insets?.top, insets?.right, insets?.bottom, insets?.left, ready]);
+  useEffect(() => { if (insets) scene.current?.setInsets(insets); }, [insets?.top, insets?.right, insets?.bottom, insets?.left, insets?.orientBottom, ready]);
 
   useImperativeHandle(ref, () => ({
     roll: async (v, k, s, g, d) => {

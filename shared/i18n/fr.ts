@@ -1,3 +1,4 @@
+import { accueilFr } from './zones/accueil.fr';
 import { communFr } from './zones/commun.fr';
 import { cartesFr } from './zones/cartes.fr';
 /**
@@ -7,6 +8,7 @@ import { g421Fr } from "./zones/jeu421.fr";
 
 export const fr = {
   ...communFr,
+  ...accueilFr,
   ...cartesFr,
   "common.back": "Retour",
   "common.close": "Fermer",

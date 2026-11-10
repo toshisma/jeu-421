@@ -33,6 +33,7 @@ import { ChestArt, GiftArt, Rays, RewardBurst, ScrollArt, TicketArt } from './il
 import { Sheet } from './kit';
 import { inTime, tournamentInfo, useCfPeek, useGroschenPeek, useOnlineCount, useProgramme } from './menuData';
 import { GROSCHEN_DAILY } from '../../../shared/dixmille/groschen';
+import { showQuickPlay } from '../quickPlay';
 
 
 export interface HomeProps {
@@ -49,6 +50,8 @@ export interface HomeProps {
   /** Le 421 (trouvé aussi par la recherche du menu « Plus »). */
   onLeaderboard: () => void; onRules: () => void; onTutorial: () => void; onTournaments: () => void; onAlbum: () => void;
   onParty: () => void; onOnline: () => void; onChallenge: () => void;
+  /** Partie express « Lancer les dés » (421 contre un ordinateur, réglages par défaut), mise en avant pour les débutants. */
+  onQuickPlay?: () => void;
   /** Partie à reprendre (421 ou Courtisan). */
   resume: { code: string; tournament?: boolean; courtisan?: boolean } | null; onResume: () => void;
   /** Tournoi programmé dont le salon est ouvert (le joueur y est inscrit). */
@@ -68,6 +71,17 @@ function ModeCard({ tone, title, art, status, hot, badge, onClick }: {
       <span className="mm-mode-art" aria-hidden>{art}</span>
       <span className="mm-mode-text"><b>{title}</b><small>{status}</small></span>
       {badge ? <em className="mm-mode-badge">{badge}</em> : <svg className="mm-mode-go" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden><path d="M9 6l6 6-6 6" /></svg>}
+    </button>
+  );
+}
+
+/** « Lancer les dés » : l'action principale d'un tout premier visiteur (une partie en un geste). */
+function QuickPlayBanner({ onClick }: { onClick: () => void }) {
+  return (
+    <button className="home-banner quickplay" onClick={onClick} aria-label={tr('acc.quick.aria')}>
+      <span className="qp-dice" aria-hidden><Icon name="dice" size={24} /></span>
+      <span><b>{tr('acc.quick.title')}</b><small>{tr('acc.quick.sub')}</small></span>
+      <em>{tr('acc.quick.go')}</em>
     </button>
   );
 }
@@ -156,6 +170,7 @@ export function Home(props: HomeProps) {
     if (props.resume && !STANDALONE) return <button className="home-banner resume" onClick={props.onResume}><Icon name="resume" size={20} /><span><b>{props.resume.tournament ? tr('app.tournoi_du_421_en_cours') : props.resume.courtisan ? tr('app.partie_du_courtisan_en_cours') : tr('app.partie_de_421_en_cours')}</b><small>{tr('app.table')} {props.resume.code}</small></span><em>{tr('app.reprendre')}</em></button>;
     const salon = prog?.slots.find((x) => x.status === 'salon' && x.registered && x.code);
     if (salon && props.onJoinScheduled) return <button className="home-banner resume" onClick={() => props.onJoinScheduled!(salon.code!, false)}><Icon name="trophy" size={20} /><span><b>{tr('app.votre_tournoi_de_h_commence', { hour: salon.hour })}</b><small>{tr('app.le_salon_est_ouvert_rejoignez_le')}</small></span><em>{tr('app.rejoindre')}</em></button>;
+    if (props.onQuickPlay && showQuickPlay(profile.stats.played)) return <QuickPlayBanner onClick={props.onQuickPlay} />;
     if (pa.welcomeBack) return <button className="home-banner gift" onClick={() => { pa.dismissWelcome(); props.onCollection(true); }}><Icon name="gift" size={20} /><span><b>{tr('app.content_de_vous_revoir')}</b><small>{tr('app.un_sac_de_des_vous_attend_dans')}</small></span></button>;
     if (!STANDALONE && !pa.isAccount) return <button className="home-banner account" onClick={props.onAccount}><Icon name="key" size={20} /><span><b>{tr('app.gardez_votre_progression')}</b><small>{tr('app.compte_gratuit_amis_classements_tous')}</small></span><em>{tr('app.creer')}</em></button>;
     if (happyHour(now)) return <HappyHourBanner />;

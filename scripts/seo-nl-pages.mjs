@@ -137,7 +137,7 @@ ${play421('Probeer een potje', 'Het spel past de regels toe en telt de fiches')}
     h1: 'Een online dobbelspel om met vrienden te spelen',
     lead: `Je vrienden zijn ver weg en niemand heeft dobbelstenen bij de hand? Op <a href="${P.l421}" data-play>421online.com</a> open je in een minuut een privétafel. Iedereen doet mee vanaf gsm of computer, zonder iets te installeren, en de 3D-stenen rollen voor iedereen tegelijk.`,
     body: `
-${play421('Tafel met vrienden openen', 'Gratis, geen download')}
+${H.play(P.amis, 'Tafel met vrienden openen', 'Gratis, geen download')}
 ${H.toc('Inhoud', [['stappen', 'Vrienden uitnodigen in vier stappen'], ['welk', 'Welk spel kies je?'], ['niets', 'Niets te installeren'], ['ideeen', 'Ideeën voor een spelavond'], ['eerlijk', 'Niemand kan de stenen vervalsen']])}
 
 <h2 id="stappen">Vrienden uitnodigen in vier stappen</h2>
@@ -170,7 +170,7 @@ ${H.toc('Inhoud', [['stappen', 'Vrienden uitnodigen in vier stappen'], ['welk', 
 
 <h2 id="eerlijk">Niemand kan de stenen vervalsen</h2>
 <p>In online potjes trekt de server de stenen, niet de gsm van een speler, en iedereen ziet dezelfde uitslag.</p>
-${play421('Mijn vrienden uitnodigen', 'Eén link is genoeg')}
+${H.play(P.amis, 'Mijn vrienden uitnodigen', 'Eén link is genoeg')}
 `,
     faq: [
       ['Hoe dobbel ik online met vrienden?', 'Open een privétafel op 421online.com en stuur je vrienden de code of de link. Zij doen mee in hun browser, zonder iets te installeren.'],

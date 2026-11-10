@@ -38,7 +38,7 @@ import { askConfirm } from '../ui/confirm';
 import { appBottom, appView, useNavGuard } from '../ui/navGuard';
 import { sound } from '../audio/sound';
 import { publicUrl } from '../platform';
-import { trackEvent } from '../visit';
+import { trackEvent, trackFirstRoll } from '../visit';
 import { useMyTurnAlert } from '../turnAlert';
 import { DmSession, loadDmSession, saveDmSession } from './online';
 import { fmtNum, getLang, tr, trServer, useLang } from '../i18n/lang';
@@ -406,6 +406,7 @@ function DmBoard({ tray, anim, seats, canAct, settings, onSettings, appearance, 
   const doRoll = (g?: ThrowGesture) => {
     if (!myTurn) return;
     sound.unlock();
+    trackFirstRoll();
     if (s.phase === 'debut') onAction({ type: 'lancer' }, g);
     else if (selPoints !== null) onAction({ type: 'relancer', pick: sel }, g);
   };
@@ -1073,7 +1074,8 @@ export function DixMilleSetup({ onBack, onStart, onRules, onOnline, pa, groschen
 // ---------------------------------------------------------------------------------------------
 // Mode complet
 
-export type DmPending = { join?: string; watch?: string; resume?: boolean };
+/** `play` : lien direct `/?jouer=courtisan` : une partie contre UN ordinateur Débutant, objectif court, sans mise. */
+export type DmPending = { join?: string; watch?: string; resume?: boolean; play?: boolean };
 
 export function DixMilleMode({ pa, settings, onSettings, onHome, displayName, avatar, pending, onAccount, onCollection }: {
   pa: ProfileApi; settings: Settings; onSettings: (s: Settings) => void;
@@ -1086,7 +1088,8 @@ export function DixMilleMode({ pa, settings, onSettings, onHome, displayName, av
   type Route = { r: 'menu' } | { r: 'setup'; tab: 'solo' | 'ligne' } | { r: 'game'; setup: DmSetup; opponents: Persona[]; key: number } | { r: 'online'; mode: DmOnlineMode; key: number; from: 'menu' | 'setup' };
   const [route, setRoute] = useState<Route>(() => pending?.join ? { r: 'online', mode: { kind: 'join', code: pending.join }, key: 1, from: 'menu' }
     : pending?.watch ? { r: 'online', mode: { kind: 'watch', code: pending.watch }, key: 1, from: 'menu' }
-      : pending?.resume ? { r: 'online', mode: { kind: 'resume' }, key: 1, from: 'menu' } : { r: 'menu' });
+      : pending?.resume ? { r: 'online', mode: { kind: 'resume' }, key: 1, from: 'menu' }
+        : pending?.play ? { r: 'game', setup: { opponents: 1, level: 'debutant', target: 2000, stake: 0 }, opponents: [PERSONAS[Math.floor(Math.random() * PERSONAS.length)]], key: 1 } : { r: 'menu' });
   const [rules, setRules] = useState(false);
   // Présence : menu du Courtisan (pas « en partie »), partie solo, ou en ligne (précisé par la table).
   usePresenceLayer(route.r === 'game' ? { view: 'partie-solo', state: 'solo', depth: 1 } : route.r === 'online' ? { view: 'attente', state: 'online', depth: 1 } : { view: route.r === 'setup' ? 'preparation' : 'menu', state: 'menu', depth: 1 });
