@@ -235,3 +235,17 @@ describe('traductions', () => {
     for (const l of ['en', 'de', 'nl'] as Lang[]) for (const fr of Object.values(TDC_TITLES_FR)) expect(translateServerText(l, fr)).not.toBe(fr);
   });
 });
+
+describe('relecture 0.53', () => {
+  it('un quartier terminé ailleurs reçoit son titre à la partie suivante, même dans un autre quartier', async () => {
+    const { applyTdc, TDC_QUARTERS, TDC_BISTROS } = await import('../shared/progress/comptoirs');
+    const { newProfile } = await import('../shared/progress/profile');
+    const marche = TDC_BISTROS.filter((b) => b.quarter === 'marche');
+    const autre = TDC_BISTROS.find((b) => b.quarter !== 'marche')!;
+    const p = { ...newProfile(), tdc: Object.fromEntries(marche.map((b) => [b.id, 1])) };
+    const facts = { won: false, place: 2, rounds: 40, count421: 0, c111: 0, brelan: 0, elapsedMs: 10 * 60_000 };
+    const { profile } = applyTdc(p, autre.id, facts);
+    const titre = TDC_QUARTERS.find((q) => q.id === 'marche')!.title!;
+    expect(profile.titles ?? []).toContain(titre);
+  });
+});

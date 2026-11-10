@@ -40,6 +40,9 @@ import { loadDmSession } from './dixmille/online';
 import type { DmPending } from './dixmille/DixMille';
 import { linkVisitor, setPlayVia, trackVisit, type PlayVia } from './visit';
 import { jouerParam, quickDifficulty } from './quickPlay';
+
+/** Lien direct ?jouer=… lu au chargement, avant que d'autres paramètres (parrain, notifs…) ne nettoient l'adresse. */
+const JOUER_AU_CHARGEMENT = typeof location === 'undefined' ? null : jouerParam(location.search);
 import { DEFAULT_CONFIG } from '../../shared/config';
 import { askConfirm } from './ui/confirm';
 import { CfChallengeBanner } from './cards/ChallengeBanner';
@@ -166,8 +169,8 @@ export function App() {
     if (p) { try { localStorage.setItem('421.parrain', p.slice(0, 20)); } catch { /* */ } cleanUrl(); }
   }, []);
   // Lien direct des pages d'aide : /?jouer=1 (421), ?jouer=courtisan, ?jouer=cartes, ?jouer=amis (voir quickPlay.ts).
-  // Lu après les autres paramètres (parrain…) : l'adresse n'est nettoyée qu'ensuite.
-  const jouer = useMemo(() => { const v = STANDALONE ? null : jouerParam(location.search); if (v) { cleanUrl(); setPlayVia('lien'); } return v; }, []);
+  // Lu au chargement du module (JOUER_AU_CHARGEMENT) : un ?parrain= qui nettoie l'adresse avant ne le fait plus perdre.
+  const jouer = useMemo(() => { const v = STANDALONE ? null : JOUER_AU_CHARGEMENT; if (v) { cleanUrl(); setPlayVia('lien'); } return v; }, []);
   const [screen, setScreen] = useState<Screen>(() =>
     location.pathname.startsWith('/confidentialite') ? { name: 'legal', back: { name: 'home' } }
     : STANDALONE ? { name: 'home' }

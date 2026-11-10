@@ -289,10 +289,13 @@ export function applyTdc(p: Profile, bistroId: string, f: TdcFacts, roundMs = TD
   let profile: Profile = { ...p, coins: p.coins + coins, tdc: { ...(p.tdc ?? {}), ...(after ? { [b.id]: after } : {}) } };
   const result: TdcResult = { ...empty, after, newStars, coins };
   // Quartier terminé (y compris un quartier repris d'un profil d'invité) : titre / tapis s'ils manquent.
-  if (quarterDone(profile.tdc, b.quarter)) {
-    const g = grantQuarter(profile, tdcQuarter(b.quarter));
+  // Tous les quartiers sont regardés (pas seulement celui du bistrot joué) : un quartier terminé en invité,
+  // puis repris à l'inscription, reçoit son titre / tapis à la première partie suivante, où qu'elle se joue.
+  for (const q of TDC_QUARTERS) {
+    if (!quarterDone(profile.tdc, q.id)) continue;
+    const g = grantQuarter(profile, q);
     profile = g.profile;
-    if (g.title || g.felt) Object.assign(result, { quarter: b.quarter, title: g.title, felt: g.felt });
+    if ((g.title || g.felt) && !result.quarter) Object.assign(result, { quarter: q.id, title: g.title, felt: g.felt });
   }
   return { profile, result };
 }

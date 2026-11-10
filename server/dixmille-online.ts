@@ -641,12 +641,13 @@ export function createDixMilleOnline(c: Ctx) {
       if (stake <= 0) return reply({ ok: false, error: 'Choisissez une mise.' });
       const problem = stakeProblem(u.id, stake);
       if (problem) return reply({ ok: false, error: problem });
+      // Pas de mise contre un ordinateur Débutant : refusé AVANT de créer la table (sinon table fantôme).
+      const level = cleanLevel(p?.level);
+      if (level === DM_NO_STAKE_LEVEL) return reply({ ok: false, error: NO_STAKE_WITH_BEGINNER });
       const m = { ...newMember(p, u.username), ready: true };
       const t = makeTable(m, 'Contre l’ordinateur', cleanTarget(p?.target), 'private', stake);
       t.solo = true;
       const n = Math.min(3, Math.max(1, Math.floor(Number(p?.opponents) || 1)));
-      const level = cleanLevel(p?.level);
-      if (level === DM_NO_STAKE_LEVEL) return reply({ ok: false, error: NO_STAKE_WITH_BEGINNER });
       const names: { name: string; avatar: string }[] = Array.isArray(p?.bots) ? p.bots.slice(0, n).map((b: any) => ({ name: cleanName(b?.name) ?? '', avatar: typeof b?.avatar === 'string' ? b.avatar.slice(0, 8) : '🎲' })) : [];
       for (let i = 0; i < n; i++) {
         addBot(t, level);

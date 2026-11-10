@@ -7,7 +7,7 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
-  { version: '0.53', date: '2026-11-10T16:30:00+01:00', title: 'La Tournée des comptoirs', items: [
+  { version: '0.53', date: '2026-11-10T17:12:00+01:00', title: 'La Tournée des comptoirs', items: [
     'Nouveau : la Tournée des comptoirs, 12 bistrots en 4 quartiers, chacun avec ses règles maison. Gagnez jusqu’à 3 étoiles par bistrot pour ouvrir la suite.',
     'Nouveau : les bistrots entre amis. Ouvrez votre bistrot, invitez vos amis et visez la couronne du champion de la semaine (parties en ligne).',
     'Saint-Nicolas et les fêtes arrivent : calendrier de l’avent du 1er au 24 décembre, défis, dés de saison et adversaires spéciaux.',
