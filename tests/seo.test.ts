@@ -144,8 +144,8 @@ describe('pages Coups Fourrés', () => {
     for (const slug of slugs) {
       const h = read(slug);
       expect(sitemap).toContain(`<loc>https://421online.com/${slug}</loc>`);
-      expect(h).toContain('<a class="cta small" href="/?mode=cartes" data-play>Jouer</a>');
-      expect(h).toMatch(/class="cta" href="\/\?mode=cartes" data-play>/);
+      expect(h).toContain('<a class="cta small" href="/?jouer=cartes" data-play>Jouer</a>');
+      expect(h).toMatch(/class="cta" href="\/\?jouer=cartes" data-play>/);
       expect(h).toContain('<meta property="og:image" content="https://421online.com/og-coups-fourres.jpg">');
       const crumbs = ld(h).find((x) => x['@type'] === 'BreadcrumbList').itemListElement;
       expect(crumbs[0].item).toBe('https://421online.com/');
@@ -201,8 +201,8 @@ describe('pages Le Courtisan (Dix mille)', () => {
     for (const slug of slugs) {
       const h = read(slug);
       expect(sitemap).toContain(`<loc>https://421online.com/${slug}</loc>`);
-      expect(h).toContain('<a class="cta small" href="/?mode=courtisan" data-play>Jouer</a>');
-      expect(h).toMatch(/class="cta" href="\/\?mode=courtisan" data-play>/);
+      expect(h).toContain('<a class="cta small" href="/?jouer=courtisan" data-play>Jouer</a>');
+      expect(h).toMatch(/class="cta" href="\/\?jouer=courtisan" data-play>/);
       expect(h).toContain('<meta property="og:image" content="https://421online.com/og-courtisan.jpg">');
       expect(h.match(/<title>([^<]+)<\/title>/)![1].length).toBeLessThanOrEqual(62);
       const crumbs = ld(h).find((x) => x['@type'] === 'BreadcrumbList').itemListElement;
@@ -267,7 +267,7 @@ describe('pages anglaises', () => {
       const h = read(en);
       expect(h.startsWith('<!doctype html>\n<html lang="en">')).toBe(true);
       expect(h).toContain('<meta property="og:locale" content="en_US">');
-      expect(h).toContain('href="/?mode=courtisan&amp;lang=en" data-play>Play</a>');
+      expect(h).toContain('href="/?jouer=courtisan&amp;lang=en" data-play>Play</a>');
       expect(h).toContain('<h2 id="questions">Frequently asked questions</h2>');
       expect(h).toContain('aria-label="Breadcrumb"');
       expect(h).toContain('Updated <time');
@@ -364,7 +364,7 @@ describe('pages traduites (en, de, nl)', () => {
       expect(h).toContain(`<meta property="og:locale" content="${OG[lang]}">`);
       expect(g.find((x) => x['@type'] === 'Article').inLanguage).toBe(lang);
       expect(h).toContain(`<h2 id="questions">${FAQ[lang]}</h2>`);
-      expect(h).toMatch(new RegExp(`class="cta" href="/\\?(mode=(courtisan|cartes)&amp;)?lang=${lang}" data-play>`));
+      expect(h).toMatch(new RegExp(`class="cta" href="/\\?jouer=(1|courtisan|cartes|amis)&amp;lang=${lang}" data-play>`));
       expect(h).toContain(`<a href="/?lang=${lang}">421online</a>`);
       for (const q of g.find((x) => x['@type'] === 'FAQPage').mainEntity) expect(h).toContain(`<summary>${q.name}</summary>`);
       expect(g.flatMap((x) => (x.aggregateRating || x.review ? [x] : []))).toHaveLength(0);

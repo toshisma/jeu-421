@@ -14,7 +14,7 @@ import { challengeReward, playChallenge, type ChallengeResult } from '../../../s
 import { today } from '../../../shared/progress/quests';
 import { loadGuestPhoto, photoToDataUrl, saveGuestPhoto } from './photo';
 import { deviceId, setPresence } from '../presence';
-import { trackEvent } from '../visit';
+import { trackEvent, trackFirstPlay } from '../visit';
 import type { FxKind } from '../../../shared/progress/dice-collection';
 import { applyDixMilleGame, dixMilleBagRoll, dixMilleReward } from '../../../shared/dixmille/reward';
 import type { DmLevel } from '../../../shared/dixmille/engine';
@@ -346,6 +346,7 @@ export function useProfile(enabled: boolean) {
   const onDixMilleStart = useCallback(() => {
     dmGame.current = { token: null, startedAt: Date.now() };
     if (!enabled) return;
+    trackFirstPlay('courtisan');
     setPresence('solo');
     const s = ref.current.session;
     const g = dmGame.current;

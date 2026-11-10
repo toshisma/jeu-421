@@ -39,7 +39,9 @@ const HOME_UPDATED = '2026-11-09';
 
 // Petits éléments réutilisables -------------------------------------------------------------------
 const dice = (s) => `<span class="dice" role="img" aria-label="${s.split('').join('-')}">${s.split('').map((d) => `<i class="d d${d}"></i>`).join('')}</span>`;
-const play = (label, sub) => `<p class="play-box"><a class="cta" href="/" data-play>${label}</a>${sub ? `<small>${sub}</small>` : ''}</p>`;
+/** Lien direct du 421 : la partie contre l'ordinateur démarre tout de suite (client/src/quickPlay.ts). */
+export const PLAY_421 = '/?jouer=1';
+const play = (label, sub) => `<p class="play-box"><a class="cta" href="${PLAY_421}" data-play>${label}</a>${sub ? `<small>${sub}</small>` : ''}</p>`;
 const toc = (items) => `<nav class="toc" aria-label="Sommaire"><b>Sommaire</b><ol>${items.map(([id, t]) => `<li><a href="#${id}">${t}</a></li>`).join('')}</ol></nav>`;
 
 const pages = [
@@ -630,6 +632,32 @@ for (const [lang, g] of Object.entries(CF_L)) {
 const ALT = Object.fromEntries(I18N_GROUPS.flatMap((g) => Object.values(g).map((s) => [s, g])));
 const OG_LOCALE = { fr: 'fr_BE', en: 'en_US', de: 'de_DE', nl: 'nl_BE' };
 const DATE_LOCALE = { fr: 'fr-BE', en: 'en-US', de: 'de-DE', nl: 'nl-BE' };
+/**
+ * Boutons « Jouer » en haut (sous le titre, visible sans défiler à 360 px) et en bas de chaque page : lien
+ * direct vers une partie du jeu de la page (`?jouer=…`, voir client/src/quickPlay.ts), dans la langue de la page.
+ * Pages « entre amis » : création d'une table (`?jouer=amis`).
+ */
+const FRIEND_SLUGS = new Set(['421-entre-amis', 'jeux-entre-amis-a-distance', 'jeu-de-des-entre-amis', 'jeu-apero-a-distance', 'jeu-multijoueur-navigateur',
+  ...Object.values(I18N_GROUPS.find((g) => g.fr === 'jeu-de-des-entre-amis'))]);
+const PLAY_CTA = {
+  fr: { '421': ['Lancer les dés', 'Une partie de 421 contre l’ordinateur, tout de suite · gratuit, sans inscription'], courtisan: ['Lancer les six dés', 'Une partie du Courtisan contre l’ordinateur, tout de suite · gratuit'],
+    cartes: ['Jouer à Coups Fourrés', 'Une partie guidée contre l’ordinateur, tout de suite · gratuit'], amis: ['Créer une table entre amis', 'Gratuit, sans téléchargement : un lien à envoyer'] },
+  en: { '421': ['Roll the dice', 'A game of 421 against the computer, right now · free, no sign-up'], courtisan: ['Roll the six dice', 'A game of Farkle against the computer, right now · free'],
+    cartes: ['Play Coups Fourrés', 'A guided game against the computer, right now · free'], amis: ['Create a table with friends', 'Free, no download: just send a link'] },
+  de: { '421': ['Würfeln', 'Eine Partie 421 gegen den Computer, sofort · kostenlos, ohne Anmeldung'], courtisan: ['Sechs Würfel werfen', 'Eine Partie Farkle gegen den Computer, sofort · kostenlos'],
+    cartes: ['Coups Fourrés spielen', 'Eine geführte Partie gegen den Computer, sofort · kostenlos'], amis: ['Tisch für Freunde eröffnen', 'Kostenlos, ohne Download: einfach einen Link schicken'] },
+  nl: { '421': ['Gooi de stenen', 'Een potje 421 tegen de computer, meteen · gratis, zonder account'], courtisan: ['Gooi de zes stenen', 'Een potje Farkle tegen de computer, meteen · gratis'],
+    cartes: ['Speel Coups Fourrés', 'Een begeleid potje tegen de computer, meteen · gratis'], amis: ['Tafel met vrienden openen', 'Gratis, geen download: stuur gewoon een link'] },
+};
+/** Jeu d'une page (d'après son bouton Jouer) et lien direct correspondant, `&amp;lang=xx` hors français. */
+export function playTarget(p) {
+  const lang = p.lang ?? 'fr';
+  const kind = FRIEND_SLUGS.has(p.slug) ? 'amis' : /jouer=cartes|mode=cartes/.test(p.play ?? '') ? 'cartes' : /jouer=courtisan|mode=courtisan/.test(p.play ?? '') ? 'courtisan' : '421';
+  const href = `/?jouer=${kind === '421' ? '1' : kind}${lang === 'fr' ? '' : `&amp;lang=${lang}`}`;
+  return { kind, href, label: PLAY_CTA[lang][kind] };
+}
+const playBox = (t, cls) => `<p class="play-box ${cls}"><a class="cta" href="${t.href}" data-play>${t.label[0]}</a><small>${t.label[1]}</small></p>`;
+
 /** Gabarit des pages traduites (français : textes d'origine, dans le gabarit ci-dessous). */
 const LOCALE_UI = {
   en: { play: 'Play', logo: '421online: open the game', helpNav: 'Help pages', crumbs: 'Breadcrumb', updated: 'Updated', faq: 'Frequently asked questions', relatedAria: 'Read also', relatedTitle: 'Read also', footLinks: 'All help pages', privacy: 'Privacy and legal notice',
@@ -644,7 +672,8 @@ for (const p of allPages) {
   const lang = p.lang ?? 'fr'; const en = lang !== 'fr'; const UI = LOCALE_UI[lang];
   const homeHref = en ? `/?lang=${lang}` : '/';
   const url = `${SITE}/${p.slug}`;
-  const playHref = p.play ?? '/';
+  const playHref = p.play ?? PLAY_421;
+  const target = playTarget(p);
   const og = p.og ?? '/og-421.png';
   const parent = p.parent ? bySlug[p.parent] : null;
   const crumbs = [['421online', `${SITE}/`], ...(parent ? [[parent.short, `${SITE}/${parent.slug}`]] : []), [p.short, url]];
@@ -699,7 +728,7 @@ ${hreflang}<meta name="robots" content="index, follow, max-image-preview:large">
 </head>
 <body>
 <header class="top">
-  <a class="logo" href="${en ? playHref : '/'}" aria-label="${en ? UI.logo : '421online : ouvrir le jeu'}"><span>421</span></a>
+  <a class="logo" href="${homeHref}" aria-label="${en ? UI.logo : '421online : ouvrir le jeu'}"><span>421</span></a>
   <nav aria-label="${en ? UI.helpNav : 'Pages d’aide'}">${(en ? pagesOf[lang].map((x) => x.slug) : HEADER_NAV).map((s) => `<a href="/${s}"${s === p.slug ? ' aria-current="page"' : ''}>${bySlug[s].nav}</a>`).join('')}</nav>
   <a class="cta small" href="${playHref}" data-play>${en ? UI.play : 'Jouer'}</a>
 </header>
@@ -707,6 +736,7 @@ ${hreflang}<meta name="robots" content="index, follow, max-image-preview:large">
 <article>
 <nav class="crumbs" aria-label="${en ? UI.crumbs : 'Fil d’Ariane'}"><a href="${homeHref}">421online</a> <span aria-hidden="true">›</span> ${parent ? `<a href="/${parent.slug}">${parent.short}</a> <span aria-hidden="true">›</span> ` : ''}<span>${p.short}</span></nav>
 <h1>${p.h1}</h1>
+${playBox(target, 'top')}
 <p class="lead">${p.lead}</p>
 <p class="meta">${en ? UI.updated : 'Mis à jour le'} <time datetime="${p.updated}">${new Date(`${p.updated}T12:00:00Z`).toLocaleDateString(DATE_LOCALE[lang], { day: 'numeric', month: 'long', year: 'numeric' })}</time></p>
 ${body}
@@ -714,6 +744,7 @@ ${body}
 <h2 id="questions">${en ? UI.faq : 'Questions fréquentes'}</h2>
 ${p.faq.map(([q, a]) => `<details><summary>${q}</summary><p>${a}</p></details>`).join('\n')}
 </section>
+${playBox(target, 'end')}
 </article>
 <aside class="related" aria-label="${en ? UI.relatedAria : 'À lire aussi'}"><h2>${en ? UI.relatedTitle : 'À lire aussi'}</h2><div>${related}</div></aside>
 </main>
@@ -730,7 +761,8 @@ ${TRACK}
   for (const m of html.matchAll(/href="\/([a-z0-9-]+)(?:#[^"]*)?"/g)) if (!bySlug[m[1]] && m[1] !== 'confidentialite') throw new Error(`Lien inconnu /${m[1]} dans ${p.slug}`);
   for (const m of html.matchAll(/(?:src|content)="(?:https:\/\/421online\.com)?\/((?:img|og-|icons)[^"]*\.(?:webp|png|jpg))"/g)) if (!existsSync(join(OUT, m[1]))) throw new Error(`Image absente /${m[1]} dans ${p.slug}`);
   for (const m of html.matchAll(/href="#([^"]+)"/g)) if (!html.includes(`id="${m[1]}"`)) throw new Error(`Ancre absente #${m[1]} dans ${p.slug}`);
-  if (p.play && !html.includes(`class="cta" href="${p.play}" data-play`)) throw new Error(`Bouton Jouer absent dans ${p.slug}`);
+  if (p.play && target.kind !== 'amis' && !html.includes(`class="cta" href="${p.play}" data-play`)) throw new Error(`Bouton Jouer absent dans ${p.slug}`);
+  if (html.split(`class="cta" href="${target.href}" data-play`).length < 3) throw new Error(`Boutons Jouer du haut et du bas absents dans ${p.slug}`);
   if (en && /Kingdom Come|KCD/.test(html) && !html.includes(DISCLAIMERS[lang])) throw new Error(`Mention d'indépendance absente dans ${p.slug}`);
   writeFileSync(join(OUT, `${p.slug}.html`), html);
 }

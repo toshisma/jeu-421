@@ -8,7 +8,7 @@
 import { BOOSTER, CAPSULES, CARDS, CF_RULES, DECK_RULES, FAMILY_LABEL, RARITY_LABEL, SHARDS, STARTER_DECKS, TYPE_LABEL } from '../shared/cards/catalog.ts';
 
 /** Lien qui ouvre directement le mode dans le jeu (client/src/cfLink.ts). */
-export const CF_PLAY = '/?mode=cartes';
+export const CF_PLAY = '/?jouer=cartes';
 
 const R = CF_RULES;
 const FAMS = ['habitues', 'ivresse', 'pieges', 'chaines'];

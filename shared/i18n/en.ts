@@ -1,5 +1,6 @@
 import { courtisan2En } from './zones/courtisan2.en';
 import { clubsEn } from './zones/clubs.en';
+import { accueilEn } from './zones/accueil.en';
 import { communEn } from './zones/commun.en';
 import { cartesEn } from './zones/cartes.en';
 import type { MessageKey } from './fr';
@@ -11,6 +12,7 @@ import { tdcEn } from './zones/comptoirs.en';
 export const en: Partial<Record<MessageKey, string>> = {
   ...communEn,
   ...clubsEn,
+  ...accueilEn,
   ...(cartesEn as Partial<Record<MessageKey, string>>),
   ...(courtisan2En as Partial<Record<MessageKey, string>>),
   "common.back": "Back",

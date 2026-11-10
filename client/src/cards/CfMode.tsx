@@ -62,7 +62,7 @@ export interface CfModeProps {
   /** Sacs de dés gagnés en fin de partie : la collection de dés (commune aux trois jeux) s'ouvre dessus. */
   onBags?: () => void;
   /** À faire dès l'ouverture (venu de la liste d'amis) : défier ce pseudo, ou regarder cette partie. */
-  pending?: { challenge?: string; watch?: string; tournoi?: boolean; boosters?: boolean };
+  pending?: { challenge?: string; watch?: string; tournoi?: boolean; boosters?: boolean; play?: boolean };
 }
 
 type Route =
@@ -250,6 +250,20 @@ function CfModeScreens(props: CfModeProps) {
       showToast(e instanceof Error ? cfText(e.message) : tr('cf.mode.impossible_de_lancer_la_partie'), 'err');
     } finally { setStarting(false); }
   }, [starting, st, pa.token, pa.photo, pa.session, pa.onCfGuestEnd, name, props.avatar, showToast, offerTutorial]);
+
+  // Lien direct /?jouer=cartes : une partie contre l'ordinateur tout de suite (la partie guidée pour un tout
+  // nouveau joueur, sinon l'étape suivante du parcours débutant ou le deck actif, niveau débutant).
+  // Compte qui n'a pas encore découvert le mode : son écran de découverte (decks offerts) passe d'abord.
+  const playDone = useRef(false);
+  useEffect(() => {
+    if (!props.pending?.play || playDone.current) return;
+    if (pa.token && !st && !loadErr) return; // compte : on attend ses decks
+    playDone.current = true;
+    if (st && !st.discovered) return;
+    if (!tutorialSeen() && !st?.tutorialDone && !(st?.history.length)) { startTutorial(); return; }
+    const n = parcoursNext();
+    void startBot('debutant', n <= PARCOURS.length ? `parcours:${n}` : st?.activeDeck ?? STARTER_DECKS[0].id, 1);
+  });
 
   /** Commande en ligne : erreur claire en français si elle échoue. */
   const tryOnline = useCallback(async (f: (o: CfOnline) => Promise<unknown>): Promise<boolean> => {

@@ -37,11 +37,12 @@ export const DISCLAIMERS = {
   nl: '421online.com is een onafhankelijke website, niet verbonden aan Warhorse Studios, Deep Silver of Plaion; Kingdom Come: Deliverance is een handelsmerk van de respectieve eigenaars.',
 };
 
-/** Boutons « Jouer » (échappés pour un attribut HTML). */
+/** Boutons « Jouer » (échappés pour un attribut HTML) : liens directs vers une partie (client/src/quickPlay.ts). */
 export const playLinks = (lang) => ({
-  l421: `/?lang=${lang}`,
-  courtisan: `/?mode=courtisan&amp;lang=${lang}`,
-  cartes: `/?mode=cartes&amp;lang=${lang}`,
+  l421: `/?jouer=1&amp;lang=${lang}`,
+  courtisan: `/?jouer=courtisan&amp;lang=${lang}`,
+  cartes: `/?jouer=cartes&amp;lang=${lang}`,
+  amis: `/?jouer=amis&amp;lang=${lang}`,
 });
 
 export const helpers = (lang) => {

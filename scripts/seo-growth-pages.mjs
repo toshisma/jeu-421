@@ -6,7 +6,7 @@
  */
 import { CT_PLAY } from './seo-courtisan-pages.mjs';
 
-const play = (label, sub, href = '/') => `<p class="play-box"><a class="cta" href="${href}" data-play>${label}</a>${sub ? `<small>${sub}</small>` : ''}</p>`;
+const play = (label, sub, href = '/?jouer=1') => `<p class="play-box"><a class="cta" href="${href}" data-play>${label}</a>${sub ? `<small>${sub}</small>` : ''}</p>`;
 const toc = (items) => `<nav class="toc" aria-label="Sommaire"><b>Sommaire</b><ol>${items.map(([id, t]) => `<li><a href="#${id}">${t}</a></li>`).join('')}</ol></nav>`;
 const dates = { published: '2026-11-09', updated: '2026-11-09' };
 export const INDEP = '421online.com est un site indépendant, sans lien avec Warhorse Studios, Deep Silver ou Plaion ; Kingdom Come: Deliverance est une marque de ses propriétaires.';
@@ -21,7 +21,7 @@ export const growthPages = [
     lead: 'Vos amis sont loin, et personne n’a de dés sous la main ? Sur <a href="/" data-play>421online.com</a>, une table privée se crée en une minute. Chacun la rejoint depuis son téléphone ou son ordinateur, sans rien installer, et les dés roulent en 3D pour tout le monde en même temps.',
     image: { src: '/img/salon-421.webp', w: 390, h: 844, alt: 'Salon d’une table privée de dés sur téléphone, avec le code de la table et les boutons de partage', caption: 'Le salon : partagez le code ou le lien, vos amis s’assoient aux places libres.' },
     body: `
-${play('Créer une table entre amis', 'Gratuit, sans téléchargement')}
+${play('Créer une table entre amis', 'Gratuit, sans téléchargement', '/?jouer=amis')}
 ${toc([['etapes', 'Inviter ses amis, étape par étape'], ['quel-jeu', 'Quel jeu choisir à plusieurs ?'], ['sans-compte', 'Vos amis n’ont pas besoin d’installer quoi que ce soit'], ['soiree', 'Des idées pour une soirée'], ['equitable', 'Personne ne peut truquer les dés']])}
 
 <h2 id="etapes">Inviter ses amis, étape par étape</h2>
@@ -54,7 +54,7 @@ ${toc([['etapes', 'Inviter ses amis, étape par étape'], ['quel-jeu', 'Quel jeu
 
 <h2 id="equitable">Personne ne peut truquer les dés</h2>
 <p>En ligne, le serveur tire chaque dé au sort : aucun joueur ne peut influencer le résultat, et tout le monde voit les mêmes dés rouler. Le jeu compte les points et applique les règles, donc plus de discussion sur le score.</p>
-${play('Lancer les dés avec vos amis', 'Sur téléphone et ordinateur')}
+${play('Lancer les dés avec vos amis', 'Sur téléphone et ordinateur', '/?jouer=amis')}
 `,
     faq: [
       ['Comment jouer aux dés en ligne avec des amis ?', 'Créez une table privée sur 421online.com, envoyez le code à vos amis et lancez la partie quand tout le monde est assis. C’est gratuit et rien n’est à installer.'],
@@ -218,7 +218,7 @@ ${toc([['pourquoi', 'Pourquoi les dés marchent bien en visio'], ['comment', 'Or
 
 <h2 id="grand">Pour une plus grande soirée</h2>
 <p>Plus de six personnes ? Créez un tournoi au 421 : plusieurs tables, un vainqueur. Et d’autres idées sont sur notre page <a href="/jeux-entre-amis-a-distance">jeux entre amis à distance</a>.</p>
-${play('Ouvrir une table pour l’apéro', 'Gratuit, rien à installer')}
+${play('Ouvrir une table pour l’apéro', 'Gratuit, rien à installer', '/?jouer=amis')}
 `,
     faq: [
       ['Quel jeu faire pendant un apéro en visio ?', 'Un jeu de dés en ligne comme le 421 : une table se crée en une minute, les règles sont simples et on peut discuter en jouant.'],

@@ -44,9 +44,32 @@ export function trackVisit(token?: string | null) {
  */
 const sentEvents = new Set<string>();
 export function trackEvent(kind: 'solo' | 'online' | 'invite' | 'invited' | 'cards') {
+  if (kind === 'solo' || kind === 'online' || kind === 'cards') trackFirstPlay(kind === 'solo' ? '421' : kind === 'cards' ? 'cartes' : 'online');
   if (!web() || sentEvents.has(kind)) return;
   sentEvents.add(kind);
   post('/visit/event', { device: deviceId(), kind });
+}
+
+/**
+ * Première partie (tableau de bord : « première partie lancée », délai depuis l'arrivée) :
+ *  - first_play : une partie démarre (421, Courtisan, Coups Fourrés, table en ligne) ;
+ *  - first_roll : le joueur lance lui-même les dés pour la première fois (421, Courtisan).
+ * `ms` : temps écoulé depuis l'ouverture de la page ; `via` : bouton « Lancer les dés » de l'accueil,
+ * lien direct `?jouer=` (pages d'aide) ou menus. Une seule fois par visiteur (le serveur garde la première).
+ */
+export type PlayVia = 'accueil' | 'lien' | 'menu';
+let via: PlayVia = 'menu';
+export function setPlayVia(v: PlayVia) { via = v; }
+const sinceArrival = () => { try { return Math.max(0, Math.round(performance.now())); } catch { return null; } };
+export function trackFirstPlay(game: '421' | 'courtisan' | 'cartes' | 'online') {
+  if (!web() || sentEvents.has('first_play')) return;
+  sentEvents.add('first_play');
+  post('/visit/event', { device: deviceId(), kind: 'first_play', ms: sinceArrival(), via, game });
+}
+export function trackFirstRoll() {
+  if (!web() || sentEvents.has('first_roll')) return;
+  sentEvents.add('first_roll');
+  post('/visit/event', { device: deviceId(), kind: 'first_roll', ms: sinceArrival(), via });
 }
 
 /** Le visiteur vient de se connecter ou de créer son compte : ses visites sont rattachées (conversion). */

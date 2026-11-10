@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { trackFirstRoll } from '../visit';
 import { FloatingPop } from './FloatingPop';
 import { askConfirm } from './confirm';
 import { appBottom, appView, useNavGuard } from './navGuard';
@@ -411,6 +412,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
     if (!s || pending || !myTurn) return;
     sound.unlock();
     setPending(true);
+    if (kind === 'roll') trackFirstRoll();
     const err = kind === 'roll' ? await controller.roll(s.throwsUsed === 0 ? NO_KEEP : keep, s.version, gesture) : await controller.stop(s.version);
     setPending(false);
     if (err) setToast({ text: trServer(err), kind: 'error', id: Date.now() });
@@ -441,6 +443,8 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
   const [insets, setInsets] = useState<Insets>({ top: 0, right: 0, bottom: 0, left: 0 });
   useLayoutEffect(() => {
     const measure = () => {
+      // Panneaux pas encore remplis (cartes des joueurs) : on attend, le bac choisit son orientation sur la vraie zone libre.
+      if (!shownRef.current) return;
       const side = sideRef.current;
       const sideVisible = !!side && getComputedStyle(side).position !== 'fixed';
       setInsets({
@@ -448,6 +452,8 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
         bottom: appBottom() - (bottomRef.current?.getBoundingClientRect().top ?? appBottom()) + 4,
         right: sideVisible ? side!.getBoundingClientRect().width + 12 : 0,
         left: 0,
+        // La barre d'action grandit à son propre tour (boutons, dés à garder) : l'orientation du bac en tient compte dès le départ.
+        orientBottom: Math.round(appBottom() * 0.22),
       });
     };
     measure();

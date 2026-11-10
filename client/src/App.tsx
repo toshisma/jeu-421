@@ -1,12 +1,12 @@
 import { ChangelogScreen } from './ui/Changelog';
 import { captureBistrotLink } from './bistrots';
 import { FriendOnlineToast, FriendsScreen, InviteBanner } from './ui/Friends';
-import { Suspense, useEffect, useRef, useMemo, useState } from 'react';
+import { Suspense, useEffect, useLayoutEffect, useRef, useMemo, useState } from 'react';
 import type { GameConfig } from '../../shared/config';
 import { sound } from './audio/sound';
 import { setHaptics } from './audio/haptics';
 import { LocalController, type Opponent } from './game/localController';
-import type { Persona } from './game/personas';
+import { PERSONAS, type Persona } from './game/personas';
 import { loadSession, loadSettings, saveSettings, type Settings } from './settings';
 import { useProfile } from './account/useProfile';
 import type { OnlineMode } from './ui/OnlineFlow';
@@ -38,7 +38,9 @@ import { cfModeParam, courtisanModeParam } from './cfLink';
 import { keptLangSearch, tr, useLang } from './i18n/lang';
 import { loadDmSession } from './dixmille/online';
 import type { DmPending } from './dixmille/DixMille';
-import { linkVisitor, trackVisit } from './visit';
+import { linkVisitor, setPlayVia, trackVisit, type PlayVia } from './visit';
+import { jouerParam, quickDifficulty } from './quickPlay';
+import { DEFAULT_CONFIG } from '../../shared/config';
 import { askConfirm } from './ui/confirm';
 import { CfChallengeBanner } from './cards/ChallengeBanner';
 import { lazyScreen, saveData, whenIdle } from './lazy';
@@ -163,6 +165,9 @@ export function App() {
     const p = new URLSearchParams(location.search).get('parrain');
     if (p) { try { localStorage.setItem('421.parrain', p.slice(0, 20)); } catch { /* */ } cleanUrl(); }
   }, []);
+  // Lien direct des pages d'aide : /?jouer=1 (421), ?jouer=courtisan, ?jouer=cartes, ?jouer=amis (voir quickPlay.ts).
+  // Lu après les autres paramètres (parrain…) : l'adresse n'est nettoyée qu'ensuite.
+  const jouer = useMemo(() => { const v = STANDALONE ? null : jouerParam(location.search); if (v) { cleanUrl(); setPlayVia('lien'); } return v; }, []);
   const [screen, setScreen] = useState<Screen>(() =>
     location.pathname.startsWith('/confidentialite') ? { name: 'legal', back: { name: 'home' } }
     : STANDALONE ? { name: 'home' }
@@ -171,7 +176,9 @@ export function App() {
       : watchLink ? { name: 'watch', code: watchLink.toUpperCase(), back: { name: 'home' } }
       : invite ? { name: 'online', mode: { kind: 'join', code: invite.toUpperCase() } }
         : tInvite && settings.name ? { name: 'tournament', mode: { kind: 'join', code: tInvite.toUpperCase() } }
-          : tInvite || tSched ? { name: 'hub', tab: 'tournois' } : openCf ? { name: 'cf', ...(openCf === 'tournoi' ? { pending: { tournoi: true } } : {}) } : openDefi ? { name: 'challenge' } : openPm ? { name: 'messages', with: openPm } : openBistrot ? { name: 'friends' } : { name: 'home' });
+          : tInvite || tSched ? { name: 'hub', tab: 'tournois' }
+            : jouer === 'courtisan' ? { name: 'dixmille', pending: { play: true } } : jouer === 'cartes' ? { name: 'cf', pending: { play: true } }
+              : jouer === 'amis' ? { name: 'online', mode: { kind: 'create' } } : openCf ? { name: 'cf', ...(openCf === 'tournoi' ? { pending: { tournoi: true } } : {}) } : openDefi ? { name: 'challenge' } : openPm ? { name: 'messages', with: openPm } : openBistrot ? { name: 'friends' } : { name: 'home' });
   const [resume, setResume] = useState(loadSession);
   const [courtResume, setCourtResume] = useState(loadDmSession);
   /** Rejoindre une table : du 421, ou du Courtisan (`game`). */
@@ -251,6 +258,15 @@ export function App() {
     const personas = Object.fromEntries(opponents.map((o, i) => [`ia-${i}`, o.persona]));
     setScreen({ name: 'solo', controller: c, personas });
   };
+
+  /** Partie express : 421 contre UN ordinateur (facile pour un débutant), réglages par défaut, sans passer par un menu. */
+  const quickPlay = (via: PlayVia) => {
+    setPlayVia(via);
+    const persona = PERSONAS[Math.floor(Math.random() * PERSONAS.length)];
+    startSolo(DEFAULT_CONFIG, [{ persona, difficulty: quickDifficulty(profile.stats?.played ?? 0, settings.difficulty) }]);
+  };
+  // Venu par /?jouer=1 : la partie démarre tout de suite (avant le premier affichage).
+  useLayoutEffect(() => { if (jouer === '421' && screen.name === 'home') quickPlay('lien'); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const meInfo = () => ({ name: settings.name || pa.session?.username || tr('g421.guestName'), avatar: settings.avatar, photo: pa.photo, account: pa.session?.username,
     title: titleLabel(profile.title) ?? undefined, accessory: accessoryEmoji(profile.equipped.accessoire) || undefined });
@@ -369,7 +385,7 @@ export function App() {
         onLeaderboard={() => setScreen({ name: 'leaderboard' })} onRules={() => setScreen({ name: 'rules' })} onTutorial={startTutorial}
         onTournaments={() => setScreen({ name: 'hub', tab: 'tournois' })} onAlbum={() => setScreen({ name: 'album' })} onParty={() => setScreen({ name: 'party-setup' })}
         onOnline={() => setScreen({ name: 'hub', tab: 'tables' })} onChallenge={() => { sound.unlock(); setScreen({ name: 'challenge' }); }}
-        onJoinScheduled={onJoinScheduled} notif={notif} discord={discord} onFeteBoss={startFeteBoss} onTournee={() => setScreen({ name: 'tdc' })}
+        onJoinScheduled={onJoinScheduled} notif={notif} discord={discord} onFeteBoss={startFeteBoss} onTournee={() => setScreen({ name: 'tdc' })} onQuickPlay={() => quickPlay('accueil')}
         resume={resume ?? (courtResume ? { code: courtResume.code, courtisan: true } : null)} onResume={resumeGame} />;
     case 'classic':
       return <ClassicMenu profile={profile} pa={pa} settings={settings} onBack={home}

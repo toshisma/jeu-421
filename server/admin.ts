@@ -46,7 +46,49 @@ const PATH_SOURCES: [RegExp, string][] = [
 ];
 
 /** Étapes du parcours d'un visiteur (voir POST /visit/event). */
-export const VISIT_EVENTS = ['guide_play', 'solo', 'online', 'invite', 'invited', 'cards'] as const;
+export const VISIT_EVENTS = ['guide_play', 'solo', 'online', 'invite', 'invited', 'cards', 'first_play', 'first_roll'] as const;
+/** Première partie : d'où elle a été lancée (bouton « Lancer les dés » de l'accueil, lien direct ?jouer=, menus). */
+export const PLAY_VIA = ['accueil', 'lien', 'menu'] as const;
+/** Délai arrivée → première partie / premier lancer, envoyé par le navigateur : gardé seulement s'il est plausible (0 à 6 h). */
+export function cleanDelayMs(v: unknown): number | null {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= 0 && n <= 6 * 3600_000 ? n : null;
+}
+export interface FirstEventRow { visitor: string; kind: string; at: number; ms: number | null; via: string | null; game: string | null }
+/**
+ * « Première partie » des nouveaux visiteurs : combien ont lancé une partie / les dés, délai médian depuis
+ * l'arrivée (secondes), part des premiers lancers en moins de 30 s et 60 s, par provenance et par jeu.
+ * Un visiteur qui avait déjà joué avant la mesure (solo, en ligne, cartes plus d'une minute avant) est écarté.
+ */
+export function firstPlayStats(visitors: string[], rows: FirstEventRow[]) {
+  const fresh = new Set(visitors);
+  const play = new Map<string, FirstEventRow>(), roll = new Map<string, FirstEventRow>(), before = new Map<string, number>();
+  for (const r of rows) {
+    if (!fresh.has(r.visitor)) continue;
+    if (r.kind === 'first_play') play.set(r.visitor, r);
+    else if (r.kind === 'first_roll') roll.set(r.visitor, r);
+    else before.set(r.visitor, Math.min(before.get(r.visitor) ?? Infinity, r.at));
+  }
+  const legacy = (r: FirstEventRow) => (before.get(r.visitor) ?? Infinity) < r.at - 60_000;
+  const P = [...play.values()].filter((r) => !legacy(r));
+  const R = [...roll.values()].filter((r) => { const p = play.get(r.visitor); return !p || !legacy(p); });
+  const secs = (xs: FirstEventRow[]) => { const m = median(xs.map((x) => x.ms).filter((x): x is number => x != null)); return m == null ? null : Math.round(m / 100) / 10; };
+  const block = (p: FirstEventRow[], r: FirstEventRow[]) => ({
+    launched: p.length, rolled: r.length, medianPlayS: secs(p), medianRollS: secs(r),
+    rollUnder30: r.filter((x) => x.ms != null && x.ms <= 30_000).length, rollUnder60: r.filter((x) => x.ms != null && x.ms <= 60_000).length,
+  });
+  return {
+    visitors: fresh.size, ...block(P, R),
+    byVia: PLAY_VIA.map((via) => ({ via, ...block(P.filter((x) => (x.via ?? 'menu') === via), R.filter((x) => (x.via ?? 'menu') === via)) })),
+    byGame: ['421', 'courtisan', 'cartes', 'online'].map((game) => ({ game, launched: P.filter((x) => x.game === game).length })),
+  };
+}
+/** Médiane (null si vide). */
+export function median(xs: number[]): number | null {
+  if (!xs.length) return null;
+  const a = [...xs].sort((x, y) => x - y), m = a.length >> 1;
+  return a.length % 2 ? a[m] : Math.round((a[m - 1] + a[m]) / 2);
+}
 
 /** Temps de présence : plafond par battement, tolérance, et plafond par visiteur et par jour. */
 export const BEAT_MAX_S = 60;
@@ -120,6 +162,8 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     CREATE INDEX IF NOT EXISTS idx_visit_events_day ON visit_events(day);
   `);
   for (const col of ['tz TEXT', 'country_src TEXT']) { try { db.exec(`ALTER TABLE visits ADD COLUMN ${col}`); } catch { /* déjà présente */ } }
+  // Première partie (first_play / first_roll) : délai depuis l'arrivée, provenance (accueil, lien, menu), jeu.
+  for (const col of ['ms INTEGER', 'via TEXT', 'game TEXT']) { try { db.exec(`ALTER TABLE visit_events ADD COLUMN ${col}`); } catch { /* déjà présente */ } }
   // Ménage : activité et visites gardées un an.
   db.prepare('DELETE FROM activity WHERE at < ?').run(now() - 365 * DAY_MS);
   db.prepare('DELETE FROM visits WHERE at < ?').run(now() - 365 * DAY_MS);
@@ -375,10 +419,11 @@ export function createAdmin(store: Store, opts: AdminOptions) {
   //  - invite : invitation envoyée (lien ou code de table partagé) ;
   //  - invited : arrivée par un lien d'invitation (table, tournoi, partie à regarder, parrainage) ;
   //  - cards : première partie de Coups Fourrés lancée (ordinateur, partie guidée, en ligne, tournoi).
-  const addEvent = db.prepare('INSERT OR IGNORE INTO visit_events (visitor, kind, at, day, page) VALUES (?, ?, ?, ?, ?)');
+  //  - first_play / first_roll : première partie lancée / premier lancer de dés, avec le délai depuis l'arrivée.
+  const addEvent = db.prepare('INSERT OR IGNORE INTO visit_events (visitor, kind, at, day, page, ms, via, game) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
   router.post('/visit/event', express.json({ limit: '1kb', type: () => true }), (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
-    const b = (req.body ?? {}) as { device?: unknown; kind?: unknown; page?: unknown };
+    const b = (req.body ?? {}) as { device?: unknown; kind?: unknown; page?: unknown; ms?: unknown; via?: unknown; game?: unknown };
     const ua = String(req.headers['user-agent'] ?? '');
     if (/bot|crawl|spider|slurp|preview|headless|lighthouse/i.test(ua)) return res.json({ ok: true, skipped: true });
     const device = typeof b.device === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(b.device) ? b.device : null;
@@ -387,7 +432,10 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     let page = clean(b.page, 80);
     if (page && !page.startsWith('/')) page = null;
     const t = now();
-    const r = addEvent.run(hash(`d:${device}`), b.kind, t, brusselsDay(t), page);
+    const first = b.kind === 'first_play' || b.kind === 'first_roll';
+    const via = first && typeof b.via === 'string' && (PLAY_VIA as readonly string[]).includes(b.via) ? b.via : null;
+    const game = first && typeof b.game === 'string' && /^(421|courtisan|cartes|online)$/.test(b.game) ? b.game : null;
+    const r = addEvent.run(hash(`d:${device}`), b.kind, t, brusselsDay(t), page, first ? cleanDelayMs(b.ms) : null, via, game);
     if (r.changes) peopleCache = null;
     res.json({ ok: true, first: !!r.changes });
   });
@@ -665,9 +713,11 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     const byLanding = new Map<string, typeof freshRows>();
     for (const r of freshRows) { const k = r.landing || '/'; const l = byLanding.get(k); if (l) l.push(r); else byLanding.set(k, [r]); }
     const funnel = { ...step(freshRows), byLanding: [...byLanding.entries()].map(([landing, rows]) => ({ landing, ...step(rows) })).sort((a, b) => b.visitors - a.visitors).slice(0, 15) };
+    const firstPlay = firstPlayStats(freshRows.map((r) => r.visitor),
+      db.prepare(`SELECT visitor, kind, at, ms, via, game FROM visit_events WHERE kind IN ('first_play', 'first_roll', 'solo', 'online', 'cards')`).all() as unknown as FirstEventRow[]);
     res.json({
       ok: true, days: series(from, n).map((d) => ({ day: d, visits: per.get(d)?.visits ?? 0, visitors: per.get(d)?.visitors ?? 0 })),
-      totals, conversion: { newVisitors: conv.fresh, converted: conv.converted }, funnel,
+      totals, conversion: { newVisitors: conv.fresh, converted: conv.converted }, funnel: { ...funnel, firstPlay },
       referrers: top('referrer'), utm, countries: anyCountry ? top('country') : [], langs: top('lang'), devices: top('device', 5), landings: top('landing'),
     });
   });

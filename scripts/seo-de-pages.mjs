@@ -138,7 +138,7 @@ ${play421('Eine Partie versuchen', 'Das Spiel wendet die Regeln an und zählt di
     h1: 'Online-Würfelspiel mit Freunden',
     lead: `Deine Freunde sind weit weg und niemand hat Würfel zur Hand? Auf <a href="${P.l421}" data-play>421online.com</a> ist ein privater Tisch in einer Minute eröffnet. Jeder steigt vom Handy oder PC aus ein, ohne Installation, und die 3D-Würfel rollen für alle gleichzeitig.`,
     body: `
-${play421('Tisch für Freunde eröffnen', 'Kostenlos, ohne Download')}
+${H.play(P.amis, 'Tisch für Freunde eröffnen', 'Kostenlos, ohne Download')}
 ${H.toc('Inhalt', [['schritte', 'Freunde einladen in vier Schritten'], ['welches', 'Welches Spiel nehmen?'], ['ohne', 'Nichts zu installieren'], ['ideen', 'Ideen für den Spieleabend'], ['fair', 'Keiner kann die Würfel manipulieren']])}
 
 <h2 id="schritte">Freunde einladen in vier Schritten</h2>
@@ -171,7 +171,7 @@ ${H.toc('Inhalt', [['schritte', 'Freunde einladen in vier Schritten'], ['welches
 
 <h2 id="fair">Keiner kann die Würfel manipulieren</h2>
 <p>Online werden die Würfel vom Server gezogen, nicht vom Handy eines Spielers, und alle sehen dasselbe Ergebnis.</p>
-${play421('Freunde einladen', 'Ein Link reicht')}
+${H.play(P.amis, 'Freunde einladen', 'Ein Link reicht')}
 `,
     faq: [
       ['Wie kann ich online mit Freunden würfeln?', 'Eröffne auf 421online.com einen privaten Tisch und schick deinen Freunden Code oder Link. Sie steigen im Browser ein, ohne Installation.'],

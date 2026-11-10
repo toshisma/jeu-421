@@ -4,7 +4,7 @@
  * semaine, défi du jour, classement (saisons et divisions), album, règles et partie guidée.
  * Tout le général (profil, amis, boutique, collection, réglages…) est dans le menu principal.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { Profile } from '../../../shared/progress/profile';
 import { bossOfWeek, weekKey } from '../../../shared/progress/boss';
 import { today } from '../../../shared/progress/quests';
@@ -66,6 +66,20 @@ export function ClassicMenu(props: ClassicMenuProps) {
     window.addEventListener('online', up); window.addEventListener('offline', down);
     return () => { window.removeEventListener('online', up); window.removeEventListener('offline', down); };
   }, []);
+  // Le bouton « Jouer contre l'ordinateur » est posé sur la vitrine : le bac 3D est cadré au-dessus de lui.
+  const heroRef = useRef<HTMLElement>(null);
+  const playRef = useRef<HTMLButtonElement>(null);
+  const [heroBottom, setHeroBottom] = useState(60);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const h = heroRef.current?.getBoundingClientRect(), b = playRef.current?.getBoundingClientRect();
+      if (h && b && h.height > 0) setHeroBottom(Math.max(0, Math.round(h.bottom - b.top + 4)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (heroRef.current) ro.observe(heroRef.current);
+    return () => ro.disconnect();
+  }, []);
   const online = useOnlineCount();
   const live = useLiveTables();
   const lobbies = useOpenLobbies();
@@ -116,11 +130,11 @@ export function ClassicMenu(props: ClassicMenuProps) {
       <main className="h2-main">
         {banner}
         {/* Vitrine 3D et partie contre l'ordinateur */}
-        <section className="h2-hero">
-          <HeroTray pa={pa} settings={props.settings} />
+        <section className="h2-hero" ref={heroRef}>
+          <HeroTray pa={pa} settings={props.settings} bottom={heroBottom} />
           <h1 className="plaque h2-plaque"><span aria-hidden>421</span><span className="sr-only">{tr('g421.menu.sr')}</span></h1>
           {!STANDALONE && <div className="h2-news"><NewsTicker /></div>}
-          <button className="h2-play" onClick={props.onSolo}><Icon name="dice" size={26} /><span>{tr('g421.menu.playCpu')}</span><Icon name="back" size={20} /></button>
+          <button className="h2-play" ref={playRef} onClick={props.onSolo}><Icon name="dice" size={26} /><span>{tr('g421.menu.playCpu')}</span><Icon name="back" size={20} /></button>
         </section>
 
         {/* Tournée des comptoirs : la carrière solo, juste sous la partie contre l'ordinateur */}

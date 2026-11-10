@@ -21,7 +21,11 @@ import { getShape, clampInside, insideShape, offsetVerts, type TrayShape } from 
 import { getItem, resolveAppearance, type Appearance, type DiceItem, type ResolvedAppearance } from '../../../shared/progress/catalog';
 
 export type Quality = 'haute' | 'normale';
-export interface Insets { top: number; right: number; bottom: number; left: number }
+export interface Insets {
+  top: number; right: number; bottom: number; left: number;
+  /** Hauteur du bas à prévoir pour CHOISIR l'orientation (panneau qui grandit pendant la partie) ; le cadrage suit `bottom`. */
+  orientBottom?: number;
+}
 
 export interface TraySceneOptions {
   appearance: Appearance;
@@ -186,6 +190,8 @@ export class TrayScene {
       return;
     }
     const el = this.renderer.domElement;
+    // Mesure (captures automatiques) : taille des dés à l'écran, en pixels CSS.
+    (el as HTMLCanvasElement & { diceBoxes?: () => { w: number; h: number; x: number; y: number }[] }).diceBoxes = () => this.diceScreenBoxes();
     el.addEventListener('pointermove', this.onPointerMove);
     el.addEventListener('pointerdown', this.onPointerDown);
     el.addEventListener('pointerup', this.onPointerUp);
@@ -199,6 +205,27 @@ export class TrayScene {
   }
 
   private invalidate() { this.dirty = true; }
+
+  /** Boîte englobante de chaque dé visible à l'écran (pixels CSS, relatifs au bac). */
+  diceScreenBoxes() {
+    const w = this.container.clientWidth || 1, h = this.container.clientHeight || 1;
+    this.camera.updateMatrixWorld();
+    const box = new THREE.Box3(), v = new THREE.Vector3();
+    return this.dice.filter((_, i) => !this.hidden[i]).map((d) => {
+      d.mesh.updateMatrixWorld();
+      const g = (d.mesh as THREE.Mesh).geometry;
+      if (g) { if (!g.boundingBox) g.computeBoundingBox(); box.copy(g.boundingBox!); } else box.setFromObject(d.mesh);
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let k = 0; k < 8; k++) {
+        v.set(k & 1 ? box.max.x : box.min.x, k & 2 ? box.max.y : box.min.y, k & 4 ? box.max.z : box.min.z);
+        if (g) v.applyMatrix4(d.mesh.matrixWorld);
+        v.project(this.camera);
+        const px = (v.x + 1) / 2 * w, py = (1 - v.y) / 2 * h;
+        x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+      }
+      return { x: Math.round(x0), y: Math.round(y0), w: Math.round(x1 - x0), h: Math.round(y1 - y0) };
+    });
+  }
 
   // ---------------------------------------------------------------------------------------------
   // Construction
@@ -556,6 +583,8 @@ export class TrayScene {
   /** Cadre la caméra pour que tout le bac tienne dans la zone libre (entre les panneaux). */
   /** Orientation retenue pour le bac (null : pas encore décidée). */
   private portrait: boolean | null = null;
+  private orientTall = false;
+  private orientKnown = false;
 
   private resize() {
     const w = this.thumbSize?.[0] ?? (this.container.clientWidth || 1);
@@ -566,22 +595,50 @@ export class TrayScene {
     const { top, right, bottom, left } = this.insets;
     const freeW = Math.max(100, w - left - right);
     const freeH = Math.max(100, h - top - bottom);
-    const tanV = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * (freeH / h);
+    let tanV = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * (freeH / h);
     const tanH = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * (w / h) * (freeW / w);
     // En portrait, la caméra tourne de 90° : le grand côté du bac suit la hauteur de l'écran.
-    // L'orientation dépend de l'écran entier (pas de la zone libre, qui change quand un bandeau
-    // apparaît en partie), avec une marge : le bac ne bascule plus d'horizontal à vertical en jeu.
-    if (this.thumbSize) this.portrait = freeW < freeH * 0.95; // vignettes : chaque image a son cadre
-    else if (this.portrait === null) this.portrait = w < h;
-    else if (this.portrait && w > h * 1.15) this.portrait = false;
-    else if (!this.portrait && w < h * 0.87) this.portrait = true;
+    // Distance de caméra qui fait tenir tout le bac (murs compris) dans la zone libre, pour chaque
+    // orientation : plus elle est courte, plus les dés sont grands.
+    const thumb = !!this.thumbSize;
+    const fit = (p: boolean) => {
+      // Bac en largeur sur un écran en hauteur (petit téléphone) : même inclinaison qu'en portrait, faces du dessus plus lisibles.
+      const elev = THREE.MathUtils.degToRad(this.elevOverride ?? (p || (!thumb && w < h) ? 62 : 57));
+      // Marge autour des murs : réduite en jeu (le socle dépasse de 0,2), gardée pour les vignettes.
+      const longHalf = this.shape.halfX + TRAY.wall + (thumb ? 0.6 : 0.25);
+      const shortHalf = this.shape.halfZ + TRAY.wall + (thumb ? 0.4 : 0.22);
+      const acrossHalf = p ? shortHalf : longHalf; // demi-largeur à l'écran
+      const depthHalf = p ? longHalf : shortHalf;
+      const alongHalf = depthHalf * Math.sin(elev) + TRAY.wallHeight * Math.cos(elev); // demi-hauteur
+      // Le bord du bac le plus proche de la caméra paraît plus large (perspective) : en jeu, la largeur se
+      // vérifie à sa profondeur, pour ne jamais couper les coins avant du bac.
+      const near = thumb ? 0 : depthHalf * Math.cos(elev) + TRAY.wallHeight * Math.sin(elev);
+      return { elev, dist: Math.max(acrossHalf / tanH + near, alongHalf / tanV) * (thumb ? this.thumbFit : 1.01) };
+    };
+    const P = fit(true), L = fit(false);
+    // Orientation choisie sur la zone libre la plus petite attendue (barre d'action de son propre tour) :
+    // le bac ne pivote pas au premier tour du joueur.
+    const ob = this.insets.orientBottom ?? 0;
+    const choice = !thumb && ob > bottom ? (() => {
+      const fh = Math.max(100, h - top - ob), save = tanV;
+      tanV = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * (fh / h);
+      const r = { P: fit(true), L: fit(false) };
+      tanV = save;
+      return r;
+    })() : { P, L };
+    // Orientation : celle qui donne les plus grands dés dans la zone libre (petit téléphone en partie :
+    // souvent le bac en largeur). Décidée à nouveau quand l'écran tourne ou quand les panneaux sont
+    // connus pour la première fois ; ensuite, elle ne bascule que si l'autre est nettement meilleure
+    // (15 %) : un bandeau qui apparaît en partie ne fait pas pivoter le bac.
+    const tall = w < h, known = top + right + bottom + left > 0;
+    if (thumb) this.portrait = freeW < freeH * 0.95; // vignettes : chaque image a son cadre
+    else if (this.portrait === null || tall !== this.orientTall || (known && !this.orientKnown)) this.portrait = choice.P.dist <= choice.L.dist;
+    else if (this.portrait && choice.L.dist < choice.P.dist * 0.85) this.portrait = false;
+    else if (!this.portrait && choice.P.dist < choice.L.dist * 0.85) this.portrait = true;
+    this.orientTall = tall;
+    this.orientKnown = known;
     const portrait = this.portrait;
-    const elev = THREE.MathUtils.degToRad(this.elevOverride ?? (portrait ? 62 : 57));
-    const longHalf = this.shape.halfX + TRAY.wall + 0.6;
-    const shortHalf = this.shape.halfZ + TRAY.wall + 0.4;
-    const acrossHalf = portrait ? shortHalf : longHalf; // demi-largeur à l'écran
-    const alongHalf = (portrait ? longHalf : shortHalf) * Math.sin(elev) + TRAY.wallHeight * Math.cos(elev); // demi-hauteur
-    const dist = Math.max(acrossHalf / tanH, alongHalf / tanV) * (this.thumbSize ? this.thumbFit : 1.04);
+    const { elev, dist } = portrait ? P : L;
     const target = new THREE.Vector3(0, 0, 0);
     if (portrait) this.camera.position.set(Math.cos(elev) * dist, Math.sin(elev) * dist, 0);
     else this.camera.position.set(0, Math.sin(elev) * dist, Math.cos(elev) * dist);
