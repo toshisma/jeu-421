@@ -23,7 +23,7 @@ describe('zone commun', () => {
   });
   it('catalogues : boutique, succès, défis ont leurs clés', () => {
     for (const it of ITEMS) {
-      if (/^(dc-|dl-|ds-)|-brillant$|^felt-serie-/.test(it.id)) continue;
+      if (/^(dc-|dl-|ds-)|-brillant$|^felt-serie-|^felt-tdc-/.test(it.id)) continue;
       expect(keys, it.id).toContain(`app.item.${it.id}`);
     }
     for (const a of ACHIEVEMENTS) expect(keys, a.id).toContain(`app.a.${a.id}`);

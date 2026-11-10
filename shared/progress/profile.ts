@@ -23,6 +23,7 @@ import { DIVISIONS } from '../season';
 import { randomFloat } from '../random';
 import { BOSSES, BOSS_COINS, bossOfWeek, weekKey } from './boss';
 import { cleanDmStats, type DmStats } from '../dixmille/stats';
+import { capTdcImport, cleanTdc, tdcTitleFr } from './comptoirs';
 
 export interface Profile {
   version: 1;
@@ -72,6 +73,8 @@ export interface Profile {
   vsAi?: Record<string, { w: number; l: number }>;
   /** Le Courtisan : parties, victoires, meilleur tour, plus gros pot emporté. */
   dm?: DmStats;
+  /** Tournée des comptoirs : bistrot → étoiles (masque, voir comptoirs.ts). */
+  tdc?: Record<string, number>;
 }
 
 export interface MonthRecap {
@@ -192,7 +195,7 @@ export function sanitizeProfile(raw: unknown): Profile {
   if (r.season && typeof r.season.id === 'string' && /^\d{4}-\d{2}$/.test(r.season.id)) {
     p.season = { id: r.season.id, points: num(r.season.points), claimed: Array.isArray(r.season.claimed) ? [...new Set(r.season.claimed.map(num).filter((n) => n >= 1 && n <= PASS_TIERS))] : [] };
   }
-  if (Array.isArray(r.titles)) p.titles = [...new Set(r.titles.filter((t): t is string => typeof t === 'string' && /^(pass|ligue|patron|album|serie|saison):[\w-]{1,20}$/.test(t)))];
+  if (Array.isArray(r.titles)) p.titles = [...new Set(r.titles.filter((t): t is string => typeof t === 'string' && /^(pass|ligue|patron|album|serie|saison|tdc):[\w-]{1,20}$/.test(t)))];
   if (Array.isArray(r.album)) p.album = [...new Set(r.album.filter((k): k is string => typeof k === 'string' && ALBUM_KEYS.includes(k)))];
   if (Array.isArray(r.albumPages)) p.albumPages = [...new Set(r.albumPages.filter((k): k is string => typeof k === 'string' && ALBUM.some((a) => a.id === k)))];
   for (const k of ['month', 'prevMonth'] as const) {
@@ -230,6 +233,8 @@ export function sanitizeProfile(raw: unknown): Profile {
   }
   const dm = cleanDmStats(r.dm);
   if (dm) p.dm = dm;
+  const tdc = cleanTdc(r.tdc);
+  if (tdc) p.tdc = tdc;
   if (Array.isArray(r.showcase)) {
     const sc = [...new Set(r.showcase.filter((id): id is string => typeof id === 'string' && !!collectionDie(id) && p.owned.includes(id)))].slice(0, 3);
     if (sc.length) p.showcase = sc;
@@ -306,6 +311,9 @@ export function capGuestImport(p: Profile): Profile {
   }
   if (p.vsAi) base.vsAi = Object.fromEntries(Object.entries(p.vsAi).map(([n, x]) => [n, { w: cap(x.w), l: cap(x.l) }]));
   // Courtisan : parties et meilleur tour ; pas de pot (les Groschen n'existent qu'avec un compte).
+  // Tournée des comptoirs : seulement le premier quartier (ni titre ni tapis : donnés à la partie suivante).
+  const tdc = capTdcImport(p.tdc);
+  if (tdc) base.tdc = tdc;
   if (p.dm) base.dm = { games: cap(p.dm.games), wins: Math.min(cap(p.dm.wins), cap(p.dm.games)), bestTurn: p.dm.bestTurn, bestPot: 0 };
   // Succès : seulement ceux que les statistiques reprises justifient.
   const input = { stats, level, purchases: purchases(base), owned };
@@ -793,6 +801,7 @@ export function availableTitles(p: Profile): string[] {
 export function titleLabel(id: string | undefined): string | null {
   if (!id) return null;
   if (id.startsWith('patron:')) return `Tombeur de ${BOSSES.find((b) => b.id === id.slice(7))?.name ?? 'patron'}`;
+  if (id.startsWith('tdc:')) return tdcTitleFr(id.slice(4));
   if (id === 'album:complet') return 'Collectionneur de combinaisons';
   if (id.startsWith('pass:')) return `Champion ${ofMonth(id.slice(5))}`;
   if (id.startsWith('ligue:')) return `Ligue ${id.slice(6)}`;

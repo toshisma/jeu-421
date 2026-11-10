@@ -33,6 +33,7 @@ import { ChestArt, GiftArt, Rays, RewardBurst, ScrollArt, TicketArt } from './il
 import { Sheet } from './kit';
 import { inTime, tournamentInfo, useCfPeek, useGroschenPeek, useOnlineCount, useProgramme } from './menuData';
 import { GROSCHEN_DAILY } from '../../../shared/dixmille/groschen';
+import { TdcHomeChip } from '../comptoirs/MenuEntry';
 
 
 export interface HomeProps {
@@ -55,6 +56,8 @@ export interface HomeProps {
   onJoinScheduled?: (code: string, pay: boolean) => void;
   /** Notifications et Discord : chargés une fois par l'application (la barre du bas s'en sert aussi). */
   notif: ReturnType<typeof useNotifications>; discord: ReturnType<typeof useDiscord>;
+  /** Tournée des comptoirs : pastille sur la vitrine (ne prend aucune hauteur). */
+  onTournee?: () => void;
 }
 
 type SheetKind = 'coffre' | 'cadeau' | 'missions' | 'discord';
@@ -203,6 +206,7 @@ export function Home(props: HomeProps) {
           <HeroTray pa={pa} settings={props.settings} />
           <h1 className="mm-brand"><span className="plaque" aria-hidden>421</span><span aria-hidden>online</span><span className="sr-only">{tr('app.421_en_ligne_jeux_de_des_et')}</span></h1>
           {titleL(profile.title) && <span className="h2-title-chip">{titleL(profile.title)}</span>}
+          {props.onTournee && <TdcHomeChip profile={profile} onOpen={props.onTournee} />}
           {!STANDALONE && <div className="h2-news"><NewsTicker /></div>}
         </section>
 

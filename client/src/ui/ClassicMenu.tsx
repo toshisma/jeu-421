@@ -25,6 +25,7 @@ import { inTime, tournamentInfo, useLiveTables, useOnlineCount, useOpenLobbies, 
 import { tr } from '../i18n/lang';
 import { botName, trn } from '../i18n/g421';
 import type { MessageKey } from '../../../shared/i18n';
+import { TdcMenuCard } from '../comptoirs/MenuEntry';
 
 export interface ClassicMenuProps {
   profile: Profile; pa: ProfileApi; settings: Settings;
@@ -34,6 +35,8 @@ export interface ClassicMenuProps {
   onRules: () => void; onTutorial: () => void; onChallenge: () => void; onBoss: () => void; onAlbum: () => void;
   onLeaderboard: () => void; onStats: () => void; onAccount: () => void; onFriends: () => void;
   onJoinRoom: (code: string) => void;
+  /** Tournée des comptoirs (carrière solo). */
+  onTournee?: () => void;
   onJoinScheduled?: (code: string, pay: boolean) => void;
   /** Partie du 421 à reprendre (table en ligne ou tournoi). */
   resume: { code: string; tournament?: boolean } | null; onResume: () => void;
@@ -113,6 +116,9 @@ export function ClassicMenu(props: ClassicMenuProps) {
           {!STANDALONE && <div className="h2-news"><NewsTicker /></div>}
           <button className="h2-play" onClick={props.onSolo}><Icon name="dice" size={26} /><span>{tr('g421.menu.playCpu')}</span><Icon name="back" size={20} /></button>
         </section>
+
+        {/* Tournée des comptoirs : la carrière solo, juste sous la partie contre l'ordinateur */}
+        {props.onTournee && <TdcMenuCard profile={profile} onOpen={props.onTournee} />}
 
         {/* Jeu en ligne : la grande carte rouge et or */}
         {STANDALONE ? <p className="note">{tr('g421.menu.standalone')}</p> : (

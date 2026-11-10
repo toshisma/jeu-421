@@ -4543,3 +4543,101 @@ button.mode-chip { cursor: pointer; }
 .lang-switch.full select { font-size: 15px; padding: 9px 10px; max-width: none; width: 100%; }
 .lang-switch.full { display: block; }
 .lang-note { font-size: 12px; opacity: .65; text-align: center; margin: 12px 8px 0; }
+
+/* --- Tournée des comptoirs (client/src/comptoirs/) ------------------------------------------------ */
+.tdc-awning { display: block; height: 12px; border-radius: 6px 6px 2px 2px;
+  background: repeating-linear-gradient(90deg, var(--acc, #c0583a) 0 9px, #f4ead5 9px 18px);
+  -webkit-mask: radial-gradient(5px 5px at 4.5px 100%, transparent 98%, #000) 0 0 / 9px 100% repeat-x, linear-gradient(#000, #000) 0 0 / 100% 70% no-repeat;
+          mask: radial-gradient(5px 5px at 4.5px 100%, transparent 98%, #000) 0 0 / 9px 100% repeat-x, linear-gradient(#000, #000) 0 0 / 100% 70% no-repeat; }
+.tdc-stars { display: inline-flex; gap: 2px; font-size: 15px; line-height: 1; letter-spacing: 0; }
+.tdc-stars i { font-style: normal; color: rgba(255,255,255,0.22); text-shadow: 0 1px 0 rgba(0,0,0,0.4); }
+.tdc-stars i.on { color: #f5c542; text-shadow: 0 0 8px rgba(245,197,66,0.55), 0 1px 0 rgba(0,0,0,0.5); }
+.tdc-stars i.new { animation: tdc-star-pop 0.7s cubic-bezier(.2,1.6,.4,1) both; }
+@keyframes tdc-star-pop { 0% { transform: scale(0) rotate(-90deg); opacity: 0; } 70% { transform: scale(1.5) rotate(10deg); opacity: 1; } 100% { transform: scale(1) rotate(0); } }
+@media (prefers-reduced-motion: reduce) { .tdc-stars i.new { animation: none; } }
+
+/* Entrée du menu du 421 */
+.tdc-entry { position: relative; flex: none; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 50px; padding: 6px 12px; border: 0; border-radius: 18px; cursor: pointer; text-align: left; color: #f5eedf;
+  background: linear-gradient(135deg, #3a2414 0%, #24160c 60%, #1a0f08 100%); box-shadow: inset 0 0 0 2px rgba(241,204,125,0.55), 0 8px 16px rgba(0,0,0,0.4); --acc: #c0583a; }
+.tdc-entry:hover { box-shadow: inset 0 0 0 2px #f1cc7d, 0 8px 16px rgba(0,0,0,0.4); }
+.tdc-entry-art { flex: none; width: 44px; display: flex; flex-direction: column; gap: 2px; }
+.tdc-entry-door { display: grid; place-items: center; height: 26px; border-radius: 3px 3px 6px 6px; background: #f1cc7d22; box-shadow: inset 0 0 0 1px #f1cc7d66; font-size: 16px; }
+.tdc-entry-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.tdc-entry-text b { font: 700 1.05rem/1.15 var(--cond); letter-spacing: 0.02em; }
+.tdc-entry-text small { color: #d9c9a8; font-size: 12.5px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.tdc-entry-rep, .tdc-entry-new { flex: none; font-style: normal; font-weight: 800; padding: 4px 9px; border-radius: 999px; background: rgba(0,0,0,0.35); color: #f5c542; font-size: 14px; }
+.tdc-entry-rep small { color: #d9c9a8; font-weight: 600; font-size: 11px; }
+.tdc-entry-new { background: #f1cc7d; color: #3a2414; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Pastille de l'accueil : posée sur la vitrine 3D, aucune hauteur en plus */
+.tdc-home-chip { position: absolute; left: 10px; bottom: 10px; z-index: 3; display: inline-flex; align-items: center; gap: 6px; max-width: calc(100% - 20px); min-height: 32px; padding: 4px 11px 4px 8px;
+  border: 0; border-radius: 999px; cursor: pointer; background: rgba(20,12,6,0.72); color: #f5eedf; font: 700 12.5px/1 var(--font); box-shadow: inset 0 0 0 1.5px rgba(241,204,125,0.7); backdrop-filter: blur(3px); }
+.tdc-home-chip-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tdc-home-chip b { color: #f5c542; white-space: nowrap; }
+
+/* Carte des quartiers */
+.tdc-screen { background: radial-gradient(120% 60% at 50% 0%, #2a1a10 0%, #120c08 60%, #0b0806 100%); }
+.tdc-main { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px 16px 24px; display: flex; flex-direction: column; gap: 14px; }
+.tdc-head h1 { margin: 6px 0 2px; font: 400 1.7rem/1.1 'Alfa Slab One', var(--cond); color: #f1cc7d; letter-spacing: 0.01em; text-shadow: 0 2px 0 #000; }
+.tdc-head p { margin: 0; color: #d9c9a8; font-size: 0.92rem; line-height: 1.35; }
+.tdc-head .tdc-guest { margin-top: 8px; font-size: 0.82rem; color: var(--texte-3); }
+.tdc-rep { margin-top: 10px; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: rgba(0,0,0,0.35); box-shadow: inset 0 0 0 1px rgba(241,204,125,0.3); }
+.tdc-rep-n { grid-row: span 2; font: 800 1.6rem/1 var(--cond); color: #f5c542; }
+.tdc-rep-text { display: flex; justify-content: space-between; gap: 8px; min-width: 0; }
+.tdc-rep-text small { color: #d9c9a8; font-size: 12px; text-align: right; }
+.tdc-chip-max { opacity: 0.7; font-size: 11px; }
+.tdc-star-ic { color: #f5c542; margin-right: 2px; }
+.tdc-quarter { position: relative; padding: 10px 10px 8px; border-radius: 18px; background: linear-gradient(180deg, color-mix(in srgb, var(--q) 30%, #1a120c) 0%, #16100b 100%); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--q) 70%, transparent); }
+.tdc-quarter.locked { filter: saturate(0.25); opacity: 0.8; }
+.tdc-q-head { display: flex; align-items: center; gap: 10px; }
+.tdc-q-num { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--q); color: #fff; font: 800 1rem/1 var(--cond); box-shadow: 0 0 0 2px rgba(255,255,255,0.3); }
+.tdc-q-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.tdc-q-text b { font: 700 1.1rem/1.15 var(--cond); }
+.tdc-q-text small { color: #d9c9a8; font-size: 12px; line-height: 1.3; }
+.tdc-q-stars { flex: none; color: #f5c542; font-weight: 800; white-space: nowrap; }
+.tdc-q-stars small { color: #d9c9a8; font-weight: 600; }
+.tdc-street { position: relative; margin-top: 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.tdc-street::before { content: ''; position: absolute; left: 8%; right: 8%; top: 46%; border-top: 3px dashed rgba(241,204,125,0.25); z-index: 0; }
+.tdc-shop { position: relative; z-index: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 4px 8px; border: 0; border-radius: 10px 10px 12px 12px; cursor: pointer; color: #f5eedf;
+  background: linear-gradient(180deg, #2c1d12 0%, #1d130c 100%); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--acc) 60%, transparent), 0 6px 12px rgba(0,0,0,0.45); overflow: hidden; }
+.tdc-shop .tdc-awning { width: calc(100% + 8px); margin: 0 -4px 2px; height: 14px; }
+.tdc-shop-face { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; font-size: 24px; background: radial-gradient(circle at 50% 40%, var(--felt) 0%, #0c0805 100%); box-shadow: 0 0 0 2px var(--acc); }
+.tdc-shop-name { font: 700 0.82rem/1.15 var(--cond); text-align: center; min-height: 2.3em; display: flex; align-items: center; overflow-wrap: anywhere; hyphens: auto; }
+.tdc-shop.won { box-shadow: inset 0 0 0 2px #f5c542, 0 6px 14px rgba(245,197,66,0.2); }
+.tdc-shop.locked { filter: grayscale(0.9); opacity: 0.6; }
+.tdc-shop.locked .tdc-shop-face { color: #d9c9a8; }
+.tdc-shop-lock { font-size: 11px; color: #d9c9a8; text-transform: uppercase; letter-spacing: 0.05em; }
+.tdc-prize { margin: 8px 2px 0; font-size: 12px; color: #d9c9a8; display: flex; gap: 6px; align-items: center; line-height: 1.3; }
+.tdc-prize.got { color: #9fdcae; }
+.tdc-foot { text-align: center; margin: 0; line-height: 1.4; }
+
+/* Fiche d'un bistrot */
+.tdc-fiche h3 { margin: 14px 0 6px; font: 700 0.95rem/1.2 var(--cond); text-transform: uppercase; letter-spacing: 0.06em; color: #f1cc7d; }
+.tdc-fiche-top { display: flex; gap: 12px; align-items: center; }
+.tdc-fiche-table { flex: none; margin: 8px; width: 70px; height: 74px; border-radius: 16px; display: grid; place-items: center; background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--felt) 85%, #fff) 0%, var(--felt) 55%, #050302 100%);
+  box-shadow: 0 0 0 5px var(--rim), 0 0 0 7px var(--acc), 0 8px 16px rgba(0,0,0,0.5); font-size: 34px; }
+.tdc-fiche-top p { margin: 0; }
+.tdc-fiche-q { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--acc); font-weight: 700; }
+.tdc-fiche-patron { font-size: 0.95rem; }
+.tdc-fiche-amb { margin-top: 4px !important; color: var(--texte-2); font-size: 0.88rem; line-height: 1.35; font-style: italic; }
+.tdc-rules, .tdc-opps, .tdc-goals { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.tdc-rules li { position: relative; padding: 7px 10px 7px 28px; border-radius: 10px; background: rgba(255,255,255,0.05); font-size: 0.92rem; line-height: 1.3; }
+.tdc-rules li::before { content: '🍺'; position: absolute; left: 7px; top: 7px; font-size: 13px; }
+.tdc-opps { flex-direction: row; flex-wrap: wrap; }
+.tdc-opps li { display: flex; align-items: center; gap: 6px; padding: 5px 10px 5px 6px; border-radius: 999px; background: rgba(255,255,255,0.06); font-size: 0.88rem; }
+.tdc-opps li span { font-size: 18px; }
+.tdc-opps li small { color: var(--texte-3); }
+.tdc-goals li { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 10px; background: rgba(255,255,255,0.05); font-size: 0.92rem; line-height: 1.3; }
+.tdc-goals li .ico { margin-left: auto; color: var(--vert); flex: none; }
+.tdc-goal-star { color: rgba(255,255,255,0.25); font-size: 18px; flex: none; }
+.tdc-goals li.got .tdc-goal-star { color: #f5c542; }
+.tdc-why { margin: 14px 0 0; display: flex; gap: 8px; align-items: center; color: #d9c9a8; font-size: 0.9rem; }
+.tdc-sit { margin-top: 16px; width: 100%; }
+
+/* Bilan de fin de partie */
+.tdc-end { margin: 10px 0 4px; padding: 10px 12px; border-radius: 14px; text-align: center; background: linear-gradient(180deg, rgba(58,36,20,0.85), rgba(26,15,8,0.85)); box-shadow: inset 0 0 0 1.5px rgba(241,204,125,0.6); }
+.tdc-end p { margin: 4px 0 0; }
+.tdc-end-name { font: 700 0.9rem/1.2 var(--cond); text-transform: uppercase; letter-spacing: 0.06em; color: #f1cc7d; margin: 0 0 4px !important; }
+.tdc-end-msg { font-size: 0.92rem; color: var(--texte-2); }
+.tdc-end-msg.ok { color: #f5c542; font-weight: 700; }
+.tdc-end-q, .tdc-end-next { font-size: 0.88rem; color: #9fdcae; font-weight: 600; }

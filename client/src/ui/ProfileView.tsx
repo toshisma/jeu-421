@@ -1,3 +1,4 @@
+import { reputation } from '../../../shared/progress/comptoirs';
 import { titleL } from '../i18n/data';
 /**
  * Profil d'un joueur : le sien (photo modifiable, argent, XP, statistiques, succès) ou celui
@@ -23,6 +24,8 @@ interface PublicPlayer {
   title?: string | null;
   accessory?: string;
   rivalry?: { mine: number; theirs: number } | null;
+  /** Tournée des comptoirs : étoiles. */
+  reputation?: number;
   league?: string;
   username: string; photo: string | null; createdAt: number; rank: number | null;
   level: number; xp: number; into: number; need: number;
@@ -137,6 +140,7 @@ export function ProfileView({ pa, username, displayName, avatar, onClose, onInvi
             <div className="pv-chips">
               {pub.league && <span className="pv-chip">{tr('app.ligue')} {trServer(pub.league)}</span>}
               {pub.rank ? <span className="pv-chip">{pub.rank}{tr('app.e_au_classement')}</span> : null}
+              {pub.reputation ? <span className="pv-chip" title={tr('tdc.title')}>★ {pub.reputation} · {tr('tdc.rep')}</span> : null}
               <span className="pv-chip dim">{tr('app.depuis_le')} {date(pub.createdAt)}</span>
             </div>
           </div>
@@ -209,6 +213,7 @@ export function ProfileView({ pa, username, displayName, avatar, onClose, onInvi
             {titleL(p.title) && <div className="pv-title">{titleL(p.title)}</div>}
             <div className="pv-chips">
               <span className="pv-chip">{pa.isAccount ? tr('app.compte_joueur') : tr('app.invite_progression_sur_cet_appareil')}</span>
+              {reputation(p.tdc) > 0 && <span className="pv-chip" title={tr('tdc.title')}>★ {reputation(p.tdc)} · {tr('tdc.rep')}</span>}
             </div>
           </div>
         </div>

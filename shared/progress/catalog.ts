@@ -3,6 +3,7 @@
  * règles ni les chances. Chaque objet a un prix en pièces (gagnées en jouant) et un niveau requis.
  * Aucun achat n'est aléatoire : on voit et on essaie l'objet avant de l'acheter.
  */
+import { TDC_FELTS } from './comptoirs';
 import { COLLECTION, INVITE_DICE, SEASONS, SERIES, SHINY_SUFFIX, seasonDie, type DicePattern, type Rarity } from './dice-collection';
 
 /** Identifiants de formes (voir client/src/physics/trayShapes.ts). */
@@ -209,6 +210,9 @@ const SERIES_FELTS: Record<string, { color: string; pattern?: FeltPattern }> = {
   pierres: { color: '#0f5a46', pattern: 'losanges' }, legendes: { color: '#1b1640', pattern: 'etoiles' },
 };
 for (const s of SERIES) ITEMS.push({ id: s.felt, category: 'felt', name: `${s.name} (série)`, price: 0, level: 1, pass: 1, color: SERIES_FELTS[s.id].color, pattern: SERIES_FELTS[s.id].pattern, description: `Pour qui a complété la série « ${s.name} ».` });
+
+// Tapis de la Tournée des comptoirs (quartier terminé) : jamais en vente.
+for (const f of TDC_FELTS) ITEMS.push({ id: f.id, category: 'felt', name: f.name, price: 0, level: 1, pass: 1, color: f.color, pattern: f.pattern, description: 'Gagné sur la Tournée des comptoirs.' });
 
 export interface Appearance { decor: string; felt: string; rim: string; shape: string; dice: string; accessoire: string }
 

@@ -69,6 +69,8 @@ interface Props {
    * (tournoi : seulement quand le tournoi est fini pour le joueur).
    */
   guestInvite?: false | ((state: GameState) => boolean);
+  /** Encart en plus à l'écran de fin et au bandeau « sorti avant la fin » (Tournée des comptoirs : étoiles). */
+  endExtra?: React.ReactNode;
 }
 
 export interface EarlyOptions {
@@ -86,7 +88,7 @@ const NO_KEEP = [false, false, false];
 const MEDALS = ['🥇', '🥈', '🥉'];
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export function GameScreen({ controller, settings, onSettings, onExit, personas, appearance, onGameEnd, onGameStart, pa, tableExit, bossId, early, guestInvite }: Props) {
+export function GameScreen({ controller, settings, onSettings, onExit, personas, appearance, onGameEnd, onGameStart, pa, tableExit, bossId, early, guestInvite, endExtra }: Props) {
   const tray = useRef<DiceTrayHandle>(null);
   const [shown, setShown] = useState<GameState | null>(null);
   const shownRef = useRef<GameState | null>(null);
@@ -678,6 +680,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
               <div><b>{title}</b><small>{o.note ?? tr('g421.earlyNote')}</small></div>
             </div>
             <p className={`ed-gain${rewardStatus === 'done' && r && (r.xp || r.coins) ? ' ok' : ''}`}>{gain}</p>
+            {endExtra}
             <div className="ed-buttons">
               {quit && <button className="btn primary" onClick={quit.run}>{quit.label}</button>}
               {o.alt && <button className="btn" onClick={o.alt.run}>{o.alt.label}</button>}
@@ -695,7 +698,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
       {s && s.phase === 'fini' && !animating && (
         <EndOverlay reward={endReward} state={s} meta={meta} meId={controller.meId} canRematch={controller.canRematch()}
           online={controller.mode === 'online'} onRematch={() => controller.rematch()} onExit={leave}
-          exitLabel={tableExit?.label} note={tableExit?.note?.(s)} referral={pa?.isAccount ? pa.user?.username : undefined} />
+          exitLabel={tableExit?.label} note={tableExit?.note?.(s)} referral={pa?.isAccount ? pa.user?.username : undefined} extra={endExtra} />
       )}
       {/* Bulles et réactions : calque au-dessus de tout, à l'aplomb de la carte du joueur. */}
       <div className="float-layer" aria-live="polite">

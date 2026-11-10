@@ -39,6 +39,8 @@ import type { ComboKind } from '../shared/combos';
 import type { Difficulty } from '../shared/ai';
 import { applyDixMilleGame, dixMilleBagRoll, dixMilleOnlineReward, dixMilleReward } from '../shared/dixmille/reward';
 import { DM_TARGETS, type DmLevel } from '../shared/dixmille/engine';
+import { tdcSoloStart, tdcSoloEnd } from './comptoirs';
+import { reputation as tdcReputation } from '../shared/progress/comptoirs';
 
 export interface AccountsOptions {
   /** Pour les tests : configuration et appel Discord simulés. */
@@ -55,6 +57,8 @@ export interface AccountsOptions {
   cardsRng?: () => number;
   /** Horloge (tests des ligues). */
   now?: () => number;
+  /** Tournée des comptoirs : délai minimal par manche pour la vraisemblance (tests). */
+  tdcRoundMs?: number;
   /** Partie solo d'un compte réellement terminée (statistiques). */
   onSoloFinished?: (g: { id: string; userId: string; startedAt: number; opponents: number; won: boolean }) => void;
 }
@@ -328,10 +332,12 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   router.post('/solo/start', auth, (req, res) => {
     const token = randomBytes(18).toString('base64url');
     // Patron : seulement celui de la semaine (jour du serveur), noté dès le début de la partie.
-    const boss = typeof req.body?.boss === 'string' && req.body.boss === bossOfWeek(today()).id ? req.body.boss : null;
+    // Tournée des comptoirs : bistrot ouvert pour ce compte, noté dans le jeton (« tdc:<bistrot> », jamais un patron).
+    const tdc = tdcSoloStart(store.profileOf(userOf(req)), req.body?.tdc);
+    const boss = tdc ?? (typeof req.body?.boss === 'string' && req.body.boss === bossOfWeek(today()).id ? req.body.boss : null);
     soloGames.set(token, { userId: userOf(req).id, startedAt: Date.now(), boss });
     soloGames.prune(Date.now() - 12 * 3600_000);
-    res.json({ ok: true, gameToken: token });
+    res.json({ ok: true, gameToken: token, ...(tdc ? { tdc: true } : {}) });
   });
   router.post('/solo/end', auth, (req, res) => {
     const u = userOf(req);
@@ -342,8 +348,11 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     soloGames.delete(b.gameToken);
     // La partie est terminée : elle compte dans les statistiques, même au-delà du plafond de récompenses.
     opts.onSoloFinished?.({ id: b.gameToken, userId: u.id, startedAt: g.startedAt, opponents: Math.min(5, Math.max(1, Math.floor(Number(b.opponents) || 1))), won: !!b.won });
+    // Tournée des comptoirs : étoiles (une seule fois chacune), avant le plafond quotidien des récompenses solo.
+    const tdcResult = tdcSoloEnd(store, u, g.boss, b, Date.now() - g.startedAt, opts.tdcRoundMs);
+    if (g.boss?.startsWith('tdc:')) g.boss = null;
     const day = today();
-    if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.');
+    if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.'); // étoiles de la Tournée déjà enregistrées
     const int = (v: unknown, min: number, max: number) => Math.min(max, Math.max(min, Math.floor(Number(v) || 0)));
     const diffs: Difficulty[] = ['facile', 'normal', 'difficile'];
     // Plafonds de vraisemblance : au plus 8 lancers par manche, 3 s par manche et 0,8 s par lancer
@@ -383,10 +392,10 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
       now: Date.now(),
     };
     const reward = rewardFor(!!b.won, int(b.rounds, 1, 200), ctx);
-    const applied = applyGameEnd(store.profileOf(u), reward, ctx, day);
+    const applied = applyGameEnd(store.profileOf(store.userById(u.id) ?? u), reward, ctx, day);
     store.saveProfile(u.id, applied.profile);
     if (!ctx.suddenDeath) { leagueGain(u.id, reward.xp); checkReferral(u.id); if (b.won) clubWin(u.id); }
-    res.json({ ok: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
+    res.json({ ok: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) }, ...(tdcResult ? { tdc: tdcResult } : {}) });
   });
 
   // --- Le Dix mille contre l'ordinateur (joué sur l'appareil) : même principe que le solo du 421 --
@@ -694,6 +703,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
         accessory: accessoryEmoji(p.equipped.accessoire),
         league: LEAGUES[u.league],
         prestige: p.prestige ?? 0,
+        reputation: tdcReputation(p.tdc),
         album: (p.album ?? []).length,
         showcase: p.showcase ?? [],
         collection: collectionCount(p),
