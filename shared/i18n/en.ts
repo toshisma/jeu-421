@@ -3,6 +3,7 @@ import { communEn } from './zones/commun.en';
 import { cartesEn } from './zones/cartes.en';
 import type { MessageKey } from './fr';
 import { g421En } from './zones/jeu421.en';
+import { fetesEn } from './zones/fetes.en';
 
 /** Textes anglais. Ton : direct et simple ; vocabulaire de Farkle (farkle, bank, hot dice). */
 export const en: Partial<Record<MessageKey, string>> = {
@@ -361,4 +362,5 @@ export const en: Partial<Record<MessageKey, string>> = {
   "dm.lh.habitue": "Plays sensibly",
   "dm.lh.fouine": "Calculates the odds",
   ...g421En,
+  ...fetesEn,
 };

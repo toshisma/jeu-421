@@ -7,6 +7,7 @@
 import type { Difficulty } from '../ai';
 import { BAGS_MAX, BAG_PITY, applyPlainReward, bagChance, botTableRules, checkAchievements, rewardFor, type Profile, type Reward } from '../progress/profile';
 import { applySummary } from '../progress/quests';
+import { applyFetesGame } from '../progress/fetes';
 import { randomFloat } from '../random';
 import type { DmLevel } from './engine';
 import { DM_TURN_MAX, EMPTY_DM_STATS, type DmStats } from './stats';
@@ -141,10 +142,12 @@ export function applyDixMilleGame(p: Profile, r: Reward, day: string, f: DmGameF
   }, day);
   const dm = nextDmStats(p.dm, r.won, f);
   const bag = dixMilleBagRoll({ ...a.profile, quests, dm }, f, rng);
+  // Saint-Nicolas / fêtes : la partie compte pour les défis d'événement.
+  const fe = applyFetesGame(bag.profile, { game: 'dm', won: r.won }, day);
   // Succès (ceux du Courtisan, et ceux du niveau atteint) : pièces versées tout de suite.
-  const ach = checkAchievements(bag.profile, f.now);
+  const ach = checkAchievements(fe.profile, f.now);
   return {
     ...a, profile: ach.profile, bagsFound: bag.found, questsDone: completed.map((q) => ({ id: q.id, text: q.text })),
-    achievementsDone: ach.unlocked.map((x) => ({ id: x.id, icon: x.icon, name: x.name, coins: x.coins })),
+    achievementsDone: [...fe.done, ...ach.unlocked.map((x) => ({ id: x.id, icon: x.icon, name: x.name, coins: x.coins }))],
   };
 }

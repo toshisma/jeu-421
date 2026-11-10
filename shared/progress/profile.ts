@@ -23,6 +23,7 @@ import { DIVISIONS } from '../season';
 import { randomFloat } from '../random';
 import { BOSSES, BOSS_COINS, bossOfWeek, weekKey } from './boss';
 import { EMPTY_DM_STATS, cleanDmStats, type DmStats } from '../dixmille/stats';
+import { applyFetesGame, cleanAdvent, cleanFete, feteTitle, type AdventState, type FeteState } from './fetes';
 
 export interface Profile {
   version: 1;
@@ -72,6 +73,10 @@ export interface Profile {
   vsAi?: Record<string, { w: number; l: number }>;
   /** Le Courtisan : parties, victoires, meilleur tour, plus gros pot emporté. */
   dm?: DmStats;
+  /** Saint-Nicolas / fêtes : défis de l'édition en cours (voir fetes.ts). */
+  fete?: FeteState;
+  /** Calendrier de l'avent : cases ouvertes cette année. */
+  advent?: AdventState;
 }
 
 export interface MonthRecap {
@@ -192,7 +197,7 @@ export function sanitizeProfile(raw: unknown): Profile {
   if (r.season && typeof r.season.id === 'string' && /^\d{4}-\d{2}$/.test(r.season.id)) {
     p.season = { id: r.season.id, points: num(r.season.points), claimed: Array.isArray(r.season.claimed) ? [...new Set(r.season.claimed.map(num).filter((n) => n >= 1 && n <= PASS_TIERS))] : [] };
   }
-  if (Array.isArray(r.titles)) p.titles = [...new Set(r.titles.filter((t): t is string => typeof t === 'string' && /^(pass|ligue|patron|album|serie|saison):[\w-]{1,20}$/.test(t)))];
+  if (Array.isArray(r.titles)) p.titles = [...new Set(r.titles.filter((t): t is string => typeof t === 'string' && /^(pass|ligue|patron|album|serie|saison|fete):[\w-]{1,20}$/.test(t)))];
   if (Array.isArray(r.album)) p.album = [...new Set(r.album.filter((k): k is string => typeof k === 'string' && ALBUM_KEYS.includes(k)))];
   if (Array.isArray(r.albumPages)) p.albumPages = [...new Set(r.albumPages.filter((k): k is string => typeof k === 'string' && ALBUM.some((a) => a.id === k)))];
   for (const k of ['month', 'prevMonth'] as const) {
@@ -228,6 +233,10 @@ export function sanitizeProfile(raw: unknown): Profile {
     for (const [n, x] of Object.entries(r.vsAi).slice(0, 30)) if (n.length <= 20 && x && typeof x === 'object') v[n] = { w: num((x as { w: unknown }).w), l: num((x as { l: unknown }).l) };
     p.vsAi = v;
   }
+  const fete = cleanFete(r.fete);
+  if (fete) p.fete = fete;
+  const advent = cleanAdvent(r.advent);
+  if (advent) p.advent = advent;
   const dm = cleanDmStats(r.dm);
   if (dm) p.dm = dm;
   if (Array.isArray(r.showcase)) {
@@ -299,6 +308,8 @@ export function capGuestImport(p: Profile): Profile {
     version: 1, xp, coins: Math.min(GUEST_IMPORT.coins, p.coins), owned, equipped, stats, achievements: {},
     tutorial: p.tutorial, album: p.album, albumPages: p.albumPages, bossWeek: p.bossWeek, chestAt: p.chestAt, pity: p.pity,
     bags: Math.min(GUEST_IMPORT.bags, p.bags ?? 0),
+    // Calendrier de l'avent : les cases déjà ouvertes en invité ne se rouvrent pas avec le compte.
+    ...(p.advent ? { advent: p.advent } : {}),
   };
   for (const k of ['month', 'prevMonth'] as const) {
     const m = p[k];
@@ -537,6 +548,10 @@ export function applyGameEnd(p: Profile, reward: Reward, ctx: RewardContext, day
   const pity = (base.pity ?? 0) + 1;
   const found = (pity >= BAG_PITY || rng() < bagChance(reward, ctx) ? 1 : 0) + bossBag;
   base = { ...base, pity: found - bossBag > 0 ? 0 : pity, bags: Math.min(BAGS_MAX, (base.bags ?? 0) + found) };
+  // Saint-Nicolas / fêtes : défis d'événement et adversaire spécial.
+  const fe = applyFetesGame(base, { game: '421', won: reward.won, combos: ctx.combos, boss: ctx.boss }, day);
+  base = fe.profile;
+  extra.push(...fe.done);
   const al = applyAlbum(base, ctx.comboKeys ?? []);
   extra.push(...al.done);
   const withRecap = recordMonth(al.profile, reward, ctx, day);
@@ -795,6 +810,7 @@ export function titleLabel(id: string | undefined): string | null {
   if (!id) return null;
   if (id.startsWith('patron:')) return `Tombeur de ${BOSSES.find((b) => b.id === id.slice(7))?.name ?? 'patron'}`;
   if (id === 'album:complet') return 'Collectionneur de combinaisons';
+  if (id.startsWith('fete:')) return feteTitle(id);
   if (id.startsWith('pass:')) return `Champion ${ofMonth(id.slice(5))}`;
   if (id.startsWith('ligue:')) return `Ligue ${id.slice(6)}`;
   if (id.startsWith('serie:')) return SERIES.find((x) => x.id === id.slice(6))?.title ?? null;

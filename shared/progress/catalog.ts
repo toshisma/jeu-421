@@ -157,6 +157,9 @@ export const ITEMS: Item[] = [
   { id: 'dice-carnaval', category: 'dice', name: 'Carnaval', price: 500, level: 1, event: 'carnaval', body: '#7b2ccf', body2: '#4a137f', pip: '#ffd23f', roughness: 0.25, metalness: 0, clearcoat: 0.9 },
   { id: 'dice-peket', category: 'dice', name: 'Péket', price: 700, level: 1, event: 'outremeuse', body: '#eef3ea', body2: '#c8d4c2', pip: '#2f6b3a', roughness: 0.08, metalness: 0.05, clearcoat: 1 },
   { id: 'dice-wallonie', category: 'dice', name: 'Coq hardi', price: 600, level: 1, event: 'wallonie', body: '#f6d42e', body2: '#d9ad12', pip: '#7a0617', roughness: 0.3, metalness: 0, clearcoat: 0.7 },
+  // --- Saint-Nicolas et fêtes : gagnés pendant l'événement (tous les défis d'événement réussis), jamais en vente ---
+  { id: 'dice-mandarine', category: 'dice', name: 'Mandarine', price: 0, level: 1, pass: 1, body: '#f39a2e', body2: '#d9761a', pip: '#2b1405', roughness: 0.55, metalness: 0, clearcoat: 0.35, description: 'Défis de Saint-Nicolas réussis.' },
+  { id: 'dice-champagne', category: 'dice', name: 'Champagne', price: 0, level: 1, pass: 1, body: '#f1e3b4', body2: '#d8c27e', pip: '#3a2608', roughness: 0.2, metalness: 0.25, clearcoat: 1, description: 'Défis des fêtes réussis.' },
   // --- Pass de saison (gagnés, pas achetés) ---
   { id: 'dice-pass-cuivre', category: 'dice', name: 'Cuivre (pass)', price: 0, level: 1, pass: 1, body: '#cf8a55', body2: '#a8683a', pip: '#140802', roughness: 0.3, metalness: 0.8, clearcoat: 0.3 },
   { id: 'dice-pass-opale', category: 'dice', name: 'Opale (pass)', price: 0, level: 1, pass: 1, body: '#dff1f2', body2: '#a9c9e8', pip: '#6a3aa0', roughness: 0.1, metalness: 0.1, clearcoat: 1 },
@@ -180,6 +183,9 @@ export const ITEMS: Item[] = [
   { id: 'acc-masque', category: 'accessoire', name: 'Masque', price: 300, level: 1, event: 'carnaval', emoji: '🎭' },
   { id: 'acc-peket', category: 'accessoire', name: 'Petit péket', price: 350, level: 1, event: 'outremeuse', emoji: '🥃' },
   { id: 'acc-coq', category: 'accessoire', name: 'Coq hardi', price: 350, level: 1, event: 'wallonie', emoji: '🐓' },
+  // Adversaires spéciaux de Saint-Nicolas et des fêtes (battus une fois pendant l'événement).
+  { id: 'acc-speculoos', category: 'accessoire', name: 'Spéculoos', price: 0, level: 1, pass: 1, emoji: '🍪' },
+  { id: 'acc-cloche', category: 'accessoire', name: 'Cloche des fêtes', price: 0, level: 1, pass: 1, emoji: '🔔' },
   { id: 'acc-pass-etoile', category: 'accessoire', name: 'Étoile (pass)', price: 0, level: 1, pass: 1, emoji: '⭐' },
   { id: 'acc-pass-feu', category: 'accessoire', name: 'Flamme (pass)', price: 0, level: 1, pass: 1, emoji: '🔥' },
 ];

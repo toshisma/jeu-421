@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { trFeteDone } from '../fetes/Fetes';
 import { BagIcon } from './BagIcon';
 import type { GameState } from '../../../shared/engine';
 import type { MetaPlayer } from '../game/controller';
@@ -108,7 +109,7 @@ function RewardBox({ r }: { r: EndReward }) {
           <li key={l.label}><span>{trServer(l.label)}</span><span>{l.xp > 0 && <b>+{l.xp} XP</b>}{l.coins > 0 && <b className="c">{trn('g421.plusCoins', l.coins)}</b>}</span></li>
         ))}
         {!!applied.bagsFound && <li className="lvlup bag-found"><span><BagIcon size="1em" /> {applied.bagsFound > 1 ? tr('g421.bagsFound', { n: applied.bagsFound }) : tr('g421.bagFound')}</span><span className="muted small">{tr('g421.openInColl')}</span></li>}
-        {applied.achievementsDone?.map((x) => <li key={x.id} className="lvlup"><span>{x.icon} {tr('g421.achievement')} {x.name}</span><span><b className="c">{trn('g421.plusCoins', x.coins)}</b></span></li>)}
+        {applied.achievementsDone?.map((x) => <li key={x.id} className="lvlup"><span>{x.icon} {tr('g421.achievement')} {trFeteDone(x) ?? x.name}</span><span><b className="c">{trn('g421.plusCoins', x.coins)}</b></span></li>)}
         {applied.questsDone?.map((q) => <li key={q.id} className="lvlup"><span>🎯 {tr('g421.quest')} {q.text}</span><span className="muted small">{tr('g421.toCollect')}</span></li>)}
         {leveled && <li className="lvlup"><span>{tr('g421.levelUp', { n: applied.levelAfter })}</span><span><b className="c">{trn('g421.plusCoins', applied.levelBonusCoins)}</b></span></li>}
       </ul>

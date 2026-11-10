@@ -5,6 +5,7 @@ import { cartesFr } from './zones/cartes.fr';
  * Textes français : LA liste des clés. Toute nouvelle chaîne s'ajoute d'abord ici (mode d'emploi : shared/i18n/index.ts).
  */
 import { g421Fr } from "./zones/jeu421.fr";
+import { fetesFr } from "./zones/fetes.fr";
 
 export const fr = {
   ...communFr,
@@ -362,5 +363,6 @@ export const fr = {
   "dm.lh.habitue": "Joue raisonnablement",
   "dm.lh.fouine": "Calcule ses risques",
   ...g421Fr,
+  ...fetesFr,
 };
 export type MessageKey = keyof typeof fr;

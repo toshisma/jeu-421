@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DICTS } from '../shared/i18n';
 import { communFr } from '../shared/i18n/zones/commun.fr';
+import { fetesFr } from '../shared/i18n/zones/fetes.fr';
 import { translateServerText } from '../shared/i18n/server-texts';
 import { ITEMS } from '../shared/progress/catalog';
 import { ACHIEVEMENTS } from '../shared/progress/achievements';
@@ -24,7 +25,7 @@ describe('zone commun', () => {
   it('catalogues : boutique, succès, défis ont leurs clés', () => {
     for (const it of ITEMS) {
       if (/^(dc-|dl-|ds-)|-brillant$|^felt-serie-/.test(it.id)) continue;
-      expect(keys, it.id).toContain(`app.item.${it.id}`);
+      expect([...keys, ...Object.keys(fetesFr)], it.id).toContain(`app.item.${it.id}`); // objets de saison : zone fetes
     }
     for (const a of ACHIEVEMENTS.filter((x) => !x.game)) expect(keys, a.id).toContain(`app.a.${a.id}`); // Courtisan : dm2.a.* (tests/courtisan2.test.ts)
     for (const q of QUESTS) expect(keys, q.id).toContain(`app.q.${q.id}`);

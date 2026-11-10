@@ -19,6 +19,7 @@ import type { FxKind } from '../../../shared/progress/dice-collection';
 import { applyDixMilleGame, dixMilleBagRoll, dixMilleReward } from '../../../shared/dixmille/reward';
 import type { DmLevel } from '../../../shared/dixmille/engine';
 import { cfCoinReward } from '../../../shared/cards/coins';
+import { applyFetesGame, claimAdvent } from '../../../shared/progress/fetes';
 
 export interface EndReward { reward: Reward; applied: Applied }
 /** Fin d'une partie du Courtisan : récompense, sacs de dés trouvés, défis du jour accomplis. */
@@ -218,6 +219,8 @@ export function useProfile(enabled: boolean) {
   const chooseTitle = useCallback((id: string | null) => act2('/title', { id }, (p) => setTitle(p, id)), [act2]);
   const finishTutorial = useCallback(() => act2('/tutorial/done', {}, (p) => completeTutorial(p)), [act2]);
   const prestige = useCallback(() => act2('/prestige', {}, (p) => doPrestige(p)), [act2]);
+  /** Calendrier de l'avent : case du jour (jour du serveur pour les comptes). */
+  const openAdventBox = useCallback(() => act2('/fetes/advent', {}, (p) => claimAdvent(p, today())?.profile ?? null), [act2]);
 
   // --- Défi du jour ---
   /** Résultat officiel (compte) ou local (invité) ; la récompense n'est versée qu'une fois par jour. */
@@ -330,7 +333,7 @@ export function useProfile(enabled: boolean) {
     const applied = applyPlainReward(ref.current.profile, reward, day);
     // Sac de dés : même règle que le 421 et le Courtisan (résultat de l'appareil : compté comme une défaite).
     const bag = dixMilleBagRoll(applied.profile, { won: r.won, players: r.players, minutes: r.minutes, mode: 'solo', declared: true });
-    setProfile(bag.profile);
+    setProfile(applyFetesGame(bag.profile, { game: 'cf', won: r.won }, day).profile); // défis de Saint-Nicolas / des fêtes
     return { coins: reward.coins + applied.levelBonusCoins, bags: bag.found };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const onDixMilleStart = useCallback(() => {
@@ -390,7 +393,7 @@ export function useProfile(enabled: boolean) {
     profile, session, user, isAccount: !!session, welcomeBack, dismissWelcome: () => setWelcomeBack(false), photo, setPhoto, removePhoto,
     register, login, recover, logout, deleteAccount,
     submitChallenge,
-    buyItem, equipItem, claim, blocked, block, isBlocked, claimDailyReward, openEveningChest, claimPass, chooseTitle, finishTutorial, prestige,
+    buyItem, equipItem, claim, blocked, block, isBlocked, claimDailyReward, openEveningChest, claimPass, chooseTitle, finishTutorial, prestige, openAdventBox,
     onSoloStart, onGameEnd, onCfGuestEnd, onDixMilleStart, onDixMilleEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
     token: session?.token ?? null,
   };
