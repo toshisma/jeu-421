@@ -5,6 +5,7 @@
  * solo déclaré (jeton, durée minimale, plafond).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { nextHigher } from '../shared/pokermenteur/hands';
 import { io as connect, type Socket } from 'socket.io-client';
 import { startServer } from '../server/app';
 import { currentPlayer, type PmState } from '../shared/pokermenteur/engine';
@@ -208,6 +209,25 @@ describe('Poker menteur en ligne', () => {
     a.s.disconnect(); b.s.disconnect();
   });
 
+  it('un compte ne peut pas occuper deux places (reprise d’une place d’invité avec ses identifiants)', async () => {
+    const x = await account();
+    const a = await client(), b = await client();
+    const cr = await emit(a, 'table:create', { name: 'x', auth: x.token, options: { lives: 3 } });
+    expect(cr.ok).toBe(true);
+    const jr = await emit(b, 'table:join', { code: cr.code, name: 'Invité' });
+    expect(jr.ok).toBe(true);
+    // L'invité « reprend » sa place en présentant les identifiants du compte X, en salon puis en partie.
+    expect((await emit(b, 'table:join', { code: cr.code, token: jr.token, auth: x.token })).ok).toBe(true);
+    await emit(b, 'table:ready', { ready: true });
+    expect((await emit(a, 'table:start')).ok).toBe(true);
+    await until(() => !!a.state);
+    await emit(b, 'table:join', { code: cr.code, token: jr.token, auth: x.token });
+    await wait(50);
+    const withAccount = (a.table?.members ?? []).filter((m: any) => m.account === x.username);
+    expect(withAccount.length).toBe(1);
+    a.s.disconnect(); b.s.disconnect();
+  });
+
   it('partie rapide : des ordinateurs complètent la table, puis la partie part toute seule', async () => {
     const a = await client();
     const q = await emit(a, 'table:quick', { name: 'Pressé' });
@@ -254,6 +274,9 @@ describe('Poker menteur : temps écoulé', () => {
     expect(a.notices.some((n) => /Temps écoulé/.test(n))).toBe(true);
     const kinds = a.log.map((m) => (m.raw as PmUpdate).action);
     expect(kinds.slice(0, 4)).toEqual(['annoncer', 'croire', 'relancer', 'annoncer']);
+    // L'annonce automatique d'ouverture ne trahit jamais la vraie main : c'est la plus faible du jeu.
+    const first = (a.log[0].raw as PmUpdate).state.claims[0];
+    expect(first.hand).toEqual(nextHigher(null, false));
     a.s.disconnect(); b.s.disconnect();
   });
 });

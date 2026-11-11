@@ -454,7 +454,10 @@ export function createPokerOnline(c: Ctx) {
           existing.left = false;
           notice(t, `${existing.name} revient à la table.`);
         } else if (existing.socketId == null) notice(t, `${existing.name} est de retour.`);
-        existing.userId ??= userOf(p)?.id;
+        // Rattacher un compte à une place d'invité : seulement en salon, et si ce compte n'a pas déjà une
+        // place à cette table (sinon un même compte jouerait deux places et serait récompensé deux fois).
+        const acct = userOf(p)?.id;
+        if (existing.userId == null && acct && t.status === 'lobby' && !t.members.some((y) => y !== existing && y.userId === acct)) existing.userId = acct;
         attach(t, existing);
         reply(joined(t, existing));
         broadcast(t);
@@ -668,7 +671,10 @@ export function createPokerOnline(c: Ctx) {
       const wasHost = m.id === t.hostId;
       const running = t.status === 'playing' && !!t.game && t.game.phase !== 'fini' && t.players.includes(m.id);
       if (t.status === 'lobby') t.members = t.members.filter((y) => y !== m);
-      else if (running) {
+      else if (running && (t.game!.players.find((y) => y.id === m.id)?.out ?? 0) > 0) {
+        // Déjà éliminé : il part sans abandonner (il garde sa place au classement et ses gains).
+        m.left = true;
+      } else if (running) {
         m.left = true;
         m.quit = true;
         notice(t, `${m.name} a quitté la partie : le serveur joue à sa place (il peut revenir).`, 'warning');

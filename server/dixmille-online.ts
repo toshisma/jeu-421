@@ -597,7 +597,10 @@ export function createDixMilleOnline(c: Ctx) {
           existing.left = false;
           notice(t, `${existing.name} revient à la table.`);
         } else if (existing.socketId == null) notice(t, `${existing.name} est de retour.`);
-        existing.userId ??= userOf(p)?.id;
+        // Rattacher un compte à une place d'invité : seulement en salon, et si ce compte n'a pas déjà une
+        // place à cette table (sinon un même compte jouerait deux places et serait récompensé deux fois).
+        const acct = userOf(p)?.id;
+        if (existing.userId == null && acct && t.status === 'lobby' && !t.members.some((y) => y !== existing && y.userId === acct)) existing.userId = acct;
         attach(t, existing);
         reply(joined(t, existing));
         broadcast(t);

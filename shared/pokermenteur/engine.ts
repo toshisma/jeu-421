@@ -225,14 +225,15 @@ export function act(prev: PmState, a: PmAction): { state: PmState } | { error: s
 
 /**
  * Coup joué par le serveur pour un joueur trop lent ou absent : il croit (sinon il crie menteur
- * après un Poker d'As), ne relance rien et annonce la main immédiatement supérieure (sa main
- * réelle au premier coup d'une manche).
+ * après un Poker d'As), ne relance rien et annonce la main immédiatement supérieure (au premier
+ * coup d'une manche : la main la plus faible du jeu, jamais sa main réelle, que l'annonce
+ * automatique trahirait aux autres joueurs).
  */
 export function timeoutAction(s: PmState): PmAction {
   if (s.phase === 'decision') return canBelieve(s) ? { type: 'croire' } : { type: 'menteur' };
   if (s.phase === 'relance') return { type: 'relancer', pick: [] };
   const last = lastClaim(s);
-  const hand = last ? nextHigher(last.hand, s.options.noStraights) : s.dice ? canon(s.dice) : null;
+  const hand = nextHigher(last ? last.hand : null, s.options.noStraights);
   return { type: 'annoncer', hand: hand ?? [5, 5, 5, 5, 5] };
 }
 

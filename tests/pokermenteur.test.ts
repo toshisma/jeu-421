@@ -241,9 +241,9 @@ describe('Poker menteur : déroulement', () => {
     expect(placeOf(s, 'a')).toBe(3);
     expect(err(act(s, { type: 'menteur' }))).toMatch(/terminée/);
   });
-  it('coup automatique (temps écoulé) : croit, ne relance rien, annonce juste au-dessus (sa main au premier coup)', () => {
+  it('coup automatique (temps écoulé) : croit, ne relance rien, annonce juste au-dessus (la plus faible main au premier coup, jamais sa vraie main)', () => {
     const s0 = at([R, R, R, A, D]);
-    expect(timeoutAction(s0)).toEqual({ type: 'annoncer', hand: [A, R, R, R, D] });
+    expect(timeoutAction(s0)).toEqual({ type: 'annoncer', hand: nextHigher(null) });
     let s = ok(act(s0, { type: 'annoncer', hand: [R, R, R, A, D] }));
     expect(timeoutAction(s)).toEqual({ type: 'croire' });
     s = ok(act(s, timeoutAction(s)));
