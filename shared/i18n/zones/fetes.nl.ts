@@ -39,7 +39,7 @@ export const fetesNl: Record<keyof typeof fetesFr, string> = {
   "fet.advent.notYet": "De adventskalender opent op 1 december.",
   "fet.advent.over": "De adventskalender is voorbij. Tot volgend jaar!",
   "fet.ch.title": "Uitdagingen van het evenement",
-  "fet.ch.hint": "Alle drie de spellen tellen, tot {date}. Munten krijg je meteen per gehaalde uitdaging; alles gehaald: de dobbelsteen “{die}”.",
+  "fet.ch.hint": "Alle spellen tellen, tot {date}. Munten krijg je meteen per gehaalde uitdaging; alles gehaald: de dobbelsteen “{die}”.",
   "fet.ch.done": "Gehaald",
   "fet.ch.coins": "{n} munten",
   "fet.ch.dieWon": "Dobbelsteen “{die}” gewonnen",

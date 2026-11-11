@@ -221,7 +221,7 @@ export const fr = {
   "dm.noReward": "Pas de pièces ni d’XP pour cette partie (trop courte, plafond du jour, invité ou partie quittée).",
   "dm.bagsFound": "{n} sacs de dés trouvés !",
   "dm.bagFound": "Sac de dés trouvé !",
-  "dm.bag.acc": "Un dé ou un effet au hasard, pour les trois jeux.",
+  "dm.bag.acc": "Un dé ou un effet au hasard, pour tous les jeux.",
   "dm.bag.guest": "Gardé pour vous : un compte gratuit permet de l’ouvrir.",
   "dm.open": "Ouvrir",
   "dm.see": "Voir",

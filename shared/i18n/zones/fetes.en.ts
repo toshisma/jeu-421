@@ -39,7 +39,7 @@ export const fetesEn: Record<keyof typeof fetesFr, string> = {
   "fet.advent.notYet": "The advent calendar opens on December 1.",
   "fet.advent.over": "The advent calendar is over. See you next year!",
   "fet.ch.title": "Event challenges",
-  "fet.ch.hint": "All three games count, until {date}. Coins are paid as soon as a challenge is done; complete them all for the “{die}” dice.",
+  "fet.ch.hint": "All games count, until {date}. Coins are paid as soon as a challenge is done; complete them all for the “{die}” dice.",
   "fet.ch.done": "Done",
   "fet.ch.coins": "{n} coins",
   "fet.ch.dieWon": "“{die}” dice won",

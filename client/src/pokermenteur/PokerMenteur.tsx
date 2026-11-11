@@ -636,7 +636,7 @@ function PmMenu({ pa, onHome, onRules, onSetup, onOnline, onCollection }: {
         <PmAchievements profile={p} compact onOpen={() => setSheet('succes')} />
         <nav className="dm-help" aria-label={tr('pm.helpAria')}>
           <span>{tr('pm.help')}</span>
-          <a href={helpUrl(getLang() === 'fr' ? '/poker-menteur' : `/${getLang()}/poker-menteur`)} target="_blank" rel="noopener">{tr('pm.help1')}</a>
+          <a href={helpUrl(`/${({ fr: 'regles-du-poker-menteur', en: 'liars-dice-poker-dice-rules', de: 'luegenpoker-wuerfel-regeln', nl: 'blufpoker-spelregels' } as Record<string, string>)[getLang()] ?? 'regles-du-poker-menteur'}`)} target="_blank" rel="noopener">{tr('pm.help1')}</a>
         </nav>
       </main>
       {sheet === 'stats' && (

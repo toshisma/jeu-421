@@ -219,7 +219,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   "dm.noReward": "No coins or XP for this game (too short, daily cap, guest, or game left).",
   "dm.bagsFound": "{n} dice bags found!",
   "dm.bagFound": "Dice bag found!",
-  "dm.bag.acc": "A random die or effect, for all three games.",
+  "dm.bag.acc": "A random die or effect, for all games.",
   "dm.bag.guest": "Saved for you: a free account lets you open it.",
   "dm.open": "Open",
   "dm.see": "View",

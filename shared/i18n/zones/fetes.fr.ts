@@ -39,7 +39,7 @@ export const fetesFr = {
   "fet.advent.notYet": "Le calendrier de l’avent s’ouvre le 1er décembre.",
   "fet.advent.over": "Le calendrier de l’avent est terminé. Rendez-vous l’an prochain !",
   "fet.ch.title": "Défis de l’événement",
-  "fet.ch.hint": "Les trois jeux comptent, jusqu’au {date}. Pièces versées dès qu’un défi est réussi ; tous réussis : le dé « {die} ».",
+  "fet.ch.hint": "Tous les jeux comptent, jusqu’au {date}. Pièces versées dès qu’un défi est réussi ; tous réussis : le dé « {die} ».",
   "fet.ch.done": "Réussi",
   "fet.ch.coins": "{n} pièces",
   "fet.ch.dieWon": "Dé « {die} » gagné",
