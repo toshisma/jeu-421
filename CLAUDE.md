@@ -46,6 +46,7 @@ Le jeu existe en **français (référence, vouvoiement), anglais, allemand, née
 | Bistrots entre amis (clubs, classement de la semaine sur parties en ligne, champion du lundi) | `shared/bistrots.ts`, `server/bistrots.ts`, `client/src/ui/Bistrots.tsx` |
 | Saint-Nicolas / fêtes (avent, défis, adversaires spéciaux, décor 3D) | `shared/progress/fetes.ts`, `server/fetes.ts`, `client/src/fetes/`, `client/src/three/seasonDecor.ts` |
 | Jouer en un geste (`/?jouer=1|courtisan|cartes|amis`), mesure « première partie » dans l'admin | `client/src/quickPlay.ts` |
+| Poker menteur (4e jeu : gobelet unique, 5 dés de poker 9→As, croire/relancer une fois/annoncer plus haut ou « Menteur ! », vies 3 ou 5, sans mise) | `shared/pokermenteur/` (moteur, mains, IA, récompenses, succès), `server/pokermenteur-online.ts` (en ligne 2 à 6, dés envoyés au seul détenteur du gobelet), `/poker/start|end` dans `server/accounts.ts`, `client/src/pokermenteur/` ; liens `/?mode=poker`, `/?jouer=poker`, `/?poker=CODE` ; simulation `npx tsx scripts/pokermenteur-simulate.ts` ; pages d'aide `scripts/seo-poker-pages.mjs` ; règles de référence : moteur + tests (ordre des mains branché sur `CATS`) |
 | Pages SEO statiques | `scripts/build-seo.mjs` → `client/public/*.html` ; pages « une intention = une page » (amis, jeux de dés, bistrot, Farkle, apéro) : `scripts/seo-growth-pages.mjs` |
 
 ## Principes à respecter
@@ -88,9 +89,10 @@ Captures mobiles : scripts `puppeteer-core` dans `scripts/` (Chrome : `/usr/bin/
 - Charge rapide, mode spectateur, alerte d'onglet « À toi de jouer » (faits). Pas de musique : Sam l'a fait retirer.
 
 ## État au 9 novembre 2026 (reprise dans une nouvelle conversation)
-Dernière version publiée : **0.53** (Tournée des comptoirs, bistrots entre amis, Saint-Nicolas/fêtes, Courtisan 100 Groschen + succès, jouer en un geste) ; 0.52 (tout le jeu et les pages d’aide en 4 langues, choix dans les Réglages, sinon langue du navigateur en/de/nl, sinon français) ; 0.51 (référencement renforcé ; 0.50 : corrections des triches, parties en ligne, petits défauts). Rapport d'inspection du 6/11 : https://claude.ai/artifact/FYnn23Wm4AkVZRDc1m3tyd (maquettes : https://claude.ai/artifact/2XXM8TngZ4mazyeyTBpUZt).
+Dernière version publiée : **0.54** (4e jeu : Poker menteur) ; 0.53 (Tournée des comptoirs, bistrots entre amis, Saint-Nicolas/fêtes, Courtisan 100 Groschen + succès, jouer en un geste) ; 0.52 (tout le jeu et les pages d’aide en 4 langues, choix dans les Réglages, sinon langue du navigateur en/de/nl, sinon français) ; 0.51 (référencement renforcé ; 0.50 : corrections des triches, parties en ligne, petits défauts). Rapport d'inspection du 6/11 : https://claude.ai/artifact/FYnn23Wm4AkVZRDc1m3tyd (maquettes : https://claude.ai/artifact/2XXM8TngZ4mazyeyTBpUZt).
 
-### Limites connues après la 0.53
+### Limites connues après la 0.54
+- Poker menteur contre l'ordinateur : victoire déclarée par le téléphone (comme les autres solos) ; pas de mise dans ce mode (choix de Claude, à proposer à Sam plus tard).
 - Étoiles de la Tournée, adversaires et défis de fête : victoire annoncée par le téléphone (durée seule mesurée) → trichables avec un client trafiqué. Champion des bistrots : un joueur actif peut rejoindre un bistrot juste avant lundi.
 - Restent en français : tableau de bord admin, mots dessinés dans les illustrations CF, page Confidentialité, quelques liens vers des guides. Traductions de/nl à relire par un locuteur natif (noms de cartes surtout).
 - Test « éclats » (cf-server) instable au hasard.

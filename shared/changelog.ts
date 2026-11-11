@@ -7,6 +7,11 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.54', date: '2026-11-11T22:15:00+01:00', title: 'Nouveau jeu : le Poker menteur', items: [
+    'Nouveau jeu : le Poker menteur. Cinq dés de poker sous un gobelet, une annonce au voisin : croyez-vous, ou criez-vous « Menteur ! » ?',
+    'Contre l’ordinateur (3 niveaux, jusqu’à 5 adversaires) ou en ligne de 2 à 6 joueurs avec vos amis.',
+    'Le Poker menteur rapporte pièces et sacs de dés, compte pour les défis du jour et les bistrots entre amis, et a ses succès.',
+  ] },
   { version: '0.53', date: '2026-11-10T17:12:00+01:00', title: 'La Tournée des comptoirs', items: [
     'Nouveau : la Tournée des comptoirs, 12 bistrots en 4 quartiers, chacun avec ses règles maison. Gagnez jusqu’à 3 étoiles par bistrot pour ouvrir la suite.',
     'Nouveau : les bistrots entre amis. Ouvrez votre bistrot, invitez vos amis et visez la couronne du champion de la semaine (parties en ligne).',
