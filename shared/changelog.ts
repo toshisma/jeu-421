@@ -7,7 +7,7 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
-  { version: '0.54', date: '2026-11-11T22:15:00+01:00', title: 'Nouveau jeu : le Poker menteur', items: [
+  { version: '0.54', date: '2026-11-11T22:17:00+01:00', title: 'Nouveau jeu : le Poker menteur', items: [
     'Nouveau jeu : le Poker menteur. Cinq dés de poker sous un gobelet, une annonce au voisin : croyez-vous, ou criez-vous « Menteur ! » ?',
     'Contre l’ordinateur (3 niveaux, jusqu’à 5 adversaires) ou en ligne de 2 à 6 joueurs avec vos amis.',
     'Le Poker menteur rapporte pièces et sacs de dés, compte pour les défis du jour et les bistrots entre amis, et a ses succès.',
