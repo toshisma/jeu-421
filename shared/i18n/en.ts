@@ -1,3 +1,4 @@
+import { pokerEn } from './zones/poker.en';
 import { courtisan2En } from './zones/courtisan2.en';
 import { clubsEn } from './zones/clubs.en';
 import { accueilEn } from './zones/accueil.en';
@@ -15,6 +16,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   ...accueilEn,
   ...(cartesEn as Partial<Record<MessageKey, string>>),
   ...(courtisan2En as Partial<Record<MessageKey, string>>),
+  ...(pokerEn as Partial<Record<MessageKey, string>>),
   "common.back": "Back",
   "common.close": "Close",
   "common.cancel": "Cancel",

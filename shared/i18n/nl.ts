@@ -1,3 +1,4 @@
+import { pokerNl } from './zones/poker.nl';
 import { courtisan2Nl } from './zones/courtisan2.nl';
 import { clubsNl } from './zones/clubs.nl';
 import { accueilNl } from './zones/accueil.nl';
@@ -15,6 +16,7 @@ export const nl: Partial<Record<MessageKey, string>> = {
   ...accueilNl,
   ...(cartesNl as Partial<Record<MessageKey, string>>),
   ...(courtisan2Nl as Partial<Record<MessageKey, string>>),
+  ...(pokerNl as Partial<Record<MessageKey, string>>),
   'common.back': 'Terug', 'common.close': 'Sluiten', 'common.cancel': 'Annuleren', 'common.confirm': 'Bevestigen', 'common.backHome': 'Terug naar het hoofdmenu', 'common.menu': 'Menu',
   'lang.title': 'Taal', 'lang.switch': 'Taal', 'lang.note': "Geldt voor het hele spel.",
   'lang.frenchOnly': 'Voorlopig is alleen De Hoveling vertaald. De 421, Coups Fourrés, de collectie en de winkel zijn in het Frans.',

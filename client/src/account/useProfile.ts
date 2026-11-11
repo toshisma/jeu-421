@@ -17,6 +17,8 @@ import { deviceId, setPresence } from '../presence';
 import { trackEvent, trackFirstPlay } from '../visit';
 import type { FxKind } from '../../../shared/progress/dice-collection';
 import { applyDixMilleGame, dixMilleBagRoll, dixMilleReward } from '../../../shared/dixmille/reward';
+import { applyPokerGame, pokerReward } from '../../../shared/pokermenteur/reward';
+import type { PmLevel } from '../../../shared/pokermenteur/engine';
 import type { DmLevel } from '../../../shared/dixmille/engine';
 import { cfCoinReward } from '../../../shared/cards/coins';
 import { applyFetesGame, claimAdvent } from '../../../shared/progress/fetes';
@@ -378,6 +380,42 @@ export function useProfile(enabled: boolean) {
     }
   }, [setProfile]);
 
+  // --- Poker menteur contre l'ordinateur (joué sur l'appareil) : comme le Courtisan --------------------
+  const pmGame = useRef<{ token: string | null; startedAt: number } | null>(null);
+  const onPokerStart = useCallback(() => {
+    pmGame.current = { token: null, startedAt: Date.now() };
+    if (!enabled) return;
+    trackFirstPlay('poker');
+    setPresence('solo');
+    const s = ref.current.session;
+    const g = pmGame.current;
+    if (s) api<{ gameToken: string }>('/poker/start', { body: {}, token: s.token }).then((r) => { g.token = r.gameToken; }).catch(() => {});
+  }, [enabled]);
+  /** Fin d'une partie de Poker menteur contre l'ordinateur : récompense du serveur (compte) ou calculée ici (invité). */
+  const onPokerEnd = useCallback(async (r: { won: boolean; place: number; opponents: number; level: PmLevel }): Promise<DmEndResult | null> => {
+    const g = pmGame.current;
+    pmGame.current = null;
+    if (!g) return null;
+    const s = ref.current.session;
+    if (!s) {
+      if (Date.now() - g.startedAt < 20_000) return null;
+      const day = today();
+      const minutes = (Date.now() - g.startedAt) / 60000;
+      const reward = pokerReward({ ...r, minutes, day, now: Date.now() });
+      const applied = applyPokerGame(ref.current.profile, reward, day, { won: r.won, players: r.opponents + 1, minutes, mode: 'solo', level: r.level, declared: true });
+      setProfile(applied.profile);
+      return { reward, levelBefore: applied.levelBefore, levelAfter: applied.levelAfter, bags: applied.bagsFound, quests: applied.questsDone.map((q) => q.text), achievements: applied.achievementsDone.map((a) => a.id) };
+    }
+    if (!g.token) return null;
+    try {
+      const res = await api<{ reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { text: string }[]; achievementsDone?: { id: string }[] } }>('/poker/end', { token: s.token, body: { gameToken: g.token, ...r } });
+      setProfile(sanitizeProfile(res.applied.profile));
+      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter, bags: res.applied.bagsFound ?? 0, quests: (res.applied.questsDone ?? []).map((q) => q.text), achievements: (res.applied.achievementsDone ?? []).map((a) => a.id) };
+    } catch {
+      return null;
+    }
+  }, [setProfile]);
+
   /** Photo de profil : envoyée au serveur (compte) ou gardée sur l'appareil (invité). */
   const setPhoto = useCallback(async (file: File): Promise<string | null> => {
     try {
@@ -402,7 +440,7 @@ export function useProfile(enabled: boolean) {
     register, login, recover, logout, deleteAccount,
     submitChallenge,
     buyItem, equipItem, claim, blocked, block, isBlocked, claimDailyReward, openEveningChest, claimPass, chooseTitle, finishTutorial, prestige, openAdventBox,
-    onSoloStart, onGameEnd, onTdcGuestEnd, onCfGuestEnd, onDixMilleStart, onDixMilleEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
+    onSoloStart, onGameEnd, onTdcGuestEnd, onCfGuestEnd, onDixMilleStart, onDixMilleEnd, onPokerStart, onPokerEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
     token: session?.token ?? null,
   };
 }

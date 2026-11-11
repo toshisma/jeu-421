@@ -41,6 +41,7 @@ import { createCfOnline, type CfOnlineOptions } from './cards-online';
 import { createCfStats } from './cf-stats';
 import { createCfTournament, type CfTourOptions } from './cf-tournament';
 import { cleanDmCode, createDixMilleOnline, type DmOnlineOptions } from './dixmille-online';
+import { cleanPmCode, createPokerOnline, type PmOnlineOptions } from './pokermenteur-online';
 import { createGroschen } from './groschen';
 import type { SeatInfo } from './live';
 
@@ -197,6 +198,8 @@ export interface ServerOptions {
   cfTour?: CfTourOptions;
   /** Le Courtisan en ligne (délais réduits dans les tests). */
   dm?: DmOnlineOptions;
+  /** Poker menteur en ligne (réglages de test). */
+  pm?: PmOnlineOptions;
   /** Tests seulement : dés imposés (selon le joueur et la partie) au lieu du tirage officiel. */
   testDie?: (playerId: string, state: GameState) => number;
 }
@@ -302,7 +305,7 @@ export async function startServer(opts: ServerOptions) {
   const admin = createAdmin(store, {
     ...opts.admin, isAdmin: stats.isAdmin, userFromToken: accounts.userFromToken,
     presence: () => stats.presenceEntries(), seatOf,
-    codeKnown: (code) => rooms.has(code) || tournaments.has(code) || dmHas(code) || cfCode(code),
+    codeKnown: (code) => rooms.has(code) || tournaments.has(code) || dmHas(code) || pmHas(code) || cfCode(code),
   });
   app.use('/api', admin.router);
   app.use('/api', stats.router);
@@ -340,9 +343,13 @@ export async function startServer(opts: ServerOptions) {
   let dmHas: (code: string) => boolean = () => false;
   let cfSeat: (userId: string) => SeatInfo | null = () => null;
   let cfCode: (code: string) => boolean = () => false;
+  let pmPresence: (userId: string) => ReturnType<Parameters<typeof accounts.setPresence>[0]> = () => null;
+  let pmHas: (code: string) => boolean = () => false;
   accounts.setPresence((userId) => {
     const dm = dmPresence(userId);
     if (dm) return dm;
+    const pm = pmPresence(userId);
+    if (pm) return pm;
     for (const r of rooms.values()) {
       const m = r.members.find((x) => x.userId === userId && x.socketId != null);
       if (!m) continue;
@@ -403,6 +410,7 @@ export async function startServer(opts: ServerOptions) {
   app.get('/api/code/:code', (req, res) => {
     const code = cleanCode(req.params.code);
     if (code && dmHas(code)) { res.setHeader('Cache-Control', 'no-store'); return res.json({ ok: true, kind: 'courtisan' }); }
+    if (code && pmHas(code)) { res.setHeader('Cache-Control', 'no-store'); return res.json({ ok: true, kind: 'poker' }); }
     const kind = code && rooms.has(code) && !rooms.get(code)!.tournament ? 'room' : code && tournaments.has(code) ? 'tournament' : null;
     res.setHeader('Cache-Control', 'no-store');
     if (!kind) return res.status(404).json({ ok: false, error: 'Aucune table ni aucun tournoi avec ce code. Vérifiez-le.' });
@@ -477,10 +485,19 @@ export async function startServer(opts: ServerOptions) {
     isBlocked: accounts.isBlocked, reward: accounts.dixMilleOnlineEnd, groschen, verifiedGame: (g) => bistrots.recordGame(g),
     recordChat: (e) => { tableChat.push(e); if (tableChat.length > TABLE_CHAT_KEEP) tableChat.splice(0, tableChat.length - TABLE_CHAT_KEEP); },
     adminNames,
-    taken: (code) => rooms.has(code) || tournaments.has(code), opts: opts.dm,
+    taken: (code) => rooms.has(code) || tournaments.has(code) || pmHas(code), opts: opts.dm,
   });
   dmPresence = dmOnline.presence;
   dmHas = (code) => !!cleanDmCode(code) && dmOnline.has(code);
+  // Poker menteur : tables en ligne, espace Socket.IO « /poker » (pas de mise).
+  const pmOnline = createPokerOnline({
+    io, store, userFromToken: accounts.userFromToken, banOf: admin.banOf, muteOf: moderation.muteOf, publicInfo: accounts.publicInfo,
+    isBlocked: accounts.isBlocked, reward: accounts.pokerOnlineEnd, verifiedGame: (g) => bistrots.recordGame(g),
+    recordChat: (e) => { tableChat.push(e); if (tableChat.length > TABLE_CHAT_KEEP) tableChat.splice(0, tableChat.length - TABLE_CHAT_KEEP); },
+    adminNames, today, taken: (code) => rooms.has(code) || tournaments.has(code) || dmHas(code), opts: opts.pm,
+  });
+  pmPresence = pmOnline.presence;
+  pmHas = (code) => !!cleanPmCode(code) && pmOnline.has(code);
 
   app.get('/health', (_req, res) => res.json({ ok: true, rooms: rooms.size, tournaments: tournaments.size }));
   const here = dirname(fileURLToPath(import.meta.url));
@@ -507,7 +524,7 @@ export async function startServer(opts: ServerOptions) {
   const newCode = () => {
     let code: string;
     do code = Array.from({ length: 5 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('');
-    while (rooms.has(code) || tournaments.has(code) || dmHas(code));
+    while (rooms.has(code) || tournaments.has(code) || dmHas(code) || pmHas(code));
     return code;
   };
 
@@ -2023,6 +2040,7 @@ export async function startServer(opts: ServerOptions) {
     port,
     rooms,
     closeDmTable: (code: string) => dmOnline.closeTable(code),
+    pmOnline,
     tournaments,
     accounts,
     store,
@@ -2037,6 +2055,7 @@ export async function startServer(opts: ServerOptions) {
       cfTour.close();
       cfOnline.close();
       dmOnline.close();
+      pmOnline.close();
       clearInterval(sweeper);
       if (schedTimer) clearInterval(schedTimer);
       if (newsTimer) clearTimeout(newsTimer);

@@ -34,7 +34,9 @@ import type { DuelPlay } from './ui/ChallengeScreen';
 import { restartPresence, setPresence, startPresence } from './presence';
 import { MessagesScreen } from './ui/Messages';
 import { connectMessages } from './messages';
-import { cfModeParam, courtisanModeParam } from './cfLink';
+import { cfModeParam, courtisanModeParam, pokerModeParam } from './cfLink';
+import { loadPmSession } from './pokermenteur/online';
+import type { PmPending } from './pokermenteur/PokerMenteur';
 import { keptLangSearch, tr, useLang } from './i18n/lang';
 import { loadDmSession } from './dixmille/online';
 import type { DmPending } from './dixmille/DixMille';
@@ -81,6 +83,8 @@ const TdcEndPanel = lazyScreen(() => import('./comptoirs/Tournee'), 'TdcEndPanel
 /** Coups Fourrés, le mode cartes : tout le mode est chargé à part, seulement quand on l'ouvre. */
 const CfMode = lazyScreen(() => import('./cards/CfMode'), 'CfMode');
 const DixMilleMode = lazyScreen(() => import('./dixmille/DixMille'), 'DixMilleMode');
+/** Poker menteur (4e jeu) : chargé à part, seulement quand on l'ouvre. */
+const PokerMenteurMode = lazyScreen(() => import('./pokermenteur/PokerMenteur'), 'PokerMenteurMode');
 /** Invitation à créer un compte (après une partie) et cadeau de bienvenue : chargés quand ils s'affichent. */
 const GuestInvitePopup = lazyScreen(() => import('./ui/GuestInvite'), 'GuestInvitePopup');
 const WelcomeGiftPopup = lazyScreen(() => import('./ui/GuestInvite'), 'WelcomeGiftPopup');
@@ -88,7 +92,7 @@ const WelcomeGiftPopup = lazyScreen(() => import('./ui/GuestInvite'), 'WelcomeGi
 const LIKELY = [GameScreen, OnlineHub, OnlineFlow, TournamentFlow, ShopScreen, SpectateFlow, TutorialScreen, PartySetup, ClubScreen, AlbumScreen];
 
 /** D'où l'on vient (pour revenir au bon menu) : menu principal, ou le menu d'un des trois jeux. */
-type Back = 'home' | 'classic' | 'cf' | 'dixmille';
+type Back = 'home' | 'classic' | 'cf' | 'dixmille' | 'poker';
 /** Écrans du 421 classique (la barre y ramène au menu du 421 en retour). */
 const CLASSIC_SCREENS = new Set(['classic', 'solo-setup', 'solo', 'hub', 'online', 'watch', 'tournament', 'rules', 'tutorial', 'boss', 'party-setup', 'party', 'referee', 'album', 'challenge', 'tdc', 'tdc-game']);
 
@@ -101,6 +105,7 @@ type Screen =
   | { name: 'friends'; from?: Back }
   | { name: 'messages'; with?: string; from?: Back }
   | { name: 'dixmille'; pending?: DmPending; reset?: number }
+  | { name: 'poker'; pending?: PmPending; reset?: number }
   | { name: 'cf'; pending?: { challenge?: string; watch?: string; tournoi?: boolean; boosters?: boolean }; reset?: number }
   | { name: 'changelog' }
   | { name: 'online'; mode: OnlineMode }
@@ -159,6 +164,9 @@ export function App() {
   // Le Courtisan : invitation à une table (/?courtisan=CODE), lien direct des pages d'aide (/?mode=courtisan).
   const courtInvite = useMemo(() => { const v = new URLSearchParams(location.search).get('courtisan'); return v && /^[A-Za-z0-9]{5}$/.test(v) ? v.toUpperCase() : null; }, []);
   const openCourt = useMemo(() => { const v = courtisanModeParam(location.search); if (v) cleanUrl(); return v; }, []);
+  // Poker menteur : invitation à une table (/?poker=CODE), lien direct des pages d'aide (/?mode=poker).
+  const pokerInvite = useMemo(() => { const v = new URLSearchParams(location.search).get('poker'); return v && /^[A-Za-z0-9]{5}$/.test(v) ? v.toUpperCase() : null; }, []);
+  const openPoker = useMemo(() => { const v = pokerModeParam(location.search); if (v) cleanUrl(); return v; }, []);
   const openDefi = useMemo(() => { const v = new URLSearchParams(location.search).has('defi'); if (v) cleanUrl(); return v; }, []);
   // Bistrots entre amis : lien d'invitation (/?bistrot=CODE) ou notification : écran Amis.
   const openBistrot = useMemo(() => captureBistrotLink(), []);
@@ -176,16 +184,19 @@ export function App() {
     : STANDALONE ? { name: 'home' }
       : courtInvite ? { name: 'dixmille', pending: { join: courtInvite } }
       : openCourt ? { name: 'dixmille' }
+      : pokerInvite ? { name: 'poker', pending: { join: pokerInvite } }
+      : openPoker ? { name: 'poker' }
       : watchLink ? { name: 'watch', code: watchLink.toUpperCase(), back: { name: 'home' } }
       : invite ? { name: 'online', mode: { kind: 'join', code: invite.toUpperCase() } }
         : tInvite && settings.name ? { name: 'tournament', mode: { kind: 'join', code: tInvite.toUpperCase() } }
           : tInvite || tSched ? { name: 'hub', tab: 'tournois' }
-            : jouer === 'courtisan' ? { name: 'dixmille', pending: { play: true } } : jouer === 'cartes' ? { name: 'cf', pending: { play: true } }
+            : jouer === 'courtisan' ? { name: 'dixmille', pending: { play: true } } : jouer === 'cartes' ? { name: 'cf', pending: { play: true } } : jouer === 'poker' ? { name: 'poker', pending: { play: true } }
               : jouer === 'amis' ? { name: 'online', mode: { kind: 'create' } } : openCf ? { name: 'cf', ...(openCf === 'tournoi' ? { pending: { tournoi: true } } : {}) } : openDefi ? { name: 'challenge' } : openPm ? { name: 'messages', with: openPm } : openBistrot ? { name: 'friends' } : { name: 'home' });
   const [resume, setResume] = useState(loadSession);
   const [courtResume, setCourtResume] = useState(loadDmSession);
+  const [pokerResume, setPokerResume] = useState(loadPmSession);
   /** Rejoindre une table : du 421, ou du Courtisan (`game`). */
-  const joinTable = (code: string, game?: string) => setScreen(game === 'courtisan' ? { name: 'dixmille', pending: { join: code } } : { name: 'online', mode: { kind: 'join', code, auto: true } });
+  const joinTable = (code: string, game?: string) => setScreen(game === 'courtisan' ? { name: 'dixmille', pending: { join: code } } : game === 'poker' ? { name: 'poker', pending: { join: code } } : { name: 'online', mode: { kind: 'join', code, auto: true } });
   // Profil : invité (sur l'appareil) ou compte (sur le serveur). Pas de comptes sans serveur.
   const pa = useProfile(!STANDALONE);
   // Signe de vie : un compte avec le jeu ouvert apparaît « en ligne » chez ses amis.
@@ -231,7 +242,7 @@ export function App() {
     return () => window.removeEventListener('421:banned', onBan);
   }, [pa.logout]);
   useEffect(() => {
-    setPresence(screen.name === 'solo' || screen.name === 'boss' || screen.name === 'tdc-game' || screen.name === 'dixmille' ? 'solo' : screen.name === 'online' || screen.name === 'tournament' ? 'online' : 'menu', screen.name);
+    setPresence(screen.name === 'solo' || screen.name === 'boss' || screen.name === 'tdc-game' || screen.name === 'dixmille' || screen.name === 'poker' ? 'solo' : screen.name === 'online' || screen.name === 'tournament' ? 'online' : 'menu', screen.name);
   }, [screen.name]);
 
   // Une fois l'accueil affiché : la 3D puis les écrans les plus probables se chargent en arrière-plan.
@@ -244,16 +255,17 @@ export function App() {
   }, []);
 
   const refreshResume = () => {
-    if (invite || tInvite || watchLink || courtInvite || location.pathname.startsWith('/confidentialite')) cleanUrl();
+    if (invite || tInvite || watchLink || courtInvite || pokerInvite || location.pathname.startsWith('/confidentialite')) cleanUrl();
     setResume(loadSession());
     setCourtResume(loadDmSession());
+    setPokerResume(loadPmSession());
   };
   /** Menu principal. */
   const home = () => { refreshResume(); setScreen({ name: 'home' }); };
   /** Menu du 421 classique (retour de toutes ses parties et de ses écrans). */
   const classic = () => { refreshResume(); setScreen({ name: 'classic' }); };
   /** Retour au menu d'où l'on venait. */
-  const backTo = (from?: Back) => () => (from === 'cf' ? setScreen({ name: 'cf' }) : from === 'dixmille' ? setScreen({ name: 'dixmille' }) : from === 'classic' ? classic() : home());
+  const backTo = (from?: Back) => () => (from === 'cf' ? setScreen({ name: 'cf' }) : from === 'dixmille' ? setScreen({ name: 'dixmille' }) : from === 'poker' ? setScreen({ name: 'poker' }) : from === 'classic' ? classic() : home());
 
   const startSolo = (cfg: GameConfig, opponents: Opponent[]) => {
     sound.unlock();
@@ -298,7 +310,7 @@ export function App() {
     sound.unlock();
     setScreen({ name: 'tutorial', controller: new TutorialController({ name: settings.name || pa.session?.username || tr('g421.guestName'), avatar: settings.avatar, photo: pa.photo }) });
   };
-  const resumeGame = () => setScreen(resume?.tournament ? { name: 'tournament', mode: { kind: 'resume' } } : resume ? { name: 'online', mode: { kind: 'resume' } } : { name: 'dixmille', pending: { resume: true } });
+  const resumeGame = () => setScreen(resume?.tournament ? { name: 'tournament', mode: { kind: 'resume' } } : resume ? { name: 'online', mode: { kind: 'resume' } } : courtResume ? { name: 'dixmille', pending: { resume: true } } : { name: 'poker', pending: { resume: true } });
   const onJoinScheduled = (code: string, pay: boolean) => setScreen({ name: 'tournament', mode: { kind: 'join', code, pay } });
 
   // --- Invitation à créer un compte (invités, après une partie) et cadeau de bienvenue -------------
@@ -331,7 +343,7 @@ export function App() {
   const [plus, setPlus] = useState<PlusSheet | null>(null);
   /** Le menu de jeu d'où l'on vient (retour des écrans communs ouverts par la barre). */
   const ctx: Back = 'from' in screen && screen.from && screen.from !== 'stats' ? screen.from
-    : screen.name === 'cf' ? 'cf' : screen.name === 'dixmille' ? 'dixmille'
+    : screen.name === 'cf' ? 'cf' : screen.name === 'dixmille' ? 'dixmille' : screen.name === 'poker' ? 'poker'
       : CLASSIC_SCREENS.has(screen.name) ? 'classic' : 'home';
   /** Changer d'écran par la barre : d'abord la règle de départ de l'écran affiché (partie en cours…). */
   const go = (f: () => void) => () => { void confirmLeave().then((ok) => { if (!ok) return; setPlus(null); refreshResume(); f(); }); };
@@ -345,6 +357,7 @@ export function App() {
     // Déjà dans ce jeu (sous-écran, partie) : retour à son menu.
     onCards: go(() => setScreen({ name: 'cf', reset: Date.now() })),
     onDixMille: go(() => setScreen({ name: 'dixmille', reset: Date.now() })),
+    onPoker: go(() => setScreen({ name: 'poker', reset: Date.now() })),
     onAccount: go(() => setScreen({ name: 'account' })),
     onLogin: go(() => setScreen({ name: 'account', tab: 'login' })),
     onSettings: go(() => setScreen({ name: 'settings', from: ctx })),
@@ -377,7 +390,7 @@ export function App() {
     case 'home':
       return <Home
         profile={profile} pa={pa} avatar={settings.avatar} displayName={settings.name} settings={settings} onChangeSettings={setSettings}
-        onClassic={classic} onCards={() => setScreen({ name: 'cf' })} onDixMille={() => setScreen({ name: 'dixmille' })}
+        onClassic={classic} onCards={() => setScreen({ name: 'cf' })} onDixMille={() => setScreen({ name: 'dixmille' })} onPoker={() => setScreen({ name: 'poker' })}
         onShop={() => setScreen({ name: 'shop' })} onAccount={() => setScreen({ name: 'account' })} onLogin={() => setScreen({ name: 'account', tab: 'login' })}
         onCollection={(open) => setScreen({ name: 'collection', open })} onFriends={() => setScreen({ name: 'friends' })} onMessages={() => setScreen({ name: 'messages' })}
         onSettings={() => setScreen({ name: 'settings' })} onSandbox={() => setScreen({ name: 'sandbox' })} onLegal={() => setScreen({ name: 'legal', back: { name: 'home' } })}
@@ -389,7 +402,7 @@ export function App() {
         onTournaments={() => setScreen({ name: 'hub', tab: 'tournois' })} onAlbum={() => setScreen({ name: 'album' })} onParty={() => setScreen({ name: 'party-setup' })}
         onOnline={() => setScreen({ name: 'hub', tab: 'tables' })} onChallenge={() => { sound.unlock(); setScreen({ name: 'challenge' }); }}
         onJoinScheduled={onJoinScheduled} notif={notif} discord={discord} onFeteBoss={startFeteBoss} onTournee={() => setScreen({ name: 'tdc' })} onQuickPlay={() => quickPlay('accueil')}
-        resume={resume ?? (courtResume ? { code: courtResume.code, courtisan: true } : null)} onResume={resumeGame} />;
+        resume={resume ?? (courtResume ? { code: courtResume.code, courtisan: true } : pokerResume ? { code: pokerResume.code, poker: true } : null)} onResume={resumeGame} />;
     case 'classic':
       return <ClassicMenu profile={profile} pa={pa} settings={settings} onBack={home}
         onSolo={() => setScreen({ name: 'solo-setup' })}
@@ -497,6 +510,10 @@ export function App() {
       return <DixMilleMode key={`${JSON.stringify(screen.pending ?? null)}${screen.reset ?? ''}`} pending={screen.pending} onAccount={() => setScreen({ name: 'account', ...(lang !== 'fr' ? { back: 'dixmille' as const } : {}) })} pa={pa} settings={settings} onSettings={setSettings} onHome={home}
         onCollection={(open) => setScreen({ name: 'collection', from: 'dixmille', open })}
         displayName={settings.name} avatar={settings.avatar} />;
+    case 'poker':
+      return <PokerMenteurMode key={`${JSON.stringify(screen.pending ?? null)}${screen.reset ?? ''}`} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} onHome={home}
+        onAccount={() => setScreen({ name: 'account', back: 'poker' })} onCollection={(open) => setScreen({ name: 'collection', from: 'poker', open })}
+        displayName={settings.name} avatar={settings.avatar} />;
     case 'cf':
       return <CfMode key={`${JSON.stringify(screen.pending ?? null)}${screen.reset ?? ''}`} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
         onHome={home} onFriends={() => setScreen({ name: 'friends', from: 'cf' })} onBags={() => setScreen({ name: 'collection', from: 'cf', open: true })}
@@ -507,7 +524,7 @@ export function App() {
         onCfWatch={(c) => setScreen({ name: 'cf', pending: { watch: c } })} onAccount={() => setScreen({ name: 'account' })} onJoin={joinTable}
         onInvite={(username) => setScreen({ name: 'online', mode: { kind: 'create', invite: username } })}
         onMessage={(username) => setScreen({ name: 'messages', with: username, from: screen.from })}
-        onWatch={(code, game) => setScreen(game === 'courtisan' ? { name: 'dixmille', pending: { watch: code } } : { name: 'watch', code, back: { name: 'friends', from: screen.from } })} />;
+        onWatch={(code, game) => setScreen(game === 'courtisan' ? { name: 'dixmille', pending: { watch: code } } : game === 'poker' ? { name: 'poker', pending: { watch: code } } : { name: 'watch', code, back: { name: 'friends', from: screen.from } })} />;
     case 'messages':
       return <MessagesScreen key={screen.with ?? ''} pa={pa} initial={screen.with} onBack={backTo(screen.from)} onAccount={() => setScreen({ name: 'account' })} />;
     case 'duels':
@@ -529,7 +546,7 @@ export function App() {
       return <LeaderboardScreen pa={pa} onBack={backTo(screen.from)} onAccount={() => setScreen({ name: 'account' })} />;
   } })();
   // Invitation d'un ami : bandeau partout, sauf quand on est déjà à une table en ligne.
-  const atTable = screen.name === 'online' || screen.name === 'tournament' || screen.name === 'watch' || screen.name === 'dixmille';
+  const atTable = screen.name === 'online' || screen.name === 'tournament' || screen.name === 'watch' || screen.name === 'dixmille' || screen.name === 'poker';
   // Cadeau de bienvenue : seulement pour ce compte, hors partie et hors des écrans où l'on ouvre déjà ses cadeaux.
   const showGift = !STANDALONE && pa.isAccount && !!gift && gift.user === pa.session?.username && !inGame && !guestInvite
     && screen.name !== 'account' && screen.name !== 'legal' && screen.name !== 'collection' && !(screen.name === 'cf' && screen.pending?.boosters);
@@ -544,7 +561,7 @@ export function App() {
         {guestInvite && !pa.isAccount && (
           <Suspense fallback={null}>
             <GuestInvitePopup game={guestInvite} onClose={closeInvite}
-              onCreate={() => { const back: Back = guestInvite === 'cf' ? 'cf' : guestInvite === 'courtisan' ? 'dixmille' : 'classic'; markInviteClosed(); setGuestInvite(null); go(() => setScreen({ name: 'account', tab: 'register', back }))(); }} />
+              onCreate={() => { const back: Back = guestInvite === 'cf' ? 'cf' : guestInvite === 'courtisan' ? 'dixmille' : guestInvite === 'poker' ? 'poker' : 'classic'; markInviteClosed(); setGuestInvite(null); go(() => setScreen({ name: 'account', tab: 'register', back }))(); }} />
           </Suspense>
         )}
         {showGift && gift && (

@@ -184,7 +184,7 @@ interface Visitors {
 interface FirstPlayRow { launched: number; rolled: number; medianPlayS: number | null; medianRollS: number | null; rollUnder30: number; rollUnder60: number }
 interface FirstPlay extends FirstPlayRow { visitors: number; byVia: (FirstPlayRow & { via: string })[]; byGame: { game: string; launched: number }[] }
 const VIA_LABEL: Record<string, string> = { accueil: 'Bouton « Lancer les dés » (accueil)', lien: 'Lien direct des pages d’aide (?jouer=)', menu: 'Menus du jeu' };
-const GAME_LABEL: Record<string, string> = { '421': '421', courtisan: 'Le Courtisan', cartes: 'Coups Fourrés', online: 'table en ligne' };
+const GAME_LABEL: Record<string, string> = { '421': '421', courtisan: 'Le Courtisan', cartes: 'Coups Fourrés', poker: 'Poker menteur', online: 'table en ligne' };
 const secs = (s: number | null) => (s == null ? '–' : s < 60 ? `${String(s).replace('.', ',')} s` : `${Math.floor(s / 60)} min ${String(Math.round(s % 60)).padStart(2, '0')}`);
 /** Première partie des nouveaux visiteurs : est-ce qu'ils jouent vite ? (bouton « Lancer les dés », liens ?jouer=). */
 function FirstPlayBlock({ f }: { f: FirstPlay }) {

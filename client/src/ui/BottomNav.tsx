@@ -32,7 +32,7 @@ type IconName = Parameters<typeof Icon>[0]['name'];
 /** Tout ce que la barre et le menu « Plus » savent ouvrir (déjà protégé par la confirmation de départ). */
 export interface NavActions {
   onHome: () => void; onFriends: () => void; onCollection: (open?: boolean) => void; onShop: () => void; onMessages: () => void;
-  onClassic: () => void; onCards: () => void; onDixMille: () => void;
+  onClassic: () => void; onCards: () => void; onDixMille: () => void; onPoker?: () => void;
   onAccount: () => void; onLogin: () => void; onSettings: () => void; onSandbox: () => void; onLegal: () => void;
   onPass: () => void; onStats: () => void; onClub: () => void; onDuels: () => void; onRecap: () => void; onChangelog: () => void;
   onAdmin: () => void; onModeration: () => void;
@@ -85,6 +85,7 @@ function PlusMenu({ a, pa, settings, onChangeSettings, discord, unread, onSheet,
       { label: tr('plus.classic'), icon: 'dice', go: a.onClassic, keys: 'jeu de base solo en ligne' },
       { label: tr('plus.cf'), icon: 'cards', go: a.onCards, keys: 'cartes mode cartes deck booster capsules ligue' },
       { label: tr('plus.courtier'), icon: 'dice', go: a.onDixMille, keys: '10000 dix mille farkle six des courtisan groschen' },
+      ...(a.onPoker ? [{ label: tr('pm.name'), icon: 'dice' as const, go: a.onPoker, keys: 'poker menteur bluff gobelet liar lugenpoker blufpoker' }] : []),
       // Le 421 : seulement à la recherche (tout est dans son menu).
       { label: tr('app.regles_du_421'), icon: 'rules', go: a.onRules, search: true, keys: 'regles combinaisons charge decharge' },
       { label: tr('app.partie_guidee_421'), icon: 'resume', go: a.onTutorial, search: true, keys: 'tuto apprendre' },

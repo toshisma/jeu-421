@@ -42,6 +42,8 @@ import type { ComboKind } from '../shared/combos';
 import type { Difficulty } from '../shared/ai';
 import { applyDixMilleGame, dixMilleBagRoll, dixMilleOnlineReward, dixMilleReward } from '../shared/dixmille/reward';
 import { DM_TARGETS, type DmLevel } from '../shared/dixmille/engine';
+import { applyPokerGame, pokerOnlineReward, pokerReward } from '../shared/pokermenteur/reward';
+import type { PmLevel } from '../shared/pokermenteur/engine';
 import { tdcSoloStart, tdcSoloEnd } from './comptoirs';
 import { reputation as tdcReputation } from '../shared/progress/comptoirs';
 
@@ -461,8 +463,58 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     return { reward, applied: { ...applied, profile: store.profileOf(store.userById(userId)!) } };
   }
 
+  // --- Poker menteur contre l'ordinateur (joué sur l'appareil) : mêmes garde-fous que le Courtisan ----
+  // (jeton de début, durée minimale, plafond quotidien partagé avec le solo). Résultat annoncé par le
+  // téléphone : il ne compte que pour les victoires et le barème du solo, jamais pour les succès vérifiés.
+  router.post('/poker/start', auth, (req, res) => {
+    const token = randomBytes(18).toString('base64url');
+    soloGames.set(token, { userId: userOf(req).id, startedAt: clock(), boss: null });
+    soloGames.prune(clock() - 12 * 3600_000);
+    res.json({ ok: true, gameToken: token });
+  });
+  router.post('/poker/end', auth, (req, res) => {
+    const u = userOf(req);
+    const b = req.body ?? {};
+    const g = typeof b.gameToken === 'string' ? soloGames.get(b.gameToken) : undefined;
+    if (!g || g.userId !== u.id) return fail(res, 400, 'Partie inconnue.');
+    if (clock() - g.startedAt < MIN_SOLO) return fail(res, 400, 'Partie trop courte pour être récompensée.');
+    soloGames.delete(b.gameToken);
+    const day = today();
+    if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.');
+    const levels: PmLevel[] = ['debutant', 'habitue', 'fouine'];
+    const level: PmLevel = levels.includes(b.level) ? b.level : 'habitue';
+    const opponents = Math.min(5, Math.max(1, Math.floor(Number(b.opponents) || 1)));
+    const minutes = (clock() - g.startedAt) / 60000;
+    const reward = pokerReward({
+      won: !!b.won, place: b.won ? 1 : Math.min(opponents + 1, Math.max(2, Math.floor(Number(b.place) || opponents + 1))), opponents, level, minutes, day, now: clock(),
+    });
+    const applied = applyPokerGame(store.profileOf(u), reward, day, { won: !!b.won, players: opponents + 1, minutes, mode: 'solo', level, declared: true, now: clock() });
+    store.saveProfile(u.id, applied.profile);
+    leagueGain(u.id, reward.xp);
+    res.json({ ok: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
+  });
+
+  /** Fin d'une partie de Poker menteur en ligne (appelée par le serveur de jeu) : comme le Courtisan. */
+  function pokerOnlineEnd(userId: string, o: { won: boolean; place: number; players: number; humans: number; botLevels: PmLevel[]; minutes: number; day: string; abandoned: boolean;
+    feats?: { callsRight: number; bluffsPassed: number; pokerAs: number; livesLost: number } }) {
+    const u = store.userById(userId);
+    if (!u || o.abandoned) return null;
+    if (o.botLevels.length && store.bumpSolo(userId, o.day) > SOLO_CAP) return null;
+    const reward = pokerOnlineReward({ ...o, now: Date.now() });
+    const easiest = (['debutant', 'habitue', 'fouine'] as PmLevel[]).find((l) => o.botLevels.includes(l));
+    const f = o.feats ?? { callsRight: 0, bluffsPassed: 0, pokerAs: 0, livesLost: 0 };
+    const applied = applyPokerGame(store.profileOf(u), reward, o.day, {
+      won: o.won, players: o.players, minutes: o.minutes, mode: o.humans >= 2 ? 'online' : 'solo', level: o.humans >= 2 ? undefined : easiest, now: clock(),
+      verified: { online: o.humans >= 2, botLevels: o.botLevels, ...f },
+    });
+    store.saveProfile(userId, applied.profile);
+    leagueGain(userId, reward.xp);
+    if (o.won && o.humans >= 2) news(`🃏 ${u.username} a remporté une partie de Poker menteur`);
+    return { reward, applied: { ...applied, profile: store.profileOf(store.userById(userId)!) } };
+  }
+
   /** Où se trouve un compte en ce moment (fourni par le serveur de jeu ; `game` : le Courtisan). */
-  let presence: (userId: string) => { code: string; status: 'salon' | 'partie'; joinable: boolean; watchable?: boolean; game?: 'courtisan' } | null = () => null;
+  let presence: (userId: string) => { code: string; status: 'salon' | 'partie'; joinable: boolean; watchable?: boolean; game?: 'courtisan' | 'poker' } | null = () => null;
   const setPresence = (f: typeof presence) => { presence = f; };
   /** Présence dans « Coups Fourrés » (menu du mode, ou partie qu'on peut regarder). */
   let cfPresence: (userId: string) => { status: 'menu' | 'partie'; code?: string; watchable?: boolean } | null = () => null;
@@ -660,7 +712,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   });
 
   // --- Invitations en partie : un ami invite un autre à rejoindre sa table, d'un clic. ---------------
-  const invites = new Map<string, { from: string; code: string; at: number; game?: 'courtisan' }[]>();
+  const invites = new Map<string, { from: string; code: string; at: number; game?: 'courtisan' | 'poker' }[]>();
   const INVITE_MS = 10 * 60_000;
   const invitesOf = (userId: string) => {
     const t = Date.now();
@@ -677,7 +729,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const list = invitesOf(to.id).filter((i) => i.from !== me.username);
     list.push({ from: me.username, code: room.code, at: Date.now(), ...(room.game ? { game: room.game } : {}) });
     invites.set(to.id, list.slice(-5));
-    if (room.game === 'courtisan') void social.push(to.id, `${me.username} vous invite au Courtisan`, 'Une table de dés vous attend : touchez pour la rejoindre.', `/?courtisan=${room.code}`);
+    if (room.game === 'poker') void social.push(to.id, `${me.username} vous invite au Poker menteur`, 'Un gobelet vous attend : touchez pour rejoindre la table.', `/?poker=${room.code}`);
+    else if (room.game === 'courtisan') void social.push(to.id, `${me.username} vous invite au Courtisan`, 'Une table de dés vous attend : touchez pour la rejoindre.', `/?courtisan=${room.code}`);
     else void social.push(to.id, `${me.username} vous invite à jouer`, 'Une table vous attend : touchez pour la rejoindre.', `/?rejoindre=${room.code}`);
     res.json({ ok: true });
   });
@@ -985,5 +1038,5 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   // Saint-Nicolas et fêtes : calendrier de l'avent (jour du serveur).
   createFetes({ router, store, auth, userOf, fail, now: () => opts.now?.() ?? Date.now() });
 
-  return { social, messages, cards, enigme, router, dixMilleOnlineEnd, setPresence, setCfPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked, setVerifiedGame };
+  return { social, messages, cards, enigme, router, dixMilleOnlineEnd, pokerOnlineEnd, setPresence, setCfPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked, setVerifiedGame };
 }

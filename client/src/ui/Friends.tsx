@@ -10,7 +10,7 @@ import { BistrotGuestInvite, BistrotScreen, BistrotsSection } from './Bistrots';
 
 interface Friend {
   username: string; level: number; me?: boolean; lastSeen: number; online: boolean;
-  room: { code: string; status: 'salon' | 'partie'; joinable: boolean; watchable?: boolean; game?: 'courtisan' } | null;
+  room: { code: string; status: 'salon' | 'partie'; joinable: boolean; watchable?: boolean; game?: 'courtisan' | 'poker' } | null;
   /** Présence dans Coups Fourrés (menu du mode, ou partie qu'on peut regarder). */
   cf?: { status: 'menu' | 'partie'; code?: string; watchable?: boolean } | null;
 }
@@ -78,6 +78,7 @@ export function FriendsScreen({ pa, onBack, onAccount, onJoin, onInvite, onMessa
         <Initial name={f.username} dot={f.room || f.cf?.status === 'partie' ? 'play' : f.online ? 'on' : 'off'} />
         <span className="fr-name"><b>{f.username}</b><small>
           {f.cf ? (f.cf.status === 'partie' ? tr('app.en_partie_de_coups_fourres') : tr('app.dans_coups_fourres'))
+            : f.room?.game === 'poker' ? (f.room.status === 'salon' ? tr('pm.fr.table') : tr('pm.fr.plays'))
             : f.room?.game === 'courtisan' ? (f.room.status === 'salon' ? tr('app.a_une_table_du_courtisan') : tr('app.joue_au_courtisan'))
             : f.room ? (f.room.status === 'salon' ? tr('app.dans_un_salon_en_attente') : tr('app.en_pleine_partie')) : f.online ? tr('app.en_ligne_3') : seenAgo(f.lastSeen)}
           {' · '}{tr('app.niv_2')} {f.level}</small></span>
@@ -175,7 +176,7 @@ export function InviteBanner({ pa, onJoin }: { pa: ProfileApi; onJoin: (code: st
   return (
     <div className="invite-banner" role="alert">
       <span aria-hidden>🎲</span>
-      <span className="ib-text"><b>{inv.from}</b>{tr('inv.from')}{inv.game === 'courtisan' ? tr('inv.courtier') : ''}</span>
+      <span className="ib-text"><b>{inv.from}</b>{tr('inv.from')}{inv.game === 'courtisan' ? tr('inv.courtier') : inv.game === 'poker' ? tr('pm.inv') : ''}</span>
       <button className="btn primary small" onClick={() => { drop(); onJoin(inv.code, inv.game); }}>{tr('app.accepter')}</button>
       <button className="btn ghost small" onClick={drop}>{tr('app.refuser')}</button>
     </div>

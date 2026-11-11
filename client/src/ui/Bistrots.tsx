@@ -27,7 +27,7 @@ interface Full {
 const plural = (n: number, key: 'club.members' | 'club.invitedBy' | 'club.games', vars: Record<string, string | number>) =>
   tr(n > 1 ? (`${key}.p` as const) : key, { n, ...vars });
 const shortDate = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString(loc(), { day: 'numeric', month: 'short' });
-const gameName = (g?: string) => (g === 'courtisan' ? tr('club.g.courtisan') : g === 'cf' ? tr('club.g.cf') : g === 'duel' ? tr('club.g.duel') : tr('club.g.421'));
+const gameName = (g?: string) => (g === 'poker' ? tr('pm.name') : g === 'courtisan' ? tr('club.g.courtisan') : g === 'cf' ? tr('club.g.cf') : g === 'duel' ? tr('club.g.duel') : tr('club.g.421'));
 
 /** Section de l'écran Amis : mes bistrots, invitations, lien reçu, ouvrir un bistrot. */
 export function BistrotsSection({ pa, onOpen }: { pa: ProfileApi; onOpen: (id: string) => void }) {

@@ -1,3 +1,4 @@
+import { pokerDe } from './zones/poker.de';
 import { courtisan2De } from './zones/courtisan2.de';
 import { clubsDe } from './zones/clubs.de';
 import { accueilDe } from './zones/accueil.de';
@@ -15,6 +16,7 @@ export const de: Partial<Record<MessageKey, string>> = {
   ...accueilDe,
   ...(cartesDe as Partial<Record<MessageKey, string>>),
   ...(courtisan2De as Partial<Record<MessageKey, string>>),
+  ...(pokerDe as Partial<Record<MessageKey, string>>),
   'common.back': 'Zurück', 'common.close': 'Schließen', 'common.cancel': 'Abbrechen', 'common.confirm': 'Bestätigen', 'common.backHome': 'Zurück zum Hauptmenü', 'common.menu': 'Menü',
   'lang.title': 'Sprache', 'lang.switch': 'Sprache', 'lang.note': "Gilt für das ganze Spiel.",
   'lang.frenchOnly': 'Bisher ist nur Der Höfling übersetzt. Die 421, Coups Fourrés, die Sammlung und der Shop sind auf Französisch.',

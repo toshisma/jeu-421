@@ -1,3 +1,4 @@
+import { pokerFr } from './zones/poker.fr';
 import { courtisan2Fr } from './zones/courtisan2.fr';
 import { clubsFr } from './zones/clubs.fr';
 import { accueilFr } from './zones/accueil.fr';
@@ -17,6 +18,7 @@ export const fr = {
   ...cartesFr,
   ...courtisan2Fr,
   ...tdcFr,
+  ...pokerFr,
   "common.back": "Retour",
   "common.close": "Fermer",
   "common.cancel": "Annuler",

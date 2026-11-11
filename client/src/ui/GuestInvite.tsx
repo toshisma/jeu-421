@@ -61,7 +61,7 @@ function Popup({ onClose, children }: { label: string; onClose: () => void; chil
   );
 }
 
-const lead = (g: InviteGame) => tr(`gi.lead.${g}`);
+const lead = (g: InviteGame) => (g === 'poker' ? tr('pm.gi.lead') : tr(`gi.lead.${g}`));
 
 export function GuestInvitePopup({ game, onCreate, onClose }: { game: InviteGame; onCreate: () => void; onClose: () => void }) {
   return (

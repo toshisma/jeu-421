@@ -44,7 +44,7 @@ export const cleanBistrotCode = (v: unknown): string | null => {
   return c.length === BISTROT_CODE_LEN && [...c].every((ch) => BISTROT_CODE_ALPHABET.includes(ch)) ? c : null;
 };
 
-export type BistrotGame = '421' | 'courtisan' | 'cf' | 'duel';
+export type BistrotGame = '421' | 'courtisan' | 'cf' | 'duel' | 'poker';
 
 /** Annonce du mur (le client l'écrit dans la langue du joueur). */
 export type WallKind = 'ouvert' | 'recrue' | 'depart' | 'retire' | 'victoire' | 'coup' | 'tournoi' | 'champion' | 'patron';

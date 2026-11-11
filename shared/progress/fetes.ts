@@ -121,7 +121,7 @@ export const feteTitle = (id: string): string | null => FETE_TITLES[id] ?? null;
 // ---------------------------------------------------------------------------------------------
 // Défis d'événement (toute la durée de l'événement, les trois jeux comptent)
 
-export type FeteGameKind = '421' | 'cf' | 'dm';
+export type FeteGameKind = '421' | 'cf' | 'dm' | 'pm';
 /** Une partie terminée, vue par les défis d'événement. */
 export interface FeteGame {
   game: FeteGameKind;
@@ -138,13 +138,13 @@ export const FETE_CHALLENGES: Record<FeteId, FeteChallenge[]> = {
   'saint-nicolas': [
     { id: 'sn-jouer', text: 'Terminer 8 parties', target: 8, coins: 15, progress: PLAY },
     { id: 'sn-gagner', text: 'Gagner 4 parties', target: 4, coins: 20, progress: (g) => (g.won ? 1 : 0) },
-    { id: 'sn-jeux', text: 'Jouer aux trois jeux', target: 3, coins: 15, progress: () => 0 },
+    { id: 'sn-jeux', text: 'Jouer à trois jeux différents', target: 3, coins: 15, progress: () => 0 },
     { id: 'sn-421', text: 'Faire un 4-2-1 au 421', target: 1, coins: 20, progress: (g) => games(g)['421'] ?? 0 },
   ],
   fetes: [
     { id: 'fe-jouer', text: 'Terminer 12 parties', target: 12, coins: 15, progress: PLAY },
     { id: 'fe-gagner', text: 'Gagner 6 parties', target: 6, coins: 20, progress: (g) => (g.won ? 1 : 0) },
-    { id: 'fe-jeux', text: 'Jouer aux trois jeux', target: 3, coins: 15, progress: () => 0 },
+    { id: 'fe-jeux', text: 'Jouer à trois jeux différents', target: 3, coins: 15, progress: () => 0 },
     { id: 'fe-brelans', text: 'Faire 3 brelans au 421', target: 3, coins: 20, progress: (g) => games(g).brelan ?? 0 },
   ],
 };
@@ -270,7 +270,7 @@ export function cleanFete(raw: unknown): FeteState | undefined {
   const p: Record<string, number> = {};
   for (const id of ids) if (r.p && typeof r.p[id] === 'number') p[id] = Math.min(99, num(r.p[id]));
   const done = Array.isArray(r.done) ? [...new Set(r.done.filter((x) => ids.includes(x)))] : [];
-  const g = Array.isArray(r.g) ? [...new Set(r.g.filter((x): x is FeteGameKind => x === '421' || x === 'cf' || x === 'dm'))] : [];
+  const g = Array.isArray(r.g) ? [...new Set(r.g.filter((x): x is FeteGameKind => x === '421' || x === 'cf' || x === 'dm' || x === 'pm'))] : [];
   return { k: r.k, p, done, g, ...(r.boss ? { boss: 1 as const } : {}) };
 }
 export function cleanAdvent(raw: unknown): AdventState | undefined {

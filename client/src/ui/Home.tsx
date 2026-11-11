@@ -42,7 +42,7 @@ import { showQuickPlay } from '../quickPlay';
 export interface HomeProps {
   profile: Profile; pa: ProfileApi; avatar: string; displayName: string; settings: Settings; onChangeSettings: (s: Settings) => void;
   /** Les trois jeux. */
-  onClassic: () => void; onCards: () => void; onDixMille: () => void;
+  onClassic: () => void; onCards: () => void; onDixMille: () => void; onPoker?: () => void;
   /** Le général. */
   onShop: () => void; onAccount: () => void; onLogin: () => void;
   /** Collection de dés ; `open` : ouvrir tout de suite un sac (écran d'ouverture). */
@@ -56,7 +56,7 @@ export interface HomeProps {
   /** Partie express « Lancer les dés » (421 contre un ordinateur, réglages par défaut), mise en avant pour les débutants. */
   onQuickPlay?: () => void;
   /** Partie à reprendre (421 ou Courtisan). */
-  resume: { code: string; tournament?: boolean; courtisan?: boolean } | null; onResume: () => void;
+  resume: { code: string; tournament?: boolean; courtisan?: boolean; poker?: boolean } | null; onResume: () => void;
   /** Tournoi programmé dont le salon est ouvert (le joueur y est inscrit). */
   onJoinScheduled?: (code: string, pay: boolean) => void;
   /** Adversaire spécial de Saint-Nicolas / des fêtes (pendant l'événement). */
@@ -71,7 +71,7 @@ type SheetKind = 'coffre' | 'cadeau' | 'missions' | 'discord';
 
 /** Grande entrée d'un jeu : illustration, nom, ce qui l'attend. */
 function ModeCard({ tone, title, art, status, hot, badge, onClick }: {
-  tone: 'classique' | 'cartes' | 'dixmille'; title: string; art: React.ReactNode; status: React.ReactNode; hot?: boolean; badge?: string; onClick: () => void;
+  tone: 'classique' | 'cartes' | 'dixmille' | 'poker'; title: string; art: React.ReactNode; status: React.ReactNode; hot?: boolean; badge?: string; onClick: () => void;
 }) {
   return (
     <button className={`mm-mode ${tone}${hot ? ' hot' : ''}`} onClick={onClick}>
@@ -175,7 +175,7 @@ export function Home(props: HomeProps) {
   // --- Une seule bannière : la plus utile ---------------------------------------------------------------
   const ev = activeEvent(day) || coinBoost(day);
   const banner = (() => {
-    if (props.resume && !STANDALONE) return <button className="home-banner resume" onClick={props.onResume}><Icon name="resume" size={20} /><span><b>{props.resume.tournament ? tr('app.tournoi_du_421_en_cours') : props.resume.courtisan ? tr('app.partie_du_courtisan_en_cours') : tr('app.partie_de_421_en_cours')}</b><small>{tr('app.table')} {props.resume.code}</small></span><em>{tr('app.reprendre')}</em></button>;
+    if (props.resume && !STANDALONE) return <button className="home-banner resume" onClick={props.onResume}><Icon name="resume" size={20} /><span><b>{props.resume.tournament ? tr('app.tournoi_du_421_en_cours') : props.resume.courtisan ? tr('app.partie_du_courtisan_en_cours') : props.resume.poker ? tr('pm.resumeHome') : tr('app.partie_de_421_en_cours')}</b><small>{tr('app.table')} {props.resume.code}</small></span><em>{tr('app.reprendre')}</em></button>;
     const salon = prog?.slots.find((x) => x.status === 'salon' && x.registered && x.code);
     if (salon && props.onJoinScheduled) return <button className="home-banner resume" onClick={() => props.onJoinScheduled!(salon.code!, false)}><Icon name="trophy" size={20} /><span><b>{tr('app.votre_tournoi_de_h_commence', { hour: salon.hour })}</b><small>{tr('app.le_salon_est_ouvert_rejoignez_le')}</small></span><em>{tr('app.rejoindre')}</em></button>;
     if (props.onQuickPlay && showQuickPlay(profile.stats.played)) return <QuickPlayBanner onClick={props.onQuickPlay} />;
@@ -193,7 +193,7 @@ export function Home(props: HomeProps) {
 
   // --- Les trois jeux : ce qui les attend ---------------------------------------------------------------
   const t = tournamentInfo(prog, now);
-  const classicRes = props.resume && !props.resume.courtisan && !STANDALONE;
+  const classicRes = props.resume && !props.resume.courtisan && !props.resume.poker && !STANDALONE;
   const classic = classicRes ? { status: <><b className="mm-hot">{tr('app.partie_en_cours')}</b> {tr('app.table_2')} {props.resume!.code}</>, hot: true }
     : !STANDALONE && t.registered ? { status: <><b className="mm-hot">{tr('app.inscrit')}</b> {tr('app.tournoi_de')} {t.label} {t.open ? tr('app.salon_ouvert') : inTime(t.minutes)}</>, hot: t.open, badge: t.open ? tr('app.go') : undefined }
     : { status: STANDALONE ? tr('app.contre_l_ordinateur_entre_amis') : <>{online != null && <><i className="live-dot" aria-hidden />{online} {tr('app.en_ligne')} </>}{tr('app.tournoi')} {t.label} {inTime(t.minutes)}</> };
@@ -203,6 +203,9 @@ export function Home(props: HomeProps) {
     : cf.boosters > 0 ? { status: <><b className="mm-hot">{cf.boosters} {tr(cf.boosters > 1 ? 'app.booster.p' : 'app.booster')}</b> {tr('app.a_ouvrir')}{cf.division ? ` · ${cf.division}` : ''}</>, hot: true, badge: String(cf.boosters) }
     : { status: tr('app.missions', { v: cf.division ?? tr('app.ligue'), missionsDone: cf.missionsDone, missions: cf.missions }) };
   const courtRes = props.resume?.courtisan && !STANDALONE;
+  const pokerRes = props.resume?.poker && !STANDALONE;
+  const pokerSt = pokerRes ? { status: <><b className="mm-hot">{tr('app.partie_en_cours')}</b> {tr('app.table_2')} {props.resume!.code}</>, hot: true }
+    : { status: tr('pm.homeSub'), badge: (profile.pm?.games ?? 0) === 0 ? tr('app.nouveau') : undefined };
   const courtSt = courtRes ? { status: <><b className="mm-hot">{tr('app.partie_en_cours')}</b> {tr('app.table_2')} {props.resume!.code}</>, hot: true }
     : gr?.giftReady ? { status: <><b className="mm-hot">{tr('app.cadeau_du_jour')}</b>{tr('app.groschen', { GROSCHEN_DAILY: gr.giftAmount || GROSCHEN_DAILY })}</>, hot: true, badge: `+${gr.giftAmount || GROSCHEN_DAILY}` }
     : gr ? { status: tr('app.groschen_2_a_6_joueurs', { v: gr.balance.toLocaleString(loc()) }) }
@@ -235,13 +238,15 @@ export function Home(props: HomeProps) {
           {!STANDALONE && <div className="h2-news"><NewsTicker /></div>}
         </section>
 
-        <nav className="mm-modes" aria-label={tr('app.les_jeux')}>
+        <nav className={`mm-modes${props.onPoker ? " four" : ""}`} aria-label={tr('app.les_jeux')}>
           <ModeCard tone="classique" title={tr('app.421_classique')} onClick={props.onClassic} {...classic}
             art={<span className="mm-plate">421</span>} />
           <ModeCard tone="cartes" title="Coups Fourrés" onClick={props.onCards} {...cardsSt}
             art={<span className="mm-fan"><i className="h" /><i className="v" /><i className="p" /></span>} />
           <ModeCard tone="dixmille" title={tr('app.le_courtisan')} onClick={props.onDixMille} {...courtSt}
             art={<span className="mm-dice"><DieCube id={profile.equipped.dice} size={30} /></span>} />
+          {props.onPoker && <ModeCard tone="poker" title={tr('pm.name')} onClick={props.onPoker} {...pokerSt}
+            art={<span className="mm-cup" aria-hidden><i className="cup" /><i className="d">{tr('pm.face.5')}</i><i className="d r">{tr('pm.face.4')}</i></span>} />}
         </nav>
 
         {/* Sacs de dés et collection : bien en vue (communs aux trois jeux). */}

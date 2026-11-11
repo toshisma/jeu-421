@@ -74,6 +74,7 @@ const SCREENS: Record<string, { label: string; game?: LiveGame; status?: LiveSta
   duels: { label: 'Défis entre amis' },
   duel: { label: 'Défi entre amis', game: '421', status: 'partie' },
   dixmille: { label: 'Le Courtisan', game: 'courtisan' },
+  poker: { label: 'Poker menteur' },
   cf: { label: 'Coups Fourrés', game: 'cf' },
   shop: { label: 'Boutique' },
   collection: { label: 'Collection de dés' },

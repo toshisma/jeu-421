@@ -6,7 +6,7 @@
 import { Icon } from './Icon';
 import { tr } from '../i18n/lang';
 
-export type ModeTone = 'classique' | 'cartes' | 'dixmille';
+export type ModeTone = 'classique' | 'cartes' | 'dixmille' | 'poker';
 
 export function ModeBar({ tone, title, onBack, children }: {
   tone: ModeTone; title: string; onBack: () => void;

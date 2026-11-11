@@ -1,5 +1,6 @@
 import { ITEMS } from './catalog';
 import type { DmStats } from '../dixmille/stats';
+import type { PmStats } from '../pokermenteur/stats';
 
 /**
  * Succès : objectifs permanents, débloqués automatiquement, chacun avec une récompense en pièces.
@@ -40,7 +41,7 @@ export const EMPTY_STATS: Stats = {
 };
 
 /** Ce dont un succès a besoin pour mesurer sa progression. */
-export interface AchievementInput { stats: Stats; level: number; purchases: number; owned?: string[]; /** Statistiques du Courtisan. */ dm?: DmStats }
+export interface AchievementInput { stats: Stats; level: number; purchases: number; owned?: string[]; /** Statistiques du Courtisan. */ dm?: DmStats; /** Statistiques du Poker menteur. */ pm?: PmStats }
 
 /** Nombre d'objets payants du catalogue (pour « tout posséder »). */
 export const PAID_ITEMS = ITEMS.filter((i) => i.price > 0).length;
@@ -57,12 +58,13 @@ export interface AchievementDef {
   /** Succès secret : nom et description cachés tant qu'il n'est pas débloqué. */
   secret?: boolean;
   /** Succès propre à un mode (affiché à part, et dans le menu de ce mode). */
-  game?: 'courtisan';
+  game?: 'courtisan' | 'poker';
   value: (a: AchievementInput) => number;
 }
 
 const st = (k: keyof Stats) => (a: AchievementInput) => a.stats[k];
 const dm = (k: keyof DmStats) => (a: AchievementInput) => a.dm?.[k] ?? 0;
+const pm = (k: keyof PmStats) => (a: AchievementInput) => a.pm?.[k] ?? 0;
 const bits = (n: number) => (n & 1) + ((n >> 1) & 1) + ((n >> 2) & 1);
 
 /**
@@ -88,6 +90,25 @@ function DM_ACHIEVEMENTS(): AchievementDef[] {
     { ...c, id: 'dm-serie-3', icon: '☄️', name: 'Main heureuse', description: 'Gagner 3 parties en ligne du Courtisan d’affilée', target: 3, coins: 5, value: dm('bestStreak') },
     { ...c, id: 'dm-pot', icon: '🪙', name: 'Le pot est à moi', description: 'Emporter un pot de Groschen', target: 1, coins: 5, value: dm('pots') },
     { ...c, id: 'dm-six-identiques', icon: '🎰', name: 'Six fois la même', description: 'Six dés identiques en un seul lancer (partie en ligne)', target: 1, coins: 15, secret: true, value: dm('sixKind') },
+  ];
+}
+
+/**
+ * Succès du Poker menteur : récompenses basses (au niveau du bas des autres). Tous vérifiés par le
+ * serveur (parties qu'il joue : en ligne, ordinateurs compris), SAUF les victoires (les deux premiers),
+ * où une partie contre l'ordinateur jouée sur le téléphone compte aussi, avec les bornes du solo.
+ */
+function PM_ACHIEVEMENTS(): AchievementDef[] {
+  const c = { game: 'poker' as const };
+  return [
+    { ...c, id: 'pm-premiere', icon: '🃏', name: 'Premier menteur', description: 'Gagner une partie de Poker menteur', target: 1, coins: 5, value: pm('wins') },
+    { ...c, id: 'pm-gagnant-25', icon: '🎩', name: 'Pilier du gobelet', description: 'Gagner 25 parties de Poker menteur', target: 25, coins: 15, value: pm('wins') },
+    { ...c, id: 'pm-en-ligne', icon: '🌐', name: 'Bluff en ligne', description: 'Gagner une partie de Poker menteur en ligne contre un autre joueur', target: 1, coins: 10, value: pm('onlineWins') },
+    { ...c, id: 'pm-flair', icon: '👃', name: 'Flair de comptoir', description: 'Crier « Menteur ! » à raison 10 fois (parties en ligne)', target: 10, coins: 5, value: pm('callsRight') },
+    { ...c, id: 'pm-bluff', icon: '😏', name: 'Bluff de maître', description: 'Faire croire 10 mensonges (parties en ligne)', target: 10, coins: 5, value: pm('bluffsPassed') },
+    { ...c, id: 'pm-intact', icon: '🛡️', name: 'Sans une égratignure', description: 'Gagner sans perdre une vie, à 3 joueurs ou plus (partie en ligne)', target: 1, coins: 10, value: pm('flawless') },
+    { ...c, id: 'pm-niveaux', icon: '🧠', name: 'Tous les comptoirs', description: 'Battre un ordinateur de chaque niveau (Débutant, Habitué, Fine fouine) à une table en ligne', target: 3, coins: 10, value: (a) => bits(a.pm?.beaten ?? 0) },
+    { ...c, id: 'pm-poker-as', icon: '🂡', name: 'Le vrai Poker d’As', description: 'Avoir un vrai Poker d’As sous le gobelet quand on le soulève (partie en ligne)', target: 1, coins: 15, secret: true, value: pm('pokerAs') },
   ];
 }
 
@@ -145,6 +166,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'secret-legende', icon: '🐉', name: 'Ça, c’est une légende', description: 'Posséder un dé légendaire', target: 1, coins: 10, secret: true, value: (a) => (a.owned ?? []).filter((id) => ['dc-perron', 'dc-dragon', 'dc-aurore'].includes(id.replace('-brillant', ''))).length },
   { id: 'patron-10', icon: '🥊', name: 'Terreur des patrons', description: 'Battre 10 patrons de la semaine', target: 10, coins: 100, rare: true, value: st('bossWins') },
   ...DM_ACHIEVEMENTS(),
+  ...PM_ACHIEVEMENTS(),
 ];
 
 /** Succès débloqués par la situation actuelle et pas encore enregistrés. */

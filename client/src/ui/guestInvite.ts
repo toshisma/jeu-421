@@ -9,7 +9,7 @@
  */
 import { useEffect } from 'react';
 
-export type InviteGame = '421' | 'cf' | 'courtisan';
+export type InviteGame = '421' | 'cf' | 'courtisan' | 'poker';
 
 /** Délai minimal entre deux fenêtres (depuis la dernière fermeture). */
 export const INVITE_COOLDOWN_MS = 2 * 60_000;

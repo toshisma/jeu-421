@@ -57,8 +57,8 @@ function Achievements({ unlocked, progress }: { unlocked: Record<string, number>
     <section className="pv-ach">
       <p className="pv-ach-sum"><b>{n}</b> {tr('app.succes_sur')} {ACHIEVEMENTS.length}<span className="tile-bar"><i style={{ width: `${(100 * n) / ACHIEVEMENTS.length}%` }} /></span></p>
       {/* 0.53 : succès du Courtisan rangés à part, sous leur titre. */}
-      {[ACHIEVEMENTS.filter((a) => !a.game), ACHIEVEMENTS.filter((a) => a.game === 'courtisan')].map((group, gi) => <div key={gi}>
-      {gi > 0 && <h4 className="ach-group">{tr('dm2.ach.profile')}</h4>}
+      {[ACHIEVEMENTS.filter((a) => !a.game), ACHIEVEMENTS.filter((a) => a.game === 'courtisan'), ACHIEVEMENTS.filter((a) => a.game === 'poker')].map((group, gi) => <div key={gi}>
+      {gi > 0 && <h4 className="ach-group">{gi === 2 ? tr('pm.ach.title') : tr('dm2.ach.profile')}</h4>}
       <ul className="ach-grid">
         {group.map((a) => {
           const at = unlocked[a.id];

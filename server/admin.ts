@@ -80,7 +80,7 @@ export function firstPlayStats(visitors: string[], rows: FirstEventRow[]) {
   return {
     visitors: fresh.size, ...block(P, R),
     byVia: PLAY_VIA.map((via) => ({ via, ...block(P.filter((x) => (x.via ?? 'menu') === via), R.filter((x) => (x.via ?? 'menu') === via)) })),
-    byGame: ['421', 'courtisan', 'cartes', 'online'].map((game) => ({ game, launched: P.filter((x) => x.game === game).length })),
+    byGame: ['421', 'courtisan', 'cartes', 'poker', 'online'].map((game) => ({ game, launched: P.filter((x) => x.game === game).length })),
   };
 }
 /** Médiane (null si vide). */
@@ -434,7 +434,7 @@ export function createAdmin(store: Store, opts: AdminOptions) {
     const t = now();
     const first = b.kind === 'first_play' || b.kind === 'first_roll';
     const via = first && typeof b.via === 'string' && (PLAY_VIA as readonly string[]).includes(b.via) ? b.via : null;
-    const game = first && typeof b.game === 'string' && /^(421|courtisan|cartes|online)$/.test(b.game) ? b.game : null;
+    const game = first && typeof b.game === 'string' && /^(421|courtisan|cartes|poker|online)$/.test(b.game) ? b.game : null;
     const r = addEvent.run(hash(`d:${device}`), b.kind, t, brusselsDay(t), page, first ? cleanDelayMs(b.ms) : null, via, game);
     if (r.changes) peopleCache = null;
     res.json({ ok: true, first: !!r.changes });

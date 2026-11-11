@@ -61,7 +61,7 @@ export type PlayVia = 'accueil' | 'lien' | 'menu';
 let via: PlayVia = 'menu';
 export function setPlayVia(v: PlayVia) { via = v; }
 const sinceArrival = () => { try { return Math.max(0, Math.round(performance.now())); } catch { return null; } };
-export function trackFirstPlay(game: '421' | 'courtisan' | 'cartes' | 'online') {
+export function trackFirstPlay(game: '421' | 'courtisan' | 'cartes' | 'poker' | 'online') {
   if (!web() || sentEvents.has('first_play')) return;
   sentEvents.add('first_play');
   post('/visit/event', { device: deviceId(), kind: 'first_play', ms: sinceArrival(), via, game });
