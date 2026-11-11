@@ -417,11 +417,9 @@ describe('pages Poker menteur (fr, en, de, nl)', () => {
   // Combinaisons du fichier de règles du mode (docs : « Poker menteur — règles retenues »), de la plus faible à la plus forte.
   const RULES_ORDER = ['Rien', 'Paire', 'Double paire', 'Brelan', 'Petite suite', 'Grande suite', 'Full', 'Carré', 'Poker'];
   it('l’ordre des combinaisons des pages est celui du moteur du jeu', async () => {
-    const { CAT_IDS } = await import('../shared/pokermenteur/hands');
-    const fr = (await import('../shared/i18n/zones/poker.fr')) as Record<string, any>;
-    const dict = (Object.values(fr).find((v) => v && typeof v === 'object' && 'pm.cat.rien' in v) ?? {}) as Record<string, string>;
-    expect(CAT_IDS.length).toBe(RULES_ORDER.length);
-    if (dict['pm.cat.rien']) expect(CAT_IDS.map((id) => dict[`pm.cat.${id}`].toLowerCase())).toEqual(RULES_ORDER.map((x) => x.toLowerCase()));
+    const { CATS } = await import('../shared/pokermenteur/hands');
+    const { translate } = await import('../shared/i18n');
+    expect(CATS.map((c) => translate('fr', `pm.cat.${c}` as never).toLowerCase())).toEqual(RULES_ORDER.map((x) => x.toLowerCase()));
   });
   const NAMES: Record<Lang, string[]> = {
     fr: RULES_ORDER,
