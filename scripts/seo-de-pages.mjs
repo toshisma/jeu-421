@@ -131,7 +131,7 @@ ${play421('Eine Partie versuchen', 'Das Spiel wendet die Regeln an und zählt di
   },
   // ---------------------------------------------------------------------------------------------
   {
-    ...base421, slug: 'online-wuerfelspiel-mit-freunden', nav: 'Mit Freunden', short: 'Online-Würfelspiel mit Freunden',
+    ...base421, updated: '2026-11-11', slug: 'online-wuerfelspiel-mit-freunden', nav: 'Mit Freunden', short: 'Online-Würfelspiel mit Freunden',
     blurb: 'Privaten Tisch öffnen, Code oder Link schicken und gemeinsam würfeln, egal wo.',
     title: 'Online-Würfelspiel mit Freunden: privater Tisch, ohne Download',
     description: 'Online würfeln mit Freunden: privaten Tisch eröffnen, Link oder Code teilen und 421 oder Farkle zusammen im Browser spielen. Kostenlos, ohne Installation.',
@@ -143,7 +143,7 @@ ${H.toc('Inhalt', [['schritte', 'Freunde einladen in vier Schritten'], ['welches
 
 <h2 id="schritte">Freunde einladen in vier Schritten</h2>
 <ol class="steps">
-<li><b>Öffne das Spiel</b> und wähle 421 oder Der Höfling (Farkle).</li>
+<li><b>Öffne das Spiel</b> und wähle 421, Der Höfling (Farkle) oder Poker menteur (Lügenpoker).</li>
 <li><b>Eröffne einen privaten Tisch</b>: Er bekommt einen Code aus 5 Zeichen.</li>
 <li><b>Schick den Code</b> (oder den Link) in die Gruppe.</li>
 <li><b>Starte das Spiel</b>, wenn alle sitzen. Fehlt jemand, kann der Gastgeber Computerspieler dazunehmen.</li>
@@ -156,6 +156,7 @@ ${H.toc('Inhalt', [['schritte', 'Freunde einladen in vier Schritten'], ['welches
 <tr><td><a href="/421-wuerfelspiel-online">421</a></td><td>2 bis 6</td><td>Drei Würfel und Jetons zum Weiterreichen: schnell, frech, mit eigenen Hausregeln.</td></tr>
 <tr><td><a href="/farkle-online-spielen">Der Höfling (Farkle)</a></td><td>2 bis 6</td><td>Sechs Würfel und eine Frage: weiterwürfeln oder sichern?</td></tr>
 <tr><td><a href="/coups-fourres-karten-wuerfelspiel">Coups Fourrés</a></td><td>2 bis 4</td><td>421 mit Kartendeck, Fallen und Bluff, für Strategen.</td></tr>
+<tr><td><a href="/luegenpoker-wuerfel-online">Poker menteur (Lügenpoker)</a></td><td>2 bis 6</td><td>Fünf Pokerwürfel unter einem Becher, der herumgeht: ansagen, bluffen oder „Lügner!“ rufen.</td></tr>
 </tbody></table></div>
 
 <h2 id="ohne">Nichts zu installieren</h2>
@@ -176,9 +177,9 @@ ${H.play(P.amis, 'Freunde einladen', 'Ein Link reicht')}
     faq: [
       ['Wie kann ich online mit Freunden würfeln?', 'Eröffne auf 421online.com einen privaten Tisch und schick deinen Freunden Code oder Link. Sie steigen im Browser ein, ohne Installation.'],
       ['Geht das ohne Konto?', 'Ja, bei Spielen ohne Einsatz: Jeder wählt einfach einen Namen.'],
-      ['Wie viele können mitspielen?', 'Bis zu 6 an einem Tisch mit 421 oder Farkle, bis zu 4 bei Coups Fourrés.'],
+      ['Wie viele können mitspielen?', 'Bis zu 6 an einem Tisch mit 421, Farkle oder Lügenpoker, bis zu 4 bei Coups Fourrés.'],
     ],
-    related: ['421-wuerfelspiel-online', 'farkle-online-spielen', 'coups-fourres-karten-wuerfelspiel'],
+    related: ['421-wuerfelspiel-online', 'farkle-online-spielen', 'luegenpoker-wuerfel-online'],
   },
   // ---------------------------------------------------------------------------------------------
   {

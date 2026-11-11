@@ -65,7 +65,7 @@ export const courtisanPages = [
   {
     slug: 'dix-mille-en-ligne', nav: 'Le Courtisan', short: 'Le Courtisan (Dix mille)',
     blurb: 'Le jeu de dés du Dix mille (Farkle) gratuit en ligne : 6 dés, seul ou à plusieurs.',
-    ...common, image, updated: '2026-11-09',
+    ...common, image, updated: '2026-11-11',
     title: 'Le Courtisan : Dix mille (Farkle) en ligne entre amis, gratuit',
     description: 'Jouez au Dix mille, le jeu à 6 dés aussi appelé Farkle : contre l’ordinateur ou en ligne de 2 à 6 avec vos amis. Gratuit, sans téléchargement.',
     h1: 'Le Courtisan : le Dix mille en ligne, gratuit',
@@ -123,7 +123,7 @@ ${toc([['principe', 'Le principe en trente secondes'], ['modes', 'Les façons de
 <p>Vous l’avez découvert dans un jeu vidéo ? Le Courtisan est né de l’envie de rejouer entre amis au jeu de dés des tavernes de <a href="/jeu-de-des-kingdom-come-deliverance-2">Kingdom Come: Deliverance 2</a>, qui repose sur le même jeu traditionnel : voyez ce qui est commun et ce qui change. Vous cherchez ce jeu sous son nom anglais ? Voici comment <a href="/jouer-au-farkle-en-ligne">jouer au Farkle en ligne</a>. 421online.com est un site indépendant de ce jeu vidéo.</p>
 
 <h2 id="autres">Les autres jeux du site</h2>
-<p>421online, c’est d’abord le <a href="/jouer-au-421-en-ligne">421 en ligne</a>, le jeu de dés de comptoir à trois dés, et <a href="/coups-fourres">Coups Fourrés</a>, le 421 aux cartes. Le même compte gratuit (sans adresse e-mail) sert pour les trois modes, avec les mêmes amis et les mêmes réglages, et les parties du Courtisan contre l’ordinateur rapportent des pièces et de l’expérience, comme le 421.</p>
+<p>421online, c’est d’abord le <a href="/jouer-au-421-en-ligne">421 en ligne</a>, le jeu de dés de comptoir à trois dés, <a href="/coups-fourres">Coups Fourrés</a>, le 421 aux cartes, et le <a href="/poker-menteur-en-ligne">Poker menteur</a>, le jeu de bluff aux dés de poker. Le même compte gratuit (sans adresse e-mail) sert pour tous les jeux, avec les mêmes amis et les mêmes réglages, et les parties du Courtisan contre l’ordinateur rapportent des pièces et de l’expérience, comme le 421.</p>
 ${play('Lancer les six dés', 'Contre l’ordinateur ou entre amis, gratuitement')}
 `,
     faq: [

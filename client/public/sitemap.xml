@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
-  <url><loc>https://421online.com/</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://421online.com/jouer-au-421-en-ligne</loc><lastmod>2026-11-09</lastmod>
+  <url><loc>https://421online.com/</loc><lastmod>2026-11-11</lastmod></url>
+  <url><loc>https://421online.com/jouer-au-421-en-ligne</loc><lastmod>2026-11-11</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jouer-au-421-en-ligne"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/play-421-dice-game-online"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/421-wuerfelspiel-online"/>
@@ -20,7 +20,7 @@
   <url><loc>https://421online.com/421-entre-amis</loc><lastmod>2026-11-05</lastmod></url>
   <url><loc>https://421online.com/jeu-multijoueur-navigateur</loc><lastmod>2026-11-05</lastmod></url>
   <url><loc>https://421online.com/jeux-entre-amis-a-distance</loc><lastmod>2026-11-07</lastmod></url>
-  <url><loc>https://421online.com/jeux-de-des</loc><lastmod>2026-11-07</lastmod></url>
+  <url><loc>https://421online.com/jeux-de-des</loc><lastmod>2026-11-11</lastmod></url>
   <url><loc>https://421online.com/coups-fourres</loc><lastmod>2026-11-08</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/coups-fourres"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/coups-fourres-card-dice-game"/>
@@ -36,7 +36,7 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-coups-fourres"/>
   </url>
   <url><loc>https://421online.com/cartes-coups-fourres</loc><lastmod>2026-11-08</lastmod></url>
-  <url><loc>https://421online.com/dix-mille-en-ligne</loc><lastmod>2026-11-09</lastmod>
+  <url><loc>https://421online.com/dix-mille-en-ligne</loc><lastmod>2026-11-11</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/dix-mille-en-ligne"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/play-farkle-online"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/farkle-online-spielen"/>
@@ -58,17 +58,31 @@
     <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/kingdom-come-deliverance-2-dobbelspel"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/jeu-de-des-kingdom-come-deliverance-2"/>
   </url>
-  <url><loc>https://421online.com/jeu-de-des-entre-amis</loc><lastmod>2026-11-09</lastmod>
+  <url><loc>https://421online.com/jeu-de-des-entre-amis</loc><lastmod>2026-11-11</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jeu-de-des-entre-amis"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/online-dice-game-with-friends"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/online-wuerfelspiel-mit-freunden"/>
     <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/online-dobbelspel-met-vrienden"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/jeu-de-des-entre-amis"/>
   </url>
-  <url><loc>https://421online.com/jeux-de-des-en-ligne</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://421online.com/jeu-de-bistrot-en-ligne</loc><lastmod>2026-11-09</lastmod></url>
+  <url><loc>https://421online.com/jeux-de-des-en-ligne</loc><lastmod>2026-11-11</lastmod></url>
+  <url><loc>https://421online.com/jeu-de-bistrot-en-ligne</loc><lastmod>2026-11-11</lastmod></url>
   <url><loc>https://421online.com/jouer-au-farkle-en-ligne</loc><lastmod>2026-11-09</lastmod></url>
-  <url><loc>https://421online.com/jeu-apero-a-distance</loc><lastmod>2026-11-09</lastmod></url>
+  <url><loc>https://421online.com/jeu-apero-a-distance</loc><lastmod>2026-11-11</lastmod></url>
+  <url><loc>https://421online.com/poker-menteur-en-ligne</loc><lastmod>2026-11-11</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/poker-menteur-en-ligne"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/liars-dice-poker-dice-online"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/luegenpoker-wuerfel-online"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/blufpoker-dobbelspel-online"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/poker-menteur-en-ligne"/>
+  </url>
+  <url><loc>https://421online.com/regles-du-poker-menteur</loc><lastmod>2026-11-11</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/regles-du-poker-menteur"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/liars-dice-poker-dice-rules"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/luegenpoker-wuerfel-regeln"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/blufpoker-spelregels"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-du-poker-menteur"/>
+  </url>
   <url><loc>https://421online.com/play-farkle-online</loc><lastmod>2026-11-09</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/dix-mille-en-ligne"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/play-farkle-online"/>
@@ -104,7 +118,7 @@
     <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/421-dobbelspel-regels"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-du-421"/>
   </url>
-  <url><loc>https://421online.com/online-dice-game-with-friends</loc><lastmod>2026-11-09</lastmod>
+  <url><loc>https://421online.com/online-dice-game-with-friends</loc><lastmod>2026-11-11</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jeu-de-des-entre-amis"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/online-dice-game-with-friends"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/online-wuerfelspiel-mit-freunden"/>
@@ -125,6 +139,20 @@
     <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/coups-fourres-spelregels"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-coups-fourres"/>
   </url>
+  <url><loc>https://421online.com/liars-dice-poker-dice-online</loc><lastmod>2026-11-11</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/poker-menteur-en-ligne"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/liars-dice-poker-dice-online"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/luegenpoker-wuerfel-online"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/blufpoker-dobbelspel-online"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/poker-menteur-en-ligne"/>
+  </url>
+  <url><loc>https://421online.com/liars-dice-poker-dice-rules</loc><lastmod>2026-11-11</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/regles-du-poker-menteur"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/liars-dice-poker-dice-rules"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/luegenpoker-wuerfel-regeln"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/blufpoker-spelregels"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-du-poker-menteur"/>
+  </url>
   <url><loc>https://421online.com/421-wuerfelspiel-online</loc><lastmod>2026-11-09</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jouer-au-421-en-ligne"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/play-421-dice-game-online"/>
@@ -139,7 +167,7 @@
     <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/421-dobbelspel-regels"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-du-421"/>
   </url>
-  <url><loc>https://421online.com/online-wuerfelspiel-mit-freunden</loc><lastmod>2026-11-09</lastmod>
+  <url><loc>https://421online.com/online-wuerfelspiel-mit-freunden</loc><lastmod>2026-11-11</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jeu-de-des-entre-amis"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/online-dice-game-with-friends"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/online-wuerfelspiel-mit-freunden"/>
@@ -181,6 +209,20 @@
     <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/coups-fourres-spelregels"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-coups-fourres"/>
   </url>
+  <url><loc>https://421online.com/luegenpoker-wuerfel-online</loc><lastmod>2026-11-11</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/poker-menteur-en-ligne"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/liars-dice-poker-dice-online"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/luegenpoker-wuerfel-online"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/blufpoker-dobbelspel-online"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/poker-menteur-en-ligne"/>
+  </url>
+  <url><loc>https://421online.com/luegenpoker-wuerfel-regeln</loc><lastmod>2026-11-11</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/regles-du-poker-menteur"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/liars-dice-poker-dice-rules"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/luegenpoker-wuerfel-regeln"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/blufpoker-spelregels"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-du-poker-menteur"/>
+  </url>
   <url><loc>https://421online.com/421-dobbelspel-online</loc><lastmod>2026-11-09</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jouer-au-421-en-ligne"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/play-421-dice-game-online"/>
@@ -195,7 +237,7 @@
     <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/421-dobbelspel-regels"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-du-421"/>
   </url>
-  <url><loc>https://421online.com/online-dobbelspel-met-vrienden</loc><lastmod>2026-11-09</lastmod>
+  <url><loc>https://421online.com/online-dobbelspel-met-vrienden</loc><lastmod>2026-11-11</lastmod>
     <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/jeu-de-des-entre-amis"/>
     <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/online-dice-game-with-friends"/>
     <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/online-wuerfelspiel-mit-freunden"/>
@@ -236,5 +278,19 @@
     <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/coups-fourres-regeln"/>
     <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/coups-fourres-spelregels"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-coups-fourres"/>
+  </url>
+  <url><loc>https://421online.com/blufpoker-dobbelspel-online</loc><lastmod>2026-11-11</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/poker-menteur-en-ligne"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/liars-dice-poker-dice-online"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/luegenpoker-wuerfel-online"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/blufpoker-dobbelspel-online"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/poker-menteur-en-ligne"/>
+  </url>
+  <url><loc>https://421online.com/blufpoker-spelregels</loc><lastmod>2026-11-11</lastmod>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://421online.com/regles-du-poker-menteur"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://421online.com/liars-dice-poker-dice-rules"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://421online.com/luegenpoker-wuerfel-regeln"/>
+    <xhtml:link rel="alternate" hreflang="nl" href="https://421online.com/blufpoker-spelregels"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://421online.com/regles-du-poker-menteur"/>
   </url>
 </urlset>

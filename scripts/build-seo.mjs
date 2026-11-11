@@ -30,12 +30,13 @@ import { growthPages } from './seo-growth-pages.mjs';
 import { enPages } from './seo-en-pages.mjs';
 import { dePages } from './seo-de-pages.mjs';
 import { nlPages } from './seo-nl-pages.mjs';
+import { POKER_GAME, pokerPagesFr, pokerPagesI18n } from './seo-poker-pages.mjs';
 import { DISCLAIMERS, I18N_GROUPS } from './seo-i18n-common.mjs';
 
 const SITE = 'https://421online.com';
 const OUT = join(process.cwd(), 'client', 'public');
 /** Date de la dernière modification de l'accueil (index.html). */
-const HOME_UPDATED = '2026-11-09';
+const HOME_UPDATED = '2026-11-11';
 
 // Petits éléments réutilisables -------------------------------------------------------------------
 const dice = (s) => `<span class="dice" role="img" aria-label="${s.split('').join('-')}">${s.split('').map((d) => `<i class="d d${d}"></i>`).join('')}</span>`;
@@ -49,7 +50,7 @@ const pages = [
   {
     slug: 'jouer-au-421-en-ligne', nav: 'Jouer en ligne', short: 'Jouer au 421 en ligne',
     blurb: 'Tous les modes de jeu : contre l’ordinateur, partie rapide, tables privées, tournois.',
-    published: '2026-11-03', updated: '2026-11-09',
+    published: '2026-11-03', updated: '2026-11-11',
     title: 'Jouer au 421 en ligne gratuitement : solo, multijoueur, tournois',
     description: 'Jouez au 421 en ligne, gratuit et sans téléchargement : contre l’ordinateur, en partie rapide, en table privée avec vos amis ou en tournoi. Sur mobile et PC.',
     h1: 'Jouer au 421 en ligne, gratuitement',
@@ -76,6 +77,7 @@ ${toc([['commencer', 'Commencer en trente secondes'], ['modes', 'Les façons de 
 <section class="card"><h3>Regarder une partie</h3><p>Le mode spectateur permet de suivre une table publique en cours (ou celle d’un ami), sans jouer, et de partir quand vous voulez.</p></section>
 <section class="card"><h3>Coups Fourrés, le 421 aux cartes</h3><p>Le même jeu de dés, en duel, avec un deck de 20 cartes à collectionner : pièges, relances, bluff. Contre l’ordinateur, entre amis, en ligue ou au tournoi du samedi. <a href="/coups-fourres">Découvrir Coups Fourrés</a>.</p></section>
 <section class="card"><h3>Le Courtisan, le Dix mille</h3><p>Un autre jeu de dés de comptoir, à six dés : mettre de côté ce qui rapporte, relancer ou encaisser. Contre l’ordinateur ou en ligne de 2 à 6. <a href="/dix-mille-en-ligne">Découvrir le Courtisan</a>.</p></section>
+<section class="card"><h3>Le Poker menteur</h3><p>Le jeu de bluff des cafés : cinq dés de poker sous un gobelet qui passe de main en main, une annonce, et « Menteur ! ». Contre l’ordinateur ou en ligne de 2 à 6. <a href="/poker-menteur-en-ligne">Découvrir le Poker menteur</a>.</p></section>
 </div>
 
 <h2 id="compte">Avec ou sans compte</h2>
@@ -506,13 +508,13 @@ ${play('Inviter mes amis à une partie', 'Un lien suffit, sans compte et sans t�
   {
     slug: 'jeux-de-des', nav: 'Jeux de dés', short: 'Les jeux de dés classiques',
     blurb: '421, Zanzibar, Yams, Perudo, 5000 : les grands jeux de dés et leurs différences.',
-    published: '2026-11-05', updated: '2026-11-07',
+    published: '2026-11-05', updated: '2026-11-11',
     title: 'Jeux de dés classiques : 421, Zanzibar, Yams, Perudo, 5000',
     description: 'Les grands jeux de dés à jouer entre amis, comparés : 421, Zanzibar, Yams, Perudo et 5000. Nombre de dés et de joueurs, but du jeu, ambiance.',
     h1: 'Les jeux de dés classiques, comparés',
     lead: 'Quelques dés, un gobelet, et la soirée est lancée. Les jeux de dés sont parmi les plus anciens jeux de société, et ils se jouent toujours aussi bien entre amis. Voici les grands classiques francophones, ce qui les distingue, et lequel choisir.',
     body: `
-${toc([['comparatif', 'Le comparatif'], ['421', 'Le 421'], ['zanzibar', 'Le Zanzibar'], ['yams', 'Le Yams'], ['perudo', 'Le Perudo'], ['5000', 'Le 5000 et le Dix mille'], ['cartes', 'Dés et cartes : Coups Fourrés'], ['choisir', 'Lequel choisir ?']])}
+${toc([['comparatif', 'Le comparatif'], ['421', 'Le 421'], ['zanzibar', 'Le Zanzibar'], ['yams', 'Le Yams'], ['perudo', 'Le Perudo'], ['poker-menteur', 'Le poker menteur'], ['5000', 'Le 5000 et le Dix mille'], ['cartes', 'Dés et cartes : Coups Fourrés'], ['choisir', 'Lequel choisir ?']])}
 
 <h2 id="comparatif">Le comparatif</h2>
 <div class="table-wrap"><table>
@@ -522,6 +524,7 @@ ${toc([['comparatif', 'Le comparatif'], ['421', 'Le 421'], ['zanzibar', 'Le Zanz
 <tr><td>Zanzibar</td><td>3</td><td>2 et plus</td><td>Proche du 421, avec ses propres combinaisons</td><td>Comptoir</td></tr>
 <tr><td>Yams</td><td>5</td><td>1 et plus</td><td>Remplir une grille de combinaisons pour le meilleur total</td><td>Familial, calme</td></tr>
 <tr><td>Perudo</td><td>5 par joueur</td><td>3 et plus</td><td>Enchères et bluff sur des dés cachés</td><td>Bluff, éclats de rire</td></tr>
+<tr><td>Poker menteur</td><td>5 dés de poker, un gobelet</td><td>2 et plus</td><td>Annoncer une main de poker plus haute, ou crier « Menteur ! »</td><td>Bluff, aplomb</td></tr>
 <tr><td>5000 / Dix mille</td><td>5 ou 6</td><td>2 et plus</td><td>Accumuler des points en prenant des risques</td><td>Stop ou encore</td></tr>
 </tbody></table></div>
 
@@ -537,6 +540,9 @@ ${toc([['comparatif', 'Le comparatif'], ['421', 'Le 421'], ['zanzibar', 'Le Zanz
 <h2 id="perudo">Le Perudo</h2>
 <p>Jeu de bluff d’origine sud-américaine : chacun cache ses cinq dés sous un gobelet, puis on fait des enchères sur le nombre total de dés d’une valeur sur toute la table (« huit 4 ! »). Le joueur suivant surenchérit ou conteste ; celui qui a tort perd un dé. Idéal à partir de quatre ou cinq joueurs autour d’une vraie table.</p>
 
+<h2 id="poker-menteur">Le poker menteur</h2>
+<p>L’autre grand jeu de bluff aux dés, joué dans les cafés français avec <b>cinq dés de poker</b> (du 9 à l’As) et <b>un seul gobelet</b> qui passe de main en main. On annonce au voisin une main de poker, vraie ou fausse ; il la croit et doit annoncer plus haut, ou il crie « Menteur ! » et l’on soulève le gobelet. Contrairement au Perudo, on ne parie pas sur tous les dés de la table : seul le gobelet qui circule compte. Il se joue sur 421online, contre l’ordinateur ou en ligne : voir <a href="/poker-menteur-en-ligne">jouer au poker menteur</a> et les <a href="/regles-du-poker-menteur">règles du poker menteur</a>.</p>
+
 <h2 id="5000">Le 5000 et le Dix mille</h2>
 <p>Un jeu de « stop ou encore » : on lance les dés, on met de côté ceux qui rapportent des points (les 1, les 5, les brelans), puis on décide de s’arrêter pour encaisser ou de relancer le reste, au risque de tout perdre si plus rien ne rapporte. Le premier à 5 000 points gagne. On le connaît aussi sous les noms de <b>Dix mille</b> (10 000 points, avec six dés) ou <b>Farkle</b>, avec des variantes de comptage. C’est aussi la base du jeu de dés des tavernes de <a href="/jeu-de-des-kingdom-come-deliverance-2">Kingdom Come: Deliverance 2</a>.</p>
 <p>Sur 421online, il se joue dans le mode <a href="/dix-mille-en-ligne">Le Courtisan</a> : six dés, en 2 000, 4 000 ou 10 000 points, contre l’ordinateur ou en ligne. Les <a href="/regles-du-dix-mille">règles du Dix mille</a> et la <a href="/strategie-dix-mille">stratégie</a> (quand s’arrêter) ont leurs pages.</p>
@@ -548,7 +554,7 @@ ${toc([['comparatif', 'Le comparatif'], ['421', 'Le 421'], ['zanzibar', 'Le Zanz
 <ul>
 <li><b>Pour une partie rapide à plusieurs</b>, à table ou à distance : le 421.</li>
 <li><b>Pour une soirée en famille, sans pression</b> : le Yams.</li>
-<li><b>Pour une grande tablée qui aime bluffer</b> : le Perudo.</li>
+<li><b>Pour une grande tablée qui aime bluffer</b> : le Perudo, ou le <a href="/poker-menteur-en-ligne">poker menteur</a> si vous n’avez qu’un gobelet.</li>
 <li><b>Pour ceux qui aiment prendre des risques</b> : le 5000 ou le Dix mille, à essayer dans <a href="/dix-mille-en-ligne">le Courtisan</a>.</li>
 <li><b>Pour un duel de stratégie et de bluff</b> : Coups Fourrés, le 421 aux cartes.</li>
 </ul>
@@ -559,6 +565,7 @@ ${play('Jouer au 421 en ligne', 'Le jeu de dés du comptoir, gratuit')}
       ['Quel est le jeu de dés de comptoir le plus connu ?', 'Le 421 est sans doute le plus célèbre en France et en Belgique, avec le Zanzibar et le 5000.'],
       ['Quelle différence entre le 421 et le Yams ?', 'Le 421 se joue avec 3 dés et des jetons, en manches rapides où la plus faible combinaison perd ; le Yams se joue avec 5 dés et une feuille de marque à remplir.'],
       ['Peut-on jouer à un jeu de dés en ligne avec des amis ?', 'Oui : sur 421online, une table privée de 421 s’ouvre avec un lien, de 2 à 6 joueurs, sans téléchargement. Le Dix mille (mode Le Courtisan) se joue aussi en ligne, de 2 à 6.'],
+      ['Quelle différence entre le Perudo et le poker menteur ?', 'Au Perudo, chacun cache ses propres dés et l’on parie sur tous les dés de la table. Au poker menteur, un seul gobelet de cinq dés de poker passe de joueur en joueur, et chacun annonce une main de poker plus haute que la précédente.'],
       ['Le 5000, le Dix mille et le Farkle, c’est le même jeu ?', 'Oui, avec des variantes : même principe de dés mis de côté et de « stop ou encore », mais un score à atteindre et quelques valeurs différentes.'],
     ],
     related: ['regles-du-421', 'dix-mille-en-ligne', 'coups-fourres'],
@@ -566,16 +573,17 @@ ${play('Jouer au 421 en ligne', 'Le jeu de dés du comptoir, gratuit')}
   ...cfPages,
   ...courtisanPages,
   ...growthPages,
+  ...pokerPagesFr,
 ];
 
 // Gabarit -----------------------------------------------------------------------------------------
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const strip = (s) => s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-const foreignPages = [...enPages, ...dePages, ...nlPages];
+const pagesOf = { en: [...enPages, ...pokerPagesI18n.en], de: [...dePages, ...pokerPagesI18n.de], nl: [...nlPages, ...pokerPagesI18n.nl] };
+const foreignPages = [...pagesOf.en, ...pagesOf.de, ...pagesOf.nl];
 const allPages = [...pages, ...foreignPages];
 const bySlug = Object.fromEntries(allPages.map((p) => [p.slug, p]));
-const pagesOf = { en: enPages, de: dePages, nl: nlPages };
-const HEADER_NAV = ['jouer-au-421-en-ligne', 'regles-du-421', 'strategie-421', '421-entre-amis', 'jeu-de-des-entre-amis', 'jeux-de-des-en-ligne', 'coups-fourres', 'dix-mille-en-ligne'];
+const HEADER_NAV = ['jouer-au-421-en-ligne', 'regles-du-421', 'strategie-421', '421-entre-amis', 'jeu-de-des-entre-amis', 'jeux-de-des-en-ligne', 'coups-fourres', 'dix-mille-en-ligne', 'poker-menteur-en-ligne'];
 const ORG = { '@type': 'Organization', '@id': `${SITE}/#organisation`, name: '421online', url: `${SITE}/`, logo: `${SITE}/icons/icon-512.png` };
 
 // Mesure (même suivi anonyme que le jeu : identifiant d'appareil aléatoire, haché par le serveur, sans cookie).
@@ -618,6 +626,7 @@ const CF_L = {
   nl: { slug: 'coups-fourres-kaart-dobbelspel', description: 'Gratis kaart- en dobbelspel in de browser: de combinaties van 421, een deck van 20 kaarten per speler, vallen en bluf. Tegen de computer, met vrienden (2 tot 4), in een ranked liga of een toernooi.', genre: ['Kaartspel', 'Dobbelspel', 'Verzamelkaartspel', 'Strategiespel'], platform: 'Webbrowser', os: 'Elk apparaat met een recente browser (Android, iOS, Windows, macOS, Linux)' },
 };
 const GAME_LD = {}; const ABOUT = { cf: CF_ID, courtisan: CT_ID };
+const pokerPagesOf = (lang) => (lang === 'fr' ? pokerPagesFr : pokerPagesI18n[lang]);
 for (const [lang, g] of Object.entries(FARKLE_L)) {
   const id = `${SITE}/${g.slug}#game`;
   GAME_LD[g.slug] = { ...CT_GAME, '@id': id, name: g.name, alternateName: g.alt, url: `${SITE}/${g.slug}`, description: g.description, inLanguage: lang, genre: g.genre, gamePlatform: [g.platform], operatingSystem: g.os, isPartOf: undefined };
@@ -627,6 +636,19 @@ for (const [lang, g] of Object.entries(CF_L)) {
   const id = `${SITE}/${g.slug}#game`;
   GAME_LD[g.slug] = { ...CF_GAME, '@id': id, url: `${SITE}/${g.slug}`, description: g.description, alternateName: undefined, inLanguage: lang, genre: g.genre, gamePlatform: [g.platform], operatingSystem: g.os, isPartOf: undefined };
   ABOUT[`cf-${lang}`] = id;
+}
+/** Poker menteur : une fiche de jeu par langue, sur la page « en ligne » de chaque langue. Aucune note ni avis. */
+for (const [lang, g] of Object.entries(POKER_GAME)) {
+  const slug = pokerPagesOf(lang)[0].slug;
+  const id = `${SITE}/${slug}#${lang === 'fr' ? 'jeu' : 'game'}`;
+  GAME_LD[slug] = {
+    '@type': 'VideoGame', '@id': id, name: g.name, alternateName: g.alt, url: `${SITE}/${slug}`, description: g.description,
+    inLanguage: lang, genre: g.genre, gamePlatform: [g.platform], applicationCategory: 'GameApplication', operatingSystem: g.os,
+    playMode: ['SinglePlayer', 'MultiPlayer'], numberOfPlayers: { '@type': 'QuantitativeValue', minValue: 1, maxValue: 6 },
+    isAccessibleForFree: true, offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' }, image: `${SITE}/og-421.png`,
+    publisher: { '@id': `${SITE}/#organisation` }, ...(lang === 'fr' ? { isPartOf: { '@id': `${SITE}/#jeu` } } : {}),
+  };
+  ABOUT[`poker-${lang}`] = id;
 }
 /** Pages traduites (hreflang) : slug → { fr, en, de, nl }. */
 const ALT = Object.fromEntries(I18N_GROUPS.flatMap((g) => Object.values(g).map((s) => [s, g])));
@@ -641,18 +663,23 @@ const FRIEND_SLUGS = new Set(['421-entre-amis', 'jeux-entre-amis-a-distance', 'j
   ...Object.values(I18N_GROUPS.find((g) => g.fr === 'jeu-de-des-entre-amis'))]);
 const PLAY_CTA = {
   fr: { '421': ['Lancer les dés', 'Une partie de 421 contre l’ordinateur, tout de suite · gratuit, sans inscription'], courtisan: ['Lancer les six dés', 'Une partie du Courtisan contre l’ordinateur, tout de suite · gratuit'],
-    cartes: ['Jouer à Coups Fourrés', 'Une partie guidée contre l’ordinateur, tout de suite · gratuit'], amis: ['Créer une table entre amis', 'Gratuit, sans téléchargement : un lien à envoyer'] },
+    cartes: ['Jouer à Coups Fourrés', 'Une partie guidée contre l’ordinateur, tout de suite · gratuit'], amis: ['Créer une table entre amis', 'Gratuit, sans téléchargement : un lien à envoyer'],
+    poker: ['Secouer le gobelet', 'Une partie de poker menteur contre l’ordinateur, tout de suite · gratuit'] },
   en: { '421': ['Roll the dice', 'A game of 421 against the computer, right now · free, no sign-up'], courtisan: ['Roll the six dice', 'A game of Farkle against the computer, right now · free'],
-    cartes: ['Play Coups Fourrés', 'A guided game against the computer, right now · free'], amis: ['Create a table with friends', 'Free, no download: just send a link'] },
+    cartes: ['Play Coups Fourrés', 'A guided game against the computer, right now · free'], amis: ['Create a table with friends', 'Free, no download: just send a link'],
+    poker: ['Shake the cup', 'A game of liar’s dice against the computer, right now · free'] },
   de: { '421': ['Würfeln', 'Eine Partie 421 gegen den Computer, sofort · kostenlos, ohne Anmeldung'], courtisan: ['Sechs Würfel werfen', 'Eine Partie Farkle gegen den Computer, sofort · kostenlos'],
-    cartes: ['Coups Fourrés spielen', 'Eine geführte Partie gegen den Computer, sofort · kostenlos'], amis: ['Tisch für Freunde eröffnen', 'Kostenlos, ohne Download: einfach einen Link schicken'] },
+    cartes: ['Coups Fourrés spielen', 'Eine geführte Partie gegen den Computer, sofort · kostenlos'], amis: ['Tisch für Freunde eröffnen', 'Kostenlos, ohne Download: einfach einen Link schicken'],
+    poker: ['Becher schütteln', 'Eine Partie Lügenpoker gegen den Computer, sofort · kostenlos'] },
   nl: { '421': ['Gooi de stenen', 'Een potje 421 tegen de computer, meteen · gratis, zonder account'], courtisan: ['Gooi de zes stenen', 'Een potje Farkle tegen de computer, meteen · gratis'],
-    cartes: ['Speel Coups Fourrés', 'Een begeleid potje tegen de computer, meteen · gratis'], amis: ['Tafel met vrienden openen', 'Gratis, geen download: stuur gewoon een link'] },
+    cartes: ['Speel Coups Fourrés', 'Een begeleid potje tegen de computer, meteen · gratis'], amis: ['Tafel met vrienden openen', 'Gratis, geen download: stuur gewoon een link'],
+    poker: ['Schud de beker', 'Een potje blufpoker tegen de computer, meteen · gratis'] },
 };
 /** Jeu d'une page (d'après son bouton Jouer) et lien direct correspondant, `&amp;lang=xx` hors français. */
 export function playTarget(p) {
   const lang = p.lang ?? 'fr';
-  const kind = FRIEND_SLUGS.has(p.slug) ? 'amis' : /jouer=cartes|mode=cartes/.test(p.play ?? '') ? 'cartes' : /jouer=courtisan|mode=courtisan/.test(p.play ?? '') ? 'courtisan' : '421';
+  const kind = FRIEND_SLUGS.has(p.slug) ? 'amis' : /jouer=cartes|mode=cartes/.test(p.play ?? '') ? 'cartes' : /jouer=courtisan|mode=courtisan/.test(p.play ?? '') ? 'courtisan'
+    : /jouer=poker|mode=poker/.test(p.play ?? '') ? 'poker' : '421';
   const href = `/?jouer=${kind === '421' ? '1' : kind}${lang === 'fr' ? '' : `&amp;lang=${lang}`}`;
   return { kind, href, label: PLAY_CTA[lang][kind] };
 }
@@ -661,11 +688,11 @@ const playBox = (t, cls) => `<p class="play-box ${cls}"><a class="cta" href="${t
 /** Gabarit des pages traduites (français : textes d'origine, dans le gabarit ci-dessous). */
 const LOCALE_UI = {
   en: { play: 'Play', logo: '421online: open the game', helpNav: 'Help pages', crumbs: 'Breadcrumb', updated: 'Updated', faq: 'Frequently asked questions', relatedAria: 'Read also', relatedTitle: 'Read also', footLinks: 'All help pages', privacy: 'Privacy and legal notice',
-    foot: `<a href="/?lang=en" data-play>421online.com</a>: 421, the classic French dice game, free online, alone or with friends, along with <a href="/coups-fourres-card-dice-game">Coups Fourrés</a>, 421 with cards, and <a href="/play-farkle-online">The Courtier</a>, six-dice Farkle. Coins, capsules and Groschen in the game are play money, no real money: they can’t be bought.` },
+    foot: `<a href="/?lang=en" data-play>421online.com</a>: 421, the classic French dice game, free online, alone or with friends, along with <a href="/coups-fourres-card-dice-game">Coups Fourrés</a>, 421 with cards, <a href="/play-farkle-online">The Courtier</a>, six-dice Farkle, and <a href="/liars-dice-poker-dice-online">Poker menteur</a>, liar’s dice with poker dice. Coins, capsules and Groschen in the game are play money, no real money: they can’t be bought.` },
   de: { play: 'Spielen', logo: '421online: Spiel öffnen', helpNav: 'Hilfeseiten', crumbs: 'Brotkrümelnavigation', updated: 'Aktualisiert am', faq: 'Häufige Fragen', relatedAria: 'Mehr lesen', relatedTitle: 'Mehr lesen', footLinks: 'Alle Hilfeseiten', privacy: 'Datenschutz und Impressum',
-    foot: `<a href="/?lang=de" data-play>421online.com</a>: 421, das klassische französische Würfelspiel, kostenlos online, allein oder mit Freunden, dazu <a href="/coups-fourres-karten-wuerfelspiel">Coups Fourrés</a>, 421 mit Karten, und <a href="/farkle-online-spielen">Der Höfling</a>, Farkle mit sechs Würfeln. Münzen, Kapseln und Groschen im Spiel sind Spielgeld, kein echtes Geld: Sie lassen sich nicht kaufen.` },
+    foot: `<a href="/?lang=de" data-play>421online.com</a>: 421, das klassische französische Würfelspiel, kostenlos online, allein oder mit Freunden, dazu <a href="/coups-fourres-karten-wuerfelspiel">Coups Fourrés</a>, 421 mit Karten, <a href="/farkle-online-spielen">Der Höfling</a>, Farkle mit sechs Würfeln, und <a href="/luegenpoker-wuerfel-online">Poker menteur</a>, Lügenpoker mit Pokerwürfeln. Münzen, Kapseln und Groschen im Spiel sind Spielgeld, kein echtes Geld: Sie lassen sich nicht kaufen.` },
   nl: { play: 'Spelen', logo: '421online: open het spel', helpNav: 'Hulppagina’s', crumbs: 'Kruimelpad', updated: 'Bijgewerkt op', faq: 'Veelgestelde vragen', relatedAria: 'Lees ook', relatedTitle: 'Lees ook', footLinks: 'Alle hulppagina’s', privacy: 'Privacy en wettelijke vermeldingen',
-    foot: `<a href="/?lang=nl" data-play>421online.com</a>: 421, het klassieke Franse dobbelspel, gratis online, alleen of met vrienden, samen met <a href="/coups-fourres-kaart-dobbelspel">Coups Fourrés</a>, 421 met kaarten, en <a href="/farkle-online-spelen">De Hoveling</a>, Farkle met zes stenen. Munten, capsules en Groschen in het spel zijn speelgeld, geen echt geld: je kunt ze niet kopen.` },
+    foot: `<a href="/?lang=nl" data-play>421online.com</a>: 421, het klassieke Franse dobbelspel, gratis online, alleen of met vrienden, samen met <a href="/coups-fourres-kaart-dobbelspel">Coups Fourrés</a>, 421 met kaarten, <a href="/farkle-online-spelen">De Hoveling</a>, Farkle met zes stenen, en <a href="/blufpoker-dobbelspel-online">Poker menteur</a>, blufpoker met pokerstenen. Munten, capsules en Groschen in het spel zijn speelgeld, geen echt geld: je kunt ze niet kopen.` },
 };
 
 for (const p of allPages) {
@@ -749,7 +776,7 @@ ${playBox(target, 'end')}
 <aside class="related" aria-label="${en ? UI.relatedAria : 'À lire aussi'}"><h2>${en ? UI.relatedTitle : 'À lire aussi'}</h2><div>${related}</div></aside>
 </main>
 <footer>
-${en ? `<p class="note">${DISCLAIMERS[lang]}</p>\n` : ''}<p>${en ? UI.foot : `<a href="/" data-play>421online.com</a> : le 421, jeu de dés de comptoir, gratuit en ligne, seul ou entre amis, <a href="/coups-fourres">Coups Fourrés</a>, le 421 aux cartes, et <a href="/dix-mille-en-ligne">Le Courtisan</a>, le Dix mille à six dés. Les pièces, les capsules et les Groschen du jeu sont des monnaies virtuelles, sans argent réel : elles ne s’achètent pas.`}</p>
+${en ? `<p class="note">${DISCLAIMERS[lang]}</p>\n` : ''}<p>${en ? UI.foot : `<a href="/" data-play>421online.com</a> : le 421, jeu de dés de comptoir, gratuit en ligne, seul ou entre amis, <a href="/coups-fourres">Coups Fourrés</a>, le 421 aux cartes, <a href="/dix-mille-en-ligne">Le Courtisan</a>, le Dix mille à six dés, et le <a href="/poker-menteur-en-ligne">Poker menteur</a>, le jeu de bluff aux dés de poker. Les pièces, les capsules et les Groschen du jeu sont des monnaies virtuelles, sans argent réel : elles ne s’achètent pas.`}</p>
 <nav class="links" aria-label="${en ? UI.footLinks : 'Toutes les pages d’aide'}">${(en ? pagesOf[lang] : pages).map((x) => `<a href="/${x.slug}">${x.short}</a>`).join('')}<a href="/confidentialite">${en ? UI.privacy : 'Confidentialité et mentions légales'}</a></nav>
 </footer>
 ${TRACK}

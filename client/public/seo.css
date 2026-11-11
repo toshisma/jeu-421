@@ -115,3 +115,6 @@ footer { max-width: 780px; margin: 0 auto; padding: 0 16px 40px; color: var(--te
 footer .links { display: flex; flex-wrap: wrap; gap: 6px 16px; }
 footer .links a { padding: 4px 0; }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+/* Dés de poker (9, 10, Valet, Dame, Roi, As) : la face est écrite sur le dé. */
+.d.pk { display: inline-grid; place-items: center; background-image: none; color: #1b1b1b; font: 800 13px/1 system-ui, sans-serif; font-style: normal; }
+.d.pk10 { font-size: 11px; letter-spacing: -0.04em; }
