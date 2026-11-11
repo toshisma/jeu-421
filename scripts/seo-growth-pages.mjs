@@ -8,7 +8,7 @@ import { CT_PLAY } from './seo-courtisan-pages.mjs';
 
 const play = (label, sub, href = '/?jouer=1') => `<p class="play-box"><a class="cta" href="${href}" data-play>${label}</a>${sub ? `<small>${sub}</small>` : ''}</p>`;
 const toc = (items) => `<nav class="toc" aria-label="Sommaire"><b>Sommaire</b><ol>${items.map(([id, t]) => `<li><a href="#${id}">${t}</a></li>`).join('')}</ol></nav>`;
-const dates = { published: '2026-11-09', updated: '2026-11-09' };
+const dates = { published: '2026-11-09', updated: '2026-11-11' };
 export const INDEP = '421online.com est un site indépendant, sans lien avec Warhorse Studios, Deep Silver ou Plaion ; Kingdom Come: Deliverance est une marque de ses propriétaires.';
 
 export const growthPages = [
@@ -26,7 +26,7 @@ ${toc([['etapes', 'Inviter ses amis, étape par étape'], ['quel-jeu', 'Quel jeu
 
 <h2 id="etapes">Inviter ses amis, étape par étape</h2>
 <ol class="steps">
-<li><b>Ouvrez le jeu</b> et choisissez le jeu à lancer : le 421 ou le Courtisan (Dix mille).</li>
+<li><b>Ouvrez le jeu</b> et choisissez le jeu à lancer : le 421, le Courtisan (Dix mille) ou le Poker menteur.</li>
 <li><b>Créez une table privée</b> : elle reçoit un code de 5 lettres.</li>
 <li><b>Envoyez le code</b> (ou, au 421, directement le lien) dans votre conversation de groupe.</li>
 <li><b>Lancez la partie</b> quand tout le monde est assis. S’il manque quelqu’un, l’hôte peut compléter avec des joueurs ordinateur.</li>
@@ -39,6 +39,7 @@ ${toc([['etapes', 'Inviter ses amis, étape par étape'], ['quel-jeu', 'Quel jeu
 <tr><td><a href="/421-entre-amis">Le 421</a></td><td>2 à 6</td><td>Trois dés, des jetons à refiler aux autres : le classique du comptoir, avec vos propres règles maison.</td></tr>
 <tr><td><a href="/dix-mille-en-ligne">Le Courtisan (Dix mille)</a></td><td>2 à 6</td><td>Six dés et une question : relancer ou encaisser ? Parfait pour les amateurs de « stop ou encore ».</td></tr>
 <tr><td><a href="/coups-fourres">Coups Fourrés</a></td><td>2 à 4</td><td>Le 421 avec un deck de cartes, des pièges et du bluff, pour ceux qui aiment la stratégie.</td></tr>
+<tr><td><a href="/poker-menteur-en-ligne">Le Poker menteur</a></td><td>2 à 6</td><td>Cinq dés de poker sous un gobelet qui passe de main en main : on annonce, on bluffe, on crie « Menteur ! ».</td></tr>
 </tbody></table></div>
 
 <h2 id="sans-compte">Vos amis n’ont pas besoin d’installer quoi que ce soit</h2>
@@ -49,6 +50,7 @@ ${toc([['etapes', 'Inviter ses amis, étape par étape'], ['quel-jeu', 'Quel jeu
 <li><b>La revanche au 421</b> : le dernier à garder des jetons choisit le gage (sans alcool obligatoire).</li>
 <li><b>Le tour de table au Dix mille</b> : une partie en 2 000 points pour se chauffer, puis la vraie en 10 000.</li>
 <li><b>Sur un seul téléphone</b> : au 421, vous pouvez aussi vous passer l’appareil autour de la table.</li>
+<li><b>Le bluff au Poker menteur</b> : en visio, on voit enfin la tête de celui qui annonce un full… (<a href="/regles-du-poker-menteur">règles du poker menteur</a>).</li>
 <li><b>En visio</b> : gardez votre appel habituel ouvert à côté, le jeu s’occupe des dés et des comptes.</li>
 </ul>
 
@@ -58,7 +60,7 @@ ${play('Lancer les dés avec vos amis', 'Sur téléphone et ordinateur', '/?joue
 `,
     faq: [
       ['Comment jouer aux dés en ligne avec des amis ?', 'Créez une table privée sur 421online.com, envoyez le code à vos amis et lancez la partie quand tout le monde est assis. C’est gratuit et rien n’est à installer.'],
-      ['À combien peut-on jouer ?', 'De 2 à 6 joueurs au 421 et au Courtisan (Dix mille), de 2 à 4 à Coups Fourrés.'],
+      ['À combien peut-on jouer ?', 'De 2 à 6 joueurs au 421, au Courtisan (Dix mille) et au Poker menteur, de 2 à 4 à Coups Fourrés.'],
       ['Mes amis doivent-ils créer un compte ?', 'Non pour une partie sans mise : il suffit de choisir un nom. Un compte gratuit, sans adresse e-mail, sert à garder sa progression et à avoir une liste d’amis.'],
       ['Peut-on jouer sur téléphone et ordinateur à la même table ?', 'Oui, les joueurs d’une même table peuvent utiliser des appareils différents.'],
     ],
@@ -66,20 +68,21 @@ ${play('Lancer les dés avec vos amis', 'Sur téléphone et ordinateur', '/?joue
   },
   {
     slug: 'jeux-de-des-en-ligne', nav: 'Dés en ligne', short: 'Jeux de dés en ligne gratuits', ...dates,
-    blurb: 'Le 421, le Dix mille et Coups Fourrés : trois jeux de dés à lancer dans le navigateur.',
+    blurb: 'Le 421, le Dix mille, Coups Fourrés et le Poker menteur : quatre jeux de dés dans le navigateur.',
     title: 'Jeux de dés en ligne gratuits, seul ou en multijoueur',
-    description: 'Trois jeux de dés en ligne gratuits dans le navigateur : 421, Dix mille (Farkle) et Coups Fourrés. Seul contre l’ordinateur ou en multijoueur, sans téléchargement.',
+    description: 'Quatre jeux de dés en ligne gratuits : 421, Dix mille (Farkle), Coups Fourrés et Poker menteur. Seul contre l’ordinateur ou en multijoueur, sans téléchargement.',
     h1: 'Jeux de dés en ligne gratuits',
-    lead: 'Pas de simulateur de lancer ici, mais de vraies parties. <a href="/" data-play>421online.com</a> réunit trois jeux de dés jouables tout de suite dans un bac en 3D, contre l’ordinateur ou contre d’autres joueurs, sans téléchargement, sans publicité et sans achat.',
+    lead: 'Pas de simulateur de lancer ici, mais de vraies parties. <a href="/" data-play>421online.com</a> réunit quatre jeux de dés jouables tout de suite dans un bac en 3D, contre l’ordinateur ou contre d’autres joueurs, sans téléchargement, sans publicité et sans achat.',
     image: { src: '/img/partie-421.webp', w: 390, h: 844, alt: 'Partie de dés en ligne sur téléphone : trois dés dans le bac en 3D et les adversaires en haut de l’écran', caption: 'Une partie de 421 sur téléphone.' },
     body: `
-${toc([['trois', 'Les trois jeux'], ['choisir', 'Lequel choisir ?'], ['modes', 'Seul ou à plusieurs'], ['classiques', 'Et les autres jeux de dés ?']])}
+${toc([['jeux', 'Les quatre jeux'], ['choisir', 'Lequel choisir ?'], ['modes', 'Seul ou à plusieurs'], ['classiques', 'Et les autres jeux de dés ?']])}
 
-<h2 id="trois">Les trois jeux</h2>
+<h2 id="jeux">Les quatre jeux</h2>
 <div class="cards">
 <section class="card"><h3>Le 421</h3><p>Le jeu de dés des bistrots français : trois dés, trois lancers, la charge puis la décharge. <a href="/jouer-au-421-en-ligne">Jouer au 421 en ligne</a> ou lire les <a href="/regles-du-421">règles</a>.</p></section>
 <section class="card"><h3>Le Courtisan</h3><p>Le Dix mille à six dés, aussi appelé Farkle : mettre de côté ce qui rapporte, puis relancer ou encaisser. <a href="/dix-mille-en-ligne">Découvrir le Courtisan</a>.</p></section>
 <section class="card"><h3>Coups Fourrés</h3><p>Le duel de dés du 421 avec un deck de 20 cartes : pièges, relances et bluff. <a href="/coups-fourres">Découvrir Coups Fourrés</a>.</p></section>
+<section class="card"><h3>Le Poker menteur</h3><p>Cinq dés de poker sous un gobelet qui circule : annoncer, croire ou crier « Menteur ! ». <a href="/poker-menteur-en-ligne">Jouer au poker menteur</a> ou lire les <a href="/regles-du-poker-menteur">règles</a>.</p></section>
 </div>
 
 <h2 id="choisir">Lequel choisir ?</h2>
@@ -87,6 +90,7 @@ ${toc([['trois', 'Les trois jeux'], ['choisir', 'Lequel choisir ?'], ['modes', '
 <li><b>Vous voulez une partie simple, à plusieurs</b> : le 421.</li>
 <li><b>Vous aimez prendre des risques</b> : le Courtisan, où un seul mauvais lancer peut effacer tout votre tour.</li>
 <li><b>Vous aimez les jeux de cartes à collectionner</b> : Coups Fourrés.</li>
+<li><b>Vous aimez bluffer et lire dans le jeu des autres</b> : le Poker menteur.</li>
 <li><b>Vous avez aimé les parties de dés d’un jeu vidéo médiéval</b> : voyez notre page sur le <a href="/jeu-de-des-kingdom-come-deliverance-2">jeu de dés de Kingdom Come: Deliverance 2</a>.</li>
 </ul>
 
@@ -98,12 +102,12 @@ ${toc([['trois', 'Les trois jeux'], ['choisir', 'Lequel choisir ?'], ['modes', '
 ${play('Choisir un jeu et lancer les dés', 'Gratuit, sans téléchargement')}
 `,
     faq: [
-      ['Quels jeux de dés peut-on jouer en ligne gratuitement ici ?', 'Le 421, le Dix mille (ou Farkle) sous le nom du Courtisan, et Coups Fourrés, un jeu de cartes et de dés.'],
+      ['Quels jeux de dés peut-on jouer en ligne gratuitement ici ?', 'Le 421, le Dix mille (ou Farkle) sous le nom du Courtisan, Coups Fourrés, un jeu de cartes et de dés, et le Poker menteur, le jeu de bluff aux dés de poker.'],
       ['Faut-il télécharger une application ?', 'Non, les jeux s’ouvrent dans le navigateur d’un téléphone ou d’un ordinateur.'],
       ['Peut-on jouer sans adversaire humain ?', 'Oui, chaque jeu se joue contre l’ordinateur, avec plusieurs niveaux de difficulté.'],
       ['Y a-t-il de l’argent réel en jeu ?', 'Non. Les monnaies du jeu sont virtuelles, elles ne s’achètent pas et ne se retirent pas.'],
     ],
-    related: ['jeu-de-des-entre-amis', 'jouer-au-421-en-ligne', 'jeux-de-des'],
+    related: ['jeu-de-des-entre-amis', 'jouer-au-421-en-ligne', 'poker-menteur-en-ligne', 'jeux-de-des'],
   },
   {
     slug: 'jeu-de-bistrot-en-ligne', nav: 'Jeu de bistrot', short: 'Jeu de bistrot en ligne', ...dates,
@@ -132,7 +136,7 @@ ${toc([['tradition', 'Pourquoi le 421 au bistrot ?'], ['comptoir', 'Le comptoir,
 <p>D’un bistrot à l’autre, le 421 change. Avant la partie, vous réglez le nombre de jetons, de lancers, la valeur des combinaisons et la règle d’égalité, pour jouer comme à votre comptoir habituel.</p>
 
 <h2 id="autres">Les autres jeux du comptoir</h2>
-<p>Quand le 421 ne suffit plus : <a href="/dix-mille-en-ligne">Le Courtisan</a> (le Dix mille à six dés) et <a href="/coups-fourres">Coups Fourrés</a> (le 421 aux cartes). À consommer sans modération, et sans alcool : ici, les seules tournées sont virtuelles.</p>
+<p>Quand le 421 ne suffit plus : <a href="/dix-mille-en-ligne">Le Courtisan</a> (le Dix mille à six dés), <a href="/coups-fourres">Coups Fourrés</a> (le 421 aux cartes) et le <a href="/poker-menteur-en-ligne">Poker menteur</a>, l’autre grand jeu de dés des cafés, où l’on se passe le gobelet en bluffant. À consommer sans modération, et sans alcool : ici, les seules tournées sont virtuelles.</p>
 ${play('Lancer les dés au comptoir', 'Contre les habitués ou entre amis')}
 `,
     faq: [
@@ -143,7 +147,7 @@ ${play('Lancer les dés au comptoir', 'Contre les habitués ou entre amis')}
     related: ['jouer-au-421-en-ligne', 'regles-du-421', 'jeu-de-des-entre-amis'],
   },
   {
-    slug: 'jouer-au-farkle-en-ligne', nav: 'Farkle', short: 'Jouer au Farkle en ligne', ...dates, parent: 'dix-mille-en-ligne', about: 'courtisan', play: CT_PLAY,
+    slug: 'jouer-au-farkle-en-ligne', nav: 'Farkle', short: 'Jouer au Farkle en ligne', ...dates, updated: '2026-11-09', parent: 'dix-mille-en-ligne', about: 'courtisan', play: CT_PLAY,
     og: '/og-courtisan.jpg',
     blurb: 'Le Farkle à six dés, gratuit, en français : seul ou de 2 à 6 avec vos amis.',
     title: 'Jouer au Farkle en ligne gratuit, seul ou entre amis',
@@ -212,6 +216,7 @@ ${toc([['pourquoi', 'Pourquoi les dés marchent bien en visio'], ['comment', 'Or
 <tbody>
 <tr><td>Une partie vite fait</td><td><a href="/dix-mille-en-ligne">Le Courtisan</a> en 2 000 points</td></tr>
 <tr><td>Le classique de l’apéro</td><td><a href="/421-entre-amis">Le 421</a>, avec vos règles maison</td></tr>
+<tr><td>Pour les bluffeurs</td><td><a href="/poker-menteur-en-ligne">Le Poker menteur</a>, de 2 à 6, en 3 ou 5 vies</td></tr>
 <tr><td>Une longue soirée</td><td>Un tournoi privé au 421, ou Le Courtisan en 10 000 points</td></tr>
 </tbody></table></div>
 <p>Le perdant choisit le gage, offre le prochain verre lors de vos retrouvailles, ou simplement sa revanche : avec ou sans alcool, le jeu ne change pas.</p>

@@ -56,12 +56,13 @@ describe('pages d’aide : boutons Jouer vers une partie', () => {
       const top = /<\/h1>\n<p class="play-box top"><a class="cta" href="([^"]+)" data-play>/.exec(h);
       expect(top, f).not.toBeNull();
       const href = top![1];
-      expect(href, f).toMatch(lang === 'fr' ? /^\/\?jouer=(1|courtisan|cartes|amis)$/ : new RegExp(`^/\\?jouer=(1|courtisan|cartes|amis)&amp;lang=${lang}$`));
+      expect(href, f).toMatch(lang === 'fr' ? /^\/\?jouer=(1|courtisan|cartes|amis|poker)$/ : new RegExp(`^/\\?jouer=(1|courtisan|cartes|amis|poker)&amp;lang=${lang}$`));
       expect(h, f).toContain(`<p class="play-box end"><a class="cta" href="${href}" data-play>`);
       // Le jeu de la page : Coups Fourrés et Courtisan vers leur mode, pages « entre amis » vers une table.
       if (/coups-fourres/.test(f)) expect(href, f).toContain('jouer=cartes');
       if (/dix-mille|farkle|zehntausend|kingdom-come|courtisan/.test(f)) expect(href, f).toContain('jouer=courtisan');
       if (/entre-amis|with-friends|mit-freunden|met-vrienden/.test(f)) expect(href, f).toContain('jouer=amis');
+      if (/poker|liars-dice|luegenpoker|blufpoker/.test(f)) expect(href, f).toContain('jouer=poker');
       // Plus aucun bouton Jouer vers l'accueil nu ou l'ancien ?mode=.
       expect(h, f).not.toMatch(/class="cta( small)?" href="\/(\?lang=\w+)?"/);
       expect(h, f).not.toMatch(/class="cta( small)?" href="\/\?mode=/);

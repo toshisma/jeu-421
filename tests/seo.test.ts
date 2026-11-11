@@ -14,6 +14,8 @@ import { CARDS as CF_CARDS, CF_RULES, DECK_RULES } from '../shared/cards/catalog
 import { DEFAULT_CONFIG } from '../shared/config';
 // @ts-expect-error script Node sans déclaration de types
 import { DISCLAIMERS, I18N_GROUPS, V421 } from '../scripts/seo-i18n-common.mjs';
+// @ts-expect-error script Node sans déclaration de types
+import { POKER, POKER_GROUPS, POKER_HAND_IDS, POKER_HANDS_FR, POKER_ODDS, pokerCategory } from '../scripts/seo-poker-pages.mjs';
 
 describe('adresses canoniques', () => {
   const exists = (n: string) => n === 'regles-du-421.html';
@@ -364,7 +366,7 @@ describe('pages traduites (en, de, nl)', () => {
       expect(h).toContain(`<meta property="og:locale" content="${OG[lang]}">`);
       expect(g.find((x) => x['@type'] === 'Article').inLanguage).toBe(lang);
       expect(h).toContain(`<h2 id="questions">${FAQ[lang]}</h2>`);
-      expect(h).toMatch(new RegExp(`class="cta" href="/\\?jouer=(1|courtisan|cartes|amis)&amp;lang=${lang}" data-play>`));
+      expect(h).toMatch(new RegExp(`class="cta" href="/\\?jouer=(1|courtisan|cartes|amis|poker)&amp;lang=${lang}" data-play>`));
       expect(h).toContain(`<a href="/?lang=${lang}">421online</a>`);
       for (const q of g.find((x) => x['@type'] === 'FAQPage').mainEntity) expect(h).toContain(`<summary>${q.name}</summary>`);
       expect(g.flatMap((x) => (x.aggregateRating || x.review ? [x] : []))).toHaveLength(0);
@@ -400,5 +402,153 @@ describe('pages traduites (en, de, nl)', () => {
     }
     expect(read('jeu-de-des-kingdom-come-deliverance-2')).not.toContain('French only');
     expect(read('jeu-de-des-kingdom-come-deliverance-2')).toContain('also available in English, German and Dutch');
+  });
+});
+
+describe('pages Poker menteur (fr, en, de, nl)', () => {
+  const pub = join(process.cwd(), 'client', 'public');
+  const site = 'https://421online.com';
+  const read = (slug: string) => readFileSync(join(pub, `${slug}.html`), 'utf8');
+  const ld = (h: string) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => JSON.parse(m[1])['@graph']);
+  const LANGS = ['fr', 'en', 'de', 'nl'] as const;
+  type Lang = (typeof LANGS)[number];
+  const groups = POKER_GROUPS as Array<Record<Lang, string>>;
+  const [online, rules] = groups;
+  // Combinaisons du fichier de règles du mode (docs : « Poker menteur — règles retenues »), de la plus faible à la plus forte.
+  const RULES_ORDER = ['Rien', 'Paire', 'Double paire', 'Brelan', 'Petite suite', 'Grande suite', 'Full', 'Carré', 'Poker'];
+  const NAMES: Record<Lang, string[]> = {
+    fr: RULES_ORDER,
+    en: ['Nothing', 'Pair', 'Two pair', 'Three of a kind', 'Low straight', 'High straight', 'Full house', 'Four of a kind', 'Five of a kind'],
+    de: ['Nichts', 'Paar', 'Zwei Paare', 'Drilling', 'Kleine Straße', 'Große Straße', 'Full House', 'Vierling', 'Fünf Gleiche (Poker)'],
+    nl: ['Niets', 'Paar', 'Twee paar', 'Drie gelijke', 'Kleine straat', 'Grote straat', 'Full house', 'Carré', 'Poker (vijf gelijke)'],
+  };
+  const play = (l: Lang) => (l === 'fr' ? '/?jouer=poker' : `/?jouer=poker&amp;lang=${l}`);
+  const menu = (l: Lang) => (l === 'fr' ? '/?mode=poker' : `/?mode=poker&amp;lang=${l}`);
+
+  it('slugs plats, groupes hreflang déclarés, hreflang réciproques + x-default français, plan du site', () => {
+    const sitemap = readFileSync(join(pub, 'sitemap.xml'), 'utf8');
+    for (const g of groups) {
+      expect((I18N_GROUPS as Array<Record<Lang, string>>)).toContainEqual(g);
+      for (const l of LANGS) {
+        expect(g[l]).toMatch(/^[a-z0-9]+(-[a-z0-9]+)+$/);
+        const h = read(g[l]);
+        expect(h.startsWith(`<!doctype html>\n<html lang="${l}">`)).toBe(true);
+        for (const m of LANGS) expect(h, `${g[l]}→${m}`).toContain(`<link rel="alternate" hreflang="${m}" href="${site}/${g[m]}">`);
+        expect(h).toContain(`<link rel="alternate" hreflang="x-default" href="${site}/${g.fr}">`);
+        expect(sitemap).toContain(`<loc>${site}/${g[l]}</loc>`);
+        for (const m of LANGS) expect(sitemap).toContain(`<xhtml:link rel="alternate" hreflang="${m}" href="${site}/${g[m]}"/>`);
+      }
+    }
+  });
+
+  it('titres (≤ 70) et descriptions (≤ 165) uniques par langue, toutes pages confondues', () => {
+    const files = readdirSync(pub).filter((f) => f.endsWith('.html') && f !== 'index.html');
+    const byLang: Record<string, { t: Set<string>; d: Set<string> }> = {};
+    for (const f of files) {
+      const h = readFileSync(join(pub, f), 'utf8');
+      if (!h.includes('/seo.css')) continue;
+      const lang = /<html lang="(\w+)">/.exec(h)![1];
+      const t = /<title>([^<]+)<\/title>/.exec(h)![1]; const d = /name="description" content="([^"]+)"/.exec(h)![1];
+      const seen = (byLang[lang] ??= { t: new Set(), d: new Set() });
+      expect(seen.t.has(t), `${f} : titre en double`).toBe(false); seen.t.add(t);
+      expect(seen.d.has(d), `${f} : description en double`).toBe(false); seen.d.add(d);
+    }
+    for (const g of groups) for (const l of LANGS) {
+      const h = read(g[l]);
+      expect(/<title>([^<]+)<\/title>/.exec(h)![1].length, g[l]).toBeLessThanOrEqual(70);
+      expect(/name="description" content="([^"]+)"/.exec(h)![1].replace(/&[a-z]+;/g, '_').length, g[l]).toBeLessThanOrEqual(165);
+    }
+  });
+
+  it('combinaisons : tableau dans l’ordre exact du fichier de règles, noms traduits dans le même ordre', () => {
+    expect(POKER_HANDS_FR).toEqual(RULES_ORDER);
+    expect(POKER_HAND_IDS).toHaveLength(RULES_ORDER.length);
+    for (const l of LANGS) {
+      const h = read(rules[l]);
+      const rows = [...h.matchAll(/<tr data-hand="([a-z-]+)"><td>(\d+)\. <b>([^<]+)<\/b>/g)];
+      expect(rows.map((r) => r[1]), l).toEqual(POKER_HAND_IDS);
+      expect(rows.map((r) => Number(r[2]))).toEqual(RULES_ORDER.map((_, i) => i + 1));
+      expect(rows.map((r) => r[3]), l).toEqual(NAMES[l]);
+    }
+  });
+
+  it('probabilités exactes (7 776 tirages) et classement du moteur de la page', () => {
+    const sum = POKER_ODDS.oneRoll.reduce((a: number, b: number) => a + b, 0);
+    expect(sum).toBeCloseTo(1, 12);
+    expect(POKER_ODDS.oneRoll.map((x: number) => Math.round(x * 7776))).toEqual([480, 3600, 1800, 1200, 120, 120, 300, 150, 6]);
+    expect(Math.round(POKER_ODDS.nothingNoStraights * 7776)).toBe(720);
+    expect(POKER_ODDS.twoPairToFull).toBeCloseTo(1 / 3, 12);
+    expect(POKER_ODDS.tripsToFullOrBetter).toBeCloseTo(16 / 36, 12);
+    // 9 = 0 … As = 5
+    expect(pokerCategory([0, 1, 2, 3, 4])).toBe(4); expect(pokerCategory([1, 2, 3, 4, 5])).toBe(5);
+    expect(pokerCategory([0, 1, 2, 3, 4], false)).toBe(0); expect(pokerCategory([5, 5, 5, 5, 5])).toBe(8);
+    expect(pokerCategory([4, 4, 4, 1, 1])).toBe(6); expect(pokerCategory([0, 1, 2, 3, 5])).toBe(0);
+    expect(read(rules.fr)).toContain('46,3&nbsp;%');
+    expect(read(rules.en)).toContain('46.3%');
+  });
+
+  it('boutons Jouer (haut, bas, en-tête) vers ?jouer=poker, lien vers le menu ?mode=poker, dans la langue', () => {
+    for (const g of groups) for (const l of LANGS) {
+      const h = read(g[l]);
+      expect(h).toContain(`</h1>\n<p class="play-box top"><a class="cta" href="${play(l)}" data-play>`);
+      expect(h).toContain(`<p class="play-box end"><a class="cta" href="${play(l)}" data-play>`);
+      expect(h).toContain(`<a class="cta small" href="${play(l)}" data-play>`);
+      expect(h).toContain(`<a href="${menu(l)}">`);
+      expect(h).not.toMatch(/class="cta( small)?" href="\/\?mode=/);
+    }
+  });
+
+  it('JSON-LD : fiche de jeu gratuite sans note dans chaque langue, FAQ visible, fil d’Ariane', () => {
+    for (const l of LANGS) {
+      const g = ld(read(online[l]));
+      const game = g.find((x) => x['@type'] === 'VideoGame');
+      expect(game, l).toMatchObject({ inLanguage: l, isAccessibleForFree: true, offers: { price: '0' }, numberOfPlayers: { minValue: 1, maxValue: POKER.maxPlayers } });
+      expect(game.aggregateRating).toBeUndefined(); expect(game.review).toBeUndefined();
+      expect(g.find((x) => x['@type'] === 'Article').about['@id']).toBe(game['@id']);
+      const r = ld(read(rules[l]));
+      expect(r.find((x) => x['@type'] === 'Article').about['@id']).toBe(game['@id']);
+      const crumbs = r.find((x) => x['@type'] === 'BreadcrumbList').itemListElement;
+      expect(crumbs).toHaveLength(3);
+      expect(crumbs[1].item).toBe(`${site}/${online[l]}`);
+      for (const page of [read(online[l]), read(rules[l])]) for (const q of ld(page).find((x) => x['@type'] === 'FAQPage').mainEntity) expect(page).toContain(`<summary>${q.name}</summary>`);
+    }
+    const home = readFileSync(join(process.cwd(), 'client', 'index.html'), 'utf8');
+    const homeLd = JSON.parse(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(home)![1]);
+    const parts = homeLd['@graph'].find((x: { '@id': string }) => x['@id'] === `${site}/#jeu`).hasPart.map((x: { '@id': string }) => x['@id']);
+    expect(parts).toContain(ld(read(online.fr)).find((x) => x['@type'] === 'VideoGame')['@id']);
+  });
+
+  it('ne décrit que la règle retenue : 5 dés 9 à As, une relance, vies 3 ou 5, 2 à 6, 3 niveaux, rien d’inventé', () => {
+    expect(POKER).toMatchObject({ dice: 5, lives: [3, 5], defaultLives: 3, minPlayers: 2, maxPlayers: 6, turnSeconds: 30, aiLevels: 3, rerolls: 1 });
+    const fr = read(rules.fr);
+    expect(fr).toContain('9, 10, Valet, Dame, Roi, As');
+    expect(fr).toMatch(/Poker d’As/);
+    expect(fr).toMatch(/sans suites/);
+    for (const g of groups) for (const l of LANGS) {
+      const h = read(g[l]);
+      expect(h).not.toMatch(/aggregateRating|ratingValue|"review"/);
+      expect(h).not.toMatch(/Board\s?Game\s?Arena|CrazyGames|cardgames\.io|Kniffel LIVE|Pokerist|Zynga/i);
+      expect(h).not.toMatch(/télécharg(?:ez|er) l’application|App Store|Google Play/);
+    }
+    // Honnêteté : jamais présenté comme le Perudo (version à gobelets multiples).
+    expect(read(online.en)).toMatch(/Not the Perudo version/);
+    expect(read(online.de)).toMatch(/nicht Perudo/);
+    expect(read(online.nl)).toMatch(/geen Perudo/);
+    expect(read(online.fr)).toMatch(/Ce n’est pas le <a href="\/jeux-de-des#perudo">Perudo/);
+  });
+
+  it('pages de jeux existantes : liens vers le Poker menteur et plus aucune mention de « trois jeux »', () => {
+    const LINKS: Array<[string, string]> = [
+      ['jeux-de-des-en-ligne', online.fr], ['jeu-de-des-entre-amis', online.fr], ['jeu-de-bistrot-en-ligne', online.fr], ['jeux-de-des', online.fr],
+      ['jouer-au-421-en-ligne', online.fr], ['online-dice-game-with-friends', online.en], ['online-wuerfelspiel-mit-freunden', online.de], ['online-dobbelspel-met-vrienden', online.nl],
+    ];
+    for (const [page, target] of LINKS) expect(read(page), page).toContain(`href="/${target}"`);
+    const files = readdirSync(pub).filter((f) => f.endsWith('.html'));
+    const home = readFileSync(join(process.cwd(), 'client', 'index.html'), 'utf8');
+    expect(home).toContain('href="/poker-menteur-en-ligne"');
+    for (const [f, h] of [...files.map((f) => [f, readFileSync(join(pub, f), 'utf8')]), ['index.html (client)', home]]) {
+      expect(h, f).not.toMatch(/\btrois (?:jeux|modes)\b|\bthree (?:games|modes)\b|\bdrei (?:Spiele|Modi)\b|\bdrie (?:spellen|modi)\b/i);
+    }
+    expect(read('jeux-de-des-en-ligne')).toMatch(/quatre jeux/i);
   });
 });

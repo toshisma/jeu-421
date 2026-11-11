@@ -332,7 +332,7 @@ ${play421('Try a game', 'The game applies the rules and counts the tokens')}
   },
   // ---------------------------------------------------------------------------------------------
   {
-    ...base421, slug: 'online-dice-game-with-friends', nav: 'With friends', short: 'Online dice games with friends',
+    ...base421, updated: '2026-11-11', slug: 'online-dice-game-with-friends', nav: 'With friends', short: 'Online dice games with friends',
     blurb: 'Open a private table, send a code or a link, and roll dice together from anywhere.',
     title: 'Online Dice Game With Friends: Private Table, No Download',
     description: 'Play dice online with friends: open a private table, share a link or code, and play 421 or Farkle together in the browser. Free, nothing to install.',
@@ -344,7 +344,7 @@ ${H.toc('Contents', [['steps', 'Invite friends, step by step'], ['choose', 'Whic
 
 <h2 id="steps">Invite friends, step by step</h2>
 <ol class="steps">
-<li><b>Open the game</b> and pick 421 or The Courtier (Farkle).</li>
+<li><b>Open the game</b> and pick 421, The Courtier (Farkle) or Poker menteur (liar’s dice).</li>
 <li><b>Create a private table</b>: it gets a 5-letter code.</li>
 <li><b>Send the code</b> (or the link) to your group chat.</li>
 <li><b>Start the game</b> when everyone’s seated. Someone missing? The host can add computer players.</li>
@@ -357,6 +357,7 @@ ${H.toc('Contents', [['steps', 'Invite friends, step by step'], ['choose', 'Whic
 <tr><td><a href="/play-421-dice-game-online">421</a></td><td>2 to 6</td><td>Three dice and tokens to pass around: fast, a bit cheeky, with your own house rules.</td></tr>
 <tr><td><a href="/play-farkle-online">The Courtier (Farkle)</a></td><td>2 to 6</td><td>Six dice and one question: roll again or bank?</td></tr>
 <tr><td><a href="/coups-fourres-card-dice-game">Coups Fourrés</a></td><td>2 to 4</td><td>421 with a deck of cards, traps and bluffing, for strategy lovers.</td></tr>
+<tr><td><a href="/liars-dice-poker-dice-online">Poker menteur (liar’s dice)</a></td><td>2 to 6</td><td>Five poker dice under one cup passed around: call a hand, bluff, or shout “Liar!”.</td></tr>
 </tbody></table></div>
 
 <h2 id="install">Nothing to install</h2>
@@ -377,9 +378,9 @@ ${H.play(P.amis, 'Invite my friends', 'One link is enough')}
     faq: [
       ['How can I play dice with friends online?', 'Open a private table on 421online.com and send your friends the code or link. They join in their browser, with nothing to install.'],
       ['Can we play without an account?', 'Yes, for a game with no stakes: everyone just picks a name.'],
-      ['How many players can join?', 'Up to 6 at a 421 or Farkle table, and up to 4 at Coups Fourrés.'],
+      ['How many players can join?', 'Up to 6 at a 421, Farkle or Poker menteur table, and up to 4 at Coups Fourrés.'],
     ],
-    related: ['play-421-dice-game-online', 'play-farkle-online', 'coups-fourres-card-dice-game'],
+    related: ['play-421-dice-game-online', 'play-farkle-online', 'liars-dice-poker-dice-online'],
   },
   // ---------------------------------------------------------------------------------------------
   {

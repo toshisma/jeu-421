@@ -130,7 +130,7 @@ ${play421('Probeer een potje', 'Het spel past de regels toe en telt de fiches')}
   },
   // ---------------------------------------------------------------------------------------------
   {
-    ...base421, slug: 'online-dobbelspel-met-vrienden', nav: 'Met vrienden', short: 'Online dobbelspel met vrienden',
+    ...base421, updated: '2026-11-11', slug: 'online-dobbelspel-met-vrienden', nav: 'Met vrienden', short: 'Online dobbelspel met vrienden',
     blurb: 'Open een privétafel, stuur een code of link en dobbel samen, waar je ook bent.',
     title: 'Online dobbelspel met vrienden: privétafel, zonder download',
     description: 'Online dobbelen met vrienden: open een privétafel, deel een link of code en speel 421 of Farkle samen in je browser. Gratis, niets te installeren.',
@@ -142,7 +142,7 @@ ${H.toc('Inhoud', [['stappen', 'Vrienden uitnodigen in vier stappen'], ['welk', 
 
 <h2 id="stappen">Vrienden uitnodigen in vier stappen</h2>
 <ol class="steps">
-<li><b>Open het spel</b> en kies 421 of De Hoveling (Farkle).</li>
+<li><b>Open het spel</b> en kies 421, De Hoveling (Farkle) of Poker menteur (blufpoker).</li>
 <li><b>Open een privétafel</b>: die krijgt een code van 5 letters.</li>
 <li><b>Stuur de code</b> (of de link) naar je groepsgesprek.</li>
 <li><b>Start het spel</b> als iedereen zit. Ontbreekt er iemand? De gastheer kan computers toevoegen.</li>
@@ -155,6 +155,7 @@ ${H.toc('Inhoud', [['stappen', 'Vrienden uitnodigen in vier stappen'], ['welk', 
 <tr><td><a href="/421-dobbelspel-online">421</a></td><td>2 tot 6</td><td>Drie stenen en fiches om door te geven: snel, plagerig, met eigen huisregels.</td></tr>
 <tr><td><a href="/farkle-online-spelen">De Hoveling (Farkle)</a></td><td>2 tot 6</td><td>Zes stenen en één vraag: opnieuw gooien of vastzetten?</td></tr>
 <tr><td><a href="/coups-fourres-kaart-dobbelspel">Coups Fourrés</a></td><td>2 tot 4</td><td>421 met een kaartendeck, vallen en bluf, voor wie van strategie houdt.</td></tr>
+<tr><td><a href="/blufpoker-dobbelspel-online">Poker menteur (blufpoker)</a></td><td>2 tot 6</td><td>Vijf pokerstenen onder één beker die rondgaat: aankondigen, bluffen of „Leugenaar!” roepen.</td></tr>
 </tbody></table></div>
 
 <h2 id="niets">Niets te installeren</h2>
@@ -175,9 +176,9 @@ ${H.play(P.amis, 'Mijn vrienden uitnodigen', 'Eén link is genoeg')}
     faq: [
       ['Hoe dobbel ik online met vrienden?', 'Open een privétafel op 421online.com en stuur je vrienden de code of de link. Zij doen mee in hun browser, zonder iets te installeren.'],
       ['Kan het zonder account?', 'Ja, bij een potje zonder inzet: iedereen kiest gewoon een naam.'],
-      ['Met hoeveel spelers kan het?', 'Tot 6 aan een tafel met 421 of Farkle, tot 4 bij Coups Fourrés.'],
+      ['Met hoeveel spelers kan het?', 'Tot 6 aan een tafel met 421, Farkle of blufpoker, tot 4 bij Coups Fourrés.'],
     ],
-    related: ['421-dobbelspel-online', 'farkle-online-spelen', 'coups-fourres-kaart-dobbelspel'],
+    related: ['421-dobbelspel-online', 'farkle-online-spelen', 'blufpoker-dobbelspel-online'],
   },
   // ---------------------------------------------------------------------------------------------
   {
