@@ -126,7 +126,7 @@ ${play421('Probeer een potje', 'Het spel past de regels toe en telt de fiches')}
       ['Wie verliest bij 421?', 'Wie aan het einde van het lossen als laatste fiches heeft. In Franse cafés betaalt die traditioneel het rondje.'],
       ['Hoeveel fiches zijn er?', `${V421.pot} fiches in de pot; het laden verdeelt ze over de spelers.`],
     ],
-    related: ['421-dobbelspel-online', 'online-dobbelspel-met-vrienden', 'coups-fourres-spelregels'],
+    related: ['421-dobbelspel-online', '421-dobbelspel-statistieken', 'online-dobbelspel-met-vrienden', 'coups-fourres-spelregels'],
   },
   // ---------------------------------------------------------------------------------------------
   {

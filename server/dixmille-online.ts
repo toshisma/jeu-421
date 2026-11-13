@@ -12,6 +12,7 @@
  * l'état envoyé ne contient jamais cette graine. Chaque action porte la version de l'état
  * (anti double-clic) et n'est acceptée que du joueur dont c'est le tour.
  */
+import { noteOnlineGame } from './chiffres';
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Namespace, Server, Socket } from 'socket.io';
 import { act, currentPlayer, newGame, placeOf, DM_TARGETS, type DmAction, type DmEvent, type DmLevel, type DmState } from '../shared/dixmille/engine';
@@ -435,6 +436,7 @@ export function createDixMilleOnline(c: Ctx) {
         bags: out.applied.bagsFound ?? 0, quests: (out.applied.questsDone ?? []).map((q) => q.text),
         achievements: (out.applied.achievementsDone ?? []).map((x) => x.id), ...(potTo === m.userId ? { potPaid } : {}) } satisfies DmRewardMsg);
     }
+    noteOnlineGame(c.store, 'courtisan'); // « Le 421 en chiffres » (server/chiffres.ts)
     c.verifiedGame?.({ game: 'courtisan', players: inGame.filter((m) => m.userId && !m.bot).map((m) => ({ userId: m.userId!, won: g.winner === m.id, abandoned: !!m.quit })) });
   }
 

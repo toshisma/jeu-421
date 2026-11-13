@@ -12,6 +12,7 @@
 import { CF_RULES, CARDS, DECK_RULES } from '../shared/cards/catalog.ts';
 import { DM_TARGETS, kindValue } from './seo-courtisan-pages.mjs';
 import { POKER_GROUPS } from './seo-poker-pages.mjs';
+import { CHIFFRES_GROUP } from './seo-chiffres-pages.mjs';
 
 export const UPDATED = '2026-11-09';
 export { CF_RULES, CARDS, DECK_RULES, DM_TARGETS, kindValue };
@@ -31,6 +32,7 @@ export const I18N_GROUPS = [
   { fr: 'coups-fourres', en: 'coups-fourres-card-dice-game', de: 'coups-fourres-karten-wuerfelspiel', nl: 'coups-fourres-kaart-dobbelspel' },
   { fr: 'regles-coups-fourres', en: 'coups-fourres-rules', de: 'coups-fourres-regeln', nl: 'coups-fourres-spelregels' },
   ...POKER_GROUPS, // Poker menteur (scripts/seo-poker-pages.mjs)
+  CHIFFRES_GROUP, // Le 421 en chiffres (scripts/seo-chiffres-pages.mjs, rempli par server/chiffres.ts)
 ];
 
 export const DISCLAIMERS = {

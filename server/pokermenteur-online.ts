@@ -11,6 +11,7 @@
  * gobelet, jamais vers les autres joueurs ni les spectateurs, et les événements ne les montrent qu'à
  * la révélation (« Menteur ! »).
  */
+import { noteOnlineGame } from './chiffres';
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Namespace, Server, Socket } from 'socket.io';
 import { act, cleanPmOptions, currentPlayer, newGame, placeOf, timeoutAction, viewFor, type PmAction, type PmEvent, type PmLevel, type PmOptions, type PmState } from '../shared/pokermenteur/engine';
@@ -316,6 +317,7 @@ export function createPokerOnline(c: Ctx) {
         bags: out.applied.bagsFound ?? 0, quests: (out.applied.questsDone ?? []).map((q) => q.text), achievements: (out.applied.achievementsDone ?? []).map((x) => x.id),
       } satisfies PmRewardMsg);
     }
+    noteOnlineGame(c.store, 'poker'); // « Le 421 en chiffres » (server/chiffres.ts)
     c.verifiedGame?.({ game: 'poker', players: inGame.filter((m) => m.userId && !m.bot).map((m) => ({ userId: m.userId!, won: g.winner === m.id, abandoned: !!m.quit })) });
   }
 
