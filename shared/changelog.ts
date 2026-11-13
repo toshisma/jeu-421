@@ -7,6 +7,13 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.56', date: '2026-11-13T15:22:00+01:00', title: 'Revenez chaque jour', items: [
+    'Série de jours joués : une flamme sur l’accueil, quelques pièces chaque jour et un sac de dés tous les 7 jours. Un joker protège votre série si vous ratez un jour.',
+    'Notifications utiles et rares (au plus 2 par jour, jamais la nuit) : tournoi qui commence, ami qui vous dépasse dans votre bistrot, série qui vous attend. Chacune se désactive dans les Réglages.',
+    'Votre réputation de la Tournée des comptoirs s’affiche maintenant à côté de votre nom en partie en ligne.',
+    'Parties contre l’ordinateur plus justes : le serveur vérifie chaque partie, pour des classements, étoiles et succès que personne ne peut fausser.',
+    'Nouvelles pages : « Le 421 en chiffres », les variantes et le vocabulaire du 421.',
+  ] },
   { version: '0.55', date: '2026-11-13T11:35:00+01:00', title: 'Votre langue, à votre choix', items: [
     'Le jeu s’ouvre en français. Si votre téléphone est en anglais, en allemand ou en néerlandais, un petit bandeau vous propose votre langue ; vous pouvez aussi la changer à tout moment dans les Réglages.',
   ] },
