@@ -7,6 +7,9 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.55', date: '2026-11-13T11:35:00+01:00', title: 'Votre langue, à votre choix', items: [
+    'Le jeu s’ouvre en français. Si votre téléphone est en anglais, en allemand ou en néerlandais, un petit bandeau vous propose votre langue ; vous pouvez aussi la changer à tout moment dans les Réglages.',
+  ] },
   { version: '0.54', date: '2026-11-11T22:17:00+01:00', title: 'Nouveau jeu : le Poker menteur', items: [
     'Nouveau jeu : le Poker menteur. Cinq dés de poker sous un gobelet, une annonce au voisin : croyez-vous, ou criez-vous « Menteur ! » ?',
     'Contre l’ordinateur (3 niveaux, jusqu’à 5 adversaires) ou en ligne de 2 à 6 joueurs avec vos amis.',
