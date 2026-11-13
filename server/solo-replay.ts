@@ -11,6 +11,7 @@ import { randomBytes } from 'node:crypto';
 import type { Store } from './db';
 import { applyPlainReward, type Profile, type Reward } from '../shared/progress/profile';
 import { dixMilleBagRoll } from '../shared/dixmille/reward';
+import { REJEU_VERSION } from '../shared/rejeu/common';
 
 export type RejeuGame = '421' | 'dm' | 'pm';
 export interface RejeuTicket { game: RejeuGame; seed: number; setup: unknown }
@@ -29,17 +30,26 @@ export function createRejeu(store: Store) {
     /** Nouvelle graine (32 bits, cryptographique) pour cette partie. */
     issue(token: string, game: RejeuGame, setup: unknown, now = Date.now()): number {
       const seed = randomBytes(4).readUInt32BE(0);
-      ins.run(token, game, seed, JSON.stringify(setup), now);
+      // Version du moteur de rejeu notée : une partie commencée avant une mise à jour du moteur n'est pas rejouée
+      // avec le nouveau (résultat possiblement différent) ; elle passe alors par la récompense de base.
+      ins.run(token, game, seed, JSON.stringify({ __v: REJEU_VERSION, setup }), now);
       prune.run(now - 12 * 3600_000);
       return seed;
     },
+    /** Oublie des parties (jetons remplacés par des parties plus récentes du même compte). */
+    drop(tokens: string[]) { for (const t of tokens) del.run(t); },
     /** Graine et table d'une partie (à usage unique : effacées à la lecture). */
     take(token: string, game: RejeuGame): RejeuTicket | null {
       const r = get.get(token) as { game: string; seed: number; setup: string } | undefined;
       if (!r) return null;
       del.run(token);
       if (r.game !== game) return null;
-      try { return { game, seed: Number(r.seed) >>> 0, setup: JSON.parse(r.setup) }; } catch { return null; }
+      try {
+        const o = JSON.parse(r.setup);
+        const v = o && typeof o === 'object' && '__v' in o ? o.__v : 1;
+        if (v !== REJEU_VERSION) return null;
+        return { game, seed: Number(r.seed) >>> 0, setup: o && typeof o === 'object' && '__v' in o ? o.setup : o };
+      } catch { return null; }
     },
   };
 }

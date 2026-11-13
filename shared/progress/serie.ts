@@ -165,6 +165,7 @@ export function capSerieImport(s: SerieState | undefined, day: string): SerieSta
   const count = Math.min(SERIE_IMPORT_MAX, s.count);
   return {
     last: s.last, count, best: Math.min(SERIE_IMPORT_MAX, Math.max(count, s.best)), jokers: 0, days: past(s.days), saved: past(s.saved),
-    ...(s.bagDay && dayGap(s.bagDay, day) >= 0 ? { bagDay: s.bagDay } : count >= SERIE_IMPORT_MAX ? { bagDay: s.last } : {}),
+    // Le sac hebdomadaire n'est jamais donné juste après une reprise (profil d'invité non vérifiable).
+    bagDay: s.bagDay && dayGap(s.bagDay, day) >= 0 && dayGap(s.bagDay, s.last) <= 0 ? s.last : (s.bagDay && dayGap(s.bagDay, day) >= 0 ? s.bagDay : s.last),
   };
 }

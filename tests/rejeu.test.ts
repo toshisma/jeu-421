@@ -275,6 +275,7 @@ describe('serveur : parties solo rejouées', () => {
     const bad = await api('/solo/end', { gameToken: st.gameToken, moves: 'S', won: true, rounds: 10, opponents: 1 }, t);
     expect(bad.verified).toBe(false);
     expect(bad.refused).toBe(REJEU_ERRORS.illegal);
+    expect(bad.reward.won).toBe(false); // graine délivrée mais décisions refusées : compté comme une défaite
     expect(bad.reward.lines.at(-1).label).toBe(UNVERIFIED_LINE);
     expect(bad.applied.achievementsDone).toEqual([]);
     expect(bad.applied.questsDone).toEqual([]);
@@ -288,6 +289,23 @@ describe('serveur : parties solo rejouées', () => {
     expect(e.reward.lines.some((l: { label: string }) => l.label.startsWith('4-2-1'))).toBe(false);
     expect(e.applied.profile.stats.brelans).toBe(before.stats.brelans); // combinaisons annoncées : rien
     expect(e.applied.profile.coins).toBeGreaterThan(before.coins);
+  });
+
+  it('graine délivrée mais aucune décision envoyée : défaite, quel que soit le jeu', async () => {
+    const t = await register();
+    const s1 = await api('/solo/start', { setup: freeSetup() }, t);
+    const e1 = await api('/solo/end', { gameToken: s1.gameToken, won: true, rounds: 12, opponents: 1 }, t);
+    expect(e1.verified).toBe(false);
+    expect(e1.reward.won).toBe(false);
+  });
+
+  it('au plus 3 parties solo ouvertes par compte : une 4e remplace la plus ancienne', async () => {
+    const t = await register();
+    const st = [];
+    for (let i = 0; i < 4; i++) st.push(await api('/solo/start', { setup: freeSetup() }, t));
+    expect((await api('/solo/end', { gameToken: st[0].gameToken, moves: 'a' }, t)).status).toBe(400); // la plus ancienne n'existe plus
+    const g = play421(st[3].setup, st[3].seed, 'difficile', 1);
+    expect((await api('/solo/end', { gameToken: st[3].gameToken, moves: g.moves }, t)).verified).toBe(true);
   });
 
   it('Tournée : étoiles seulement pour une partie rejouée ; table du bistrot exigée', async () => {
@@ -367,5 +385,37 @@ describe('serveur : parties solo rejouées', () => {
     const s1 = await api('/poker/start', { setup: pmSetup }, t);
     const e1 = await api('/dixmille/end', { gameToken: s1.gameToken, moves: 'L' }, t);
     expect(e1.verified).toBe(false);
+  });
+});
+
+describe('relecture 0.56', () => {
+  it('partie libre du 421 : difficultés mélangées ou habitué en double refusés', async () => {
+    const { setup421For } = await import('../shared/rejeu/r421');
+    const { HABITUES } = await import('../shared/rejeu/r421').catch(() => ({ HABITUES: undefined as unknown as string[] }));
+    const ids: string[] = (HABITUES as string[] | undefined) ?? [];
+    if (ids.length < 2) return;
+    const base = { firstIdx: 0, config: {} };
+    expect(setup421For({ ...base, opponents: [{ persona: ids[0], difficulty: 'difficile' }, { persona: ids[1], difficulty: 'facile' }] }, { day: '2026-11-13' })).toBeNull();
+    expect(setup421For({ ...base, opponents: [{ persona: ids[0], difficulty: 'normal' }, { persona: ids[0], difficulty: 'normal' }] }, { day: '2026-11-13' })).toBeNull();
+    expect(setup421For({ ...base, opponents: [{ persona: ids[0], difficulty: 'normal' }, { persona: ids[1], difficulty: 'normal' }] }, { day: '2026-11-13' })).not.toBeNull();
+  });
+});
+
+describe('plafond quotidien vérifié avant le rejeu', () => {
+  it('au-delà du plafond : refus immédiat, sans rejouer', async () => {
+    const small = await startServer({ port: 0, dbPath: ':memory:', accounts: { minSoloMs: 0, soloDailyCap: 1, authAttempts: 100000 } });
+    try {
+      const b2 = `http://localhost:${small.port}`;
+      const call = async (path: string, body: unknown, token?: string) => {
+        const r = await fetch(`${b2}/api${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
+        return { status: r.status, ...(await r.json().catch(() => ({}))) };
+      };
+      const t = (await call('/register', { username: 'Plafond1', password: 'motdepasse1' })).token as string;
+      const one = await solo421(call, t, {});
+      expect(one.end.ok).toBe(true);
+      const st = await call('/solo/start', { setup: freeSetup() }, t);
+      const g = play421(st.setup, st.seed, 'difficile', 1);
+      expect((await call('/solo/end', { gameToken: st.gameToken, moves: g.moves }, t)).status).toBe(429);
+    } finally { await small.close(); }
   });
 });

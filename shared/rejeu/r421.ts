@@ -90,6 +90,8 @@ export function setup421For(raw: unknown, kind: { boss?: string | null; tdc?: st
   }
   // Partie libre : règles bornées, habitués seulement.
   if (opponents.some((o) => !HABITUES.includes(o.persona))) return null;
+  // Une seule difficulté pour toute la table (la récompense se calcule sur elle), et pas deux fois le même habitué.
+  if (opponents.some((o) => o.difficulty !== opponents[0].difficulty) || new Set(opponents.map((o) => o.persona)).size !== opponents.length) return null;
   return { config: sanitizeConfig(r.config), opponents, firstIdx };
 }
 

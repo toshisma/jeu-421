@@ -271,6 +271,18 @@ export class Store {
   addOnlineResult(id: string, won: boolean) {
     this.db.prepare('UPDATE users SET online_games = online_games + 1, online_wins = online_wins + ? WHERE id = ?').run(won ? 1 : 0, id);
   }
+  /** Parties solo déjà récompensées aujourd'hui, sans compter celle-ci. */
+  soloCountToday(id: string, day: string): number {
+    const u = this.userById(id);
+    return u && u.solo_day === day ? u.solo_count : 0;
+  }
+  /** Garde au plus `keep` parties solo ouvertes par compte (les plus récentes) ; renvoie les jetons retirés. */
+  soloTokenTrimUser(userId: string, keep: number): string[] {
+    const rows = this.db.prepare('SELECT token FROM solo_tokens WHERE user_id = ? ORDER BY started_at DESC').all(userId) as { token: string }[];
+    const gone = rows.slice(keep).map((r) => r.token);
+    for (const t of gone) this.db.prepare('DELETE FROM solo_tokens WHERE token = ?').run(t);
+    return gone;
+  }
   /** Compteur de parties solo récompensées aujourd'hui (plafond anti-abus). */
   bumpSolo(id: string, day: string): number {
     const u = this.userById(id)!;
