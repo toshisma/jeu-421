@@ -12,6 +12,7 @@
  * la révélation (« Menteur ! »).
  */
 import { noteOnlineGame } from './chiffres';
+import type { RepInfo } from '../shared/progress/repu';
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Namespace, Server, Socket } from 'socket.io';
 import { act, cleanPmOptions, currentPlayer, newGame, placeOf, timeoutAction, viewFor, type PmAction, type PmEvent, type PmLevel, type PmOptions, type PmState } from '../shared/pokermenteur/engine';
@@ -50,7 +51,7 @@ interface Ctx {
   userFromToken: (t: unknown) => UserRow | undefined;
   banOf: (userId: string) => unknown;
   muteOf: (userId: string) => { until: number; reason: string } | undefined;
-  publicInfo: (userId: string) => { account: string; photo?: string | null; accessory?: string; dice?: string } | null;
+  publicInfo: (userId: string) => { account: string; photo?: string | null; accessory?: string; dice?: string; rep?: RepInfo } | null;
   isBlocked: (a: string, b: string) => boolean;
   reward: (userId: string, o: PmEndFacts)
     => { reward: Reward; applied: { profile: unknown; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { id: string; text: string }[]; achievementsDone?: { id: string }[] } } | null;
@@ -148,7 +149,7 @@ export function createPokerOnline(c: Ctx) {
         return {
           id: m.id, name: m.name, avatar: m.avatar, ready: m.ready, connected: m.socketId != null || !!m.bot, left: m.left, isHost: m.id === t.hostId,
           ...(m.bot ? { bot: m.bot } : {}), ...(m.filler ? { filler: true } : {}), ...(m.quit ? { quit: true } : {}),
-          ...(info ? { account: info.account, photo: info.photo ?? null, ...(info.accessory ? { accessory: info.accessory } : {}) } : {}),
+          ...(info ? { account: info.account, photo: info.photo ?? null, ...(info.accessory ? { accessory: info.accessory } : {}), ...(info.rep ? { rep: info.rep } : {}) } : {}),
           dice: info?.dice ?? m.dice,
         };
       }),

@@ -34,6 +34,8 @@ import { DieCube } from '../ui/DiceCollection';
 import { MiniDie } from '../ui/MiniDie';
 import { Icon } from '../ui/Icon';
 import { Avatar } from '../ui/Avatar';
+import { RepBadge, RepTable } from '../ui/RepBadge';
+import type { RepInfo } from '../../../shared/progress/repu';
 import { ModeBar, ModeChip } from '../ui/ModeBar';
 import { VolumeControl } from '../ui/VolumeControl';
 import { Chat } from '../ui/Chat';
@@ -238,7 +240,7 @@ export function DmRules({ target }: { target?: number }) {
 // ---------------------------------------------------------------------------------------------
 // Joueur d'animations : rejoue chaque action dans le bac (lancer, dés mis de côté, raté, main pleine)
 
-interface Seat { id: string; name: string; avatar: string; color: string; photo?: string | null; persona?: Persona; isMe: boolean; bot?: boolean; away?: boolean; left?: boolean; quit?: boolean; dice?: string; trail?: string }
+interface Seat { id: string; name: string; avatar: string; color: string; photo?: string | null; persona?: Persona; isMe: boolean; bot?: boolean; away?: boolean; left?: boolean; quit?: boolean; dice?: string; trail?: string; rep?: RepInfo }
 type Flash = { kind: 'rate'; lost: number; name: string; id: number } | { kind: 'pleine'; id: number } | { kind: 'gain'; points: number; seat: string; id: number };
 interface Step { state: DmState; events: DmEvent[]; action: DmAction | null; by: string; animSeed: number; gesture?: ThrowGesture }
 
@@ -473,6 +475,7 @@ function DmBoard({ tray, anim, seats, canAct, settings, onSettings, appearance, 
             return (
               <div key={seat.id} className={`dm-seat${active ? ' on' : ''}${s.winner === seat.id ? ' won' : ''}${seat.left || seat.away ? ' away' : ''}`} style={{ ['--pc' as string]: seat.color }}>
                 <Avatar photo={seat.photo ?? null} emoji={seat.avatar} size={n > 4 ? 22 : 30} />
+                <RepBadge rep={seat.rep} className="rep-corner" />
                 <span className="dm-seat-text">
                   <b>{seat.isMe ? tr('dm.you') : botName(seat.name)}</b>
                   <em>{fmt(p.score)}{p.score === lead && lead > 0 && <i className="dm-crown" aria-label={tr('dm.lead')}>★</i>}</em>
@@ -724,7 +727,7 @@ function seatsOf(session: DmSession, state: DmState | null, personas?: Persona[]
     const persona = m?.bot && t?.solo && personas ? personas.find((p) => p.name === m.name) ?? personas[botN++ % personas.length] : undefined;
     return {
       id, name: m?.name ?? state?.players.find((p) => p.id === id)?.name ?? '?', avatar: m?.avatar ?? '🎲', color: persona?.color ?? COLORS[i % COLORS.length],
-      photo: m?.photo ?? null, isMe: id === session.playerId, bot: !!m?.bot, persona, dice: m?.dice, trail: m?.trail,
+      photo: m?.photo ?? null, isMe: id === session.playerId, bot: !!m?.bot, persona, dice: m?.dice, trail: m?.trail, rep: m?.rep,
       away: !!m && !m.bot && !m.connected && !m.left, left: !!m?.left, quit: !!m?.quit,
     };
   });
@@ -866,12 +869,13 @@ function DmLobby({ session, pa, onExit, groschen }: { session: DmSession; pa: Pr
           : <button className="btn small" onClick={() => void copy(link, 'lien')}><Icon name="share" size={16} />{tr(copied === 'lien' ? 'dm.copied' : 'dm.linkBtn')}</button>}
       </div>
       {t.quick && <QuickInfo quick={t.quick} />}
+      <RepTable reps={t.members.filter((m) => !m.left).map((m) => m.rep)} />
       <ul className="dm-lobby-seats">
         {t.members.map((m: DmPublicMember, i) => {
           const mine = m.id === session.playerId;
           return (
             <li key={m.id} className={`dm-ls${mine ? ' dm-ls-me' : ''}${m.ready || m.bot ? ' ready' : ''}`} style={{ ['--pc' as string]: COLORS[i % COLORS.length] }}>
-              <Avatar photo={m.photo ?? null} emoji={m.avatar} size={34} accessory={m.accessory} />
+              <Avatar photo={m.photo ?? null} emoji={m.avatar} size={34} accessory={m.accessory}><RepBadge rep={m.rep} className="rep-on-av" /></Avatar>
               <span className="dm-ls-text"><b>{botName(m.name)}{mine ? tr('dm.me') : ''}{m.isHost && <i className="dm-host" title={tr('dm.host')}> ★</i>}</b>
                 <small>{m.filler ? tr('dm.fillerBot') : m.bot ? tr('dm.botLevel', { level: levelLabel(m.bot) }) : tr(!m.connected ? 'dm.offline' : m.ready ? 'dm.isReady' : 'dm.notReady')}</small></span>
               {(m.ready || m.bot) && <Icon name="check" size={16} />}

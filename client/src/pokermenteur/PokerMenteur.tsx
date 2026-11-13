@@ -23,6 +23,7 @@ import { BagIcon } from '../ui/BagIcon';
 import { BigAction, Choices, Section, Sheet, Shell } from '../ui/kit';
 import { Icon } from '../ui/Icon';
 import { Avatar } from '../ui/Avatar';
+import { RepBadge, RepTable } from '../ui/RepBadge';
 import { ModeBar } from '../ui/ModeBar';
 import { Chat } from '../ui/Chat';
 import { askConfirm } from '../ui/confirm';
@@ -275,7 +276,7 @@ function seatsOf(session: PmSession, state: PmState | null): Seat[] {
     const m = t?.members.find((x) => x.id === id);
     return {
       id, name: m?.name ?? state?.players.find((p) => p.id === id)?.name ?? '?', avatar: m?.avatar ?? '🎲', color: COLORS[i % COLORS.length],
-      photo: m?.photo ?? null, isMe: id === session.playerId, bot: !!m?.bot, away: !!m && !m.bot && !m.connected && !m.left, left: !!m?.left,
+      photo: m?.photo ?? null, rep: m?.rep, isMe: id === session.playerId, bot: !!m?.bot, away: !!m && !m.bot && !m.connected && !m.left, left: !!m?.left,
     };
   });
 }
@@ -411,12 +412,13 @@ function PmLobby({ session, pa, onExit }: { session: PmSession; pa: ProfileApi; 
           : <button className="btn small" onClick={() => void copy(link, 'lien')}><Icon name="share" size={16} />{tr(copied === 'lien' ? 'pm.copied' : 'pm.linkBtn')}</button>}
       </div>
       {t.quick && <QuickInfo quick={t.quick} />}
+      <RepTable reps={t.members.filter((m) => !m.left).map((m) => m.rep)} />
       <ul className="dm-lobby-seats">
         {t.members.map((m: PmPublicMember, i) => {
           const mine = m.id === session.playerId;
           return (
             <li key={m.id} className={`dm-ls${mine ? ' dm-ls-me' : ''}${m.ready || m.bot ? ' ready' : ''}`} style={{ ['--pc' as string]: COLORS[i % COLORS.length] }}>
-              <Avatar photo={m.photo ?? null} emoji={m.avatar} size={34} accessory={m.accessory} />
+              <Avatar photo={m.photo ?? null} emoji={m.avatar} size={34} accessory={m.accessory}><RepBadge rep={m.rep} className="rep-on-av" /></Avatar>
               <span className="dm-ls-text"><b>{m.name}{mine ? tr('pm.meTag') : ''}{m.isHost && <i className="dm-host" title={tr('pm.host')}> ★</i>}</b>
                 <small>{m.filler ? tr('pm.fillerBot') : m.bot ? tr('pm.botLevel', { level: levelLabel(m.bot) }) : tr(!m.connected ? 'pm.offline' : m.ready ? 'pm.isReady' : 'pm.notReady')}</small></span>
               {(m.ready || m.bot) && <Icon name="check" size={16} />}

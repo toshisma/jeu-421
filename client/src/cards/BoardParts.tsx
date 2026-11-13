@@ -11,6 +11,7 @@ import { type CardType } from '../../../shared/cards/catalog';
 import { CARD_BY_ID, cardDef } from './i18n';
 import { commandeOf, petiteSoeurOk, type CfAction, type CfEvent, type CfPlayerView, type CfView, type PlayParams } from '../../../shared/cards/engine';
 import { Avatar } from '../ui/Avatar';
+import { RepBadge } from '../ui/RepBadge';
 import { Icon } from '../ui/Icon';
 import { CoinArt } from '../ui/illustrations';
 import { BagIcon } from '../ui/BagIcon';
@@ -337,6 +338,7 @@ export function PlayerBox({ p, v, seat, active, wide, tokRef, onOpen, onCard, on
   const n = v.players.length - 1;
   return (
     <div className={`cfn-pbox${active ? ' on' : ''}${p.out ? ' out' : ''}${wide ? ' wide' : ''}${focus ? ' cfn-focus-zone' : ''}`}>
+      <RepBadge rep={seat?.rep} className="rep-corner" />
       <button type="button" className="cfn-pbox-main" onClick={onOpen}
         aria-label={tr('cf.boardparts.en_main_pose_touchez_pour_le', { name: p.name, jetons: plural(p.tokens, 'jeton'), tournees: plural(p.tournees, 'Tournée'), cartes: plural(p.handCount, 'carte'), pieges: plural(traps, 'piège'), s: traps > 1 ? 's' : '', habitues: plural(p.habitues.length, 'Habitué') })}>
         <span className="nm">

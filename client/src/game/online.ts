@@ -274,6 +274,7 @@ export class OnlineSession {
         title: m?.title,
         accessory: m?.accessory,
         prestige: m?.prestige,
+        rep: m?.rep,
         dice: m?.dice ?? 'dice-ivoire',
         trail: m?.trail,
         fete: m?.fete,

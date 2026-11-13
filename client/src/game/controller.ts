@@ -4,6 +4,7 @@
  *  - OnlineController : serveur Socket.IO faisant autorité (multijoueur).
  * L'écran de jeu ne sait pas lequel il utilise.
  */
+import type { RepInfo } from '../../../shared/progress/repu';
 import type { GameState, RollRecord } from '../../../shared/engine';
 import type { Difficulty } from '../../../shared/ai';
 import type { ThrowGesture } from '../../../shared/gesture';
@@ -29,6 +30,8 @@ export interface MetaPlayer {
   accessory?: string;
   /** Niveau de prestige (0 si aucun). */
   prestige?: number;
+  /** Réputation de la Tournée des comptoirs (en ligne, envoyée par le serveur). */
+  rep?: RepInfo;
   /** Dés du joueur (identifiant du catalogue), affichés quand il lance. */
   dice?: string;
   /** Effets de lancer du joueur : traînée et célébration du 4-2-1. */

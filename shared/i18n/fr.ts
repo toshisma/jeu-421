@@ -3,6 +3,7 @@ import { pokerFr } from './zones/poker.fr';
 import { rejeuFr } from "./zones/rejeu.fr";
 import { courtisan2Fr } from './zones/courtisan2.fr';
 import { clubsFr } from './zones/clubs.fr';
+import { repuFr } from './zones/repu.fr';
 import { accueilFr } from './zones/accueil.fr';
 import { communFr } from './zones/commun.fr';
 import { cartesFr } from './zones/cartes.fr';
@@ -17,6 +18,7 @@ export const fr = {
   ...serieFr,
   ...communFr,
   ...clubsFr,
+  ...repuFr,
   ...accueilFr,
   ...cartesFr,
   ...courtisan2Fr,

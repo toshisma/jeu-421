@@ -3,6 +3,7 @@
  * client (client/src/cards/online.ts). Espace Socket.IO « /cf », comptes seulement
  * (handshake `auth: { token }`). Toutes les commandes répondent par un accusé `CfAck`.
  */
+import type { RepInfo } from '../progress/repu';
 import type { CfAction, CfEvent, CfView } from './engine';
 
 /** Gains d'une partie (même forme que CfGameReward côté serveur). */
@@ -19,6 +20,8 @@ export interface CfWireSeat {
   photo?: string;
   /** Division de ligue (parties classées). */
   label?: string;
+  /** Réputation de la Tournée des comptoirs (profil serveur). */
+  rep?: RepInfo;
   /** Déconnecté (il a 60 s pour revenir) ou parti. */
   away?: boolean;
   left?: boolean;
@@ -63,7 +66,7 @@ export interface CfTableMsg {
    * `deck` : nom du deck choisi ; `deckId` : son identifiant ; `ready` : ce deck est jouable (sinon `why`
    * dit pourquoi, et la partie ne peut pas être lancée tant qu'il n'a pas choisi un deck jouable).
    */
-  players: { account: string; name: string; photo?: string; host: boolean; deck: string | null; deckId?: string | null; ready?: boolean; why?: string }[];
+  players: { account: string; name: string; photo?: string; host: boolean; rep?: RepInfo; deck: string | null; deckId?: string | null; ready?: boolean; why?: string }[];
 }
 
 /** `cf:hello` à la connexion : ce que le serveur sait déjà de vous (reprise après rechargement). */

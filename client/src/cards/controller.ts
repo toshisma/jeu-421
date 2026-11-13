@@ -3,6 +3,7 @@
  * (contre l'ordinateur en local, ou en ligne via le serveur). L'écran ne connaît que cette interface.
  */
 import type { CfAction, CfEvent, CfView } from '../../../shared/cards/engine';
+import type { RepInfo } from '../../../shared/progress/repu';
 
 export interface CfSeat {
   id: string;
@@ -14,6 +15,8 @@ export interface CfSeat {
   bot?: boolean;
   /** Niveau de l'ordinateur ou division du joueur, pour l'affichage. */
   label?: string;
+  /** Réputation de la Tournée des comptoirs (en ligne, envoyée par le serveur). */
+  rep?: RepInfo;
 }
 
 export interface CfSnapshot {

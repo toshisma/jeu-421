@@ -8,6 +8,7 @@
  *  - limite de tentatives par adresse IP sur l'inscription, la connexion et la récupération ;
  *  - entrées validées et bornées ; suppression complète du compte possible.
  */
+import { repOf } from '../shared/progress/repu';
 import express, { type Request, type Response, type NextFunction } from 'express';
 import { INVITE_DICE, INVITE_SET_FRIENDS, INVITE_SET_GAMES } from '../shared/progress/dice-collection';
 import { createHash, randomBytes, randomInt, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
@@ -1067,7 +1068,9 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const u = store.userById(userId);
     if (!u) return null;
     const p = store.profileOf(u);
-    return { account: u.username, photo: photoUrl(u), title: titleLabel(p.title) ?? undefined, accessory: accessoryEmoji(p.equipped.accessoire) || undefined, prestige: p.prestige || undefined, dice: p.equipped.dice, trail: p.fx?.trainee, fete: p.fx?.fete };
+    return { account: u.username, photo: photoUrl(u), title: titleLabel(p.title) ?? undefined, accessory: accessoryEmoji(p.equipped.accessoire) || undefined, prestige: p.prestige || undefined, dice: p.equipped.dice, trail: p.fx?.trainee, fete: p.fx?.fete,
+      // Réputation de la Tournée des comptoirs (profil serveur ; rien sans étoile) : montrée à table en ligne.
+      rep: repOf(p.tdc) };
   };
   /** Bistrots entre amis : partie arbitrée par le serveur (défis entre amis), branché par app.ts. */
   let verifiedGame: (g: VerifiedGame) => void = () => {};

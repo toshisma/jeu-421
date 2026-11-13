@@ -3,6 +3,7 @@ import { pokerNl } from './zones/poker.nl';
 import { rejeuNl } from './zones/rejeu.nl';
 import { courtisan2Nl } from './zones/courtisan2.nl';
 import { clubsNl } from './zones/clubs.nl';
+import { repuNl } from './zones/repu.nl';
 import { accueilNl } from './zones/accueil.nl';
 import { communNl } from './zones/commun.nl';
 import { cartesNl } from './zones/cartes.nl';
@@ -16,6 +17,7 @@ export const nl: Partial<Record<MessageKey, string>> = {
   ...serieNl,
   ...communNl,
   ...clubsNl,
+  ...repuNl,
   ...accueilNl,
   ...(cartesNl as Partial<Record<MessageKey, string>>),
   ...(courtisan2Nl as Partial<Record<MessageKey, string>>),

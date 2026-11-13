@@ -4992,3 +4992,27 @@ button.mode-chip { cursor: pointer; }
 .serie-set-lead { margin: 0 0 4px; }
 .serie-set-push { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 6px; }
 .sc-remind.on { color: #ffd27a; }
+/* --- Réputation de la Tournée des comptoirs à table en ligne (client/src/ui/RepBadge.tsx) --- */
+.rep-badge { --rc: #d3a57c; position: relative; display: inline-flex; align-items: center; gap: 1px; padding: 2px 4px 2px 3px; margin: 0; border: 0; border-radius: 999px;
+  background: rgba(16, 20, 22, 0.92); color: var(--rc); box-shadow: 0 0 0 1px color-mix(in srgb, var(--rc) 70%, transparent), 0 1px 3px rgba(0,0,0,.5);
+  font: 800 9.5px/1 var(--font); letter-spacing: 0; white-space: nowrap; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.rep-badge i { font-style: normal; font-size: 9px; }
+.rep-badge::before { content: ''; position: absolute; inset: -7px -5px; } /* zone de toucher plus large, sans prendre de place */
+.rt1 { --rc: #d3a57c; } .rt2 { --rc: #dfe7ea; } .rt3 { --rc: #f1cc7d; } .rt4 { --rc: #ffd76a; }
+.rep-badge.rt4 { background: linear-gradient(180deg, #6d1d45, #3d0f27); }
+.rep-on-av { position: absolute; left: -7px; bottom: -6px; z-index: 2; }
+.rep-corner { position: absolute; left: 4px; top: -6px; z-index: 2; }
+.rep-pop-back { position: fixed; inset: 0; z-index: 9000; }
+.rep-pop { position: fixed; display: flex; flex-direction: column; gap: 3px; padding: 9px 11px; border-radius: 12px; background: rgba(20, 24, 27, 0.97); color: #e6ece8;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--rc) 60%, transparent), 0 8px 22px rgba(0,0,0,.5); font: 500 12.5px/1.3 var(--font); text-align: left; }
+.rep-pop b { display: flex; align-items: center; gap: 5px; color: var(--rc); font-size: 14px; }
+.rep-pop b i { font-style: normal; }
+.rep-pop small { color: #9fb3ab; font-size: 11px; }
+.rep-table { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; margin: 6px 0; padding: 6px 10px; border-radius: 10px; color: var(--rc);
+  background: color-mix(in srgb, var(--rc) 10%, rgba(20,24,27,.6)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--rc) 35%, transparent); font-size: 13px; }
+.rep-table i { font-style: normal; }
+.rep-table small { color: #b9c7c0; font-size: 11.5px; }
+.seat-av > .rep-on-av { left: -9px; top: -3px; bottom: auto; }
+.cf-table-list li.cf-table-p { position: relative; }
+.pk-seat-av .rep-on-av { left: -12px; top: -3px; bottom: auto; }
+.dm-seat > .rep-corner { top: -9px; }
