@@ -48,6 +48,7 @@ Le jeu existe en **français (référence, vouvoiement), anglais, allemand, née
 | Jouer en un geste (`/?jouer=1|courtisan|cartes|amis`), mesure « première partie » dans l'admin | `client/src/quickPlay.ts` |
 | Poker menteur (4e jeu : gobelet unique, 5 dés de poker 9→As, croire/relancer une fois/annoncer plus haut ou « Menteur ! », vies 3 ou 5, sans mise) | `shared/pokermenteur/` (moteur, mains, IA, récompenses, succès), `server/pokermenteur-online.ts` (en ligne 2 à 6, dés envoyés au seul détenteur du gobelet), `/poker/start|end` dans `server/accounts.ts`, `client/src/pokermenteur/` ; liens `/?mode=poker`, `/?jouer=poker`, `/?poker=CODE` ; simulation `npx tsx scripts/pokermenteur-simulate.ts` ; pages d'aide `scripts/seo-poker-pages.mjs` ; règles de référence : moteur + tests (ordre des mains branché sur `CATS`) |
 | Pages SEO statiques | `scripts/build-seo.mjs` → `client/public/*.html` ; pages « une intention = une page » (amis, jeux de dés, bistrot, Farkle, apéro) : `scripts/seo-growth-pages.mjs` |
+| « Le 421 en chiffres » (statistiques publiques agrégées, fr/en/de/nl, HTML rempli par le serveur, cache 1 h, seuils `CHIFFRES_MIN`) ; variantes et vocabulaire du 421 | `server/chiffres.ts` (compteurs anonymes `pub_counts`/`pub_records` depuis meta `pub_since`), `shared/chiffres.ts`, gabarits `scripts/seo-chiffres-pages.mjs` ; `scripts/seo-variantes-pages.mjs` (sources citées en tête, réglages vérifiés par `tests/variantes.test.ts`) |
 
 ## Principes à respecter
 - **Le serveur fait foi** pour les comptes : récompenses, sacs, mises et défis sont recalculés côté serveur. Les invités ont un profil local (`localStorage` `421.profil`).
@@ -71,7 +72,9 @@ Le jeu existe en **français (référence, vouvoiement), anglais, allemand, née
 npx tsc --noEmit -p .        # types
 npx vitest run               # tests (environ 120, ~80 s)
 npm run build && npm run build:standalone
+npm run check:seo             # alarme Google : construit, lance un serveur local (port 3601), rend / et les pages d'aide comme Googlebot (en-US, de-DE) ; échoue si ce n'est plus du français
 ```
+`tests/google-view.test.ts` (dans `npx vitest run`) fait la même vérification sans navigateur ; les deux échouent si l'on remet `AUTO_LANG = true`.
 Publication : commit sur `main` du dépôt GitHub `toshisma/jeu-421` → Render redéploie tout seul (5 à 10 min).
 Messages de commit : `421-0.X : description`, auteur `Claude <noreply@anthropic.com>`.
 Si des joueurs sont en ligne, demander à Sam avant de publier.

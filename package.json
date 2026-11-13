@@ -13,6 +13,7 @@
     "start": "node --disable-warning=ExperimentalWarning --import tsx server/index.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "check:seo": "node scripts/check-google-view.mjs",
     "app:build": "node scripts/check-server-url.mjs && vite build && cap sync",
     "app:android": "npm run app:build && cap open android",
     "app:ios": "npm run app:build && cap open ios"

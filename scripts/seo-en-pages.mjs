@@ -328,7 +328,7 @@ ${play421('Try a game', 'The game applies the rules and counts the tokens')}
       ['Who loses at 421?', 'The last player still holding tokens at the end of the unloading. In French bars, that player traditionally buys the round.'],
       ['How many tokens do you start with?', `${V421.pot} tokens are placed in the pot; the loading spreads them among the players.`],
     ],
-    related: ['play-421-dice-game-online', 'online-dice-game-with-friends', 'coups-fourres-rules'],
+    related: ['play-421-dice-game-online', '421-dice-game-statistics', 'online-dice-game-with-friends', 'coups-fourres-rules'],
   },
   // ---------------------------------------------------------------------------------------------
   {

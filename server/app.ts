@@ -30,6 +30,7 @@ import { today } from '../shared/progress/quests';
 import { COUNTER_BOTS } from '../shared/bot-names';
 import { adminNameList, avoidBotName, guestLabel, tableName } from '../shared/names';
 import { canonicalHostRedirect, serveClient } from './static';
+import { mountChiffres, noteAction } from './chiffres';
 import { albumKey, botTableRules, didWin, finalPlace } from '../shared/progress/profile';
 import type { ComboKind } from '../shared/combos';
 import { getItem } from '../shared/progress/catalog';
@@ -519,6 +520,8 @@ export async function startServer(opts: ServerOptions) {
         .replace(/(<meta name="twitter:title" content=")[^"]*/, `$1${t}`)
         .replace(/(<meta property="og:description" content=")[^"]*/, '$1Rejoignez la partie : le 421 du comptoir, en ligne et gratuit. Lancez les dés dans un vrai bac en 3D.'));
     });
+    // « Le 421 en chiffres » : page de statistiques servie en HTML complet (server/chiffres.ts).
+    mountChiffres(app, store, clientDir);
     // Fichiers du jeu compressés, cache long pour /assets/ (noms versionnés), jamais pour les pages (voir static.ts).
     serveClient(app, clientDir);
   }
@@ -656,6 +659,7 @@ export async function startServer(opts: ServerOptions) {
     // Joueurs qui viennent de sortir alors que la partie continue : leur place est définitive,
     // ils sont récompensés tout de suite (et peuvent partir ou rester regarder).
     if (g0.phase !== 'fini') settleEarly(r);
+    noteAction(store, r.code, res.roll, g0); // « Le 421 en chiffres » : compteurs anonymes (server/chiffres.ts)
     // Le geste du lanceur (direction, force) est relayé : tout le monde voit le même lancer.
     if (res.roll) io.to(r.code).emit('game:roll', { roll: res.roll, seed: randomInt(0, 2 ** 31 - 1), gesture, state: r.game });
     else io.to(r.code).emit('game:state', { state: r.game });

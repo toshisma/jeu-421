@@ -32,6 +32,8 @@ import { dePages } from './seo-de-pages.mjs';
 import { nlPages } from './seo-nl-pages.mjs';
 import { POKER_GAME, pokerPagesFr, pokerPagesI18n } from './seo-poker-pages.mjs';
 import { DISCLAIMERS, I18N_GROUPS } from './seo-i18n-common.mjs';
+import { chiffresPageFr, chiffresPagesI18n } from './seo-chiffres-pages.mjs';
+import { variantesPages } from './seo-variantes-pages.mjs';
 
 const SITE = 'https://421online.com';
 const OUT = join(process.cwd(), 'client', 'public');
@@ -191,6 +193,7 @@ ${toc([['resume', 'Le 421 en 6 points'], ['materiel', 'Le matériel'], ['manche'
 <li><b>Valeurs régionales</b> : 421 à 10 jetons, suites à 3 ou 4, nénette à 4… Toutes ces valeurs se règlent avant une partie sur <a href="/" data-play>421online</a>.</li>
 <li><b>Moins de lancers</b> : certaines tables jouent toute la partie en un ou deux lancers.</li>
 </ul>
+<p>Toutes les variantes, réglage par réglage : <a href="/variantes-du-421">variantes du 421</a> (et le <a href="/vocabulaire-du-421">vocabulaire du 421</a> : fiche, baraque, rampo…).</p>
 <p>Prêt à vous lancer ? Les <a href="/strategie-421">astuces de stratégie</a> vous diront quels dés garder.</p>
 ${play('Essayer une partie', 'Le jeu applique les règles et compte les jetons pour vous')}
 `,
@@ -201,7 +204,7 @@ ${play('Essayer une partie', 'Le jeu applique les règles et compte les jetons p
       ['Combien de lancers a-t-on au 421 ?', 'Jusqu’à trois lancers par tour, mais le premier joueur de la manche fixe le nombre de lancers des suivants. Pendant la charge, on joue souvent en un seul lancer.'],
       ['Qui gagne au 421 ?', 'Tous ceux qui se débarrassent de leurs jetons. Le perdant est le dernier joueur à en garder.'],
     ],
-    related: ['combinaisons-du-421', 'strategie-421', 'jouer-au-421-en-ligne'],
+    related: ['combinaisons-du-421', 'variantes-du-421', 'strategie-421', 'jouer-au-421-en-ligne'],
   },
   // ---------------------------------------------------------------------------------------------
   {
@@ -253,6 +256,7 @@ ${play('Essayer une partie', 'Le jeu applique les règles et compte les jetons p
 <tr><td>Avoir au moins deux as (en gardant les as)</td><td>7,4 %</td><td>–</td><td>38,3 %</td></tr>
 </tbody></table></div>
 <p>Autrement dit, un joueur qui ne vise que le 421 avec trois lancers le réussit à peu près <b>une fois sur quatre ou cinq</b>. Pour savoir quand ça vaut le coup, voyez les <a href="/strategie-421">astuces de stratégie</a>.</p>
+<p>Ces probabilités se vérifient-elles en vrai ? La page <a href="/le-421-en-chiffres">le 421 en chiffres</a> compare la fréquence réelle de chaque combinaison, sur les lancers des parties en ligne, à ces calculs.</p>
 
 <h2 id="entrainement">S’entraîner</h2>
 <p>Le <b>bac d’essai</b> de <a href="/" data-play>421online</a> permet de lancer et relancer autant que vous voulez, sans partie en cours, et l’<b>album</b> garde la trace des combinaisons que vous avez déjà réussies. Les règles complètes sont sur la page <a href="/regles-du-421">règles du 421</a>.</p>
@@ -264,7 +268,7 @@ ${play('Lancer les dés', 'Dans le navigateur, sans rien installer')}
       ['Quelle est la probabilité de faire 421 ?', '6 tirages sur 216 en un lancer, soit environ 2,8 %. En trois lancers en ne visant que le 421, environ 22,8 %.'],
       ['Une suite bat-elle un brelan ?', 'Non : une suite vaut 2 jetons, et elle passe après tous les brelans et tous les « deux as + x ».'],
     ],
-    related: ['strategie-421', 'regles-du-421', 'jeux-de-des'],
+    related: ['strategie-421', 'le-421-en-chiffres', 'regles-du-421', 'jeux-de-des'],
   },
   // ---------------------------------------------------------------------------------------------
   {
@@ -574,12 +578,14 @@ ${play('Jouer au 421 en ligne', 'Le jeu de dés du comptoir, gratuit')}
   ...courtisanPages,
   ...growthPages,
   ...pokerPagesFr,
+  ...variantesPages,
+  chiffresPageFr,
 ];
 
 // Gabarit -----------------------------------------------------------------------------------------
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 const strip = (s) => s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
-const pagesOf = { en: [...enPages, ...pokerPagesI18n.en], de: [...dePages, ...pokerPagesI18n.de], nl: [...nlPages, ...pokerPagesI18n.nl] };
+const pagesOf = { en: [...enPages, ...pokerPagesI18n.en, chiffresPagesI18n.en], de: [...dePages, ...pokerPagesI18n.de, chiffresPagesI18n.de], nl: [...nlPages, ...pokerPagesI18n.nl, chiffresPagesI18n.nl] };
 const foreignPages = [...pagesOf.en, ...pagesOf.de, ...pagesOf.nl];
 const allPages = [...pages, ...foreignPages];
 const bySlug = Object.fromEntries(allPages.map((p) => [p.slug, p]));
@@ -715,6 +721,12 @@ for (const p of allPages) {
       ...(p.slug === 'coups-fourres' ? [CF_GAME] : []),
       ...(p.slug === 'dix-mille-en-ligne' ? [CT_GAME] : []),
       ...(GAME_LD[p.slug] ? [GAME_LD[p.slug]] : []),
+      // « Le 421 en chiffres » : jeu de données (dates et période remplacées par le serveur, server/chiffres.ts). Aucune note.
+      ...(p.dataset ? [{
+        '@type': 'Dataset', '@id': `${url}#donnees`, name: p.dataset.name, description: p.dataset.description, url, inLanguage: lang,
+        isAccessibleForFree: true, creator: ORG, publisher: ORG, dateModified: p.updated, temporalCoverage: `${p.updated}/${p.updated}`,
+        variableMeasured: p.dataset.vars, measurementTechnique: p.dataset.technique, spatialCoverage: 'Monde',
+      }] : []),
       { '@type': 'FAQPage', '@id': `${url}#faq`, mainEntity: p.faq.map(([q, a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) },
       { '@type': 'BreadcrumbList', itemListElement: crumbs.map(([name, item], i) => ({ '@type': 'ListItem', position: i + 1, name, item })) },
     ],
@@ -756,7 +768,7 @@ ${hreflang}<meta name="robots" content="index, follow, max-image-preview:large">
 <body>
 <header class="top">
   <a class="logo" href="${homeHref}" aria-label="${en ? UI.logo : '421online : ouvrir le jeu'}"><span>421</span></a>
-  <nav aria-label="${en ? UI.helpNav : 'Pages d’aide'}">${(en ? pagesOf[lang].map((x) => x.slug) : HEADER_NAV).map((s) => `<a href="/${s}"${s === p.slug ? ' aria-current="page"' : ''}>${bySlug[s].nav}</a>`).join('')}</nav>
+  <nav aria-label="${en ? UI.helpNav : 'Pages d’aide'}">${(en ? pagesOf[lang].filter((x) => !x.noNav).map((x) => x.slug) : HEADER_NAV).map((s) => `<a href="/${s}"${s === p.slug ? ' aria-current="page"' : ''}>${bySlug[s].nav}</a>`).join('')}</nav>
   <a class="cta small" href="${playHref}" data-play>${en ? UI.play : 'Jouer'}</a>
 </header>
 <main>

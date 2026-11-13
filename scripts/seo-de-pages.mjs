@@ -127,7 +127,7 @@ ${play421('Eine Partie versuchen', 'Das Spiel wendet die Regeln an und zählt di
       ['Wer verliert beim 421?', 'Wer am Ende des Entladens als Letzter noch Jetons hat. In französischen Kneipen zahlt er traditionell die Runde.'],
       ['Wie viele Jetons gibt es?', `${V421.pot} Jetons liegen im Topf; das Aufladen verteilt sie auf die Spieler.`],
     ],
-    related: ['421-wuerfelspiel-online', 'online-wuerfelspiel-mit-freunden', 'coups-fourres-regeln'],
+    related: ['421-wuerfelspiel-online', '421-wuerfelspiel-statistik', 'online-wuerfelspiel-mit-freunden', 'coups-fourres-regeln'],
   },
   // ---------------------------------------------------------------------------------------------
   {
