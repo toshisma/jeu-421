@@ -1,4 +1,5 @@
 import { ChangelogScreen } from './ui/Changelog';
+import { LangHint } from './i18n/LangHint';
 import { captureBistrotLink } from './bistrots';
 import { FriendOnlineToast, FriendsScreen, InviteBanner } from './ui/Friends';
 import { Suspense, useEffect, useLayoutEffect, useRef, useMemo, useState } from 'react';
@@ -556,6 +557,7 @@ export function App() {
       <div className="app-view">
         <Suspense fallback={<div className="screen-loading" role="status" aria-label={tr('app.chargement')}><span className="spinner" aria-hidden /></div>}>{view}</Suspense>
         {!STANDALONE && <FriendOnlineToast pa={pa} />}
+        {!STANDALONE && !atTable && <LangHint />}
         {!STANDALONE && !atTable && screen.name !== 'cf' && <CfChallengeBanner pa={pa} onOpen={go(() => setScreen({ name: 'cf' }))} />}
         {!STANDALONE && !atTable && <InviteBanner pa={pa} onJoin={(code, game) => go(() => joinTable(code, game))()} />}
         {guestInvite && !pa.isAccount && (

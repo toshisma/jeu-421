@@ -3,7 +3,7 @@
  * Choix enregistré du joueur (Réglages, sélecteur du Courtisan) > `?lang=` > navigateur (si AUTO_LANG) > français.
  */
 import { useSyncExternalStore } from 'react';
-import { LANG_LOCALE, isLang, numberIn, resolveLang, translate, type Lang, type MessageKey } from '../../../shared/i18n';
+import { LANG_LOCALE, isCrawler, isLang, numberIn, resolveLang, suggestedLang, translate, type Lang, type MessageKey } from '../../../shared/i18n';
 import { translateServerText } from '../../../shared/i18n/server-texts';
 import { applyDataLang } from './data';
 
@@ -20,6 +20,16 @@ let current: Lang = resolveLang({ saved: hasWindow ? readSaved() : null, param, 
 const listeners = new Set<() => void>();
 applyDataLang(current);
 if (hasWindow) document.documentElement.lang = current;
+
+/** Langue à proposer au joueur (bandeau), seulement s'il n'a encore rien choisi et n'a pas refusé. */
+const HINT_KEY = '421.langHint';
+export function langSuggestion(): Lang | null {
+  if (!hasWindow || readSaved() || param || isCrawler(navigator.userAgent)) return null;
+  try { if (localStorage.getItem(HINT_KEY)) return null; } catch { return null; }
+  const s = suggestedLang(navigator.language);
+  return s && s !== current ? s : null;
+}
+export function dismissLangSuggestion() { try { localStorage.setItem(HINT_KEY, '1'); } catch { /* */ } }
 
 /** Langue en cours (hors React : messages, confirmations). */
 export const getLang = (): Lang => current;

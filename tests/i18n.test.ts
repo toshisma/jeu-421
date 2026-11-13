@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { AUTO_LANG, DICTS, LANGS, numberIn, resolveLang, translate } from '../shared/i18n';
+import { AUTO_LANG, DICTS, LANGS, isCrawler, numberIn, resolveLang, suggestedLang, translate } from '../shared/i18n';
 import { fr, type MessageKey } from '../shared/i18n/fr';
 import { translateServerText } from '../shared/i18n/server-texts';
 import { DM_RULES, DM_VALUE_LABELS, PERSONA_LABELS, PHRASE_LABELS, BARON } from '../shared/i18n/courtisan';
@@ -14,11 +14,16 @@ import { PERSONAS } from '../client/src/game/personas';
 const FOREIGN = ['en', 'de', 'nl'] as const;
 describe('choix de la langue', () => {
   const auto = (browser: string | null | undefined) => resolveLang({ browser, auto: true });
-  it('tout le site est traduit : le navigateur compte, sans jamais basculer un francophone', () => {
-    expect(AUTO_LANG).toBe(true);
-    expect(resolveLang({ browser: 'en-US' })).toBe('en');
-    expect(resolveLang({ browser: 'nl-BE' })).toBe('nl');
-    for (const b of ['fr-FR', 'fr-BE', 'es-ES', null]) expect(resolveLang({ browser: b })).toBe('fr');
+  it('Googlebot (navigateur en anglais) doit voir l’accueil en FRANÇAIS : le navigateur ne fait que proposer une langue', () => {
+    expect(AUTO_LANG).toBe(false);
+    for (const b of ['en-US', 'de-DE', 'nl-BE', 'fr-FR', 'fr-BE', 'es-ES', null]) expect(resolveLang({ browser: b })).toBe('fr');
+    expect(resolveLang({ browser: 'en-US', param: 'en' })).toBe('en');
+    expect(resolveLang({ browser: 'en-US', saved: 'de' })).toBe('de');
+    expect(suggestedLang('en-US')).toBe('en');
+    expect(suggestedLang('nl-BE')).toBe('nl');
+    expect(suggestedLang('fr-BE')).toBe(null);
+    expect(isCrawler('Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)')).toBe(true);
+    expect(isCrawler('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Safari/604.1')).toBe(false);
   });
   it('détection (quand elle sera active) : en, de, nl seulement ; fr, absent et autres = français', () => {
     expect(auto('en-US')).toBe('en');

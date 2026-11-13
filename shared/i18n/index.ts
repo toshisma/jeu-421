@@ -32,10 +32,23 @@ export const LANG_NAMES: Record<Lang, string> = { fr: 'Français', en: 'English'
 export const LANG_LOCALE: Record<Lang, string> = { fr: 'fr-BE', en: 'en-US', de: 'de-DE', nl: 'nl-NL' };
 
 /**
- * Détection automatique selon le navigateur. À passer à true (ici, un seul endroit) quand TOUT le site
- * sera traduit : tant que c'est false, seuls le choix enregistré et `?lang=` comptent.
+ * Détection automatique selon le navigateur : DÉSACTIVÉE (13/11/2026). Googlebot visite avec un navigateur
+ * en anglais : avec la détection, il voyait l'accueil en anglais et le site a disparu de « 421 en ligne ».
+ * Le jeu est donc en français tant que le joueur n'a rien choisi (Réglages, `?lang=`) ; un anglophone,
+ * germanophone ou néerlandophone se voit seulement PROPOSER sa langue (suggestedLang + bandeau LangHint).
+ * Ne pas repasser à true.
  */
-export const AUTO_LANG = true;
+export const AUTO_LANG = false;
+
+/** Langue à proposer (sans l'imposer) d'après le navigateur : en, de ou nl ; null pour le français et le reste. */
+export function suggestedLang(browser: string | null | undefined): Lang | null {
+  const m = /^(en|de|nl)(?:[-_]|$)/i.exec(browser ?? '');
+  return m ? (m[1].toLowerCase() as Lang) : null;
+}
+
+/** Robots d'indexation : jamais de bandeau ni de langue autre que le français pour eux. */
+export const isCrawler = (ua: string | null | undefined) =>
+  /bot|crawl|spider|slurp|google|bing|yandex|baidu|duckduck|facebookexternalhit|embedly|preview|lighthouse/i.test(ua ?? '');
 
 export const isLang = (v: unknown): v is Lang => typeof v === 'string' && (LANGS as readonly string[]).includes(v);
 
@@ -46,8 +59,8 @@ export function resolveLang(o: { saved?: unknown; param?: unknown; browser?: str
   if (isLang(o.saved)) return o.saved;
   if (isLang(o.param)) return o.param;
   if (o.auto ?? AUTO_LANG) {
-    const m = /^(en|de|nl)(?:[-_]|$)/i.exec(o.browser ?? '');
-    if (m) return m[1].toLowerCase() as Lang;
+    const s = suggestedLang(o.browser);
+    if (s) return s;
   }
   return 'fr';
 }
