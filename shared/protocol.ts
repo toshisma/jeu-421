@@ -1,4 +1,5 @@
 /** Types échangés entre le serveur et les navigateurs (Socket.IO). */
+import type { RepInfo } from './progress/repu';
 import type { GameConfig } from './config';
 import type { GameState, RollRecord } from './engine';
 import type { ThrowGesture } from './gesture';
@@ -20,6 +21,8 @@ export interface PublicMember {
   accessory?: string;
   /** Niveau de prestige (0 si aucun). */
   prestige?: number;
+  /** Réputation de la Tournée des comptoirs (profil serveur, comptes avec au moins une étoile). */
+  rep?: RepInfo;
   /** Dés du joueur (identifiant du catalogue), affichés quand il lance. */
   dice?: string;
   /** Effets de lancer (comptes). */

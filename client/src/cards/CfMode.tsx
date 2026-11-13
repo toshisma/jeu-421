@@ -14,6 +14,7 @@ import { ApiError } from '../account/api';
 import type { CfFriendPresence } from '../../../shared/cards/protocol';
 import type { Settings } from '../settings';
 import { Avatar } from '../ui/Avatar';
+import { RepBadge, RepTable } from '../ui/RepBadge';
 import { Icon } from '../ui/Icon';
 import { FriendsButton } from '../ui/Friends';
 import { Sheet } from '../ui/kit';
@@ -426,10 +427,12 @@ function TableLobby({ online, st, me, pa, onError }: { online: CfOnline; st: CfS
       <div className="cf-wait-card cf-table">
         <h3>{tr('cf.mode.table_entre_amis')}</h3>
         <button className="cf-table-code" onClick={share} aria-label={tr('cf.mode.code_partager', { code: t.code })}><small>{tr('cf.mode.code')}</small><b>{t.code}</b><Icon name="share" size={18} /></button>
+        <RepTable reps={t.players.map((p) => p.rep)} />
         <ul className="cf-table-list">
           {t.players.map((p) => (
-            <li key={p.account} className={p.ready === false ? 'notready' : ''}>
+            <li key={p.account} className={`cf-table-p${p.ready === false ? ' notready' : ''}`}>
               {p.photo ? <Avatar photo={p.photo} size={30} /> : <i>{initials(p.name)}</i>}
+              <RepBadge rep={p.rep} className="rep-corner" />
               <span><b>{p.name}{p.host ? tr('cf.mode.hote') : ''}</b>
                 <small>{p.deck ? tr('cf.mode.deck', { deck: p.deck }) : tr('cf.mode.choisit_son_deck')}{p.ready === false ? '' : p.deck ? tr('cf.mode.pret') : ''}</small>
                 {p.ready === false && <small className="cf-table-why">{tr('cf.mode.pas_pret')}{p.why ?? tr('cf.mode.deck_pas_jouable')}</small>}

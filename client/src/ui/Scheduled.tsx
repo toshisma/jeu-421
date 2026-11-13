@@ -13,6 +13,7 @@ import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
 import { pushActive, pushSupported, enablePush } from '../push';
 import { Avatar } from './Avatar';
+import { RepBadge } from './RepBadge';
 import { Icon } from './Icon';
 import { tr, trServer } from '../i18n/lang';
 import { hourTr, ord, trn } from '../i18n/g421';
@@ -207,7 +208,7 @@ export function ScheduledLobby({ t, meId }: { t: PublicTournament; meId: string 
         {t.players.map((p, i) => (
           <li key={p.id}>
             <span className="ord">{i + 1}</span>
-            <Avatar photo={p.photo} emoji={p.avatar} size={36}><i className={`dot ${p.connected ? 'on' : 'off'}`} /></Avatar>
+            <Avatar photo={p.photo} emoji={p.avatar} size={36}><i className={`dot ${p.connected ? 'on' : 'off'}`} /><RepBadge rep={p.rep} className="rep-on-av" /></Avatar>
             <b>{p.name}</b>
             {p.id === meId && <span className="tag">{tr('g421.pc.you')}</span>}
           </li>

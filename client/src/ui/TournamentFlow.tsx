@@ -13,6 +13,7 @@ import { OnlineController, OnlineSession } from '../game/online';
 import { publicUrl } from '../platform';
 import { loadSession, type Settings } from '../settings';
 import { Avatar } from './Avatar';
+import { RepBadge } from './RepBadge';
 import { ConfigEditor } from './ConfigEditor';
 import { GameScreen, type EarlyOptions } from './GameScreen';
 import { Chat } from './Chat';
@@ -275,7 +276,7 @@ function TournamentView({ session, t, pa, onExit, onBackToTable }: {
               {t.players.map((p, i) => (
                 <li key={p.id}>
                   <span className="ord">{i + 1}</span>
-                  <Avatar photo={p.photo} emoji={p.avatar} size={36}><i className={`dot ${p.connected ? "on" : "off"}`} /></Avatar>
+                  <Avatar photo={p.photo} emoji={p.avatar} size={36}><i className={`dot ${p.connected ? "on" : "off"}`} /><RepBadge rep={p.rep} className="rep-on-av" /></Avatar>
                   <b>{p.name}</b>
                   {p.id === t.hostId && <span className="tag">{tr('g421.t.organiser')}</span>}
                   {p.bot && <span className="tag bot">{tr('g421.t.computer')}</span>}

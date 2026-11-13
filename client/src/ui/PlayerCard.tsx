@@ -5,6 +5,7 @@ import { DiceRow, MiniDie } from './MiniDie';
 import { getItem, type DiceItem } from '../../../shared/progress/catalog';
 import { RARITY_COLOR, RARITY_LABEL } from '../../../shared/progress/dice-collection';
 import { Avatar } from './Avatar';
+import { RepBadge } from './RepBadge';
 import { tr } from '../i18n/lang';
 import { botName, ord, trCombo } from '../i18n/g421';
 
@@ -55,6 +56,7 @@ export function PlayerCard({ p, meta, state, active, thinking, leader, strugglin
       {struggling && <span className="badge low" title={tr('g421.pc.low')}>⚠</span>}
       <div className="pc-top">
         <Avatar photo={meta?.photo} emoji={meta?.avatar ?? '🎲'} size={36} color={meta?.color} accessory={meta?.accessory}>
+          <RepBadge rep={meta?.rep} className="rep-on-av" />
           <i className={`dot ${meta?.connected === false ? 'off' : 'on'}`} title={tr(meta?.connected === false ? 'g421.pc.disc' : 'g421.pc.conn')} />
         </Avatar>
         <div className="pc-score" title={tr(points ? 'g421.points' : 'g421.tokens')}>

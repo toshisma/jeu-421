@@ -6,6 +6,7 @@
  * on joue une partie de 421 ; la meilleure moitié de chaque table (arrondie au-dessus) passe au
  * tour suivant. Quand il reste assez peu de joueurs pour une seule table, c'est la finale.
  */
+import type { RepInfo } from './progress/repu';
 import { DEFAULT_CONFIG, sanitizeConfig, type GameConfig } from './config';
 import { MAX_PLAYERS } from './protocol';
 import type { ScheduledInfo } from './scheduled';
@@ -130,6 +131,8 @@ export interface PublicTournamentPlayer {
   accessory?: string;
   /** Niveau de prestige (0 si aucun). */
   prestige?: number;
+  /** Réputation de la Tournée des comptoirs (profil serveur, comptes avec au moins une étoile). */
+  rep?: RepInfo;
   bot?: boolean;
 }
 export interface PublicTable {

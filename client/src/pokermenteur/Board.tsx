@@ -16,13 +16,15 @@ import type { PmPersona } from '../../../shared/pokermenteur/personas';
 import { PmScene } from './PmScene';
 import { catName, faceLetter, faceLetters, handFull, handName } from './labels';
 import { Avatar } from '../ui/Avatar';
+import { RepBadge } from '../ui/RepBadge';
+import type { RepInfo } from '../../../shared/progress/repu';
 import { Icon } from '../ui/Icon';
 import { Sheet } from '../ui/kit';
 import { sound } from '../audio/sound';
 import { getLang, tr, useLang } from '../i18n/lang';
 import type { Settings } from '../settings';
 
-export interface Seat { id: string; name: string; avatar: string; color: string; photo?: string | null; isMe: boolean; bot?: boolean; persona?: PmPersona; away?: boolean; left?: boolean }
+export interface Seat { id: string; name: string; avatar: string; color: string; photo?: string | null; isMe: boolean; bot?: boolean; persona?: PmPersona; away?: boolean; left?: boolean; rep?: RepInfo }
 export interface Step { state: PmState; events: PmEvent[]; by: string; snapshot?: boolean }
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -260,7 +262,7 @@ export function PmBoard({ anim, seats, meId, canAct, onAct, onLeave, settings, d
           const say = anim.flash.filter((f) => f.kind === 'say' && f.who === p.id).pop();
           return (
             <li key={p.id} className={`pk-seat${cur?.id === p.id && s.phase !== 'fini' ? ' turn' : ''}${p.out ? ' out' : ''}${st?.away || st?.left ? ' away' : ''}`} style={{ ['--pc' as string]: st?.color ?? '#999' }}>
-              <span className="pk-seat-av"><Avatar photo={st?.photo ?? null} emoji={st?.avatar} size={36} />{s.players[s.holder]?.id === p.id && s.phase !== 'fini' && <i className="pk-cupmark" aria-label={tr('pm.holds')} />}</span>
+              <span className="pk-seat-av"><Avatar photo={st?.photo ?? null} emoji={st?.avatar} size={36}><RepBadge rep={st?.rep} className="rep-on-av" /></Avatar>{s.players[s.holder]?.id === p.id && s.phase !== 'fini' && <i className="pk-cupmark" aria-label={tr('pm.holds')} />}</span>
               <b>{st?.name ?? p.name}</b>
               {p.out ? <small className="pk-outlbl">{tr('pm.out')}</small> : <Lives n={p.lives} max={s.options.lives} />}
               {cur?.id === p.id && secs != null && s.phase !== 'fini' && <em className="pk-secs">{secs}</em>}

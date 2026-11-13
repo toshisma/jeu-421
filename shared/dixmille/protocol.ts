@@ -2,6 +2,7 @@
  * Le Courtisan en ligne : forme des messages échangés entre le serveur (server/dixmille-online.ts,
  * espace Socket.IO « /dixmille ») et les navigateurs (client/src/dixmille/online.ts).
  */
+import type { RepInfo } from '../progress/repu';
 import type { DmAction, DmEvent, DmLevel, DmState } from './engine';
 import type { ThrowGesture } from '../gesture';
 import type { Reward } from '../progress/profile';
@@ -13,6 +14,7 @@ export const DM_DECISION_SECONDS = 30;
 export interface DmPublicMember {
   id: string; name: string; avatar: string; ready: boolean; connected: boolean; left: boolean; isHost: boolean;
   bot?: DmLevel; filler?: boolean; /** A quitté la partie en cours (abandon). */ quit?: boolean; account?: string; photo?: string | null; accessory?: string; dice?: string; trail?: string;
+  /** Réputation de la Tournée des comptoirs (profil serveur). */ rep?: RepInfo;
 }
 export interface DmPublicTable {
   code: string; title: string; hostId: string; status: 'lobby' | 'playing';

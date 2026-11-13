@@ -3,6 +3,7 @@
  * « /poker ») et les navigateurs (client/src/pokermenteur/online.ts).
  * Les dés du gobelet ne sont envoyés qu'à son détenteur (`viewFor`), jamais aux autres ni aux spectateurs.
  */
+import type { RepInfo } from '../progress/repu';
 import type { PmAction, PmEvent, PmLevel, PmOptions, PmState } from './engine';
 import type { Reward } from '../progress/profile';
 
@@ -13,6 +14,7 @@ export const PM_DECISION_SECONDS = 30;
 export interface PmPublicMember {
   id: string; name: string; avatar: string; ready: boolean; connected: boolean; left: boolean; isHost: boolean;
   bot?: PmLevel; filler?: boolean; quit?: boolean; account?: string; photo?: string | null; accessory?: string; dice?: string;
+  /** Réputation de la Tournée des comptoirs (profil serveur). */ rep?: RepInfo;
 }
 export interface PmPublicTable {
   code: string; title: string; hostId: string; status: 'lobby' | 'playing';

@@ -1,6 +1,7 @@
 import { pokerDe } from './zones/poker.de';
 import { courtisan2De } from './zones/courtisan2.de';
 import { clubsDe } from './zones/clubs.de';
+import { repuDe } from './zones/repu.de';
 import { accueilDe } from './zones/accueil.de';
 import { communDe } from './zones/commun.de';
 import { cartesDe } from './zones/cartes.de';
@@ -13,6 +14,7 @@ import { tdcDe } from './zones/comptoirs.de';
 export const de: Partial<Record<MessageKey, string>> = {
   ...communDe,
   ...clubsDe,
+  ...repuDe,
   ...accueilDe,
   ...(cartesDe as Partial<Record<MessageKey, string>>),
   ...(courtisan2De as Partial<Record<MessageKey, string>>),

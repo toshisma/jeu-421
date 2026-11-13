@@ -17,6 +17,7 @@ import type { ProfileApi } from '../account/useProfile';
 import { DEFAULT_TABLE, STAKES, type TableSettings } from '../../../shared/tournament';
 import { Icon } from './Icon';
 import { Avatar } from './Avatar';
+import { RepBadge, RepTable } from './RepBadge';
 import { Seg, StakePicker } from './OnlineHub';
 import { trackEvent } from '../visit';
 import { usePresenceLayer } from '../presence';
@@ -215,6 +216,7 @@ function Lobby({ session, onExit, pa }: { session: OnlineSession; onExit: () => 
             onInvite={() => (canShare ? void share() : void copy(link, 'lien'))}
             onKick={async (id) => { const a = await session.kick(id); if (!a.ok) setErr(trServer(a.error)); }}
             onRemoveBot={(id) => void session.removeBot(id)} />
+          <RepTable reps={room.members.filter((m) => !m.left).map((m) => m.rep)} />
           <div className="lobby-code">
             <span>{tr(room.table.visibility === 'public' ? 'g421.on.publicT' : 'g421.on.invite')} · {tr('g421.on.codeLow')} <b>{room.code}</b></span>
             <button className="btn small" onClick={() => copy(room.code, 'code')}><Icon name="copy" size={16} />{tr(copied === 'code' ? 'g421.on.copied' : 'g421.on.codeBtn')}</button>
@@ -299,7 +301,8 @@ function LobbyTable({ room, meId, isHost, max, onInvite, onKick, onRemoveBot }: 
               <span className="seat-av"><Avatar photo={m.photo} emoji={m.avatar} size={46} accessory={m.accessory} />
                 {(m.ready || m.bot) && <i className="seat-ok"><Icon name="check" size={11} /></i>}
                 {!m.connected && !m.bot && <i className="seat-off" />}
-                {m.isHost && <i className="seat-host" title={tr('g421.host')}>★</i>}</span>
+                {m.isHost && <i className="seat-host" title={tr('g421.host')}>★</i>}
+                <RepBadge rep={m.rep} className="rep-on-av" /></span>
               <span className="seat-name">{mine ? `${m.name} ${tr('g421.youParen')}` : botName(m.name)}</span>
               <small>{m.filler ? tr('g421.on.filler') : m.bot ? tr('g421.on.botLvl', { l: m.bot === 'facile' || m.bot === 'difficile' || m.bot === 'normal' ? tr(`g421.solo.level.${m.bot}`) : m.bot }) : tr(!m.connected ? 'g421.offline' : m.ready ? 'g421.on.readyLow' : 'g421.on.notReadyLow')}</small>
               {isHost && !mine && (m.bot

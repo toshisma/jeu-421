@@ -15,6 +15,7 @@
  * GET /cf/friends, POST /cf/presence, GET /cf/challenges. (POST /cf/decks/auto est dans cards.ts.)
  * Socket.IO : espace « /cf » (voir shared/cards/protocol.ts pour la forme des messages).
  */
+import { repOf, type RepInfo } from '../shared/progress/repu';
 import { randomInt, randomUUID } from 'node:crypto';
 import { parcoursStepOf } from '../shared/cards/parcours';
 import express, { type NextFunction, type Request, type Response } from 'express';
@@ -148,6 +149,8 @@ interface Seat {
   account: string;
   photo?: string;
   label?: string;
+  /** Réputation de la Tournée des comptoirs, lue du profil serveur à la création de la partie. */
+  rep?: RepInfo;
   socketId: string | null;
   awayAt: number | null;
   awayTimer: NodeJS.Timeout | null;
@@ -180,7 +183,7 @@ interface Game {
   track: CfPlayTracker;
 }
 
-interface TableMember { userId: string; name: string; account: string; photo?: string; deckId: string | null; socketId: string | null }
+interface TableMember { userId: string; name: string; account: string; photo?: string; rep?: RepInfo; deckId: string | null; socketId: string | null }
 interface Table { code: string; hostId: string; members: TableMember[]; kicked: Set<string>; createdAt: number }
 interface Challenge { id: string; fromId: string; toId: string; fromDeck: string | null; at: number; timer: NodeJS.Timeout }
 interface QueueEntry { userId: string; points: number; deckId: string | null; since: number; socketId: string; offered: boolean }
@@ -234,6 +237,8 @@ export function createCfOnline(c: Ctx) {
   const rejoinableOf = (userId: string) => [...games.values()].find((g) => !g.ended && g.seats.length > 2 && g.seats.some((s) => s.userId === userId && s.left));
   const tableOf = (userId: string) => [...tables.values()].find((t) => t.members.some((m) => m.userId === userId));
   const photoOf = (u: UserRow) => photoUrl(u) ?? undefined;
+  /** Réputation de la Tournée des comptoirs : toujours le profil serveur du compte. */
+  const repOfUser = (u: UserRow) => repOf(store.profileOf(u).tdc);
 
   /** Deck de partie d'un compte : celui demandé, sinon le deck actif ; il doit être jouable. */
   function deckFor(userId: string, deckId?: string | null, parcours = false): { cards: string[]; deckId: string; name: string } | { error: string } {
@@ -268,7 +273,7 @@ export function createCfOnline(c: Ctx) {
   // --- Vues ----------------------------------------------------------------------------------------
   const seatOf = (g: Game, id: string) => g.seats.find((s) => s.id === id);
   const wireSeats = (g: Game): CfWireSeat[] => g.seats.map((s) => ({
-    id: s.id, name: s.name, account: s.account, ...(s.photo ? { photo: s.photo } : {}), ...(s.label ? { label: s.label } : {}),
+    id: s.id, name: s.name, account: s.account, ...(s.photo ? { photo: s.photo } : {}), ...(s.label ? { label: s.label } : {}), ...(s.rep ? { rep: s.rep } : {}),
     ...(s.awayAt != null ? { away: true } : {}), ...(s.left ? { left: true } : {}),
   }));
   function snapshot(g: Game, pid: string | null): CfWireSnapshot {
@@ -492,7 +497,7 @@ export function createCfOnline(c: Ctx) {
     const seats: Seat[] = players.map((p, i) => {
       const u = store.userById(p.userId)!;
       const label = mode === 'classee' ? cfDivisionOf(cards.league(p.userId).me.points).name : undefined;
-      return { id: `j${i + 1}-${randomUUID().slice(0, 6)}`, userId: p.userId, name: u.username, account: u.username, photo: photoOf(u), label, socketId: null, awayAt: null, awayTimer: null, left: false, reserveMs: RESERVE };
+      return { id: `j${i + 1}-${randomUUID().slice(0, 6)}`, userId: p.userId, name: u.username, account: u.username, photo: photoOf(u), label, rep: repOfUser(u), socketId: null, awayAt: null, awayTimer: null, left: false, reserveMs: RESERVE };
     });
     // Ordre des sièges au hasard (le moteur tire ensuite le meneur).
     for (let i = seats.length - 1; i > 0; i--) { const j = randomInt(i + 1); [seats[i], seats[j]] = [seats[j], seats[i]]; }
@@ -575,7 +580,7 @@ export function createCfOnline(c: Ctx) {
       // Deck choisi : revérifié à chaque envoi (une carte recyclée peut le rendre injouable).
       const d = deckFor(m.userId, m.deckId);
       return {
-        account: m.account, name: m.name, ...(m.photo ? { photo: m.photo } : {}), host: m.userId === t.hostId,
+        account: m.account, name: m.name, ...(m.photo ? { photo: m.photo } : {}), ...(m.rep ? { rep: m.rep } : {}), host: m.userId === t.hostId,
         deck: m.deckId ? deckName(m.userId, m.deckId) : null, deckId: m.deckId, ready: !('error' in d), ...('error' in d ? { why: d.error } : {}),
       };
     }),
@@ -706,7 +711,7 @@ export function createCfOnline(c: Ctx) {
     const myTable = () => tableOf(userId);
     const joinTable = (t: Table, deckId: string | null) => {
       const u = me()!;
-      const m: TableMember = { userId, name: u.username, account: u.username, photo: photoOf(u), deckId, socketId: socket.id };
+      const m: TableMember = { userId, name: u.username, account: u.username, photo: photoOf(u), rep: repOfUser(u), deckId, socketId: socket.id };
       const old = t.members.find((x) => x.userId === userId);
       if (old) { old.socketId = socket.id; if (deckId) old.deckId = deckId; } else t.members.push(m);
       socket.join(`cft:${t.code}`);

@@ -12,6 +12,7 @@
  * l'état envoyé ne contient jamais cette graine. Chaque action porte la version de l'état
  * (anti double-clic) et n'est acceptée que du joueur dont c'est le tour.
  */
+import type { RepInfo } from '../shared/progress/repu';
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Namespace, Server, Socket } from 'socket.io';
 import { act, currentPlayer, newGame, placeOf, DM_TARGETS, type DmAction, type DmEvent, type DmLevel, type DmState } from '../shared/dixmille/engine';
@@ -62,7 +63,7 @@ interface Ctx {
   userFromToken: (t: unknown) => UserRow | undefined;
   banOf: (userId: string) => unknown;
   muteOf: (userId: string) => { until: number; reason: string } | undefined;
-  publicInfo: (userId: string) => { account: string; photo?: string | null; accessory?: string; dice?: string; trail?: string } | null;
+  publicInfo: (userId: string) => { account: string; photo?: string | null; accessory?: string; dice?: string; trail?: string; rep?: RepInfo } | null;
   isBlocked: (a: string, b: string) => boolean;
   /** Récompense d'un compte en fin de partie (calculée par les comptes). */
   reward: (userId: string, o: DmEndFacts)
@@ -207,7 +208,7 @@ export function createDixMilleOnline(c: Ctx) {
         return {
           id: m.id, name: m.name, avatar: m.avatar, ready: m.ready, connected: m.socketId != null || !!m.bot, left: m.left, isHost: m.id === t.hostId,
           ...(m.bot ? { bot: m.bot } : {}), ...(m.filler ? { filler: true } : {}), ...(m.quit ? { quit: true } : {}),
-          ...(info ? { account: info.account, photo: info.photo ?? null, ...(info.accessory ? { accessory: info.accessory } : {}), ...(info.trail ? { trail: info.trail } : {}) } : {}),
+          ...(info ? { account: info.account, photo: info.photo ?? null, ...(info.accessory ? { accessory: info.accessory } : {}), ...(info.trail ? { trail: info.trail } : {}), ...(info.rep ? { rep: info.rep } : {}) } : {}),
           dice: info?.dice ?? m.dice,
         };
       }),
