@@ -76,6 +76,7 @@ describe('Coups Fourrés : pièces versées par le serveur', () => {
 
   it('contre l’ordinateur : pièces du barème, versées une seule fois, résultat recalculé par le serveur', async () => {
     const a = await reg('Piecette');
+    srv.accounts.serie.played(a.id); // série de jours joués déjà comptée aujourd'hui : seules les pièces de la partie
     // Plusieurs parties : au moins une gagnée (Débutant), pour voir des pièces.
     let won = false;
     for (let seed = 1; seed < 12 && !won; seed++) {
@@ -103,6 +104,7 @@ describe('Coups Fourrés : pièces versées par le serveur', () => {
 
   it('abandon (en ligne) : ni pièces ni XP pour celui qui part ; le gagnant reçoit le barème en ligne', async () => {
     const w = await reg('Gagnante'), l = await reg('Fuyard');
+    srv.accounts.serie.played(w.id); // série de jours joués déjà comptée aujourd'hui
     const w0 = await coins(w.token), l0 = await coins(l.token);
     const r = srv.accounts.cards.recordCfGame({ winnerId: w.id, loserId: l.id, ranked: false, vsBot: false, abandoned: true, players: 2, loserPlace: 2, minutes: 15 });
     expect(r.find((x) => x.userId === l.id)?.coins).toBeUndefined();

@@ -36,6 +36,7 @@ import { cfCoinReward } from '../shared/cards/progress';
 import type { CfLevel } from '../shared/cards/ai';
 import { DIVISIONS, SEASON_DIE_FROM, SEASON_TITLE_FROM, divisionIndex, divisionOf, nextSeasonStart, seasonDelta, seasonOf } from '../shared/season';
 import { today } from '../shared/progress/quests';
+import { createSerie } from './serie';
 import { bossOfWeek } from '../shared/progress/boss';
 import { adminNameList, usernameProblem } from '../shared/names';
 import type { ComboKind } from '../shared/combos';
@@ -93,6 +94,8 @@ function publicProfile(u: UserRow, p: Profile) {
 }
 
 export function createAccounts(store: Store, opts: AccountsOptions = {}) {
+  // Série de jours joués : comptée par le serveur à chaque partie terminée (voir leagueGain).
+  const serie = createSerie({ store, now: () => opts.now?.() ?? Date.now() });
   const MIN_SOLO = opts.minSoloMs ?? 20_000;
   const SOLO_CAP = opts.soloDailyCap ?? 40;
   const ATTEMPTS = opts.authAttempts ?? 12;
@@ -926,8 +929,9 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     });
   });
 
-  /** XP gagnée : comptée pour la ligue de la semaine. */
+  /** XP gagnée : comptée pour la ligue de la semaine. Appelée à chaque partie terminée et récompensée. */
   function leagueGain(userId: string, xp: number) {
+    serie.played(userId); // série de jours joués (une fois par jour, server/serie.ts)
     if (xp <= 0) return;
     rollLeagues();
     const week = weekId();
@@ -1010,7 +1014,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   /** Bistrots entre amis : partie arbitrée par le serveur (défis entre amis), branché par app.ts. */
   let verifiedGame: (g: VerifiedGame) => void = () => {};
   const setVerifiedGame = (f: (g: VerifiedGame) => void) => { verifiedGame = f; };
-  const social = createSocial({ router, store, auth, userOf, fail, adjust, coinsOf, brusselsDate, brusselsHour, now: () => opts.now?.() ?? Date.now(), onDuelEnd: (g) => verifiedGame(g) });
+  const social = createSocial({ router, store, auth, userOf, fail, adjust, coinsOf, brusselsDate, brusselsHour, now: () => opts.now?.() ?? Date.now(), onDuelEnd: (g) => verifiedGame(g),
+    onPlayed: (id) => { serie.played(id); } });
   const messages = createMessages({ router, store, auth, userOf, fail, push: social.push, userFromToken, now: () => opts.now?.() ?? Date.now() });
   createDiscord({ router, store, auth, userOf, userFromToken, now: () => opts.now?.() ?? Date.now(), env: opts.discord?.env, discordApi: opts.discord?.api });
   // Coups Fourrés (mode cartes) : collection, decks, boosters, ligue et missions.
@@ -1038,5 +1043,5 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   // Saint-Nicolas et fêtes : calendrier de l'avent (jour du serveur).
   createFetes({ router, store, auth, userOf, fail, now: () => opts.now?.() ?? Date.now() });
 
-  return { social, messages, cards, enigme, router, dixMilleOnlineEnd, pokerOnlineEnd, setPresence, setCfPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked, setVerifiedGame };
+  return { serie, social, messages, cards, enigme, router, dixMilleOnlineEnd, pokerOnlineEnd, setPresence, setCfPresence, seasonGame, rollSeasons, userFromToken, recordRivalry, rollLeagues, weekId, onlineGameEnd, publicInfo, coinsOf, adjust, stake, release, winPot, tournamentEnd, isBlocked, setVerifiedGame };
 }

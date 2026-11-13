@@ -28,6 +28,8 @@ export interface SchedDeps {
   live: (slotId: string) => { code: string; status: SlotStatus } | null;
   /** Tournoi programmé en cours (ou tout juste fini) où joue ce compte. */
   mine: (userId: string) => { code: string; hour: number; status: SlotStatus } | null;
+  /** Rappel des 10 minutes déjà envoyé à ce compte (server/notifs.ts) : pas de second rappel « 5 minutes ». */
+  warned?: (userId: string, slotId: string) => boolean;
 }
 
 const hourOf = (slotId: string) => Number(slotId.slice(11, 13));
@@ -189,7 +191,7 @@ export function createScheduled(d: SchedDeps) {
     const label = hourLabel(hourOf(slotId));
     if (row.reminded < 1 && now >= startsAt - SCHED_REMIND_MS && now < startsAt) {
       store.schedSetSlot(slotId, { reminded: 1 });
-      for (const u of registered(slotId)) d.push(u, `Tournoi de ${label} dans 5 minutes`, 'Le salon ouvre bientôt : soyez là pour le départ, 5 minutes après l’ouverture.', '/?tournois=1');
+      for (const u of registered(slotId)) if (!d.warned?.(u, slotId)) d.push(u, `Tournoi de ${label} dans 5 minutes`, 'Le salon ouvre bientôt : soyez là pour le départ, 5 minutes après l’ouverture.', '/?tournois=1');
     }
     if (row.reminded < 2 && now >= startsAt && now < startsAt + SCHED_LOBBY_MS) {
       store.schedSetSlot(slotId, { reminded: 2 });

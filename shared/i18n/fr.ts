@@ -1,3 +1,4 @@
+import { serieFr } from './zones/serie.fr';
 import { pokerFr } from './zones/poker.fr';
 import { courtisan2Fr } from './zones/courtisan2.fr';
 import { clubsFr } from './zones/clubs.fr';
@@ -12,6 +13,7 @@ import { fetesFr } from "./zones/fetes.fr";
 import { tdcFr } from "./zones/comptoirs.fr";
 
 export const fr = {
+  ...serieFr,
   ...communFr,
   ...clubsFr,
   ...accueilFr,

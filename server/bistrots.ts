@@ -33,6 +33,8 @@ export interface BistrotsDeps {
   now?: () => number;
   /** Clôture des semaines : vérifiée régulièrement (0 = jamais, pour les tests). */
   rollEveryMs?: number;
+  /** `by` vient de dépasser `userId` au classement de la semaine d'un bistrot (rappel plafonné : server/notifs.ts). */
+  overtaken?: (userId: string, by: string, bistrot: { id: string; name: string }) => void;
 }
 
 /** Une partie arbitrée par le serveur : les comptes humains assis à la table. */
@@ -153,6 +155,35 @@ export function createBistrots(d: BistrotsDeps) {
     db.prepare('DELETE FROM bistrot_kicked WHERE bistrot_id = ? AND user_id = ?').run(b.id, u.id);
   };
 
+  // --- Dépassements : qui vient de passer devant qui (membres qui ont déjà des points cette semaine) ----
+  function snapshot(uids: string[]) {
+    const out = new Map<string, { name: string; pts: Map<string, number>; names: Map<string, string> }>();
+    if (!d.overtaken) return out;
+    for (const uid of new Set(uids)) for (const b of bistrotsOf(uid)) {
+      if (out.has(b.id)) continue;
+      const row = byId(b.id);
+      if (!row) continue;
+      const st = standings(b.id, weekOf());
+      out.set(b.id, { name: row.name, pts: new Map(st.map((r) => [r.id, r.points])), names: new Map(st.map((r) => [r.id, r.username])) });
+    }
+    return out;
+  }
+  function announceOvertakes(before: ReturnType<typeof snapshot>, scorers: string[]) {
+    if (!d.overtaken) return;
+    for (const [bid, b] of before) {
+      const after = new Map(standings(bid, weekOf()).map((r) => [r.id, r.points]));
+      for (const s of new Set(scorers)) {
+        if (!b.pts.has(s)) continue;
+        const s0 = b.pts.get(s) ?? 0, s1 = after.get(s) ?? 0;
+        for (const [m, m0] of b.pts) {
+          if (m === s || m0 <= 0) continue;
+          const m1 = after.get(m) ?? 0;
+          if (s0 <= m0 && s1 > m1) try { d.overtaken(m, b.names.get(s) ?? '?', { id: bid, name: b.name }); } catch { /* rappel : sans effet sur la partie */ }
+        }
+      }
+    }
+  }
+
   // --- Points (appelé par les serveurs de jeu) ----------------------------------------------------
   function addPoints(uid: string, points: number, won: boolean, game: boolean) {
     db.prepare(`INSERT INTO bistrot_points (week, user_id, points, games, wins) VALUES (?, ?, ?, ?, ?)
@@ -176,6 +207,7 @@ export function createBistrots(d: BistrotsDeps) {
       if (ps.length < 2) return given;
       rollWeeks();
       const day = dayOf();
+      const before = snapshot(ps.map((p) => p.userId));
       tx(() => {
         const counts = ps.map((p) => ps.some((o) => o.userId !== p.userId && pairCount(day, p.userId, o.userId) < PAIR_DAILY_CAP));
         for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
@@ -199,6 +231,7 @@ export function createBistrots(d: BistrotsDeps) {
         // Vieux compteurs : seulement ceux du jour servent.
         db.prepare('DELETE FROM bistrot_pairs WHERE day < ?').run(day);
       });
+      announceOvertakes(before, [...given.keys()]);
     } catch (e) { console.warn('[bistrots] partie', e); }
     return given;
   }
@@ -212,12 +245,14 @@ export function createBistrots(d: BistrotsDeps) {
       const u = d.store.userById(userId);
       if (!u) return 0;
       rollWeeks();
+      const before = snapshot([userId]);
       tx(() => {
         db.prepare('INSERT INTO bistrot_tourneys (day, user_id, n) VALUES (?, ?, 1) ON CONFLICT(day, user_id) DO UPDATE SET n = n + 1').run(day, userId);
         db.prepare('DELETE FROM bistrot_tourneys WHERE day < ?').run(day);
         addPoints(userId, POINTS_TOURNEY, false, false);
         for (const b of bistrotsOf(userId)) wall(b.id, 'tournoi', u, { game, players: humans, points: POINTS_TOURNEY });
       });
+      announceOvertakes(before, [userId]);
       return POINTS_TOURNEY;
     } catch (e) { console.warn('[bistrots] tournoi', e); return 0; }
   }

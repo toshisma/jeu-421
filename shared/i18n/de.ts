@@ -1,3 +1,4 @@
+import { serieDe } from './zones/serie.de';
 import { pokerDe } from './zones/poker.de';
 import { courtisan2De } from './zones/courtisan2.de';
 import { clubsDe } from './zones/clubs.de';
@@ -11,6 +12,7 @@ import { tdcDe } from './zones/comptoirs.de';
 
 /** Textes allemands (« du », ton direct). Une clé absente s'affiche en français. */
 export const de: Partial<Record<MessageKey, string>> = {
+  ...serieDe,
   ...communDe,
   ...clubsDe,
   ...accueilDe,

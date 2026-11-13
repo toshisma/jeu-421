@@ -47,6 +47,7 @@ export const STANDALONE = typeof __STANDALONE__ !== 'undefined' && __STANDALONE_
 
 /** En-tête commun des écrans de menu : voir kit.tsx (réexporté ici pour les imports existants). */
 import { BigAction, Choices, Section, Shell, Toggle } from './kit';
+import { NotifPrefs } from './Serie';
 export { Shell };
 
 // ---------------------------------------------------------------------------------------------
@@ -350,6 +351,7 @@ export function SettingsScreen({ settings, onChange, onBack }: { settings: Setti
           <Choices value={settings.quality} onChange={(q) => set({ quality: q })}
             options={[{ v: 'haute', label: tr('app.haute'), hint: tr('app.ombres_fines') }, { v: 'normale', label: tr('app.normale'), hint: tr('app.plus_leger') }]} />
         </Section>
+        {!STANDALONE && <NotifPrefs />}
         <Section title={tr('app.aide')}>
           <div className="k-links">
             <InstallPrompt />

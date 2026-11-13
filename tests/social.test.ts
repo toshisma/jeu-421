@@ -29,6 +29,8 @@ describe('amis et défis', () => {
   it('demande d’ami : acceptée ou refusée, notification avec compteur', async () => {
     a = (await api('/register', { username: 'Alice', password: 'motdepasse1', guestProfile: { coins: 100 } })).token;
     b = (await api('/register', { username: 'Bob', password: 'motdepasse1', guestProfile: { coins: 100 } })).token;
+    // Série de jours joués déjà comptée aujourd'hui (sinon +2 pièces au premier défi joué) : soldes exacts ci-dessous.
+    for (const n of ['Alice', 'Bob']) { const u = srv.store.userByName(n)!; srv.accounts.serie.played(u.id); srv.store.saveProfile(u.id, { ...srv.store.profileOf(u), coins: 100 }); }
     expect((await api('/friends', { username: 'Bob' }, a)).result).toBe('sent');
     expect((await api('/friends', { username: 'Bob' }, a)).result).toBe('pending');
     const n = await api('/notifications', undefined, b);

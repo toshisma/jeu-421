@@ -26,6 +26,7 @@ import { EMPTY_DM_STATS, cleanDmStats, type DmStats } from '../dixmille/stats';
 import { EMPTY_PM_STATS, cleanPmStats, type PmStats } from '../pokermenteur/stats';
 import { applyFetesGame, cleanAdvent, cleanFete, feteTitle, type AdventState, type FeteState } from './fetes';
 import { capTdcImport, cleanTdc, tdcTitleFr } from './comptoirs';
+import { capSerieImport, cleanSerie, serieRecord, type SerieReward, type SerieState } from './serie';
 
 export interface Profile {
   version: 1;
@@ -83,6 +84,8 @@ export interface Profile {
   advent?: AdventState;
   /** Tournée des comptoirs : bistrot → étoiles (masque, voir comptoirs.ts). */
   tdc?: Record<string, number>;
+  /** Série de jours joués (voir serie.ts). */
+  serie?: SerieState;
 }
 
 export interface MonthRecap {
@@ -249,6 +252,8 @@ export function sanitizeProfile(raw: unknown): Profile {
   if (pmSt) p.pm = pmSt;
   const tdc = cleanTdc(r.tdc);
   if (tdc) p.tdc = tdc;
+  const serie = cleanSerie(r.serie);
+  if (serie) p.serie = serie;
   if (Array.isArray(r.showcase)) {
     const sc = [...new Set(r.showcase.filter((id): id is string => typeof id === 'string' && !!collectionDie(id) && p.owned.includes(id)))].slice(0, 3);
     if (sc.length) p.showcase = sc;
@@ -330,6 +335,9 @@ export function capGuestImport(p: Profile): Profile {
   // Tournée des comptoirs : seulement le premier quartier (ni titre ni tapis : donnés à la partie suivante).
   const tdc = capTdcImport(p.tdc);
   if (tdc) base.tdc = tdc;
+  // Série de jours joués : une semaine au plus, sans joker (serie.ts).
+  const serie = capSerieImport(p.serie, today());
+  if (serie) base.serie = serie;
   // Les faits vérifiés par le serveur (succès du Courtisan) n'existent pas chez un invité : remis à zéro.
   if (p.dm) base.dm = { ...EMPTY_DM_STATS, games: cap(p.dm.games), wins: Math.min(cap(p.dm.wins), cap(p.dm.games)), bestTurn: p.dm.bestTurn };
   // Succès : seulement ceux que les statistiques reprises justifient.
@@ -748,6 +756,19 @@ export function claimDaily(p: Profile, day = today()): { profile: Profile; coins
   const profile = checkAchievements(addSeasonPoints({ ...p, xp: p.xp + r.xp, coins: p.coins + r.coins + bonus, daily: { last: day, count: st.count },
     bags: Math.min(BAGS_MAX, (p.bags ?? 0) + bag) }, r.xp, day)).profile;
   return { profile, coins: r.coins, xp: r.xp, cycleDay: st.cycleDay, bag };
+}
+
+/**
+ * Série de jours joués : une partie terminée ce jour-là (jour de Bruxelles). Pièces ou sac de dés
+ * du barème de serie.ts ; null si le jour était déjà compté. Pas d'XP (le pass n'avance pas plus vite).
+ */
+export function applySerieDay(p: Profile, day = today()): { profile: Profile; reward: SerieReward; n: number; joker: boolean } | null {
+  const r = serieRecord(p.serie, day);
+  if (!r) return null;
+  return {
+    profile: { ...p, serie: r.state, coins: p.coins + r.reward.coins, bags: r.reward.bag ? Math.min(BAGS_MAX, (p.bags ?? 0) + r.reward.bag) : p.bags },
+    reward: r.reward, n: r.n, joker: r.joker,
+  };
 }
 
 /**

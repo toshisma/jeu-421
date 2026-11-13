@@ -12,11 +12,11 @@ import type { Request, Response, Router, NextFunction } from 'express';
 import webpush from 'web-push';
 import { playChallenge } from '../shared/challenge';
 import type { DuelRow, Store, UserRow } from './db';
-import { dailyStatus } from '../shared/progress/profile';
 import { happyHourOfDay } from '../shared/progress/events';
 import { fetePush } from '../shared/progress/fetes';
 import { isLang, type Lang } from '../shared/i18n';
 import { translateServerText } from '../shared/i18n/server-texts';
+import { createNotifs } from './notifs';
 
 /** Texte d'une notification push dans la langue de l'appareil (enregistrée à l'abonnement ; français sinon). */
 const pushText = (lang: string | null, text: string): string => (isLang(lang) ? translateServerText(lang as Lang, text) : text);
@@ -41,6 +41,8 @@ interface Ctx {
   now: () => number;
   /** Défi terminé (score rejoué ici) : compté pour les bistrots entre amis. */
   onDuelEnd?: (g: { game: 'duel'; players: { userId: string; won: boolean }[] }) => void;
+  /** Partie terminée par un compte (défi joué) : série de jours joués. */
+  onPlayed?: (userId: string) => void;
 }
 
 export function createSocial(c: Ctx) {
@@ -60,13 +62,14 @@ export function createSocial(c: Ctx) {
   } catch { vapid = null; }
 
   const sent: { userId: string; title: string; body: string }[] = []; // pour les tests
-  async function push(userId: string, title: string, body: string, url = '/') {
+  /** `localize` : textes par langue d'appareil (rappels de server/notifs.ts) ; sinon traduction du texte français. */
+  async function push(userId: string, title: string, body: string, url = '/', localize?: (lang: Lang) => { title: string; body: string }) {
     sent.push({ userId, title, body });
     if (sent.length > 200) sent.shift();
     if (!vapid || process.env.VITEST) return;
     for (const s of store.pushOf(userId)) {
       try {
-        await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify({ title: pushText(s.lang, title), body: pushText(s.lang, body), url }), { TTL: 6 * 3600 });
+        await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, JSON.stringify(localize ? { ...localize(isLang(s.lang) ? s.lang : 'fr'), url } : { title: pushText(s.lang, title), body: pushText(s.lang, body), url }), { TTL: 6 * 3600 });
       } catch (e) {
         const code = (e as { statusCode?: number }).statusCode;
         if (code === 404 || code === 410) store.pushRemove(s.endpoint); // abonnement expiré
@@ -200,6 +203,7 @@ export function createSocial(c: Ctx) {
       if (c.coinsOf(me.id) < d.stake) return fail(res, 400, `Il vous faut ${d.stake} pièces pour relever ce défi.`);
       c.adjust(me.id, -d.stake);
     }
+    try { c.onPlayed?.(me.id); } catch { /* série : sans effet sur le défi */ }
     store.duelUpdate(d.id, isFrom ? { from_points: result.points, from_throws: result.throws } : { to_points: result.points, to_throws: result.throws, to_seen: 1 });
     let n = store.duel(d.id)!;
     if (n.from_points !== null && n.to_points !== null) {
@@ -254,7 +258,9 @@ export function createSocial(c: Ctx) {
     res.json({ ok: true });
   });
 
-  // --- Rappels programmés (vérifiés toutes les 10 minutes) ------------------------------------
+  // --- Rappels (server/notifs.ts : préférences, plafond 2/jour, heures calmes, jamais deux fois) ----
+  const notifs = createNotifs({ router, store, auth, userOf, fail, now: c.now, push: (u, t, b, url, loc) => void push(u, t, b, url, loc) });
+  /** Happy hour et fêtes (vérifiés toutes les 10 minutes) ; la série et les tournois : notifs.tick. */
   function reminders() {
     const t = c.now();
     const day = c.brusselsDate(t);
@@ -263,27 +269,18 @@ export function createSocial(c: Ctx) {
     const hh = happyHourOfDay(day);
     if (hh && hour === hh.hour && store.getMeta('push_hh') !== day) {
       store.setMeta('push_hh', day);
-      for (const id of store.pushUsers()) void push(id, 'Happy hour !', 'Pièces doublées sur toutes les parties pendant une heure.');
+      for (const id of store.pushUsers()) notifs.notify(id, 'evenements', `hh:${day}`, { title: 'Happy hour !', body: 'Pièces doublées sur toutes les parties pendant une heure.' });
     }
     // Saint-Nicolas (6/12), réveillon (24/12), Nouvel An (1/1) : une notification vers 10 h.
     const fp = fetePush(day);
     if (fp && hour >= 10 && store.getMeta('push_fete') !== day) {
       store.setMeta('push_fete', day);
-      for (const id of store.pushUsers()) void push(id, fp.title, fp.body);
+      for (const id of store.pushUsers()) notifs.notify(id, 'evenements', `fete:${day}`, { title: fp.title, body: fp.body });
     }
-    // Série de connexions en danger : rappel vers 19 h, une fois par jour.
-    if (hour >= 19 && store.getMeta('push_streak') !== day) {
-      store.setMeta('push_streak', day);
-      for (const id of store.pushUsers()) {
-        const u = store.userById(id);
-        if (!u) continue;
-        const st = dailyStatus(store.profileOf(u), day);
-        if (st.canClaim && (store.profileOf(u).daily?.count ?? 0) >= 2) void push(id, 'Votre série va se perdre', `Votre série de ${store.profileOf(u).daily!.count} jours s'arrête à minuit : passez récupérer votre récompense.`);
-      }
-    }
+    // La série (et le cadeau du jour) : rappel vers 19 h dans notifs.tick (positif, désactivable).
   }
   const timer = process.env.VITEST ? null : setInterval(reminders, 10 * 60_000);
   timer?.unref?.();
 
-  return { push, sent, reminders, expireDuels, close: () => { if (timer) clearInterval(timer); } };
+  return { push, sent, reminders, notifs, expireDuels, close: () => { if (timer) clearInterval(timer); notifs.close(); } };
 }
