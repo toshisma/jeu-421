@@ -8,8 +8,8 @@
  * En ligne, le serveur fait foi et n'envoie les dés qu'au détenteur du gobelet.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { act, currentPlayer, newGame, placeOf, ranking, viewFor, PM_LEVELS, type PmAction, type PmEvent, type PmLevel, type PmOptions, type PmState } from '../../../shared/pokermenteur/engine';
-import { decide } from '../../../shared/pokermenteur/ai';
+import { act, currentPlayer, placeOf, ranking, viewFor, PM_LEVELS, type PmAction, type PmEvent, type PmLevel, type PmOptions, type PmState } from '../../../shared/pokermenteur/engine';
+import { encodePm, newGamePm, pmBotDecide, MAX_MOVES_PM, type SetupPm } from '../../../shared/rejeu/poker';
 import { PM_PERSONAS, type PmPersona } from '../../../shared/pokermenteur/personas';
 import { PM_TABLE_MAX, type PmPublicMember } from '../../../shared/pokermenteur/protocol';
 import { ACHIEVEMENTS } from '../../../shared/progress/achievements';
@@ -144,20 +144,41 @@ const achName = (id: string, fallback: string, game?: string) => (game === 'poke
 
 function personaLine(p: PmPersona | undefined, kind: 'menteur' | 'gagne' | 'perd') { return p ? tr(K(`pm.p.${p.id}.${kind}`)) : ''; }
 
-export function PmSoloGame({ setup, opponents, pa, settings, me, onExit, onReplay, onBags }: {
+type PmSoloProps = {
   setup: PmSetup; opponents: PmPersona[]; pa: ProfileApi; settings: Settings;
   me: { name: string; avatar: string; photo: string | null }; onExit: () => void; onReplay: () => void; onBags?: () => void;
-}) {
+};
+
+/**
+ * Partie contre l'ordinateur : avec un compte, le serveur donne d'abord la graine (la partie sera rejouée
+ * par lui à la fin, shared/rejeu/poker.ts). On l'attend au plus 4 s avant de distribuer les dés.
+ */
+export function PmSoloGame(props: PmSoloProps) {
+  const { setup, opponents, pa } = props;
+  // Qui commence : tiré ici, avant de connaître la graine (je reste à ma place à table).
+  const [start] = useState(() => Math.floor(Math.random() * (opponents.length + 1)));
+  const [ticket, setTicket] = useState<{ seed: number; verified: boolean } | null>(null);
+  useEffect(() => {
+    let live = true;
+    const table: SetupPm = { level: setup.level, lives: setup.lives, noStraights: setup.noStraights, bots: opponents.map((p) => p.id), start };
+    void Promise.race([pa.onPokerStart(table), wait(4000).then(() => null)]).then((seed) => {
+      if (live) setTicket(seed != null ? { seed, verified: true } : { seed: crypto.getRandomValues(new Uint32Array(1))[0], verified: false });
+    });
+    return () => { live = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!ticket) return <div className="pk-preparing" role="status" style={{ display: 'grid', placeItems: 'center', minHeight: '60vh' }}><p className="muted">{tr('rej.preparing')}</p></div>;
+  return <PmSoloTable {...props} start={start} seed={ticket.seed} verified={ticket.verified} />;
+}
+
+function PmSoloTable({ setup, opponents, pa, settings, me, onExit, onReplay, onBags, start, seed, verified }: PmSoloProps & { start: number; seed: number; verified: boolean }) {
   const seats = useMemo<Seat[]>(() => [
     { id: 'moi', name: me.name || tr('pm.you'), avatar: me.avatar, color: COLORS[0], photo: me.photo, isMe: true },
     ...opponents.map((p) => ({ id: p.id, name: p.name, avatar: p.avatar, color: p.color, isMe: false, bot: true, persona: p })),
   ], []); // eslint-disable-line react-hooks/exhaustive-deps
-  const initial = useMemo(() => {
-    // Ordre tiré au sort (qui commence), mais je reste à ma place à table.
-    const start = Math.floor(Math.random() * seats.length);
-    const order = [...seats.slice(start), ...seats.slice(0, start)];
-    return newGame(order.map((x) => ({ id: x.id, name: x.name, ...(x.isMe ? {} : { bot: setup.level }) })), { lives: setup.lives, noStraights: setup.noStraights }, crypto.getRandomValues(new Uint32Array(1))[0]);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Ordre tiré au sort (qui commence), mais je reste à ma place à table ; dés tirés de la graine.
+  const initial = useMemo(() => newGamePm({ level: setup.level, lives: setup.lives, noStraights: setup.noStraights, bots: opponents.map((p) => p.id), start }, seed, seats.map((x) => x.name)), []); // eslint-disable-line react-hooks/exhaustive-deps
+  /** Décisions du joueur, pour le rejeu par le serveur. */
+  const moves = useRef<string[]>([]);
   const truth = useRef(initial);
   const [rules, setRules] = useState(false);
   const alive = useRef(true);
@@ -181,7 +202,6 @@ export function PmSoloGame({ setup, opponents, pa, settings, me, onExit, onRepla
   const firstPush = useRef(false);
   useEffect(() => {
     alive.current = true;
-    pa.onPokerStart();
     if (!firstPush.current) { firstPush.current = true; anim.push({ state: viewFor(initial, 'moi'), events: initial.events, by: initial.players[initial.current].id }); }
     return () => { alive.current = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -190,6 +210,7 @@ export function PmSoloGame({ setup, opponents, pa, settings, me, onExit, onRepla
     const prev = truth.current;
     const r = act(prev, a);
     if ('error' in r) return trServer(r.error);
+    if (prev.players[prev.current].id === 'moi') moves.current.push(encodePm(a));
     truth.current = r.state;
     anim.push({ state: viewFor(r.state, 'moi'), events: r.state.events, by: prev.players[prev.current].id });
     return null;
@@ -204,20 +225,21 @@ export function PmSoloGame({ setup, opponents, pa, settings, me, onExit, onRepla
     if (pid === 'moi') return;
     const p = persona(pid);
     const delay = (t0.phase === 'decision' ? 700 : t0.phase === 'relance' ? 450 : 600) + (p?.tempo ?? 900) * (0.4 + Math.random() * 0.5);
-    const t = setTimeout(() => { if (alive.current && truth.current === t0) run(decide(t0, setup.level)); }, delay);
+    const t = setTimeout(() => { if (alive.current && truth.current === t0) run(pmBotDecide(t0, setup.level)); }, delay);
     return () => clearTimeout(t);
   }, [s, anim.busy, run, setup.level]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fin : récompense (une fois).
-  const [end, setEnd] = useState<{ reward: Reward | null; bags: number; quests: string[]; achievements: string[] } | null>(null);
+  const [end, setEnd] = useState<{ reward: Reward | null; bags: number; quests: string[]; achievements: string[]; unverified?: boolean } | null>(null);
   const ended = useRef(false);
   useEffect(() => {
     if (s.phase !== 'fini' || anim.busy || ended.current) return;
     ended.current = true;
     void (async () => {
       const place = placeOf(truth.current, 'moi');
-      const [r] = await Promise.all([pa.onPokerEnd({ won: truth.current.winner === 'moi', place, opponents: opponents.length, level: setup.level }), wait(900)]);
-      if (alive.current) setEnd({ reward: r?.reward ?? null, bags: r?.bags ?? 0, quests: r?.quests ?? [], achievements: r?.achievements ?? [] });
+      const proof = verified && moves.current.length <= MAX_MOVES_PM ? { moves: moves.current.join('.') } : {};
+      const [r] = await Promise.all([pa.onPokerEnd({ won: truth.current.winner === 'moi', place, opponents: opponents.length, level: setup.level, ...proof }), wait(900)]);
+      if (alive.current) setEnd({ reward: r?.reward ?? null, bags: r?.bags ?? 0, quests: r?.quests ?? [], achievements: r?.achievements ?? [], unverified: !!r?.unverified });
     })();
   }, [s, anim.busy]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -231,7 +253,8 @@ export function PmSoloGame({ setup, opponents, pa, settings, me, onExit, onRepla
     <>
       <PmBoard anim={anim} seats={seats} meId="moi" canAct onAct={run} onLeave={() => void leave()} settings={settings} onRules={() => setRules(true)}
         overlay={say && <div className="pk-speech" key={say.k} style={{ ['--pc' as string]: seats.find((x) => x.id === say.id)?.color }}><b>{seats.find((x) => x.id === say.id)?.name}</b> {say.text}</div>}
-        end={end && <EndDialog s={s} seats={seats} reward={end.reward} bags={end.bags} quests={end.quests} achievements={end.achievements} isAccount={pa.isAccount} onBags={onBags} buttons={<>
+        end={end && <EndDialog s={s} seats={seats} reward={end.reward} bags={end.bags} quests={end.quests} achievements={end.achievements} isAccount={pa.isAccount} onBags={onBags}
+          waiting={end.unverified ? tr('rej.update') : undefined} buttons={<>
           <button className="btn secondary" onClick={onExit}>{tr('pm.back')}</button>
           <button className="btn primary" onClick={onReplay}><Icon name="resume" size={18} /> {tr('pm.replay')}</button>
         </>} />} />

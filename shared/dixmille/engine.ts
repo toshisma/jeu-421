@@ -47,9 +47,16 @@ const counts = (vals: number[]) => { const c = [0, 0, 0, 0, 0, 0, 0]; for (const
  */
 export function scoreParts(vals: number[]): { points: number; parts: Part[] } | null {
   if (!vals.length || vals.some((v) => !Number.isInteger(v) || v < 1 || v > 6)) return null;
+  // Lecture mise en mémoire par groupe de valeurs (au plus 923 groupes) : rejeu rapide côté serveur.
+  const key = counts(vals).join('');
+  const hit = SCORE_MEMO.get(key);
+  if (hit !== undefined) return hit;
   const best = solve(counts(vals));
-  return best && best.points > 0 ? best : null;
+  const out = best && best.points > 0 ? best : null;
+  SCORE_MEMO.set(key, out);
+  return out;
 }
+const SCORE_MEMO = new Map<string, { points: number; parts: Part[] } | null>();
 export function scoreSelection(vals: number[]): number | null { return scoreParts(vals)?.points ?? null; }
 
 function solve(c: number[]): { points: number; parts: Part[] } | null {
@@ -96,6 +103,15 @@ export function partLabel(p: Part): string {
  * distinct, avec leurs points. Triées du plus de points au moins.
  */
 export function validSelections(vals: number[]): { idx: number[]; points: number }[] {
+  const memoKey = vals.join(',');
+  const hit = SEL_MEMO.get(memoKey);
+  if (hit) return hit.map((x) => ({ idx: [...x.idx], points: x.points }));
+  const out = computeSelections(vals);
+  if (SEL_MEMO.size < 60_000) SEL_MEMO.set(memoKey, out);
+  return out.map((x) => ({ idx: [...x.idx], points: x.points }));
+}
+const SEL_MEMO = new Map<string, { idx: number[]; points: number }[]>();
+function computeSelections(vals: number[]): { idx: number[]; points: number }[] {
   const seen = new Map<string, { idx: number[]; points: number }>();
   const n = vals.length;
   for (let m = 1; m < 1 << n; m++) {
@@ -223,7 +239,10 @@ function nextTurn(s: DmState) {
  */
 export function act(prev: DmState, a: DmAction): { state: DmState } | { error: string } {
   if (prev.phase === 'fini') return { error: 'La partie est terminée.' };
-  const s: DmState = structuredClone(prev);
+  const s: DmState = {
+    ...prev, players: prev.players.map((p) => ({ ...p })), dice: [...prev.dice], out: [...prev.out], rolled: [...prev.rolled],
+    setAside: prev.setAside.map((x) => ({ dice: [...x.dice], points: x.points })), events: [],
+  };
   s.events = [];
   const p = currentPlayer(s);
   if (a.type === 'lancer') {

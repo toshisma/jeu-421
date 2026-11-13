@@ -1,4 +1,5 @@
 import { pokerNl } from './zones/poker.nl';
+import { rejeuNl } from './zones/rejeu.nl';
 import { courtisan2Nl } from './zones/courtisan2.nl';
 import { clubsNl } from './zones/clubs.nl';
 import { accueilNl } from './zones/accueil.nl';
@@ -61,5 +62,6 @@ export const nl: Partial<Record<MessageKey, string>> = {
   'dm.lv.debutant': 'Beginner', 'dm.lv.habitue': 'Vaste klant', 'dm.lv.fouine': 'Sluwe vos', 'dm.lh.debutant': 'Waagt te veel', 'dm.lh.habitue': 'Speelt verstandig', 'dm.lh.fouine': 'Berekent de kansen',
   ...g421Nl,
   ...fetesNl,
+  ...rejeuNl,
   ...tdcNl,
 };

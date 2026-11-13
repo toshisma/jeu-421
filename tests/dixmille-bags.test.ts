@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startServer } from '../server/app';
 import { DM_BAG_MIN_MINUTES, applyDixMilleGame, dixMilleBagRoll, dixMilleReward } from '../shared/dixmille/reward';
 import { BAG_PITY, WELCOME_BAGS, applyGameEnd, newProfile, rewardFor, sanitizeProfile } from '../shared/progress/profile';
+import { playDm } from './rejeu-helpers';
 import { mulberry32 } from '../shared/rng';
 
 const day = '2026-03-10';
@@ -85,13 +86,17 @@ describe('Sacs de dés du Courtisan : serveur (partie contre l’ordinateur sur 
 
   it('durée mesurée par le serveur : sac au bout du compteur, sacs ou durée annoncés ignorés', async () => {
     const token = await user();
-    const g = await api('/dixmille/start', {}, token);
+    const g = await api('/dixmille/start', { setup: { level: 'habitue', target: 2000, bots: ['gege'] } }, token);
+    const played = playDm(g.setup, g.seed);
     clock += 3 * 60_000;
-    const end = await api('/dixmille/end', { gameToken: g.gameToken, won: true, place: 1, opponents: 1, level: 'habitue', bestTurn: 850, bags: 50, bagsFound: 50, minutes: 999 }, token);
+    const end = await api('/dixmille/end', { gameToken: g.gameToken, moves: played.moves, won: true, place: 1, opponents: 1, level: 'habitue', bestTurn: 9850, bags: 50, bagsFound: 50, minutes: 999 }, token);
     expect(end.ok).toBe(true);
+    expect(end.verified).toBe(true);
     expect(end.applied.bagsFound).toBe(1);
     expect(end.applied.profile.bags).toBe(1 + WELCOME_BAGS);
-    expect(end.applied.profile.dm).toMatchObject({ games: 1, wins: 1, bestTurn: 850 });
+    // Partie rejouée : victoire et meilleur tour calculés par le serveur (les annonces sont ignorées).
+    const won = played.state.winner === 'moi';
+    expect(end.applied.profile.dm).toMatchObject({ games: 1, wins: won ? 1 : 0, bestTurn: played.state.players.find((x) => x.id === 'moi')!.best });
   });
 
   it('partie courte (mesurée par le serveur), jeton inconnu ou réutilisé : pas de sac', async () => {

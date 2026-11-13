@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startServer } from '../server/app';
 import { dixMilleReward } from '../shared/dixmille/reward';
+import { playDm } from './rejeu-helpers';
 import { rewardFor } from '../shared/progress/profile';
 
 let srv: Awaited<ReturnType<typeof startServer>>;
@@ -44,11 +45,23 @@ describe('Dix mille : récompenses', () => {
     expect(end.ok).toBe(true);
     expect(end.reward.coins).toBeGreaterThanOrEqual(1);
     expect(end.reward.coins).toBeLessThanOrEqual(15);
-    // 0.53 : la première victoire débloque « Premier courtisan » (+5).
-    expect(end.applied.achievementsDone.map((x: { id: string }) => x.id)).toEqual(['dm-premiere']);
-    expect(end.applied.profile.coins).toBe(before.coins + end.reward.coins + end.applied.levelBonusCoins + 5);
+    // Victoire annoncée par une ancienne version (pas de rejeu) : récompense de base, pas de succès.
+    expect(end.verified).toBe(false);
+    expect(end.applied.achievementsDone).toEqual([]);
+    expect(end.applied.profile.coins).toBe(before.coins + end.reward.coins + end.applied.levelBonusCoins);
     // Pas de partie comptée dans les statistiques du 421 (succès, défis).
     expect(end.applied.profile.stats.played).toBe(before.stats.played);
     expect((await api('/dixmille/end', { gameToken: g2.gameToken, won: true }, token)).status).toBe(400); // jeton à usage unique
+    // 0.53 : la première VRAIE victoire (rejouée par le serveur) débloque « Premier courtisan » (+5).
+    let v: any = null;
+    for (let i = 0; i < 40 && !v; i++) {
+      const g3 = await api('/dixmille/start', { setup: { level: 'debutant', target: 2000, bots: ['gege'] } }, token);
+      const p = playDm(g3.setup, g3.seed);
+      if (p.state.winner !== 'moi') continue;
+      await wait(200);
+      v = await api('/dixmille/end', { gameToken: g3.gameToken, moves: p.moves }, token);
+    }
+    expect(v.verified).toBe(true);
+    expect(v.applied.achievementsDone.map((x: { id: string }) => x.id)).toContain('dm-premiere');
   });
 });

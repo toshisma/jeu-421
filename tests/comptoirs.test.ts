@@ -13,7 +13,8 @@ import { decide, type Difficulty } from '../shared/ai';
 import { DICTS, type Lang } from '../shared/i18n';
 import { tdcFr } from '../shared/i18n/zones/comptoirs.fr';
 import { translateServerText } from '../shared/i18n/server-texts';
-import { TDC_TITLES_FR } from '../shared/progress/comptoirs';
+import { TDC_TITLES_FR, tdcBistro } from '../shared/progress/comptoirs';
+import { solo421 } from './rejeu-helpers';
 
 const ids = (q: string) => bistrosOf(q).map((b) => b.id);
 const all = (q: string, mask = 1): TdcProgress => Object.fromEntries(ids(q).map((id) => [id, mask]));
@@ -135,16 +136,24 @@ describe('serveur', () => {
     return { start: s, end: await call('/solo/end', { gameToken: s.gameToken, ...body }, token) };
   };
   const win = { won: true, place: 1, rounds: 12, roundsLost: 2, opponents: 1, difficulty: 'facile', count421: 1, combos: { '421': 1, brelan: 1 } };
+  /** Vraie partie de la Tournée (rejouée par le serveur), gagnée ou perdue. */
+  const real = (t: string, tdc: string, want: 'win' | 'lose' = 'win', extra: Record<string, unknown> = {}) =>
+    solo421(call as any, t, { tdc, setup: { config: {}, opponents: tdcBistro(tdc)!.opponents, firstIdx: 0 }, want, extra, before: async () => { await wait(150); }, tries: 300 });
 
-  it('étoiles attribuées par le serveur, partie comptée comme un solo de 421', async () => {
+  it('étoiles attribuées par le serveur, d’après la partie rejouée ; partie comptée comme un solo de 421', async () => {
     const t = await account();
-    const { start, end } = await play(t, 'petit-zinc', win);
+    const { start, end, facts } = await real(t, 'petit-zinc');
     expect(start.tdc).toBe(true);
     expect(end.ok).toBe(true);
-    expect(end.tdc.newStars).toEqual([1, 2, 3]);
-    expect(end.applied.profile.tdc['petit-zinc']).toBe(7);
+    expect(end.verified).toBe(true);
+    expect(end.tdc.newStars).toContain(1);
+    // 2e / 3e étoiles : d'après les faits rejoués (manches perdues, durée), jamais d'après l'annonce.
+    expect(tdcBistro('petit-zinc')!.stars[0]).toEqual({ k: 'lost', n: 3 });
+    expect((end.tdc.after >> 1) & 1).toBe((facts.roundsLost ?? 99) <= 3 ? 1 : 0);
+    expect((end.tdc.after >> 2) & 1).toBe(1); // gagné en moins de 3 minutes (horloge du serveur)
+    expect(end.applied.profile.tdc['petit-zinc'] & 1).toBe(1);
     expect(end.applied.profile.stats.played).toBe(1); // compté comme une partie solo
-    expect(end.applied.profile.coins).toBeGreaterThanOrEqual(3 * TDC_STAR_COINS);
+    expect(end.applied.profile.coins).toBeGreaterThanOrEqual(end.tdc.newStars.length * TDC_STAR_COINS);
   });
   it('bistrot fermé : la partie n’est pas une partie de la Tournée', async () => {
     const t = await account();
@@ -155,23 +164,19 @@ describe('serveur', () => {
   });
   it('pas de double récompense : jeton à usage unique, étoile déjà gagnée', async () => {
     const t = await account();
-    const a = await play(t, 'petit-zinc', win);
-    const coins = a.end.applied.profile.coins;
+    const a = await real(t, 'petit-zinc');
     expect((await call('/solo/end', { gameToken: a.start.gameToken, ...win }, t)).status).toBe(400);
-    const b = await play(t, 'petit-zinc', win);
-    expect(b.end.tdc.newStars).toEqual([]);
-    expect(b.end.tdc.coins).toBe(0);
-    // Les pièces ne montent que du gain normal d'une partie solo.
-    expect(b.end.applied.profile.coins - coins).toBe(b.end.reward.coins + (b.end.applied.levelBonusCoins ?? 0));
+    const b = await real(t, 'petit-zinc');
+    expect(b.end.tdc.newStars).not.toContain(1);
+    expect(b.end.tdc.coins).toBe(b.end.tdc.newStars.length * TDC_STAR_COINS);
   });
-  it('déclarations invraisemblables : aucune étoile', async () => {
+  it('victoire annoncée (ancienne version) ou faits ajoutés : aucune étoile', async () => {
     const t = await account();
-    const tooShort = await play(t, 'petit-zinc', { ...win, rounds: 1 }, 50); // moins que les manches minimales
-    expect(tooShort.end.tdc.refused).toBe(true);
-    const lots = await play(t, 'petit-zinc', { ...win, count421: 40, combos: { '421': 40 } });
-    expect(lots.end.tdc.refused).toBe(true);
-    const lostMore = await play(t, 'petit-zinc', { ...win, roundsLost: 50 });
-    expect(lostMore.end.tdc.refused).toBe(true);
+    const declared = await play(t, 'petit-zinc', win);
+    expect(declared.end.verified).toBe(false);
+    expect(declared.end.tdc).toBeUndefined();
+    const lost = await real(t, 'petit-zinc', 'lose', win);
+    expect(lost.end.tdc.newStars).toEqual([]);
     const me = await call('/me', undefined, t);
     expect(me.profile.tdc).toBeUndefined();
     // Le bistrot annoncé à la fin est ignoré : seul celui du départ compte.
@@ -183,14 +188,14 @@ describe('serveur', () => {
   it('enchaînement des déblocages côté serveur', async () => {
     const t = await account();
     expect((await play(t, 'cafe-sports', win)).start.tdc).toBeUndefined();
-    await play(t, 'petit-zinc', { ...win, roundsLost: 9, count421: 0, combos: {} });
-    expect((await play(t, 'cafe-sports', win)).start.tdc).toBe(true);
+    await real(t, 'petit-zinc');
+    await real(t, 'cafe-sports');
     expect((await play(t, 'phare', win)).start.tdc).toBeUndefined();
-    await play(t, 'chope-or', { ...win, count421: 0, combos: {} });
+    await real(t, 'chope-or');
     const me = await call('/me', undefined, t);
     expect(reputation(me.profile.tdc)).toBeGreaterThanOrEqual(3);
     expect(me.profile.titles).toContain('tdc:marche');
-    expect((await play(t, 'phare', { ...win, rounds: 10 })).start.tdc).toBe(true);
+    expect((await play(t, 'phare', win)).start.tdc).toBe(true);
   });
   it('profil invité repris à l’inscription : premier quartier seulement', async () => {
     const t = await account({ ...newProfile(), tdc: { ...all('marche', 7), ...all('port', 7) } });

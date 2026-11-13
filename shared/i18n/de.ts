@@ -1,4 +1,5 @@
 import { pokerDe } from './zones/poker.de';
+import { rejeuDe } from './zones/rejeu.de';
 import { courtisan2De } from './zones/courtisan2.de';
 import { clubsDe } from './zones/clubs.de';
 import { accueilDe } from './zones/accueil.de';
@@ -61,5 +62,6 @@ export const de: Partial<Record<MessageKey, string>> = {
   'dm.lv.debutant': 'Anfänger', 'dm.lv.habitue': 'Stammgast', 'dm.lv.fouine': 'Fuchs', 'dm.lh.debutant': 'Riskiert zu viel', 'dm.lh.habitue': 'Spielt vernünftig', 'dm.lh.fouine': 'Berechnet die Chancen',
   ...g421De,
   ...fetesDe,
+  ...rejeuDe,
   ...tdcDe,
 };

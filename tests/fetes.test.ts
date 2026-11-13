@@ -15,6 +15,7 @@ import { fetesEn } from '../shared/i18n/zones/fetes.en';
 import { fetesDe } from '../shared/i18n/zones/fetes.de';
 import { fetesNl } from '../shared/i18n/zones/fetes.nl';
 import { translate } from '../shared/i18n';
+import { solo421 } from './rejeu-helpers';
 import { translateServerText } from '../shared/i18n/server-texts';
 
 describe('fêtes : calendrier des annonces', () => {
@@ -257,9 +258,13 @@ describe('fêtes côté serveur', () => {
     expect(e.status).toBe(200);
     expect(e.applied.profile.fete).toBeUndefined();
     vi.setSystemTime(new Date('2026-12-05T15:00:00Z'));
-    s = await api('/solo/start', { boss: 'ev-saint-nicolas' }, token);
-    e = await api('/solo/end', { gameToken: s.gameToken, won: true, rounds: 3, opponents: 2, difficulty: 'difficile', combos: { '421': 1 }, count421: 1 }, token);
+    // Vraie victoire (rejouée par le serveur) contre Saint-Nicolas, avec un 4-2-1.
+    const f = FETE_BOSSES['saint-nicolas'];
+    const table = { config: {}, firstIdx: 0, opponents: f.cast.slice(0, 1 + f.def.sidekicks).map((id, i) => ({ persona: `fete-${id}`, difficulty: i ? 'normal' : 'difficile' })) };
+    const w = await solo421(api as any, token, { boss: 'ev-saint-nicolas', setup: table, want: 'win', accept: (x) => x.count421 > 0, tries: 2000 });
+    e = w.end;
     expect(e.status).toBe(200);
+    expect(e.verified).toBe(true);
     const p = e.applied.profile;
     expect(p.fete.k).toBe('saint-nicolas:2026');
     expect(p.fete.boss).toBe(1);
@@ -269,9 +274,14 @@ describe('fêtes côté serveur', () => {
     expect(e.applied.achievementsDone.map((x: { id: string }) => x.id)).toEqual(expect.arrayContaining(['fet-boss-saint-nicolas', 'fet-sn-421']));
     // Le « boss » annoncé à la fin n'est pas cru : seule la partie commencée contre lui compte.
     const token2 = await register('Sinter2');
-    s = await api('/solo/start', {}, token2);
-    e = await api('/solo/end', { gameToken: s.gameToken, won: true, rounds: 3, opponents: 2, boss: 'ev-saint-nicolas' }, token2);
-    expect(e.applied.profile.fete.boss).toBeUndefined();
-    expect(e.applied.profile.fete.p['sn-gagner']).toBe(1);
+    const w2 = await solo421(api as any, token2, { want: 'win', extra: { boss: 'ev-saint-nicolas' } });
+    expect(w2.end.applied.profile.fete.boss).toBeUndefined();
+    expect(w2.end.applied.profile.fete.p['sn-gagner']).toBe(1);
+    // Victoire annoncée par une ancienne version : ni défi ni adversaire.
+    const token3 = await register('Sinter3');
+    s = await api('/solo/start', { boss: 'ev-saint-nicolas' }, token3);
+    e = await api('/solo/end', { gameToken: s.gameToken, won: true, rounds: 3, opponents: 2, difficulty: 'difficile', combos: { '421': 1 }, count421: 1 }, token3);
+    expect(e.verified).toBe(false);
+    expect(e.applied.profile.fete).toBeUndefined();
   });
 });

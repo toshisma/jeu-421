@@ -2,6 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { io as connect } from 'socket.io-client';
 import { LEAGUE_PRIZES, REFERRAL_BAGS_MAX, REFERRAL_BONUS, REFERRAL_GAMES } from '../shared/progress/profile';
+import { freeSetup, solo421 } from './rejeu-helpers';
 import { startServer } from '../server/app';
 
 let clock = Date.parse('2026-11-04T12:00:00Z'); // un mercredi
@@ -18,9 +19,9 @@ const call = async (path: string, body?: object, token?: string) => {
     headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
   return { status: r.status, ...(await r.json()) };
 };
+/** Vraie partie solo (rejouée par le serveur) contre 3 ordinateurs difficiles, gagnée ou perdue. */
 async function solo(token: string, won: boolean) {
-  const s = await call('/solo/start', {}, token);
-  return call('/solo/end', { gameToken: s.gameToken, won, rounds: 10, opponents: 3, difficulty: 'difficile', count421: 0 }, token);
+  return (await solo421(call as any, token, { setup: freeSetup(3, 'difficile'), want: won ? 'win' : 'lose', tries: 400 })).end;
 }
 
 describe('ligues', () => {

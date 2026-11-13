@@ -8,6 +8,7 @@ import { adminNameList, avoidBotName, nameSkeleton, tableName, usernameProblem }
 import { BOT_NAMES, COUNTER_BOTS, CF_BOT_NAMES, PERSONA_NAMES } from '../shared/bot-names';
 import { PERSONAS } from '../client/src/game/personas';
 import { FRIEND_REQUESTS_PER_DAY, FRIEND_RETRY_DAYS } from '../server/social';
+import { bossTable, solo421 } from './rejeu-helpers';
 
 let clock = Date.now();
 let srv: Awaited<ReturnType<typeof startServer>>;
@@ -76,17 +77,26 @@ describe('solo déclaré', () => {
     expect(st.brelans).toBeLessThanOrEqual(5);
     expect(st.gestures).toBeLessThanOrEqual(5);
   });
-  it('une petite vraie partie garde ses combinaisons', async () => {
+  it('combinaisons annoncées ignorées ; celles d’une vraie partie (rejouée) comptent', async () => {
     const a = await account();
     const r = await end(a.token, { won: true, rounds: 6, opponents: 1, count421: 1, combos: { '421': 1, brelan: 2 }, roundsLost: 2 });
-    expect(r.applied.profile.stats.brelans).toBe(2);
+    expect(r.verified).toBe(false);
+    expect(r.applied.profile.stats.brelans).toBe(0);
+    const v = await solo421(call as any, a.token, { extra: { combos: { brelan: 40 } } });
+    expect(v.end.verified).toBe(true);
+    expect(v.end.applied.profile.stats.brelans).toBe(v.facts.combos.brelan ?? 0);
   });
-  it('le `boss` envoyé à la fin est ignoré ; seul celui noté au début (semaine en cours) compte', async () => {
+  it('le `boss` envoyé à la fin est ignoré ; seul celui noté au début (semaine en cours), vraiment battu, compte', async () => {
     const a = await account();
-    const wk = bossOfWeek(today()).id;
-    expect((await end(a.token, { won: true, rounds: 5, opponents: 1, boss: wk })).applied.profile.stats.bossWins).toBe(0);
+    const wk = bossOfWeek(today());
+    expect((await end(a.token, { won: true, rounds: 5, opponents: 1, boss: wk.id })).applied.profile.stats.bossWins).toBe(0);
     expect((await end(a.token, { won: true, rounds: 5, opponents: 1 }, 'pas-le-patron')).applied.profile.stats.bossWins).toBe(0);
-    expect((await end(a.token, { won: true, rounds: 5, opponents: 1 }, wk)).applied.profile.stats.bossWins).toBe(1);
+    // Ancien téléphone : victoire annoncée contre le patron → rien.
+    expect((await end(a.token, { won: true, rounds: 5, opponents: 1 }, wk.id)).applied.profile.stats.bossWins).toBe(0);
+    const lost = await solo421(call as any, a.token, { boss: wk.id, setup: bossTable(wk), want: 'lose', extra: { won: true } });
+    expect(lost.end.applied.profile.stats.bossWins).toBe(0);
+    const won = await solo421(call as any, a.token, { boss: wk.id, setup: bossTable(wk), want: 'win', tries: 400 });
+    expect(won.end.applied.profile.stats.bossWins).toBe(1);
   });
   it('rien de public dans le fil d’actualité', async () => {
     const a = await account('Fil');
@@ -100,7 +110,8 @@ describe('solo déclaré', () => {
     const s = await call('/dixmille/start', {}, a.token);
     const r = await call('/dixmille/end', { gameToken: s.gameToken, won: false, place: -50, opponents: 1, level: 'habitue', bestTurn: 999999 }, a.token);
     expect(r.ok).toBe(true);
-    expect(r.applied.profile.dm.bestTurn).toBeLessThanOrEqual(16000);
+    expect(r.verified).toBe(false);
+    expect(r.applied.profile.dm?.bestTurn ?? 0).toBe(0); // partie non rejouée : statistiques du mode intactes
     expect(r.reward.won).toBe(false);
   });
 });

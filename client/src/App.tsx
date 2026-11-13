@@ -445,8 +445,8 @@ export function App() {
       return <SoloSetup settings={settings} onBack={classic} onStart={startSolo} />;
     case 'solo':
       return <GameScreen controller={screen.controller} personas={screen.personas} settings={settings} onSettings={setSettings} onExit={classic}
-        appearance={profile.equipped} onGameStart={() => pa.onSoloStart()} pa={pa}
-        onGameEnd={(st, ctx) => pa.onGameEnd(st, screen.controller.meId, ctx)} />;
+        appearance={profile.equipped} onGameStart={() => screen.controller.attachTicket(pa.onSoloStart(undefined, undefined, screen.controller.soloSetup()))} pa={pa}
+        onGameEnd={(st, ctx) => pa.onGameEnd(st, screen.controller.meId, ctx, screen.controller.proof())} />;
     case 'online':
       return <OnlineFlow mode={screen.mode} settings={settings} onSettings={setSettings} onExit={classic} onCancel={() => setScreen({ name: 'hub', tab: 'tables' })}
         appearance={profile.equipped} onGameEnd={pa.onGameEnd} auth={pa.token} onServerReward={pa.onServerReward} pa={pa} />;
@@ -467,8 +467,8 @@ export function App() {
     case 'boss': {
       const c = screen.controller;
       return <GameScreen controller={c} personas={c.cast} settings={settings} onSettings={setSettings} onExit={classic}
-        appearance={profile.equipped} onGameStart={() => pa.onSoloStart(c.boss.id)} pa={pa} bossId={c.boss.id}
-        onGameEnd={(st, ctx) => pa.onGameEnd(st, c.meId, ctx)} />;
+        appearance={profile.equipped} onGameStart={() => c.attachTicket(pa.onSoloStart(c.boss.id, undefined, c.soloSetup()))} pa={pa} bossId={c.boss.id}
+        onGameEnd={(st, ctx) => pa.onGameEnd(st, c.meId, ctx, c.proof())} />;
     }
     case 'tdc':
       return <TourneeScreen pa={pa} onBack={classic} onPlay={startTdc} />;
@@ -476,10 +476,10 @@ export function App() {
       const c = screen.controller, b = c.bistro;
       return <GameScreen controller={c} personas={c.personas} settings={settings} onSettings={setSettings} onExit={() => setScreen({ name: 'tdc' })}
         appearance={{ ...profile.equipped, ...b.look }} pa={pa}
-        onGameStart={() => { setTdcBefore({ ...(pa.profile.tdc ?? {}) }); setTdcPending(false); pa.onSoloStart(undefined, b.id); }}
+        onGameStart={() => { setTdcBefore({ ...(pa.profile.tdc ?? {}) }); setTdcPending(false); c.attachTicket(pa.onSoloStart(undefined, b.id, c.soloSetup())); }}
         onGameEnd={async (st, ctx) => {
           setTdcPending(true);
-          const r = await pa.onGameEnd(st, c.meId, ctx);
+          const r = await pa.onGameEnd(st, c.meId, ctx, c.proof());
           const won = didWin(st, c.meId);
           if (!pa.isAccount) pa.onTdcGuestEnd(b.id, tdcFactsFrom({ won, place: ctx.place, rounds: st.round, roundsLost: ctx.roundsLost, count421: ctx.count421, combos: ctx.combos, elapsedMs: (ctx.minutes ?? 0) * 60000 }));
           else if (!r) pa.refresh(); // plafond du jour atteint, réseau : les étoiles sont relues sur le serveur

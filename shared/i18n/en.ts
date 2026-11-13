@@ -1,4 +1,5 @@
 import { pokerEn } from './zones/poker.en';
+import { rejeuEn } from './zones/rejeu.en';
 import { courtisan2En } from './zones/courtisan2.en';
 import { clubsEn } from './zones/clubs.en';
 import { accueilEn } from './zones/accueil.en';
@@ -370,5 +371,6 @@ export const en: Partial<Record<MessageKey, string>> = {
   "dm.lh.fouine": "Calculates the odds",
   ...g421En,
   ...fetesEn,
+  ...rejeuEn,
   ...tdcEn,
 };

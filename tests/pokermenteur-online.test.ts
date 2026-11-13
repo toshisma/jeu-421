@@ -301,8 +301,10 @@ describe('Poker menteur contre l’ordinateur (sur le téléphone)', () => {
     const end = await api('/poker/end', { gameToken: g2.gameToken, won: true, place: 1, opponents: 99, level: 'triche' }, u.token);
     expect(end.ok).toBe(true);
     expect(end.reward.coins).toBeLessThanOrEqual(15);
-    expect(end.applied.achievementsDone.map((x: { id: string }) => x.id)).toEqual(['pm-premiere']);
-    expect(end.applied.profile.pm).toMatchObject({ games: 1, wins: 1, vGames: 0, onlineWins: 0 });
+    // Victoire annoncée sans rejeu (ancienne version) : récompense de base, ni succès ni statistiques.
+    expect(end.verified).toBe(false);
+    expect(end.applied.achievementsDone).toEqual([]);
+    expect(end.applied.profile.pm?.games ?? 0).toBe(0);
     expect((await api('/poker/end', { gameToken: g2.gameToken, won: true }, u.token)).status).toBe(400);
     // Plafond quotidien des parties contre l'ordinateur (4 dans ce test) partagé avec le solo.
     let capped = false;

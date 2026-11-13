@@ -3,6 +3,11 @@
  * (enregistré sur le serveur, qui fait foi). L'interface utilise les mêmes actions dans les deux cas.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Setup421 } from '../../../shared/rejeu/r421';
+import type { SetupDm } from '../../../shared/rejeu/dixmille';
+import type { SetupPm } from '../../../shared/rejeu/poker';
+import { stableJson } from '../../../shared/rejeu/common';
+import type { SoloTicket } from '../game/localController';
 import { saveWelcomeGift } from '../ui/guestInvite';
 import type { GameState } from '../../../shared/engine';
 import {
@@ -26,7 +31,7 @@ import { applyTdc, type TdcFacts } from '../../../shared/progress/comptoirs';
 
 export interface EndReward { reward: Reward; applied: Applied }
 /** Fin d'une partie du Courtisan : récompense, sacs de dés trouvés, défis du jour accomplis. */
-export interface DmEndResult { reward: Reward; levelBefore: number; levelAfter: number; bags: number; quests: string[]; /** Succès débloqués (identifiants). */ achievements?: string[] }
+export interface DmEndResult { reward: Reward; levelBefore: number; levelAfter: number; bags: number; quests: string[]; /** Succès débloqués (identifiants). */ achievements?: string[]; /** Partie que le serveur n'a pas pu rejouer : récompense de base seulement. */ unverified?: boolean }
 
 /** Défi du jour déjà joué sur cet appareil (affichage et récompense des invités). */
 const DEFI = '421.defi';
@@ -258,15 +263,24 @@ export function useProfile(enabled: boolean) {
   /** Début d'une partie solo : avec un compte, le serveur délivre un jeton de partie. */
   // Invités : un jeton de partie pour les statistiques publiques (aucune donnée personnelle).
   const statToken = useRef<string | null>(null);
-  const onSoloStart = useCallback((boss?: string, tdc?: string) => {
+  /**
+   * Avec une table (`setup`), le serveur renvoie aussi une graine : la partie sera rejouée par lui à la fin
+   * (shared/rejeu). Renvoie cette graine (null : invité, hors ligne, pas de table).
+   */
+  const onSoloStart = useCallback((boss?: string, tdc?: string, setup?: Setup421): Promise<SoloTicket | null> => {
     soloToken.current = null;
     statToken.current = null;
-    if (!enabled) return;
+    if (!enabled) return Promise.resolve(null);
     setPresence('solo');
     trackEvent('solo');
     const s = ref.current.session;
-    if (s) api<{ gameToken: string }>('/solo/start', { body: tdc ? { tdc } : boss ? { boss } : {}, token: s.token }).then((r) => { soloToken.current = r.gameToken; }).catch(() => {});
-    else api<{ token: string }>('/stats/solo/start', { body: {} }).then((r) => { statToken.current = r.token; }).catch(() => {});
+    if (s) {
+      return api<{ gameToken: string; seed?: number; setup?: Setup421 }>('/solo/start', { body: { ...(tdc ? { tdc } : boss ? { boss } : {}), ...(setup ? { setup } : {}) }, token: s.token })
+        .then((r) => { soloToken.current = r.gameToken; return r.seed !== undefined && r.setup ? { seed: r.seed, setup: r.setup } : null; })
+        .catch(() => null);
+    }
+    api<{ token: string }>('/stats/solo/start', { body: {} }).then((r) => { statToken.current = r.token; }).catch(() => {});
+    return Promise.resolve(null);
   }, [enabled]);
 
   /** Récompenses en ligne envoyées par le serveur (comptes) : on les attend un court instant. */
@@ -284,7 +298,7 @@ export function useProfile(enabled: boolean) {
     if (ref.current.session) setProfile(sanitizeProfile(p));
   }, [setProfile]);
 
-  const onGameEnd = useCallback(async (state: GameState, meId: string, ctx: RewardContext): Promise<EndReward | null> => {
+  const onGameEnd = useCallback(async (state: GameState, meId: string, ctx: RewardContext, proof?: { moves: string } | null): Promise<EndReward | null> => {
     const s = ref.current.session;
     if (!s) {
       const st = statToken.current;
@@ -314,7 +328,7 @@ export function useProfile(enabled: boolean) {
     try {
       const r = await api<EndReward>('/solo/end', {
         token: s.token,
-        body: { gameToken: token, won, rounds: state.round, opponents: ctx.opponents, difficulty: ctx.difficulty, count421: ctx.count421, combos: ctx.combos, gestureThrows: ctx.gestureThrows, roundsLost: ctx.roundsLost, maxTokens: ctx.maxTokens, suddenDeath: ctx.suddenDeath, comboKeys: ctx.comboKeys, best: ctx.best, opponentNames: ctx.opponentNames, boss: ctx.boss, place: ctx.place },
+        body: { gameToken: token, ...(proof ? { moves: proof.moves } : {}), won, rounds: state.round, opponents: ctx.opponents, difficulty: ctx.difficulty, count421: ctx.count421, combos: ctx.combos, gestureThrows: ctx.gestureThrows, roundsLost: ctx.roundsLost, maxTokens: ctx.maxTokens, suddenDeath: ctx.suddenDeath, comboKeys: ctx.comboKeys, best: ctx.best, opponentNames: ctx.opponentNames, boss: ctx.boss, place: ctx.place },
       });
       setProfile(sanitizeProfile(r.applied.profile));
       return r;
@@ -345,17 +359,21 @@ export function useProfile(enabled: boolean) {
     setProfile(applyFetesGame(bag.profile, { game: 'cf', won: r.won }, day).profile); // défis de Saint-Nicolas / des fêtes
     return { coins: reward.coins + applied.levelBonusCoins, bags: bag.found };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const onDixMilleStart = useCallback(() => {
+  /** Avec une table (`setup`) : graine du serveur, la partie sera rejouée à la fin (null : invité, hors ligne). */
+  const onDixMilleStart = useCallback((setup?: SetupDm): Promise<number | null> => {
     dmGame.current = { token: null, startedAt: Date.now() };
-    if (!enabled) return;
+    if (!enabled) return Promise.resolve(null);
     trackFirstPlay('courtisan');
     setPresence('solo');
     const s = ref.current.session;
     const g = dmGame.current;
-    if (s) api<{ gameToken: string }>('/dixmille/start', { body: {}, token: s.token }).then((r) => { g.token = r.gameToken; }).catch(() => {});
+    if (!s) return Promise.resolve(null);
+    return api<{ gameToken: string; seed?: number; setup?: SetupDm }>('/dixmille/start', { body: setup ? { setup } : {}, token: s.token })
+      .then((r) => { g.token = r.gameToken; return r.seed !== undefined && setup && stableJson(r.setup) === stableJson(setup) ? r.seed : null; })
+      .catch(() => null);
   }, [enabled]);
   /** Fin d'une partie de Dix mille : récompense du serveur (compte) ou calculée ici (invité), sac de dés éventuel. */
-  const onDixMilleEnd = useCallback(async (r: { won: boolean; place: number; opponents: number; level: DmLevel; bestTurn: number }): Promise<DmEndResult | null> => {
+  const onDixMilleEnd = useCallback(async (r: { won: boolean; place: number; opponents: number; level: DmLevel; bestTurn: number; moves?: string }): Promise<DmEndResult | null> => {
     const g = dmGame.current;
     dmGame.current = null;
     if (!g) return null;
@@ -372,9 +390,9 @@ export function useProfile(enabled: boolean) {
     }
     if (!g.token) return null;
     try {
-      const res = await api<{ reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { text: string }[]; achievementsDone?: { id: string }[] } }>('/dixmille/end', { token: s.token, body: { gameToken: g.token, ...r } });
+      const res = await api<{ verified?: boolean; reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { text: string }[]; achievementsDone?: { id: string }[] } }>('/dixmille/end', { token: s.token, body: { gameToken: g.token, ...r } });
       setProfile(sanitizeProfile(res.applied.profile));
-      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter, bags: res.applied.bagsFound ?? 0, quests: (res.applied.questsDone ?? []).map((q) => q.text), achievements: (res.applied.achievementsDone ?? []).map((a) => a.id) };
+      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter, bags: res.applied.bagsFound ?? 0, quests: (res.applied.questsDone ?? []).map((q) => q.text), achievements: (res.applied.achievementsDone ?? []).map((a) => a.id), unverified: res.verified === false };
     } catch {
       return null; // partie trop courte, plafond atteint ou hors connexion : pas de récompense
     }
@@ -382,17 +400,21 @@ export function useProfile(enabled: boolean) {
 
   // --- Poker menteur contre l'ordinateur (joué sur l'appareil) : comme le Courtisan --------------------
   const pmGame = useRef<{ token: string | null; startedAt: number } | null>(null);
-  const onPokerStart = useCallback(() => {
+  /** Avec une table (`setup`) : graine du serveur, la partie sera rejouée à la fin (null : invité, hors ligne). */
+  const onPokerStart = useCallback((setup?: SetupPm): Promise<number | null> => {
     pmGame.current = { token: null, startedAt: Date.now() };
-    if (!enabled) return;
+    if (!enabled) return Promise.resolve(null);
     trackFirstPlay('poker');
     setPresence('solo');
     const s = ref.current.session;
     const g = pmGame.current;
-    if (s) api<{ gameToken: string }>('/poker/start', { body: {}, token: s.token }).then((r) => { g.token = r.gameToken; }).catch(() => {});
+    if (!s) return Promise.resolve(null);
+    return api<{ gameToken: string; seed?: number; setup?: SetupPm }>('/poker/start', { body: setup ? { setup } : {}, token: s.token })
+      .then((r) => { g.token = r.gameToken; return r.seed !== undefined && setup && stableJson(r.setup) === stableJson(setup) ? r.seed : null; })
+      .catch(() => null);
   }, [enabled]);
   /** Fin d'une partie de Poker menteur contre l'ordinateur : récompense du serveur (compte) ou calculée ici (invité). */
-  const onPokerEnd = useCallback(async (r: { won: boolean; place: number; opponents: number; level: PmLevel }): Promise<DmEndResult | null> => {
+  const onPokerEnd = useCallback(async (r: { won: boolean; place: number; opponents: number; level: PmLevel; moves?: string }): Promise<DmEndResult | null> => {
     const g = pmGame.current;
     pmGame.current = null;
     if (!g) return null;
@@ -408,9 +430,9 @@ export function useProfile(enabled: boolean) {
     }
     if (!g.token) return null;
     try {
-      const res = await api<{ reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { text: string }[]; achievementsDone?: { id: string }[] } }>('/poker/end', { token: s.token, body: { gameToken: g.token, ...r } });
+      const res = await api<{ verified?: boolean; reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { text: string }[]; achievementsDone?: { id: string }[] } }>('/poker/end', { token: s.token, body: { gameToken: g.token, ...r } });
       setProfile(sanitizeProfile(res.applied.profile));
-      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter, bags: res.applied.bagsFound ?? 0, quests: (res.applied.questsDone ?? []).map((q) => q.text), achievements: (res.applied.achievementsDone ?? []).map((a) => a.id) };
+      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter, bags: res.applied.bagsFound ?? 0, quests: (res.applied.questsDone ?? []).map((q) => q.text), achievements: (res.applied.achievementsDone ?? []).map((a) => a.id), unverified: res.verified === false };
     } catch {
       return null;
     }

@@ -41,11 +41,15 @@ import { adminNameList, usernameProblem } from '../shared/names';
 import type { ComboKind } from '../shared/combos';
 import type { Difficulty } from '../shared/ai';
 import { applyDixMilleGame, dixMilleBagRoll, dixMilleOnlineReward, dixMilleReward } from '../shared/dixmille/reward';
-import { DM_TARGETS, type DmLevel } from '../shared/dixmille/engine';
+import type { DmLevel } from '../shared/dixmille/engine';
 import { applyPokerGame, pokerOnlineReward, pokerReward } from '../shared/pokermenteur/reward';
 import type { PmLevel } from '../shared/pokermenteur/engine';
 import { tdcSoloStart, tdcSoloEnd } from './comptoirs';
 import { reputation as tdcReputation } from '../shared/progress/comptoirs';
+import { createRejeu, applyUnverified } from './solo-replay';
+import { replay421, setup421For, type Setup421 } from '../shared/rejeu/r421';
+import { replayDm, setupDmFrom, type SetupDm } from '../shared/rejeu/dixmille';
+import { replayPm, setupPmFrom, type SetupPm } from '../shared/rejeu/poker';
 
 export interface AccountsOptions {
   /** Pour les tests : configuration et appel Discord simulés. */
@@ -82,8 +86,6 @@ function scryptVerify(secret: string, stored: string): Promise<boolean> {
   return new Promise((resolve) => scrypt(secret, Buffer.from(salt, 'base64'), expected.length, (err, key) =>
     resolve(!err && key.length === expected.length && timingSafeEqual(key, expected))));
 }
-/** Meilleur tour annoncé par le téléphone : au plus l'objectif le plus élevé, plus un dernier lancer. */
-const DM_DECLARED_TURN_MAX = Math.max(...DM_TARGETS) + 6000;
 const sha = (t: string) => createHash('sha256').update(t).digest('hex');
 const newRecoveryCode = () => Array.from({ length: 4 }, () =>
   Array.from({ length: 4 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('')).join('-');
@@ -106,6 +108,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     prune: (before: number) => store.soloTokenPrune(before),
   };
   const attempts = new Map<string, { n: number; since: number }>();
+  // Parties solo rejouées par le serveur : graine et table notées au début (server/solo-replay.ts).
+  const rejeu = createRejeu(store);
 
   // CORS : l'application mobile appelle l'API depuis une autre origine. Les jetons voyagent dans
   // l'en-tête Authorization (pas de cookie), donc autoriser toutes les origines est sans risque.
@@ -329,11 +333,11 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     res.json({ ok: true, day, top: store.challengeTop(day), total: store.challengeCount(day), mine: mine ? { points: mine.points, throws: mine.throws, ...store.challengeRank(day, u.id) } : null });
   });
 
-  // --- Parties solo (jouées sur l'appareil) ------------------------------------------------------
-  // Le serveur ne voit pas la partie solo : il exige un jeton de début de partie, une durée minimale,
-  // borne les valeurs et plafonne le nombre de parties récompensées par jour. Le classement, lui,
-  // ne compte que les parties en ligne, vérifiées par le serveur. Dés et décisions restent sur l'appareil :
-  // le résultat (gagné, place) est déclaré, les combinaisons sont plafonnées, le patron est fixé au départ.
+  // --- Parties solo (jouées sur l'appareil, rejouées par le serveur) -------------------------------
+  // Jeton de début de partie, durée minimale, plafond quotidien. Depuis la 0.56, le serveur note la table
+  // et donne une graine au début ; à la fin, il rejoue les décisions du joueur (shared/rejeu) et calcule
+  // lui-même victoire, place, combinaisons, étoiles, patron. Sans rejeu possible (ancienne version du jeu) :
+  // récompense de base plafonnée seulement (server/solo-replay.ts). Le classement ne compte que l'en ligne.
   router.post('/solo/start', auth, (req, res) => {
     const token = randomBytes(18).toString('base64url');
     // Patron : seulement celui de la semaine (jour du serveur), noté dès le début de la partie.
@@ -343,7 +347,10 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const boss = tdc ?? (typeof req.body?.boss === 'string' && (req.body.boss === bossOfWeek(today()).id || req.body.boss === feteBoss(today())?.def.id) ? req.body.boss : null);
     soloGames.set(token, { userId: userOf(req).id, startedAt: Date.now(), boss });
     soloGames.prune(Date.now() - 12 * 3600_000);
-    res.json({ ok: true, gameToken: token, ...(tdc ? { tdc: true } : {}) });
+    // Nouvelle version du jeu : la table envoyée est vérifiée, la partie sera rejouée à la fin (graine).
+    const setup = req.body?.setup === undefined ? null : setup421For(req.body.setup, { boss: tdc ? null : boss, tdc: tdc ? tdc.slice(4) : null, day: today() });
+    const seed = setup ? rejeu.issue(token, '421', setup) : undefined;
+    res.json({ ok: true, gameToken: token, ...(tdc ? { tdc: true } : {}), ...(setup ? { seed, setup } : {}) });
   });
   router.post('/solo/end', auth, (req, res) => {
     const u = userOf(req);
@@ -352,13 +359,31 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     if (!g || g.userId !== u.id) return fail(res, 400, 'Partie inconnue.');
     if (Date.now() - g.startedAt < MIN_SOLO) return fail(res, 400, 'Partie trop courte pour être récompensée.');
     soloGames.delete(b.gameToken);
+    // Rejeu : avec la graine du début et les décisions du joueur, le serveur calcule lui-même le résultat.
+    const ticket = rejeu.take(b.gameToken, '421');
+    const replayed = ticket && b.moves !== undefined ? replay421(ticket.setup as Setup421, ticket.seed, b.moves) : null;
+    const facts = replayed?.ok ? replayed.facts : null;
     // La partie est terminée : elle compte dans les statistiques, même au-delà du plafond de récompenses.
-    opts.onSoloFinished?.({ id: b.gameToken, userId: u.id, startedAt: g.startedAt, opponents: Math.min(5, Math.max(1, Math.floor(Number(b.opponents) || 1))), won: !!b.won });
-    // Tournée des comptoirs : étoiles (une seule fois chacune), avant le plafond quotidien des récompenses solo.
-    const tdcResult = tdcSoloEnd(store, u, g.boss, b, Date.now() - g.startedAt, opts.tdcRoundMs);
+    opts.onSoloFinished?.({ id: b.gameToken, userId: u.id, startedAt: g.startedAt, opponents: facts?.opponents ?? Math.min(5, Math.max(1, Math.floor(Number(b.opponents) || 1))), won: facts ? facts.won : !!b.won });
+    // Tournée des comptoirs : étoiles (une seule fois chacune) pour une partie rejouée seulement, avant le plafond quotidien.
+    const tdcResult = facts ? tdcSoloEnd(store, u, g.boss, { won: facts.won, place: facts.place, rounds: facts.rounds, roundsLost: facts.roundsLost, count421: facts.count421, combos: facts.combos }, Date.now() - g.startedAt, opts.tdcRoundMs) : null;
     if (g.boss?.startsWith('tdc:')) g.boss = null;
     const day = today();
     if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.'); // étoiles de la Tournée déjà enregistrées
+    if (facts) {
+      const ctx: RewardContext = {
+        mode: 'solo', opponents: facts.opponents, difficulty: facts.difficulty, count421: facts.count421, combos: facts.combos,
+        gestureThrows: facts.gestureThrows, rounds: facts.rounds, roundsLost: facts.roundsLost, maxTokens: facts.maxTokens, day,
+        suddenDeath: facts.suddenDeath, comboKeys: facts.comboKeys, best: facts.best,
+        opponentNames: Array.isArray(b.opponentNames) ? b.opponentNames.filter((n: unknown) => typeof n === 'string').map((n: string) => n.slice(0, 20)).slice(0, facts.opponents) : [],
+        hour: brusselsHour(), boss: g.boss ?? undefined, place: facts.place, minutes: (Date.now() - g.startedAt) / 60000, now: Date.now(),
+      };
+      const reward = rewardFor(facts.won, facts.rounds, ctx);
+      const applied = applyGameEnd(store.profileOf(store.userById(u.id) ?? u), reward, ctx, day);
+      store.saveProfile(u.id, applied.profile);
+      if (!ctx.suddenDeath) { leagueGain(u.id, reward.xp); checkReferral(u.id); if (facts.won) clubWin(u.id); }
+      return res.json({ ok: true, verified: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) }, ...(tdcResult ? { tdc: tdcResult } : {}) });
+    }
     const int = (v: unknown, min: number, max: number) => Math.min(max, Math.max(min, Math.floor(Number(v) || 0)));
     const diffs: Difficulty[] = ['facile', 'normal', 'difficile'];
     // Plafonds de vraisemblance : au plus 8 lancers par manche, 3 s par manche et 0,8 s par lancer
@@ -397,11 +422,13 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
       minutes: (Date.now() - g.startedAt) / 60000,
       now: Date.now(),
     };
-    const reward = rewardFor(!!b.won, int(b.rounds, 1, 200), ctx);
-    const applied = applyGameEnd(store.profileOf(store.userById(u.id) ?? u), reward, ctx, day);
+    // Partie non vérifiée (ancienne version du jeu, ou décisions refusées) : récompense de base plafonnée
+    // seulement ; ni étoiles, ni succès, ni patron, ni adversaire de fête, ni défi.
+    const base = rewardFor(!!b.won, int(b.rounds, 1, 200), { ...ctx, count421: 0, boss: undefined });
+    const { reward, applied } = applyUnverified(store.profileOf(store.userById(u.id) ?? u), base, day, { minutes: ctx.minutes ?? 0, players: ctx.opponents + 1 });
     store.saveProfile(u.id, applied.profile);
-    if (!ctx.suddenDeath) { leagueGain(u.id, reward.xp); checkReferral(u.id); if (b.won) clubWin(u.id); }
-    res.json({ ok: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) }, ...(tdcResult ? { tdc: tdcResult } : {}) });
+    if (!ctx.suddenDeath) { leagueGain(u.id, reward.xp); checkReferral(u.id); }
+    res.json({ ok: true, verified: false, ...(replayed && !replayed.ok ? { refused: replayed.error } : {}), reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
   });
 
   // --- Le Dix mille contre l'ordinateur (joué sur l'appareil) : même principe que le solo du 421 --
@@ -411,7 +438,9 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const token = randomBytes(18).toString('base64url');
     soloGames.set(token, { userId: userOf(req).id, startedAt: clock(), boss: null });
     soloGames.prune(clock() - 12 * 3600_000);
-    res.json({ ok: true, gameToken: token });
+    // Nouvelle version : table vérifiée et graine, la partie sera rejouée à la fin.
+    const setup = req.body?.setup === undefined ? null : setupDmFrom(req.body.setup);
+    res.json({ ok: true, gameToken: token, ...(setup ? { seed: rejeu.issue(token, 'dm', setup, clock()), setup } : {}) });
   });
   router.post('/dixmille/end', auth, (req, res) => {
     const u = userOf(req);
@@ -420,23 +449,35 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     if (!g || g.userId !== u.id) return fail(res, 400, 'Partie inconnue.');
     if (clock() - g.startedAt < MIN_SOLO) return fail(res, 400, 'Partie trop courte pour être récompensée.');
     soloGames.delete(b.gameToken);
+    const ticket = rejeu.take(b.gameToken, 'dm');
+    const replayed = ticket && b.moves !== undefined ? replayDm(ticket.setup as SetupDm, ticket.seed, b.moves) : null;
     const day = today();
     if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.');
     const levels: DmLevel[] = ['debutant', 'habitue', 'fouine'];
+    const minutes = (clock() - g.startedAt) / 60000;
+    if (replayed?.ok) {
+      // Partie rejouée : résultat et exploits calculés ici (succès du Courtisan compris).
+      const f = replayed.facts;
+      const reward = dixMilleReward({ won: f.won, place: f.place, opponents: f.opponents, level: f.level, minutes, day, now: clock() });
+      const applied = applyDixMilleGame(store.profileOf(u), reward, day, {
+        won: f.won, players: f.opponents + 1, minutes, mode: 'solo', level: f.level, bestTurn: f.bestTurn, now: clock(),
+        verified: { online: false, target: f.target, misses: f.misses, botLevels: Array(f.opponents).fill(f.level), hotMax: f.hotMax, six: f.six, straight: f.straight, sixKind: f.sixKind },
+      });
+      store.saveProfile(u.id, applied.profile);
+      leagueGain(u.id, reward.xp);
+      return res.json({ ok: true, verified: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
+    }
     const opponents = Math.min(3, Math.max(1, Math.floor(Number(b.opponents) || 1)));
     const reward = dixMilleReward({
       won: !!b.won, place: b.won ? 1 : Math.min(opponents + 1, Math.max(2, Math.floor(Number(b.place) || opponents + 1))), opponents,
-      level: levels.includes(b.level) ? b.level : 'habitue', minutes: (clock() - g.startedAt) / 60000, day, now: clock(),
+      level: levels.includes(b.level) ? b.level : 'habitue', minutes, day, now: clock(),
     });
-    // Sac de dés : durée mesurée ici ; le résultat annoncé par le téléphone ne change pas la chance.
-    const level: DmLevel = levels.includes(b.level) ? b.level : 'habitue';
-    const applied = applyDixMilleGame(store.profileOf(u), reward, day, {
-      won: !!b.won, players: opponents + 1, minutes: (clock() - g.startedAt) / 60000, mode: 'solo', level,
-      bestTurn: Math.min(DM_DECLARED_TURN_MAX, Math.max(0, Math.floor(Number(b.bestTurn) || 0))), declared: true, now: clock(),
-    });
-    store.saveProfile(u.id, applied.profile);
-    leagueGain(u.id, reward.xp);
-    res.json({ ok: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
+    // Partie non vérifiée (ancienne version du jeu, décisions refusées) : récompense de base seulement
+    // (sac compté comme une défaite), ni défis, ni succès, ni statistiques du mode.
+    const un = applyUnverified(store.profileOf(u), reward, day, { minutes, players: opponents + 1 });
+    store.saveProfile(u.id, un.applied.profile);
+    leagueGain(u.id, un.reward.xp);
+    res.json({ ok: true, verified: false, ...(replayed && !replayed.ok ? { refused: replayed.error } : {}), reward: un.reward, applied: { ...un.applied, profile: store.profileOf(store.userById(u.id)!) } });
   });
 
   /**
@@ -470,7 +511,9 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const token = randomBytes(18).toString('base64url');
     soloGames.set(token, { userId: userOf(req).id, startedAt: clock(), boss: null });
     soloGames.prune(clock() - 12 * 3600_000);
-    res.json({ ok: true, gameToken: token });
+    // Nouvelle version : table vérifiée et graine, la partie sera rejouée à la fin.
+    const setup = req.body?.setup === undefined ? null : setupPmFrom(req.body.setup);
+    res.json({ ok: true, gameToken: token, ...(setup ? { seed: rejeu.issue(token, 'pm', setup, clock()), setup } : {}) });
   });
   router.post('/poker/end', auth, (req, res) => {
     const u = userOf(req);
@@ -479,19 +522,34 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     if (!g || g.userId !== u.id) return fail(res, 400, 'Partie inconnue.');
     if (clock() - g.startedAt < MIN_SOLO) return fail(res, 400, 'Partie trop courte pour être récompensée.');
     soloGames.delete(b.gameToken);
+    const ticket = rejeu.take(b.gameToken, 'pm');
+    const replayed = ticket && b.moves !== undefined ? replayPm(ticket.setup as SetupPm, ticket.seed, b.moves) : null;
     const day = today();
     if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.');
+    const minutes = (clock() - g.startedAt) / 60000;
+    if (replayed?.ok) {
+      // Partie rejouée : résultat et exploits calculés ici (succès du Poker menteur compris).
+      const f = replayed.facts;
+      const reward = pokerReward({ won: f.won, place: f.place, opponents: f.opponents, level: f.level, minutes, day, now: clock() });
+      const applied = applyPokerGame(store.profileOf(u), reward, day, {
+        won: f.won, players: f.opponents + 1, minutes, mode: 'solo', level: f.level, now: clock(),
+        verified: { online: false, botLevels: Array(f.opponents).fill(f.level), callsRight: f.callsRight, bluffsPassed: f.bluffsPassed, pokerAs: f.pokerAs, livesLost: f.livesLost },
+      });
+      store.saveProfile(u.id, applied.profile);
+      leagueGain(u.id, reward.xp);
+      return res.json({ ok: true, verified: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
+    }
+    // Partie non vérifiée (ancienne version du jeu, décisions refusées) : récompense de base seulement.
     const levels: PmLevel[] = ['debutant', 'habitue', 'fouine'];
     const level: PmLevel = levels.includes(b.level) ? b.level : 'habitue';
     const opponents = Math.min(5, Math.max(1, Math.floor(Number(b.opponents) || 1)));
-    const minutes = (clock() - g.startedAt) / 60000;
     const reward = pokerReward({
       won: !!b.won, place: b.won ? 1 : Math.min(opponents + 1, Math.max(2, Math.floor(Number(b.place) || opponents + 1))), opponents, level, minutes, day, now: clock(),
     });
-    const applied = applyPokerGame(store.profileOf(u), reward, day, { won: !!b.won, players: opponents + 1, minutes, mode: 'solo', level, declared: true, now: clock() });
-    store.saveProfile(u.id, applied.profile);
-    leagueGain(u.id, reward.xp);
-    res.json({ ok: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
+    const un = applyUnverified(store.profileOf(u), reward, day, { minutes, players: opponents + 1 });
+    store.saveProfile(u.id, un.applied.profile);
+    leagueGain(u.id, un.reward.xp);
+    res.json({ ok: true, verified: false, ...(replayed && !replayed.ok ? { refused: replayed.error } : {}), reward: un.reward, applied: { ...un.applied, profile: store.profileOf(store.userById(u.id)!) } });
   });
 
   /** Fin d'une partie de Poker menteur en ligne (appelée par le serveur de jeu) : comme le Courtisan. */

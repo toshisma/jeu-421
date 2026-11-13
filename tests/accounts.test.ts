@@ -65,7 +65,10 @@ describe('comptes', () => {
     expect(end.ok).toBe(true);
     expect(end.reward.won).toBe(true);
     expect(end.applied.profile.coins).toBeGreaterThan(0);
-    expect(end.reward.lines.find((l: { label: string }) => l.label.startsWith('4-2-1')).coins).toBe(1); // 99 ramené à 1 (combos) × 1 pièce
+    // Partie non rejouée (ancienne version) : récompense de base seulement, le bonus 4-2-1 annoncé ne compte pas.
+    expect(end.verified).toBe(false);
+    expect(end.reward.lines.some((l: { label: string }) => l.label.startsWith('4-2-1'))).toBe(false);
+    expect(end.reward.lines.at(-1).label).toBe('Mettez à jour la page pour que cette partie compte entièrement');
     expect((await api('/solo/end', { gameToken, won: true }, token)).status).toBe(400); // jeton à usage unique
     for (let i = 0; i < 2; i++) { const g = await api('/solo/start', {}, token); await wait(160); await api('/solo/end', { gameToken: g.gameToken, won: false, rounds: 3 }, token); }
     const g4 = await api('/solo/start', {}, token); await wait(160);

@@ -8,6 +8,7 @@ import { getItem } from '../shared/progress/catalog';
 import { DEFAULT_CONFIG } from '../shared/config';
 import { createGame, currentPlayerId } from '../shared/engine';
 import { PartyController, refereeTurn } from '../client/src/game/party';
+import { solo421 } from './rejeu-helpers';
 import { startServer } from '../server/app';
 
 describe('album des combinaisons', () => {
@@ -121,8 +122,7 @@ describe('clubs', () => {
     expect(list.top[0]).toMatchObject({ name: 'Le Pot au Lait', members: 1 });
     expect((await call('/clubs/join', { id: c.club.id }, b.token)).club.members.length).toBe(2);
     // Une victoire de B remplit le coffre du club.
-    const s = await call('/solo/start', {}, b.token);
-    await call('/solo/end', { gameToken: s.gameToken, won: true, rounds: 10, opponents: 1 }, b.token);
+    await solo421(call as any, b.token, { want: 'win' }); // vraie victoire (rejouée par le serveur)
     const mine = (await call('/clubs', undefined, a.token)).mine;
     expect(mine.wins).toBe(1);
     expect(mine.members[0]).toMatchObject({ username: 'Club2', wins: 1 });

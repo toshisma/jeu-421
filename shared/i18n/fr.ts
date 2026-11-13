@@ -1,4 +1,5 @@
 import { pokerFr } from './zones/poker.fr';
+import { rejeuFr } from "./zones/rejeu.fr";
 import { courtisan2Fr } from './zones/courtisan2.fr';
 import { clubsFr } from './zones/clubs.fr';
 import { accueilFr } from './zones/accueil.fr';
@@ -372,5 +373,6 @@ export const fr = {
   "dm.lh.fouine": "Calcule ses risques",
   ...g421Fr,
   ...fetesFr,
+  ...rejeuFr,
 };
 export type MessageKey = keyof typeof fr;

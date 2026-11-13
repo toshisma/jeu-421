@@ -11,6 +11,7 @@ import { useGuestInviteAtEnd } from '../ui/guestInvite';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { act, currentPlayer, diceAfter, inPlay, newGame, pickPoints, ranking, validSelections, DM_LEVELS, DM_TARGETS, DM_VALUES, type DmAction, type DmEvent, type DmLevel, type DmState } from '../../../shared/dixmille/engine';
 import { decide } from '../../../shared/dixmille/ai';
+import { encodeDm, MAX_MOVES_DM, type SetupDm } from '../../../shared/rejeu/dixmille';
 import { usePresenceLayer } from '../presence';
 import { DM_TABLE_MAX, type DmPublicMember, type DmPublicTable } from '../../../shared/dixmille/protocol';
 import { DM_BOT_GAIN_DAILY, DM_NO_STAKE_LEVEL, GROSCHEN_DAILY, GROSCHEN_MAX_STAKE, GROSCHEN_WELCOME } from '../../../shared/dixmille/groschen';
@@ -631,14 +632,31 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
   const anim = useDmAnimator(tray, initial, seatsRef, { trail: pa.profile.fx?.trainee, fete: pa.profile.fx?.fete });
   // État officiel (moteur local), en avance sur l'écran pendant les animations.
   const truth = useRef(initial);
-  const [end, setEnd] = useState<{ reward: Reward | null; bags: number; quests: string[]; achievements: string[] } | null>(null);
+  const [end, setEnd] = useState<{ reward: Reward | null; bags: number; quests: string[]; achievements: string[]; unverified?: boolean } | null>(null);
+  const setup0 = setup;
   const alive = useRef(true);
-  useEffect(() => { alive.current = true; pa.onDixMilleStart(); return () => { alive.current = false; }; }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Partie vérifiable (compte) : le serveur donne la graine au début et rejoue les décisions à la fin.
+  const rejeu = useRef<{ waiting: Promise<void> | null; seeded: boolean; moves: string[] }>({ waiting: null, seeded: false, moves: [] });
+  useEffect(() => {
+    alive.current = true;
+    const setup: SetupDm = { level: setup0.level, target: setup0.target, bots: opponents.map((p) => p.id) };
+    const ticket = pa.onDixMilleStart(setup);
+    const rj = rejeu.current;
+    rj.waiting = Promise.race([ticket, wait(4000).then(() => null)]).then((seed) => {
+      // La graine ne sert que si rien n'a encore été joué.
+      if (seed != null && truth.current.draws === 0 && truth.current.turns === 0) { truth.current = { ...truth.current, seed: seed >>> 0 }; rj.seeded = true; }
+      rj.waiting = null;
+    });
+    return () => { alive.current = false; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const run = useCallback((a: DmAction, gesture?: ThrowGesture) => {
+    const rj = rejeu.current;
+    if (rj.waiting) { void rj.waiting.then(() => { if (alive.current) run(a, gesture); }); return; }
     const r = act(truth.current, a);
     if ('error' in r) return;
     const by = currentPlayer(truth.current).id;
+    if (by === 'moi' && rj.seeded) rj.moves.push(encodeDm(a));
     truth.current = r.state;
     anim.push({ state: r.state, events: r.state.events, action: a, by, animSeed: (r.state.seed ^ (r.state.draws * 2654435761)) >>> 0, gesture });
   }, [anim.push]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -662,8 +680,10 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
     const place = ranking(s).findIndex((p) => p.id === 'moi') + 1;
     void (async () => {
       const bestTurn = s.players.find((p) => p.id === 'moi')?.best ?? 0;
-      const [r] = await Promise.all([pa.onDixMilleEnd({ won: s.winner === 'moi', place, opponents: opponents.length, level: setup.level, bestTurn }), wait(1400)]);
-      if (alive.current) setEnd({ reward: r?.reward ?? null, bags: r?.bags ?? 0, quests: r?.quests ?? [], achievements: r?.achievements ?? [] });
+      const rj = rejeu.current;
+      const moves = rj.seeded && rj.moves.length <= MAX_MOVES_DM ? rj.moves.join('.') : undefined;
+      const [r] = await Promise.all([pa.onDixMilleEnd({ won: s.winner === 'moi', place, opponents: opponents.length, level: setup.level, bestTurn, ...(moves !== undefined ? { moves } : {}) }), wait(1400)]);
+      if (alive.current) setEnd({ reward: r?.reward ?? null, bags: r?.bags ?? 0, quests: r?.quests ?? [], achievements: r?.achievements ?? [], unverified: !!r?.unverified });
     })();
   }, [s, anim.busy, pa, opponents.length, setup.level]);
 
@@ -680,7 +700,8 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
   return (
     <DmBoard tray={tray} anim={anim} seats={seats} canAct settings={settings} onSettings={onSettings} appearance={appearance}
       onAction={(a, g) => run(a, g)} onLeave={leave}
-      end={end && <><DmAchToast ids={end.achievements} /><EndDialog s={s} seats={seats} reward={end.reward} bags={end.bags} quests={end.quests} achievements={end.achievements} isAccount={pa.isAccount} onBags={onBags} buttons={<>
+      end={end && <><DmAchToast ids={end.achievements} /><EndDialog s={s} seats={seats} reward={end.reward} bags={end.bags} quests={end.quests} achievements={end.achievements} isAccount={pa.isAccount} onBags={onBags}
+        waiting={end.unverified ? tr('rej.update') : undefined} buttons={<>
         <button className="btn secondary" onClick={onExit}>{tr('dm.back')}</button>
         <button className="btn primary" onClick={onReplay}><Icon name="resume" size={18} /> {tr('dm.replay')}</button>
       </>} /></>} />
