@@ -15,6 +15,7 @@ import { REJEU_RULES } from './zones/rejeu-server';
 import { translateFetes } from './zones/fetes-server';
 import { translateTdc } from './zones/comptoirs-server';
 import { translateClubRule } from './zones/clubs-server';
+import { SER_RULES } from './zones/serie-server';
 
 const N = '(.+)';
 const RULES: [RegExp, Record<Foreign, string>][] = [
@@ -22,6 +23,7 @@ const RULES: [RegExp, Record<Foreign, string>][] = [
   ...DM2_RULES,
   ...PM_RULES,
   ...REJEU_RULES,
+  ...SER_RULES,
   [/^Connexion au serveur impossible$/, { en: 'Can’t reach the server', de: 'Verbindung zum Server nicht möglich', nl: 'Kan de server niet bereiken' }],
   [/^Le serveur ne répond pas$/, { en: 'The server isn’t responding', de: 'Der Server antwortet nicht', nl: 'De server reageert niet' }],
   [/^Impossible de joindre le serveur de jeu$/, { en: 'Can’t reach the game server', de: 'Spielserver nicht erreichbar', nl: 'Kan de spelserver niet bereiken' }],

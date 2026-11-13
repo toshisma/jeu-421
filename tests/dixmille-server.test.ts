@@ -48,7 +48,8 @@ describe('Dix mille : récompenses', () => {
     // Victoire annoncée par une ancienne version (pas de rejeu) : récompense de base, pas de succès.
     expect(end.verified).toBe(false);
     expect(end.applied.achievementsDone).toEqual([]);
-    expect(end.applied.profile.coins).toBe(before.coins + end.reward.coins + end.applied.levelBonusCoins);
+    // (+ récompense de la série de jours joués : première partie du jour)
+    expect(end.applied.profile.coins).toBe(before.coins + end.reward.coins + end.applied.levelBonusCoins + (end.applied.profile.serie?.got?.coins ?? 0));
     // Pas de partie comptée dans les statistiques du 421 (succès, défis).
     expect(end.applied.profile.stats.played).toBe(before.stats.played);
     expect((await api('/dixmille/end', { gameToken: g2.gameToken, won: true }, token)).status).toBe(400); // jeton à usage unique

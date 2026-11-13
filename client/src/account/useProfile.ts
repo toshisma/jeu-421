@@ -12,7 +12,7 @@ import { saveWelcomeGift } from '../ui/guestInvite';
 import type { GameState } from '../../../shared/engine';
 import {
   applyGameEnd, buy, claimDaily, claimPassTier, claimQuest, completeTutorial, computeReward, didWin, equip, loadProfile, saveProfile, sanitizeProfile, setTitle, addSeasonPoints, doPrestige,
-  craftDie, setShowcase, equipFx, applyPlainReward,
+  craftDie, setShowcase, equipFx, applyPlainReward, applySerieDay,
   type Applied, type BagResult, type Profile, type Reward, type RewardContext, openChest } from '../../../shared/progress/profile';
 import { api, ApiError, loadSession, saveAccountSession, type Session } from './api';
 import { challengeReward, playChallenge, type ChallengeResult } from '../../../shared/challenge';
@@ -47,6 +47,9 @@ const CACHE = '421.profil.compte';
 const loadCache = (): Profile | null => { try { const r = localStorage.getItem(CACHE); return r ? sanitizeProfile(JSON.parse(r)) : null; } catch { return null; } };
 const saveCache = (p: Profile | null) => { try { if (p) localStorage.setItem(CACHE, JSON.stringify(p)); else localStorage.removeItem(CACHE); } catch { /* */ } };
 
+/** Parties terminées sur l'appareil (421, Courtisan, Poker menteur ; Coups Fourrés : voir onCfGuestEnd). */
+const guestGames = (p: Profile) => p.stats.played + (p.dm?.games ?? 0) + (p.pm?.games ?? 0);
+
 export function useProfile(enabled: boolean) {
   const [session, setSession] = useState<Session | null>(() => (enabled ? loadSession() : null));
   const [user, setUser] = useState<PublicUser | null>(null);
@@ -57,6 +60,9 @@ export function useProfile(enabled: boolean) {
   ref.current = { profile, session };
 
   const setProfile = useCallback((p: Profile) => {
+    // Invité : une partie terminée (compteur d'un des jeux qui monte) compte pour la série de jours joués
+    // (jour de Bruxelles de l'appareil ; les comptes, eux, sont comptés par le serveur).
+    if (!ref.current.session && guestGames(p) > guestGames(ref.current.profile)) p = applySerieDay(p, today())?.profile ?? p;
     ref.current.profile = p;
     setProfileState(p);
     if (ref.current.session) saveCache(p); else saveProfile(p);
@@ -356,7 +362,8 @@ export function useProfile(enabled: boolean) {
     const applied = applyPlainReward(ref.current.profile, reward, day);
     // Sac de dés : même règle que le 421 et le Courtisan (résultat de l'appareil : compté comme une défaite).
     const bag = dixMilleBagRoll(applied.profile, { won: r.won, players: r.players, minutes: r.minutes, mode: 'solo', declared: true });
-    setProfile(applyFetesGame(bag.profile, { game: 'cf', won: r.won }, day).profile); // défis de Saint-Nicolas / des fêtes
+    const next = applyFetesGame(bag.profile, { game: 'cf', won: r.won }, day).profile; // défis de Saint-Nicolas / des fêtes
+    setProfile(applySerieDay(next, day)?.profile ?? next); // série de jours joués
     return { coins: reward.coins + applied.levelBonusCoins, bags: bag.found };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   /** Avec une table (`setup`) : graine du serveur, la partie sera rejouée à la fin (null : invité, hors ligne). */

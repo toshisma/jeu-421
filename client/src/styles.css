@@ -4966,3 +4966,29 @@ button.mode-chip { cursor: pointer; }
 .lang-hint button { min-height: 36px; border-radius: 999px; border: 0; cursor: pointer; font: inherit; }
 .lang-hint-yes { padding: 0 14px; background: #f6d36b; color: #2a1a08; font-weight: 700; }
 .lang-hint-no { width: 36px; background: transparent; color: #f6ead0; }
+
+/* --- Série de jours joués (Serie.tsx) : flamme dans la barre du haut, détail en feuille --- */
+.serie-chip { flex: none; display: inline-flex; align-items: center; gap: 2px; height: 40px; min-width: 40px; padding: 0 8px 0 6px; border: 0; border-radius: 12px; cursor: pointer;
+  background: linear-gradient(180deg, #2c3d37, #1b2824); color: #cbb98f; box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 3px 0 #0b1512, 0 6px 12px rgba(0,0,0,0.3); font: 800 15px/1 var(--font); }
+.serie-chip .serie-flame { font-size: 18px; filter: grayscale(1) opacity(0.55); }
+.serie-chip.on { color: #ffd27a; }
+.serie-chip.on .serie-flame { filter: none; }
+.serie-chip.on:not(.done) .serie-flame { animation: serie-flicker 1.6s ease-in-out infinite; }
+@keyframes serie-flicker { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12) rotate(-4deg); } }
+@media (prefers-reduced-motion: reduce) { .serie-chip.on:not(.done) .serie-flame { animation: none; } }
+.serie-detail { display: flex; flex-direction: column; gap: 10px; }
+.serie-big { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.serie-big .serie-flame { font-size: 30px; }
+.serie-big b { font: 800 28px/1 var(--cond, var(--font)); color: #ffd27a; }
+.serie-big small { color: #cbb98f; }
+.serie-detail p { margin: 0; }
+.serie-week { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.serie-week li { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.serie-week small { font-size: 11px; color: #cbb98f; text-transform: uppercase; }
+.serie-week i { display: grid; place-items: center; width: 100%; max-width: 38px; aspect-ratio: 1; border-radius: 10px; font-style: normal; font-size: 18px; background: rgba(255,255,255,0.06); border: 1px dashed rgba(255,255,255,0.18); box-sizing: border-box; }
+.serie-week li.joue i { background: rgba(255,170,60,0.22); border: 1px solid rgba(255,190,90,0.6); }
+.serie-week li.joker i { background: rgba(120,170,255,0.18); border: 1px solid rgba(140,180,255,0.55); }
+.serie-week li.aujourdhui i { border: 2px solid #ffd27a; }
+.serie-set-lead { margin: 0 0 4px; }
+.serie-set-push { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 6px; }
+.sc-remind.on { color: #ffd27a; }

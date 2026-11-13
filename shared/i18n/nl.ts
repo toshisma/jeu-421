@@ -1,3 +1,4 @@
+import { serieNl } from './zones/serie.nl';
 import { pokerNl } from './zones/poker.nl';
 import { rejeuNl } from './zones/rejeu.nl';
 import { courtisan2Nl } from './zones/courtisan2.nl';
@@ -12,6 +13,7 @@ import { tdcNl } from './zones/comptoirs.nl';
 
 /** Textes néerlandais (« je », ton direct). Une clé absente s'affiche en français. */
 export const nl: Partial<Record<MessageKey, string>> = {
+  ...serieNl,
   ...communNl,
   ...clubsNl,
   ...accueilNl,

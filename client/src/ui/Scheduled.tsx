@@ -16,6 +16,7 @@ import { Avatar } from './Avatar';
 import { Icon } from './Icon';
 import { tr, trServer } from '../i18n/lang';
 import { hourTr, ord, trn } from '../i18n/g421';
+import { useTourneyWatch } from './Serie';
 
 export const placeLabel = (i: number) => ord(i + 1);
 const bagsL = (n: number) => trn('g421.sch.bags', n);
@@ -81,6 +82,8 @@ export function ScheduledCard({ pa, onJoin, onAccount, compact }: {
     return () => clearInterval(t);
   }, [soon, pa.token]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { void pushActive().then(setPushOn); }, []);
+  // « Me prévenir » : rappel 10 minutes avant (server/notifs.ts), sans s'inscrire.
+  const watch = useTourneyWatch(pa.isAccount ? pa.token : null);
 
   if (!prog) return null;
   const act = async (path: string, slot: string) => {
@@ -116,8 +119,13 @@ export function ScheduledCard({ pa, onJoin, onAccount, compact }: {
       <span className="tag ok"><Icon name="check" size={16} /> {tr('g421.menu.registered')}</span>
       <button className="btn ghost small" disabled={busy} onClick={() => act('/tournois/desinscription', s.id)}>{tr('g421.sch.unreg')}</button>
     </span>;
-    else action = <button className="btn primary small" disabled={busy || full || coins < SCHED_FEE} onClick={() => act('/tournois/inscription', s.id)}>
-      {full ? tr('g421.sch.full') : coins < SCHED_FEE ? tr('g421.hub.noCoins') : tr('g421.hub.register')}</button>;
+    else action = <span className="sc-reg">
+      <button className="btn primary small" disabled={busy || full || coins < SCHED_FEE} onClick={() => act('/tournois/inscription', s.id)}>
+        {full ? tr('g421.sch.full') : coins < SCHED_FEE ? tr('g421.hub.noCoins') : tr('g421.hub.register')}</button>
+      {toOpen > 0 && <button className={`btn ghost small sc-remind${watch.watched.includes(s.id) ? ' on' : ''}`} aria-pressed={watch.watched.includes(s.id)}
+        onClick={async () => { const e = await watch.toggle(s.id); setErr(e ? trServer(e) : null); if (!e) setPushOn(true); }}>
+        <Icon name="bell" size={16} /> {watch.watched.includes(s.id) ? tr('ser.reminded') : tr('ser.remind')}</button>}
+    </span>;
     return (
       <div key={s.id} className={`sc-row${main ? ' main' : ''}${salon ? ' live' : ''}`}>
         <div className="sc-info">

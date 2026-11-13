@@ -334,6 +334,7 @@ export async function startServer(opts: ServerOptions) {
   const bistrots = createBistrots({
     store, userFromToken: accounts.userFromToken, isStaff: moderation.isStaff, log: admin.log, now: opts.accounts?.now,
     push: (u, title, body, url) => void accounts.social.push(u, title, body, url), rollEveryMs: process.env.VITEST ? 0 : undefined,
+    overtaken: (u, by, b) => { accounts.social.notifs.bistrotOvertaken(u, by, b); },
   });
   accounts.setVerifiedGame((g) => bistrots.recordGame(g));
   app.use('/api', bistrots.router);
@@ -440,6 +441,7 @@ export async function startServer(opts: ServerOptions) {
   const sched = createScheduled({
     store, router: schedRouter, now: clock, userFromToken: accounts.userFromToken,
     push: (u, title, body, url) => void accounts.social.push(u, title, body, url), onProfile: (u) => profileTo(u), live: schedLive,
+    warned: (u, slot) => accounts.social.notifs.tourneyWarned(u, slot),
     mine: (userId) => {
       for (const t of tournaments.values()) if (t.sched && !t.sched.cancelled && t.status === 'en-cours' && t.players.some((p) => p.userId === userId))
         return { code: t.code, hour: t.sched.hour, status: 'en-cours' };

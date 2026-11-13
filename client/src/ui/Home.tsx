@@ -37,6 +37,7 @@ import { GROSCHEN_DAILY } from '../../../shared/dixmille/groschen';
 import { FetesBanner, FetesSheet, fetesBannerDue } from '../fetes/Fetes';
 import { TdcHomeChip } from '../comptoirs/MenuEntry';
 import { showQuickPlay } from '../quickPlay';
+import { SerieChip } from './Serie';
 
 
 export interface HomeProps {
@@ -221,6 +222,7 @@ export function Home(props: HomeProps) {
             <span className="h2-coins" title={tr('app.pieces_la_monnaie_du_jeu_pour_la')}><i aria-hidden />{profile.coins.toLocaleString(loc())}<small>{tr('app.pieces_2')}</small></span>
           </span>
         </button>
+        <SerieChip profile={profile} guest={!acc} onToast={setToast} />
         {!STANDALONE && !pa.isAccount && <button className="h2-login" onClick={props.onLogin}>{tr('app.connexion')}</button>}
         {acc && <MessagesButton pa={pa} onOpen={props.onMessages} />}
         {acc && <NotifBell count={notifs?.count ?? 0} onOpen={() => { setShowNotifs(true); reload(); }} />}
