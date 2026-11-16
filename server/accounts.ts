@@ -455,7 +455,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   router.post('/dixmille/start', auth, (req, res) => {
     const token = randomBytes(18).toString('base64url');
     // Nouvelle version : table vérifiée et graine, la partie sera rejouée à la fin.
-    let setup = req.body?.setup === undefined ? null : setupDmFrom(req.body.setup);
+    let setup = req.body?.setup === undefined ? null : setupDmFrom(req.body.setup, { campaign: req.body?.camp != null });
     // Route des Auberges : étape ouverte et table imposée de l'étape, sinon refus (étiquette « cdm:<étape> »).
     const camp = cdmDmStart(store, userOf(req).id, req.body?.camp, setup);
     if (camp && 'error' in camp) return fail(res, 400, camp.error);
@@ -480,7 +480,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     // Route des Auberges : étoiles d'une partie rejouée seulement, avant le plafond quotidien (comme la Tournée).
     const campResult = replayed?.ok ? cdmDmEnd(store, u.id, g.boss, replayed.facts, clock()) : null;
     const day = today();
-    if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.');
+    // Plafond atteint : les étoiles déjà enregistrées sont quand même montrées au joueur.
+    if (store.bumpSolo(u.id, day) > SOLO_CAP) return void res.status(429).json({ ok: false, error: "Plafond de parties solo récompensées atteint pour aujourd'hui.", ...(campResult ? { camp: campResult } : {}) });
     const levels: DmLevel[] = ['debutant', 'habitue', 'fouine'];
     const minutes = (clock() - g.startedAt) / 60000;
     if (replayed?.ok) {
@@ -561,7 +562,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     // Campagne : étoiles (une seule fois chacune) pour une partie rejouée seulement, avant le plafond quotidien.
     const cpm = replayed?.ok && ticket ? cpmPokerEnd(store, u, g.boss, ticket.setup as SetupPm, replayed.facts) : null;
     const day = today();
-    if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.');
+    // Plafond atteint : les étoiles déjà enregistrées sont quand même montrées au joueur.
+    if (store.bumpSolo(u.id, day) > SOLO_CAP) return void res.status(429).json({ ok: false, error: "Plafond de parties solo récompensées atteint pour aujourd'hui.", ...(cpm ? { cpm } : {}) });
     const minutes = (clock() - g.startedAt) / 60000;
     if (replayed?.ok) {
       // Partie rejouée : résultat et exploits calculés ici (succès du Poker menteur compris).

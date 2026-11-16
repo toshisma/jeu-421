@@ -58,11 +58,14 @@ describe('moteur : seuil d’ouverture', () => {
   });
 
   it('table du rejeu : niveaux par ordinateur et seuil vérifiés', () => {
-    expect(setupDmFrom({ level: 'fouine', target: 4000, bots: ['a', 'b'], levels: ['fouine', 'habitue'], entry: 500 })).toEqual({ level: 'fouine', target: 4000, bots: ['a', 'b'], levels: ['fouine', 'habitue'], entry: 500 });
-    expect(setupDmFrom({ level: 'fouine', target: 4000, bots: ['a', 'b'], levels: ['fouine'] })).toBeNull();
-    expect(setupDmFrom({ level: 'fouine', target: 4000, bots: ['a'], levels: ['roi'] })).toBeNull();
-    expect(setupDmFrom({ level: 'fouine', target: 4000, bots: ['a'], entry: 450 })).toBeNull();
-    for (const st of CDM_STAGES) expect(setupDmFrom(JSON.parse(JSON.stringify(cdmSetup(st))))).toEqual(cdmSetup(st));
+    expect(setupDmFrom({ level: 'fouine', target: 4000, bots: ['a', 'b'], levels: ['fouine', 'habitue'], entry: 500 }, { campaign: true })).toEqual({ level: 'fouine', target: 4000, bots: ['a', 'b'], levels: ['fouine', 'habitue'], entry: 500 });
+    expect(setupDmFrom({ level: 'fouine', target: 4000, bots: ['a', 'b'], levels: ['fouine'] }, { campaign: true })).toBeNull();
+    // Partie libre : niveaux par ordinateur et seuil refusés (seul le serveur pose une table de campagne).
+    expect(setupDmFrom({ level: 'fouine', target: 2000, bots: ['a'], levels: ['debutant'] })).toBeNull();
+    expect(setupDmFrom({ level: 'fouine', target: 2000, bots: ['a'], entry: 500 })).toBeNull();
+    expect(setupDmFrom({ level: 'fouine', target: 4000, bots: ['a'], levels: ['roi'] }, { campaign: true })).toBeNull();
+    expect(setupDmFrom({ level: 'fouine', target: 4000, bots: ['a'], entry: 450 }, { campaign: true })).toBeNull();
+    for (const st of CDM_STAGES) expect(setupDmFrom(JSON.parse(JSON.stringify(cdmSetup(st))), { campaign: true })).toEqual(cdmSetup(st));
   });
 });
 
@@ -131,10 +134,11 @@ describe('campagne : règles', () => {
   });
 
   it('reprise d’un invité : seulement le premier chapitre, sans titre', () => {
-    expect(capCdmImport(all(7))).toEqual({ moulin: 7, gue: 7, relais: 7 });
+    // La dernière étape du premier chapitre se rejoue avec un compte (pas de titre ni de Groschen offerts).
+    expect(capCdmImport(all(7))).toEqual({ moulin: 7, gue: 7 });
     const guest = { ...newProfile(), campDm: all(7), titles: ['cdm:val', 'cdm:cite'] };
     const cap = capGuestImport(guest);
-    expect(cap.campDm).toEqual({ moulin: 7, gue: 7, relais: 7 });
+    expect(cap.campDm).toEqual({ moulin: 7, gue: 7 });
     expect(cap.titles ?? []).not.toContain('cdm:cite');
   });
 });
@@ -253,9 +257,9 @@ describe('campagne : serveur', () => {
     // Invité qui s'inscrit avec toute la route faite : seul le premier chapitre est repris.
     const g = await account({ ...newProfile(), campDm: all(7) });
     const p = (await call('/me', undefined, g)).profile;
-    expect(p.campDm).toEqual({ moulin: 7, gue: 7, relais: 7 });
+    expect(p.campDm).toEqual({ moulin: 7, gue: 7 });
     expect((await call('/dixmille/start', { setup: cdmSetup(CDM_STAGES[9]), camp: CDM_STAGES[9].id }, g)).status).toBe(400);
-    expect((await call('/dixmille/start', { setup: cdmSetup(CDM_STAGES[3]), camp: CDM_STAGES[3].id }, g)).seed).toBeTypeOf('number');
+    expect((await call('/dixmille/start', { setup: cdmSetup(CDM_STAGES[2]), camp: CDM_STAGES[2].id }, g)).seed).toBeTypeOf('number');
   });
 });
 

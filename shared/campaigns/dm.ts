@@ -172,7 +172,11 @@ export function cleanCdm(raw: unknown): CdmProgress | undefined {
 /** Reprise à l'inscription d'un invité : seulement le premier chapitre (progression faite sans compte). */
 export function capCdmImport(p: CdmProgress | undefined): CdmProgress | undefined {
   if (!p) return undefined;
-  const first = new Set(stagesOf(CDM_CHAPTERS[0].id).map((s) => s.id));
+  // Premier chapitre seulement, et JAMAIS terminé à la reprise : la dernière étape du chapitre n'est pas reprise.
+  // (Un profil d'invité n'est pas vérifiable : sinon un faux profil ferait verser titre, monnaie du mode et
+  // déblocage du chapitre suivant à chaque nouveau compte.) Le joueur rejoue cette étape pour clore le chapitre.
+  const stages = stagesOf(CDM_CHAPTERS[0].id).map((s) => s.id);
+  const first = new Set(stages.slice(0, -1));
   return cleanCdm(Object.fromEntries(Object.entries(p).filter(([id]) => first.has(id))));
 }
 

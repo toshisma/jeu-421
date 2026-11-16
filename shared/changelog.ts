@@ -7,6 +7,12 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.59', date: '2026-11-16T14:20:00+01:00', title: 'Une campagne solo pour chaque jeu', items: [
+    'Chaque jeu a maintenant sa campagne solo : la Tournée des comptoirs (421), la Route des Auberges (Le Courtisan), les Arrière-salles (Poker menteur) et les Comptoirs rivaux (Coups Fourrés).',
+    'Des adversaires de plus en plus coriaces, jusqu’à 3 étoiles à gagner à chaque étape, et une récompense à chaque chapitre terminé.',
+    'Sur l’accueil, un bloc « Campagne » vous montre votre prochaine étape en un coup d’œil, et l’écran « Campagnes » les rassemble toutes.',
+    'Parties contre l’ordinateur plus sûres quand le réseau est lent : le jeu attend que la partie soit prête avant de commencer, au lieu de la compter comme non vérifiée.',
+  ] },
   { version: '0.58', date: '2026-11-16T11:06:00+01:00', title: 'Qui est là ?', items: [
     'Sur l’accueil : le nombre de personnes sur le site, et le nombre de joueurs dans chacun des 4 jeux.',
     'Le fil des parties récentes ne coupe plus les pseudos, et les titres des tuiles ne sont plus tronqués sur téléphone.',

@@ -17,4 +17,7 @@ export const chmFr = {
   'chm.title': 'Campagnes',
   'chm.sub': 'Une campagne solo par jeu : des tables de plus en plus coriaces et trois étoiles à gagner à chacune. 5 pièces par nouvelle étoile.',
   'chm.guest': 'Progression gardée sur cet appareil. Avec un compte gratuit, elle vous suit partout.',
+  'chm.tomorrow': 'demain',
+  'chm.questsDone': '{n}/{max} faits',
+  'chm.yesterday': 'hier',
 };

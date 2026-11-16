@@ -218,7 +218,11 @@ export function cleanCcf(raw: unknown): CcfProgress | undefined {
 /** Reprise à l'inscription d'un invité : seulement le premier quartier (progression faite sans compte, modifiable). */
 export function capCcfImport(p: CcfProgress | undefined): CcfProgress | undefined {
   if (!p) return undefined;
-  const first = new Set(stagesOf(CCF_CHAPTERS[0].id).map((s) => s.id));
+  // Premier chapitre seulement, et JAMAIS terminé à la reprise : la dernière étape du chapitre n'est pas reprise.
+  // (Un profil d'invité n'est pas vérifiable : sinon un faux profil ferait verser titre, monnaie du mode et
+  // déblocage du chapitre suivant à chaque nouveau compte.) Le joueur rejoue cette étape pour clore le chapitre.
+  const stages = stagesOf(CCF_CHAPTERS[0].id).map((s) => s.id);
+  const first = new Set(stages.slice(0, -1));
   return cleanCcf(Object.fromEntries(Object.entries(p).filter(([id]) => first.has(id))));
 }
 

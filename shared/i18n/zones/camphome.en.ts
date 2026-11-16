@@ -18,4 +18,7 @@ export const chmEn: Record<keyof typeof chmFr, string> = {
   'chm.title': 'Campaigns',
   'chm.sub': 'One solo campaign per game: tougher and tougher tables, with three stars to win at each. 5 coins per new star.',
   'chm.guest': 'Progress is saved on this device. With a free account, it follows you everywhere.',
+  'chm.tomorrow': 'tomorrow',
+  'chm.questsDone': '{n}/{max} done',
+  'chm.yesterday': 'yesterday',
 };

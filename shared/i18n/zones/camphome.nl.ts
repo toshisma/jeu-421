@@ -18,4 +18,7 @@ export const chmNl: Record<keyof typeof chmFr, string> = {
   'chm.title': 'Campagnes',
   'chm.sub': 'Eén solocampagne per spel: steeds taaiere tafels en bij elke drie sterren te winnen. 5 munten per nieuwe ster.',
   'chm.guest': 'Je voortgang blijft op dit apparaat. Met een gratis account volgt hij je overal.',
+  'chm.tomorrow': 'morgen',
+  'chm.questsDone': '{n}/{max} klaar',
+  'chm.yesterday': 'gisteren',
 };

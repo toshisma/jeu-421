@@ -23,7 +23,7 @@ export function pmWhen(t: number, now = Date.now()): string {
   const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const diff = Math.round((day(n) - day(d)) / 86400_000);
   if (diff <= 0) return d.toLocaleTimeString(loc(), { hour: '2-digit', minute: '2-digit' }).replace(/(\d{1,2}):(\d{2})/, hhmm);
-  if (diff === 1) return 'hier';
+  if (diff === 1) return tr('chm.yesterday');
   if (diff < 7) return d.toLocaleDateString(loc(), { weekday: 'short' });
   return d.toLocaleDateString(loc(), { day: '2-digit', month: '2-digit' });
 }

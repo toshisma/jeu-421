@@ -87,11 +87,12 @@ describe('déblocages', () => {
   });
   it('profil nettoyé ; reprise d’invité : premier quartier seulement, sans titre', () => {
     expect(cleanCcf({ [ids('lilas')[0]]: 7, [ids('lilas')[1]]: 6, x: 1, [ids('halles')[0]]: 9 })).toEqual({ [ids('lilas')[0]]: 7 });
-    expect(capCcfImport({ ...all('lilas', 7), ...all('halles', 7) })).toEqual(all('lilas', 7));
+    const lilasSaufDerniere = Object.fromEntries(ids('lilas').slice(0, -1).map((id) => [id, 7]));
+    expect(capCcfImport({ ...all('lilas', 7), ...all('halles', 7) })).toEqual(lilasSaufDerniere);
     const guest = sanitizeProfile({ ...newProfile(), ccf: { ...all('lilas', 7), ...all('halles', 7) }, titles: ['ccf:lilas', 'ccf:halles'] });
     expect(guest.ccf).toEqual({ ...all('lilas', 7), ...all('halles', 7) });
     const kept = capGuestImport(guest);
-    expect(kept.ccf).toEqual(all('lilas', 7));
+    expect(kept.ccf).toEqual(lilasSaufDerniere);
     expect(kept.titles ?? []).toEqual([]);
   });
 });

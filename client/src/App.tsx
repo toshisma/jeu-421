@@ -252,7 +252,7 @@ export function App() {
     return () => window.removeEventListener('421:banned', onBan);
   }, [pa.logout]);
   useEffect(() => {
-    setPresence(screen.name === 'solo' || screen.name === 'boss' || screen.name === 'tdc-game' || screen.name === 'dixmille' || screen.name === 'poker' ? 'solo' : screen.name === 'online' || screen.name === 'tournament' ? 'online' : 'menu', screen.name);
+    setPresence(screen.name === 'solo' || screen.name === 'boss' || screen.name === 'tdc-game' || screen.name === 'dixmille' || screen.name === 'poker' || screen.name === 'camp-dm' || screen.name === 'camp-pm' || screen.name === 'camp-cf' ? 'solo' : screen.name === 'online' || screen.name === 'tournament' ? 'online' : 'menu', screen.name);
   }, [screen.name]);
 
   // Une fois l'accueil affiché : la 3D puis les écrans les plus probables se chargent en arrière-plan.
@@ -362,7 +362,7 @@ export function App() {
   const [plus, setPlus] = useState<PlusSheet | null>(null);
   /** Le menu de jeu d'où l'on vient (retour des écrans communs ouverts par la barre). */
   const ctx: Back = 'from' in screen && screen.from && screen.from !== 'stats' ? screen.from
-    : screen.name === 'cf' ? 'cf' : screen.name === 'dixmille' ? 'dixmille' : screen.name === 'poker' || screen.name === 'camp-pm' ? 'poker'
+    : screen.name === 'cf' || screen.name === 'camp-cf' ? 'cf' : screen.name === 'dixmille' || screen.name === 'camp-dm' ? 'dixmille' : screen.name === 'poker' || screen.name === 'camp-pm' ? 'poker'
       : CLASSIC_SCREENS.has(screen.name) ? 'classic' : 'home';
   /** Changer d'écran par la barre : d'abord la règle de départ de l'écran affiché (partie en cours…). */
   const go = (f: () => void) => () => { void confirmLeave().then((ok) => { if (!ok) return; setPlus(null); refreshResume(); f(); }); };
@@ -580,7 +580,7 @@ export function App() {
       return <LeaderboardScreen pa={pa} onBack={backTo(screen.from)} onAccount={() => setScreen({ name: 'account' })} />;
   } })();
   // Invitation d'un ami : bandeau partout, sauf quand on est déjà à une table en ligne.
-  const atTable = screen.name === 'online' || screen.name === 'tournament' || screen.name === 'watch' || screen.name === 'dixmille' || screen.name === 'poker' || screen.name === 'camp-pm';
+  const atTable = screen.name === 'online' || screen.name === 'tournament' || screen.name === 'watch' || screen.name === 'dixmille' || screen.name === 'poker' || screen.name === 'camp-pm' || screen.name === 'camp-dm' || screen.name === 'camp-cf';
   // Cadeau de bienvenue : seulement pour ce compte, hors partie et hors des écrans où l'on ouvre déjà ses cadeaux.
   const showGift = !STANDALONE && pa.isAccount && !!gift && gift.user === pa.session?.username && !inGame && !guestInvite
     && screen.name !== 'account' && screen.name !== 'legal' && screen.name !== 'collection' && !(screen.name === 'cf' && screen.pending?.boosters);

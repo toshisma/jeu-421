@@ -174,11 +174,11 @@ export function Home(props: HomeProps) {
   };
   const rewards: { id: string; title: string; sub: React.ReactNode; hot: boolean; badge?: string; art: React.ReactNode; go: () => void }[] = [
     { id: 'cadeau', title: tr('app.cadeau'), hot: daily.canClaim, badge: daily.canClaim ? tr('app.m_j', { n: daily.cycleDay }) : undefined, art: <GiftArt size={36} />,
-      sub: daily.canClaim ? tr('app.pieces', { coins: DAILY_REWARDS[daily.cycleDay - 1].coins }) : 'demain', go: () => (daily.canClaim ? void claimDaily() : setSheet('cadeau')) },
+      sub: daily.canClaim ? tr('app.pieces', { coins: DAILY_REWARDS[daily.cycleDay - 1].coins }) : tr('chm.tomorrow'), go: () => (daily.canClaim ? void claimDaily() : setSheet('cadeau')) },
     { id: 'coffre', title: tr('app.coffre'), hot: chestLeft === 0, badge: chestLeft === 0 ? '!' : undefined, art: <ChestArt open={chestLeft === 0} size={38} />,
       sub: chestLeft === 0 ? tr('app.ouvrir') : hLeft(chestLeft), go: () => (chestLeft === 0 ? void openChest() : setSheet('coffre')) },
     { id: 'missions', title: tr('app.m_daily_short'), hot: qReady > 0, badge: qReady ? String(qReady) : undefined, art: <ScrollArt size={34} done={qDone + qReady} total={qDefs.length} />,
-      sub: qReady ? tr('app.a_recuperer') : `${qDone}/${qDefs.length} faits`, go: () => setSheet('missions') },
+      sub: qReady ? tr('app.a_recuperer') : tr('chm.questsDone', { n: qDone, max: qDefs.length }), go: () => setSheet('missions') },
     { id: 'pass', title: tr('app.pass'), hot: passReady > 0, badge: passReady ? String(passReady) : undefined, art: <TicketArt size={38} label={pass.tier} />,
       sub: tr('app.palier', { tier: pass.tier }), go: props.onPass },
   ];

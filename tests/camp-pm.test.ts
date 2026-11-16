@@ -244,14 +244,14 @@ describe('serveur', () => {
     const twice = await call('/poker/end', { gameToken: start.gameToken, moves: g.moves }, t);
     expect(twice.status).toBe(400);
   });
-  it('reprise d’un invité : premier endroit seulement, titre donné à la partie suivante', async () => {
+  it('reprise d’un invité : premier endroit sans sa dernière étape, titre gagné en la jouant', async () => {
     const t = await account({ ...newProfile(), cpm: { cave: 7, reserve: 1, cuisine: 1, loge: 7 } });
     const me = await call('/me', undefined, t);
     const prof = me.profile ?? me.user?.profile;
-    if (prof) expect(prof.cpm).toEqual({ cave: 7, reserve: 1, cuisine: 1 });
-    const { end } = await real(t, 'loge', () => true);
+    if (prof) expect(prof.cpm).toEqual({ cave: 7, reserve: 1 });
+    const { end } = await real(t, 'cuisine', () => true);
     expect(end.applied.profile.titles).toContain('cpm:arriere');
-    expect(end.applied.profile.cpm.loge ?? 0).toBe(end.cpm.after);
+    expect(end.applied.profile.cpm.cuisine ?? 0).toBe(end.cpm.after);
   });
 });
 

@@ -193,7 +193,7 @@ export function createGamesStats(store: Store, opts: { isAdmin: (u: UserRow | un
     const token = randomUUID();
     let level: string | null = null, bots = 1;
     let o: RunInput['opts'] | undefined;
-    if (game === 'courtisan') { const s = setupDmFrom(b.setup); if (s) { level = s.level; bots = s.bots.length; o = { target: s.target }; } }
+    if (game === 'courtisan') { const s = setupDmFrom(b.setup, { campaign: true }); if (s) { level = s.level; bots = s.bots.length; o = { target: s.target }; } }
     else { const s = setupPmFrom(b.setup); if (s) { level = s.level; bots = s.bots.length; o = { lives: s.lives, noStraights: s.noStraights }; } }
     guest.set(token, { game, startedAt: t, ip, key: `g:${token}`, userId: null, level, bots, opts: o });
     noteStart(store, game, 'invite');

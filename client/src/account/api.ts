@@ -14,7 +14,7 @@ export function saveAccountSession(s: Session | null) {
 }
 
 export class ApiError extends Error {
-  constructor(message: string, public status: number) { super(message); }
+  constructor(message: string, public status: number, public data: Record<string, unknown> = {}) { super(message); }
 }
 
 export async function api<T = Record<string, unknown>>(path: string, opts: { body?: object; token?: string | null; method?: string } = {}): Promise<T> {
@@ -34,6 +34,6 @@ export async function api<T = Record<string, unknown>>(path: string, opts: { bod
   const data = await res.json().catch(() => ({ ok: false, error: 'Réponse invalide du serveur' }));
   // Compte suspendu par l'administration : l'application ferme la session et l'explique.
   if (res.status === 403 && data?.banned === true && opts.token) window.dispatchEvent(new CustomEvent('421:banned', { detail: trServer(String(data.error ?? 'Votre compte est suspendu.')) }));
-  if (!res.ok || data.ok === false) throw new ApiError(trServer(data.error ?? `Erreur ${res.status}`), res.status);
+  if (!res.ok || data.ok === false) throw new ApiError(trServer(data.error ?? `Erreur ${res.status}`), res.status, data && typeof data === 'object' ? data : {});
   return data as T;
 }

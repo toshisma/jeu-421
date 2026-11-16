@@ -19,13 +19,19 @@ export interface SetupDm {
   levels?: DmLevel[]; entry?: number;
 }
 
-export function setupDmFrom(raw: unknown): SetupDm | null {
+/**
+ * Table envoyée par le téléphone. `levels` (niveau par ordinateur) et `entry` (seuil d'ouverture) ne sont
+ * acceptés que pour une table de campagne, que le serveur compare ensuite à celle de l'étape : en partie libre,
+ * un téléphone trafiqué pourrait sinon annoncer « Fine fouine » et jouer contre des Débutants.
+ */
+export function setupDmFrom(raw: unknown, o: { campaign?: boolean } = {}): SetupDm | null {
   const r = (raw && typeof raw === 'object' ? raw : null) as Record<string, unknown> | null;
   if (!r) return null;
   const bots = Array.isArray(r.bots) ? r.bots : null;
   if (!bots || bots.length < 1 || bots.length > 3 || !bots.every(isPersonaId) || new Set(bots).size !== bots.length || bots.includes(DM_ME)) return null;
   if (!LEVELS.includes(r.level as DmLevel) || !(DM_TARGETS as readonly number[]).includes(r.target as number)) return null;
   const out: SetupDm = { level: r.level as DmLevel, target: r.target as number, bots: bots as string[] };
+  if (!o.campaign && (r.levels !== undefined || r.entry !== undefined)) return null;
   if (r.levels !== undefined) {
     if (!Array.isArray(r.levels) || r.levels.length !== bots.length || !r.levels.every((l) => LEVELS.includes(l as DmLevel))) return null;
     out.levels = r.levels as DmLevel[];

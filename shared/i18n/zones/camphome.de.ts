@@ -18,4 +18,7 @@ export const chmDe: Record<keyof typeof chmFr, string> = {
   'chm.title': 'Kampagnen',
   'chm.sub': 'Eine Solo-Kampagne pro Spiel: immer härtere Tische und an jedem drei Sterne zu holen. 5 Münzen pro neuem Stern.',
   'chm.guest': 'Dein Fortschritt bleibt auf diesem Gerät. Mit einem kostenlosen Konto folgt er dir überallhin.',
+  'chm.tomorrow': 'morgen',
+  'chm.questsDone': '{n}/{max} erledigt',
+  'chm.yesterday': 'gestern',
 };
