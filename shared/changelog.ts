@@ -7,6 +7,10 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.57', date: '2026-11-16T10:29:00+01:00', title: 'Plus de sécurité dans les messages', items: [
+    'Un bouton « Signaler » dans chaque conversation privée, avec la possibilité de bloquer la personne en un geste.',
+    'Pour la sécurité de tous, en particulier des plus jeunes, la modération peut lire les messages privés. La page Confidentialité explique comment.',
+  ] },
   { version: '0.56', date: '2026-11-13T15:22:00+01:00', title: 'Revenez chaque jour', items: [
     'Série de jours joués : une flamme sur l’accueil, quelques pièces chaque jour et un sac de dés tous les 7 jours. Un joker protège votre série si vous ratez un jour.',
     'Notifications utiles et rares (au plus 2 par jour, jamais la nuit) : tournoi qui commence, ami qui vous dépasse dans votre bistrot, série qui vous attend. Chacune se désactive dans les Réglages.',
