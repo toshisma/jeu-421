@@ -28,10 +28,11 @@ import type { DmLevel } from '../../../shared/dixmille/engine';
 import { cfCoinReward } from '../../../shared/cards/coins';
 import { applyFetesGame, claimAdvent } from '../../../shared/progress/fetes';
 import { applyTdc, type TdcFacts } from '../../../shared/progress/comptoirs';
+import { applyCdm, type CdmFacts, type CdmResult } from '../../../shared/campaigns/dm'; // campagne du Courtisan
 
 export interface EndReward { reward: Reward; applied: Applied }
 /** Fin d'une partie du Courtisan : récompense, sacs de dés trouvés, défis du jour accomplis. */
-export interface DmEndResult { reward: Reward; levelBefore: number; levelAfter: number; bags: number; quests: string[]; /** Succès débloqués (identifiants). */ achievements?: string[]; /** Partie que le serveur n'a pas pu rejouer : récompense de base seulement. */ unverified?: boolean }
+export interface DmEndResult { reward: Reward; levelBefore: number; levelAfter: number; bags: number; quests: string[]; /** Succès débloqués (identifiants). */ achievements?: string[]; /** Partie que le serveur n'a pas pu rejouer : récompense de base seulement. */ unverified?: boolean; /** Route des Auberges : étoiles données par le serveur. */ camp?: CdmResult }
 
 /** Défi du jour déjà joué sur cet appareil (affichage et récompense des invités). */
 const DEFI = '421.defi';
@@ -349,6 +350,14 @@ export function useProfile(enabled: boolean) {
     setProfile(applyTdc(ref.current.profile, bistro, f).profile);
   }, [setProfile]);
 
+  /** Route des Auberges (Courtisan), invité : étoiles sur le profil de l'appareil (les comptes : le serveur, à /dixmille/end). */
+  const onCdmGuestEnd = useCallback((stage: string, f: CdmFacts): CdmResult | null => {
+    if (ref.current.session) return null;
+    const r = applyCdm(ref.current.profile, stage, f);
+    setProfile(r.profile);
+    return r.result;
+  }, [setProfile]);
+
   // --- Le Dix mille contre l'ordinateur ---------------------------------------------------------
   const dmGame = useRef<{ token: string | null; startedAt: number; stat?: string } | null>(null);
   /**
@@ -367,7 +376,7 @@ export function useProfile(enabled: boolean) {
     return { coins: reward.coins + applied.levelBonusCoins, bags: bag.found };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   /** Avec une table (`setup`) : graine du serveur, la partie sera rejouée à la fin (null : invité, hors ligne). */
-  const onDixMilleStart = useCallback((setup?: SetupDm): Promise<number | null> => {
+  const onDixMilleStart = useCallback((setup?: SetupDm, camp?: string): Promise<number | null> => {
     dmGame.current = { token: null, startedAt: Date.now() };
     if (!enabled) return Promise.resolve(null);
     trackFirstPlay('courtisan');
@@ -376,7 +385,7 @@ export function useProfile(enabled: boolean) {
     const g = dmGame.current;
     // Invité : jeton anonyme pour les statistiques de l'administration (aucune récompense).
     if (!s) { api<{ token: string }>('/stats/guest/start', { body: { game: 'courtisan', ...(setup ? { setup } : {}) } }).then((r) => { g.stat = r.token; }).catch(() => {}); return Promise.resolve(null); }
-    return api<{ gameToken: string; seed?: number; setup?: SetupDm }>('/dixmille/start', { body: setup ? { setup } : {}, token: s.token })
+    return api<{ gameToken: string; seed?: number; setup?: SetupDm }>('/dixmille/start', { body: { ...(setup ? { setup } : {}), ...(camp ? { camp } : {}) }, token: s.token })
       .then((r) => { g.token = r.gameToken; return r.seed !== undefined && setup && stableJson(r.setup) === stableJson(setup) ? r.seed : null; })
       .catch(() => null);
   }, [enabled]);
@@ -399,9 +408,9 @@ export function useProfile(enabled: boolean) {
     }
     if (!g.token) return null;
     try {
-      const res = await api<{ verified?: boolean; reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { text: string }[]; achievementsDone?: { id: string }[] } }>('/dixmille/end', { token: s.token, body: { gameToken: g.token, ...r } });
+      const res = await api<{ verified?: boolean; camp?: CdmResult; reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { text: string }[]; achievementsDone?: { id: string }[] } }>('/dixmille/end', { token: s.token, body: { gameToken: g.token, ...r } });
       setProfile(sanitizeProfile(res.applied.profile));
-      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter, bags: res.applied.bagsFound ?? 0, quests: (res.applied.questsDone ?? []).map((q) => q.text), achievements: (res.applied.achievementsDone ?? []).map((a) => a.id), unverified: res.verified === false };
+      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter, bags: res.applied.bagsFound ?? 0, quests: (res.applied.questsDone ?? []).map((q) => q.text), achievements: (res.applied.achievementsDone ?? []).map((a) => a.id), unverified: res.verified === false, ...(res.camp ? { camp: res.camp } : {}) };
     } catch {
       return null; // partie trop courte, plafond atteint ou hors connexion : pas de récompense
     }
@@ -472,7 +481,7 @@ export function useProfile(enabled: boolean) {
     register, login, recover, logout, deleteAccount,
     submitChallenge,
     buyItem, equipItem, claim, blocked, block, isBlocked, claimDailyReward, openEveningChest, claimPass, chooseTitle, finishTutorial, prestige, openAdventBox,
-    onSoloStart, onGameEnd, onTdcGuestEnd, onCfGuestEnd, onDixMilleStart, onDixMilleEnd, onPokerStart, onPokerEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
+    onSoloStart, onGameEnd, onTdcGuestEnd, onCdmGuestEnd, onCfGuestEnd, onDixMilleStart, onDixMilleEnd, onPokerStart, onPokerEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
     token: session?.token ?? null,
   };
 }

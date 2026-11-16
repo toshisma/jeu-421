@@ -9,9 +9,12 @@
  */
 import { useGuestInviteAtEnd } from '../ui/guestInvite';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { act, currentPlayer, diceAfter, inPlay, newGame, pickPoints, ranking, validSelections, DM_LEVELS, DM_TARGETS, DM_VALUES, type DmAction, type DmEvent, type DmLevel, type DmState } from '../../../shared/dixmille/engine';
+import { act, canBank, currentPlayer, diceAfter, inPlay, newGame, pickPoints, ranking, validSelections, DM_LEVELS, DM_TARGETS, DM_VALUES, type DmAction, type DmEvent, type DmLevel, type DmState } from '../../../shared/dixmille/engine';
 import { decide } from '../../../shared/dixmille/ai';
-import { encodeDm, MAX_MOVES_DM, type SetupDm } from '../../../shared/rejeu/dixmille';
+import { encodeDm, MAX_MOVES_DM, replayDm, type SetupDm } from '../../../shared/rejeu/dixmille';
+// Route des Auberges (campagne solo) : table imposée, étoiles, carte.
+import { cdmSetup, cdmStage, type CdmProgress, type CdmResult, type CdmStage } from '../../../shared/campaigns/dm';
+import { CdmEndPanel, CdmMenuCard, DmCampaign, cdmPersona } from '../campaigns/DmCampaign';
 import { usePresenceLayer } from '../presence';
 import { DM_TABLE_MAX, type DmPublicMember, type DmPublicTable } from '../../../shared/dixmille/protocol';
 import { DM_BOT_GAIN_DAILY, DM_NO_STAKE_LEVEL, GROSCHEN_DAILY, GROSCHEN_MAX_STAKE, GROSCHEN_WELCOME } from '../../../shared/dixmille/groschen';
@@ -287,7 +290,7 @@ function useDmAnimator(tray: React.RefObject<DiceTrayHandle>, initial: DmState, 
         await wait(1100);
       } else if (e.kind === 'lancer') {
         const seat = seatOf(e.playerId);
-        tray.current?.setDiceSkin(seat?.isMe ? null : seat?.persona ? PERSONA_DICE[seat.id] ?? null : seat?.dice ?? null);
+        tray.current?.setDiceSkin(seat?.isMe ? null : seat?.persona ? PERSONA_DICE[seat.id] ?? seat.persona.dice ?? null : seat?.dice ?? null);
         tray.current?.setTrail(seat?.isMe ? fx.trail ?? null : seat?.trail ?? null);
         tray.current?.setHidden(e.rolled.map((r) => !r));
         tray.current?.setKept(Array(6).fill(false));
@@ -421,7 +424,10 @@ function DmBoard({ tray, anim, seats, canAct, settings, onSettings, appearance, 
     if (s.phase === 'debut') onAction({ type: 'lancer' }, g);
     else if (selPoints !== null) onAction({ type: 'relancer', pick: sel }, g);
   };
-  const doBank = () => { if (myTurn && selPoints !== null) onAction({ type: 'encaisser', pick: sel }); };
+  const turnSoFar = s.turnPoints + (selPoints ?? 0);
+  // Seuil d'ouverture (règle maison de la campagne) : pas d'encaissement en dessous.
+  const bankOk = selPoints !== null && canBank(s, turnSoFar);
+  const doBank = () => { if (myTurn && bankOk) onAction({ type: 'encaisser', pick: sel }); };
 
   const rerollN = sel.length && selPoints !== null ? diceAfter(s, sel) : 0;
   const turnTotal = s.turnPoints + (selPoints ?? 0);
@@ -441,9 +447,10 @@ function DmBoard({ tray, anim, seats, canAct, settings, onSettings, appearance, 
       return waitText ?? (curSeat.isMe ? tr('dm.hint.youThink') : tr('dm.hint.think', { name: curName }));
     }
     if (busy) return '';
-    if (s.phase === 'debut') return tr(s.turns === 0 ? 'dm.hint.first' : 'dm.hint.turn');
+    if (s.phase === 'debut') return s.entry && cur.score === 0 ? tr('cdm.hint.entry', { n: fmt(s.entry) }) : tr(s.turns === 0 ? 'dm.hint.first' : 'dm.hint.turn');
     if (deadSel) return tr('dm.hint.deadSel');
     if (!sel.length) return tr('dm.hint.tap');
+    if (selPoints !== null && !bankOk && s.entry) return tr('cdm.hint.entry', { n: fmt(s.entry) });
     return wouldWin ? tr('dm.hint.winBank') : '';
   })();
 
@@ -527,7 +534,7 @@ function DmBoard({ tray, anim, seats, canAct, settings, onSettings, appearance, 
               <button className="btn dm-roll" onClick={() => doRoll()} disabled={selPoints === null}>
                 <Icon name="dice" size={20} />{rerollN === 6 && sel.length ? tr('dm.hotRoll') : rerollN ? tr('dm.rerollN', { n: rerollN, dice: diceWord(rerollN) }) : tr('dm.reroll')}
               </button>
-              <button className={`btn dm-bank${wouldWin ? ' win' : ''}`} onClick={doBank} disabled={selPoints === null}>
+              <button className={`btn dm-bank${wouldWin ? ' win' : ''}`} onClick={doBank} disabled={!bankOk}>
                 {tr('dm.bank')}{selPoints !== null ? ` +${fmt(turnTotal)}` : ''}
               </button>
             </div>
@@ -560,12 +567,14 @@ function DmBoard({ tray, anim, seats, canAct, settings, onSettings, appearance, 
 }
 
 /** Fin de partie : classement, récompenses, Groschen gagnés ou perdus. */
-function EndDialog({ s, seats, reward, groschen, buttons, waiting, bags = 0, quests = [], onBags, isAccount, achievements = [] }: {
+function EndDialog({ s, seats, reward, groschen, buttons, waiting, bags = 0, quests = [], onBags, isAccount, achievements = [], extra }: {
   s: DmState; seats: Seat[]; reward: Reward | null | undefined; groschen?: { delta: number; pot: number } | null; buttons: React.ReactNode; waiting?: string;
   /** Sacs de dés trouvés (tirés par le serveur pour un compte), défis du jour accomplis. */
   bags?: number; quests?: string[]; onBags?: () => void; isAccount?: boolean;
   /** Succès débloqués par cette partie (identifiants). */
   achievements?: string[];
+  /** Route des Auberges : bilan des étoiles. */
+  extra?: React.ReactNode;
 }) {
   useEffect(() => { if (bags > 0) sound.chips(3); }, [bags]);
   const me = seats.find((x) => x.isMe);
@@ -589,6 +598,7 @@ function EndDialog({ s, seats, reward, groschen, buttons, waiting, bags = 0, que
             );
           })}
         </ol>
+        {extra}
         {groschen && groschen.pot > 0 && (
           <div className={`dm-gr-result${groschen.delta > 0 ? ' up' : ' down'}`}>
             {groschen.delta > 0 ? <>{tr('dm.potWon')}<Groschen n={groschen.pot} size={18} /></> : <>{tr('dm.potLost')}<Groschen n={groschen.delta} size={18} /></>}
@@ -621,30 +631,57 @@ function EndDialog({ s, seats, reward, groschen, buttons, waiting, bags = 0, que
 // ---------------------------------------------------------------------------------------------
 // Partie gratuite contre l'ordinateur (jouée sur l'appareil)
 
-export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appearance, me, onExit, onReplay, onBags }: {
+export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appearance, me, onExit, onReplay, onBags, camp }: {
   setup: DmSetup; opponents: Persona[]; pa: ProfileApi; settings: Settings; onSettings: (s: Settings) => void; appearance: Appearance;
   me: { name: string; avatar: string; photo: string | null }; onExit: () => void; onReplay: () => void; onBags?: () => void;
+  /** Route des Auberges : étape jouée (table imposée : adversaires, niveaux, objectif, seuil d'ouverture). */
+  camp?: CdmStage;
 }) {
+  const campSetup = useMemo(() => (camp ? cdmSetup(camp) : null), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const campBefore = useRef<CdmProgress>(pa.profile.campDm ?? {});
+  // Campagne avec un compte : jamais de partie sans graine (elle ne serait pas vérifiée : pas d'étoile).
+  // « Préparation de la table… » jusqu'à la graine ; échec ou délai dépassé : message et « Réessayer ».
+  const needSeed = !!camp && pa.isAccount;
+  const [prep, setPrep] = useState<'wait' | 'fail' | null>(needSeed ? 'wait' : null);
   const seats = useMemo<Seat[]>(() => [
     { id: 'moi', name: me.name || tr('dm.you'), avatar: me.avatar, color: COLORS[0], photo: me.photo, isMe: true },
     ...opponents.map((p) => ({ id: p.id, name: p.name, avatar: p.avatar, color: p.color, persona: p, isMe: false, bot: true })),
   ], []); // eslint-disable-line react-hooks/exhaustive-deps
   const seatsRef = useRef(seats);
   const tray = useRef<DiceTrayHandle>(null);
-  const initial = useMemo(() => newGame(seats.map((x) => ({ id: x.id, name: x.name, bot: x.isMe ? undefined : setup.level })), setup.target, crypto.getRandomValues(new Uint32Array(1))[0]), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const initial = useMemo(() => newGame(seats.map((x, i) => ({ id: x.id, name: x.name, bot: x.isMe ? undefined : campSetup?.levels?.[i - 1] ?? setup.level })), setup.target, crypto.getRandomValues(new Uint32Array(1))[0],
+    campSetup?.entry ? { entry: campSetup.entry } : undefined), []); // eslint-disable-line react-hooks/exhaustive-deps
   const anim = useDmAnimator(tray, initial, seatsRef, { trail: pa.profile.fx?.trainee, fete: pa.profile.fx?.fete });
   // État officiel (moteur local), en avance sur l'écran pendant les animations.
   const truth = useRef(initial);
-  const [end, setEnd] = useState<{ reward: Reward | null; bags: number; quests: string[]; achievements: string[]; unverified?: boolean } | null>(null);
+  const [end, setEnd] = useState<{ reward: Reward | null; bags: number; quests: string[]; achievements: string[]; unverified?: boolean; camp?: CdmResult | null } | null>(null);
   const setup0 = setup;
   const alive = useRef(true);
   // Partie vérifiable (compte) : le serveur donne la graine au début et rejoue les décisions à la fin.
   const rejeu = useRef<{ waiting: Promise<void> | null; seeded: boolean; moves: string[] }>({ waiting: null, seeded: false, moves: [] });
   useEffect(() => {
     alive.current = true;
-    const setup: SetupDm = { level: setup0.level, target: setup0.target, bots: opponents.map((p) => p.id) };
-    const ticket = pa.onDixMilleStart(setup);
+    const setup: SetupDm = campSetup ?? { level: setup0.level, target: setup0.target, bots: opponents.map((p) => p.id) };
+    const ticket = pa.onDixMilleStart(setup, camp?.id);
     const rj = rejeu.current;
+    if (needSeed) {
+      // Campagne (compte) : rien ne se joue avant la graine. Délai dépassé ou échec : « Réessayer » ;
+      // une graine arrivée en retard (téléphone lent) est encore acceptée tant que rien n'a été joué.
+      let open: () => void = () => {};
+      rj.waiting = new Promise<void>((resolve) => { open = resolve; });
+      const accept = (seed: number | null) => {
+        if (rj.seeded || !alive.current) return;
+        if (seed == null) { setPrep('fail'); return; }
+        truth.current = { ...truth.current, seed: seed >>> 0 };
+        rj.seeded = true;
+        rj.waiting = null;
+        setPrep(null);
+        open();
+      };
+      ticket.then(accept, () => accept(null));
+      const t = setTimeout(() => { if (!rj.seeded && alive.current) setPrep('fail'); }, 20000);
+      return () => { alive.current = false; clearTimeout(t); };
+    }
     rj.waiting = Promise.race([ticket, wait(4000).then(() => null)]).then((seed) => {
       // La graine ne sert que si rien n'a encore été joué.
       if (seed != null && truth.current.draws === 0 && truth.current.turns === 0) { truth.current = { ...truth.current, seed: seed >>> 0 }; rj.seeded = true; }
@@ -659,7 +696,8 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
     const r = act(truth.current, a);
     if ('error' in r) return;
     const by = currentPlayer(truth.current).id;
-    if (by === 'moi' && rj.seeded) rj.moves.push(encodeDm(a));
+    // Décisions notées pour le rejeu du serveur (graine reçue) ; en campagne, aussi pour un invité (étoiles calculées ici).
+    if (by === 'moi' && (rj.seeded || camp)) rj.moves.push(encodeDm(a));
     truth.current = r.state;
     anim.push({ state: r.state, events: r.state.events, action: a, by, animSeed: (r.state.seed ^ (r.state.draws * 2654435761)) >>> 0, gesture });
   }, [anim.push]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -670,7 +708,7 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
   useEffect(() => {
     if (anim.busy || s.phase === 'fini' || cur.isMe) return;
     const p = cur.persona!;
-    const t = setTimeout(() => { if (alive.current) run(decide(truth.current, setup.level)); }, s.phase === 'debut' ? 700 + p.tempo * 0.4 : 500 + p.tempo * 0.5);
+    const t = setTimeout(() => { if (alive.current) run(decide(truth.current, currentPlayer(truth.current).bot ?? setup.level)); }, s.phase === 'debut' ? 700 + p.tempo * 0.4 : 500 + p.tempo * 0.5);
     return () => clearTimeout(t);
   }, [s, anim.busy, cur, setup.level, run]);
 
@@ -686,7 +724,13 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
       const rj = rejeu.current;
       const moves = rj.seeded && rj.moves.length <= MAX_MOVES_DM ? rj.moves.join('.') : undefined;
       const [r] = await Promise.all([pa.onDixMilleEnd({ won: s.winner === 'moi', place, opponents: opponents.length, level: setup.level, bestTurn, ...(moves !== undefined ? { moves } : {}) }), wait(1400)]);
-      if (alive.current) setEnd({ reward: r?.reward ?? null, bags: r?.bags ?? 0, quests: r?.quests ?? [], achievements: r?.achievements ?? [], unverified: !!r?.unverified });
+      // Route des Auberges : étoiles du serveur (compte) ; invité : partie rejouée ici, progression sur l'appareil.
+      let campRes: CdmResult | null | undefined;
+      if (camp && campSetup) {
+        if (pa.isAccount) campRes = r?.camp ?? null;
+        else { const rp = replayDm(campSetup, initial.seed, rj.moves.join('.')); campRes = rp.ok ? pa.onCdmGuestEnd(camp.id, rp.facts) : null; }
+      }
+      if (alive.current) setEnd({ reward: r?.reward ?? null, bags: r?.bags ?? 0, quests: r?.quests ?? [], achievements: r?.achievements ?? [], unverified: !!r?.unverified, ...(camp ? { camp: campRes ?? null } : {}) });
     })();
   }, [s, anim.busy, pa, opponents.length, setup.level]);
 
@@ -701,11 +745,25 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
   useGuestInviteAtEnd('courtisan', !!end);
 
   return (
-    <DmBoard tray={tray} anim={anim} seats={seats} canAct settings={settings} onSettings={onSettings} appearance={appearance}
-      onAction={(a, g) => run(a, g)} onLeave={leave}
-      end={end && <><DmAchToast ids={end.achievements} /><EndDialog s={s} seats={seats} reward={end.reward} bags={end.bags} quests={end.quests} achievements={end.achievements} isAccount={pa.isAccount} onBags={onBags}
+    <DmBoard tray={tray} anim={anim} seats={seats} canAct={!prep} settings={settings} onSettings={onSettings} appearance={appearance}
+      onAction={(a, g) => run(a, g)} onLeave={prep ? onExit : leave}
+      end={prep ? (
+        <div className="dm-end-back">
+          <div className="dm-end cdm-prep" role={prep === 'fail' ? 'alertdialog' : 'status'} aria-live="polite">
+            {prep === 'wait' ? <><span className="k-spinner" aria-hidden /><p>{tr('cdm.prep')}</p></> : <>
+              <h2>{tr('cdm.prepFailTitle')}</h2>
+              <p>{tr('cdm.prepFail')}</p>
+              <div className="dm-end-btns">
+                <button className="btn secondary" onClick={onExit}>{tr('cdm.backRoute')}</button>
+                <button className="btn primary" onClick={onReplay}><Icon name="resume" size={18} /> {tr('cdm.retry')}</button>
+              </div>
+            </>}
+          </div>
+        </div>
+      ) : end && <><DmAchToast ids={end.achievements} /><EndDialog s={s} seats={seats} reward={end.reward} bags={end.bags} quests={end.quests} achievements={end.achievements} isAccount={pa.isAccount} onBags={onBags}
+        extra={camp ? <CdmEndPanel stage={camp.id} before={campBefore.current} result={end.camp ?? null} /> : undefined}
         waiting={end.unverified ? tr('rej.update') : undefined} buttons={<>
-        <button className="btn secondary" onClick={onExit}>{tr('dm.back')}</button>
+        <button className="btn secondary" onClick={onExit}>{tr(camp ? 'cdm.backRoute' : 'dm.back')}</button>
         <button className="btn primary" onClick={onReplay}><Icon name="resume" size={18} /> {tr('dm.replay')}</button>
       </>} /></>} />
   );
@@ -1119,7 +1177,7 @@ export function DixMilleSetup({ onBack, onStart, onRules, onOnline, pa, groschen
 // Mode complet
 
 /** `play` : lien direct `/?jouer=courtisan` : une partie contre UN ordinateur Débutant, objectif court, sans mise. */
-export type DmPending = { join?: string; watch?: string; resume?: boolean; play?: boolean };
+export type DmPending = { join?: string; watch?: string; resume?: boolean; play?: boolean; /** Ouvrir la Route des Auberges (écran App `camp-dm`). */ camp?: boolean };
 
 export function DixMilleMode({ pa, settings, onSettings, onHome, displayName, avatar, pending, onAccount, onCollection }: {
   pa: ProfileApi; settings: Settings; onSettings: (s: Settings) => void;
@@ -1129,14 +1187,15 @@ export function DixMilleMode({ pa, settings, onSettings, onHome, displayName, av
   /** Collection de dés commune aux trois jeux (`open` : ouvrir un sac tout de suite). */
   onCollection?: (open?: boolean) => void;
 }) {
-  type Route = { r: 'menu' } | { r: 'setup'; tab: 'solo' | 'ligne' } | { r: 'game'; setup: DmSetup; opponents: Persona[]; key: number } | { r: 'online'; mode: DmOnlineMode; key: number; from: 'menu' | 'setup' };
+  type Route = { r: 'menu' } | { r: 'setup'; tab: 'solo' | 'ligne' } | { r: 'game'; setup: DmSetup; opponents: Persona[]; key: number } | { r: 'online'; mode: DmOnlineMode; key: number; from: 'menu' | 'setup' }
+    | { r: 'camp' } | { r: 'camp-game'; stage: string; key: number };
   const [route, setRoute] = useState<Route>(() => pending?.join ? { r: 'online', mode: { kind: 'join', code: pending.join }, key: 1, from: 'menu' }
     : pending?.watch ? { r: 'online', mode: { kind: 'watch', code: pending.watch }, key: 1, from: 'menu' }
       : pending?.resume ? { r: 'online', mode: { kind: 'resume' }, key: 1, from: 'menu' }
-        : pending?.play ? { r: 'game', setup: { opponents: 1, level: 'debutant', target: 2000, stake: 0 }, opponents: [PERSONAS[Math.floor(Math.random() * PERSONAS.length)]], key: 1 } : { r: 'menu' });
+        : pending?.camp ? { r: 'camp' } : pending?.play ? { r: 'game', setup: { opponents: 1, level: 'debutant', target: 2000, stake: 0 }, opponents: [PERSONAS[Math.floor(Math.random() * PERSONAS.length)]], key: 1 } : { r: 'menu' });
   const [rules, setRules] = useState(false);
   // Présence : menu du Courtisan (pas « en partie »), partie solo, ou en ligne (précisé par la table).
-  usePresenceLayer(route.r === 'game' ? { view: 'partie-solo', state: 'solo', depth: 1 } : route.r === 'online' ? { view: 'attente', state: 'online', depth: 1 } : { view: route.r === 'setup' ? 'preparation' : 'menu', state: 'menu', depth: 1 });
+  usePresenceLayer(route.r === 'game' || route.r === 'camp-game' ? { view: 'partie-solo', state: 'solo', depth: 1 } : route.r === 'online' ? { view: 'attente', state: 'online', depth: 1 } : { view: route.r === 'setup' ? 'preparation' : 'menu', state: 'menu', depth: 1 });
   useLang();
   const groschen = useGroschen(pa);
   const me = { name: pa.session?.username ?? displayName ?? tr('dm.you'), avatar, photo: pa.photo };
@@ -1151,6 +1210,17 @@ export function DixMilleMode({ pa, settings, onSettings, onHome, displayName, av
       appearance={pa.profile.equipped} me={me} onExit={back} onBags={bags}
       onReplay={() => setRoute({ ...route, key: route.key + 1 })} /></>;
   }
+  // Route des Auberges : carte de la route, puis partie à la table imposée de l'étape.
+  if (route.r === 'camp') {
+    return <>{gift}<DmCampaign pa={pa} onBack={toMenu} onPlay={(st) => { sound.unlock(); setRoute({ r: 'camp-game', stage: st.id, key: Date.now() }); }} /></>;
+  }
+  if (route.r === 'camp-game') {
+    const st = cdmStage(route.stage)!;
+    const opps = st.opponents.map((o) => cdmPersona(o.folk));
+    return <>{gift}<DixMilleGame key={route.key} camp={st} setup={{ opponents: opps.length, level: st.opponents[0].level, target: st.target, stake: 0 }} opponents={opps} pa={pa} settings={settings} onSettings={onSettings}
+      appearance={{ ...pa.profile.equipped, ...st.look }} me={me} onExit={() => setRoute({ r: 'camp' })} onBags={bags}
+      onReplay={() => setRoute({ ...route, key: route.key + 1 })} /></>;
+  }
   if (route.r === 'online') {
     // Venu d'un lien direct (invitation, reprise, regarder) : retour au menu du mode.
     const exit = route.from === 'setup' ? () => { groschen.reload(); setRoute({ r: 'setup', tab: route.mode.kind === 'solo' ? 'solo' : 'ligne' }); } : toMenu;
@@ -1163,7 +1233,7 @@ export function DixMilleMode({ pa, settings, onSettings, onHome, displayName, av
         ? <DixMilleSetup key={route.tab} initialTab={route.tab} onBack={toMenu} onRules={() => setRules(true)} pa={pa} groschen={groschen} onAccount={onAccount}
           onStart={(setup, opponents) => { sound.unlock(); setRoute({ r: 'game', setup, opponents, key: Date.now() }); }}
           onOnline={(mode) => online(mode, 'setup')} />
-        : <DmMenu pa={pa} groschen={groschen} onHome={onHome} onAccount={onAccount}
+        : <DmMenu pa={pa} groschen={groschen} onHome={onHome} onAccount={onAccount} onCampaign={() => setRoute({ r: 'camp' })}
           onRules={() => setRules(true)} onSetup={(tab) => setRoute({ r: 'setup', tab })} onOnline={(mode) => online(mode, 'menu')}
           onCollection={onCollection} />}
       {rules && <Sheet title={tr('dm.rulesTitle')} onClose={() => setRules(false)}><DmRules /></Sheet>}
@@ -1188,11 +1258,11 @@ const HELP_PAGES = () => (getLang() !== 'fr' ? [
 const helpUrl = (path: string) => (NO_SERVER || !/^https?:$/.test(location.protocol) ? `https://421online.com${path}` : path);
 
 const grReason = (r: string) => (r === 'cadeau' || r === 'mise' || r === 'gain' || r === 'remboursement' || r === 'admin' ? tr(`gr.${r}`)
-  : r === 'bienvenue' ? tr('dm2.gr.bienvenue') : r === 'gain-ordi' ? tr('dm2.gr.gainOrdi') : r);
+  : r === 'bienvenue' ? tr('dm2.gr.bienvenue') : r === 'gain-ordi' ? tr('dm2.gr.gainOrdi') : r === 'campagne' ? tr('cdm.gr') : r);
 const fmtWhen = (t: number) => { const fr = getLang() === 'fr'; const d = new Intl.DateTimeFormat(fr ? 'fr-BE' : getLang() === 'en' ? 'en-GB' : `${getLang()}-${getLang().toUpperCase()}`, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(t)); return !fr ? d : d.replace(/(\d{1,2}):(\d{2})/, '$1 h $2'); };
 
-function DmMenu({ pa, groschen, onHome, onAccount, onRules, onSetup, onOnline, onCollection }: {
-  pa: ProfileApi; groschen: ReturnType<typeof useGroschen>;
+function DmMenu({ pa, groschen, onHome, onAccount, onRules, onSetup, onOnline, onCollection, onCampaign }: {
+  pa: ProfileApi; groschen: ReturnType<typeof useGroschen>; onCampaign: () => void;
   onHome: () => void; onAccount?: () => void;
   onRules: () => void; onSetup: (tab: 'solo' | 'ligne') => void; onOnline: (m: DmOnlineMode) => void;
   onCollection?: (open?: boolean) => void;
@@ -1243,6 +1313,7 @@ function DmMenu({ pa, groschen, onHome, onAccount, onRules, onSetup, onOnline, o
         ))}
 
         <div className="dm-plays">
+          <CdmMenuCard profile={p} onOpen={onCampaign} />
           <button className="dm-play solo" onClick={() => onSetup('solo')}>
             <span className="dm-play-ic" aria-hidden><Icon name="dice" size={26} /></span>
             <span className="dm-play-text"><b>{tr('dm.vsCpu')}</b><small>{tr('dm.vsSub')}</small></span>

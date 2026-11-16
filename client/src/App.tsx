@@ -110,6 +110,7 @@ type Screen =
   | { name: 'friends'; from?: Back }
   | { name: 'messages'; with?: string; from?: Back }
   | { name: 'dixmille'; pending?: DmPending; reset?: number }
+  | { name: 'camp-dm' } // Route des Auberges (campagne solo du Courtisan) : ouvre le mode sur sa carte
   | { name: 'poker'; pending?: PmPending; reset?: number }
   | { name: 'cf'; pending?: { challenge?: string; watch?: string; tournoi?: boolean; boosters?: boolean }; reset?: number }
   | { name: 'changelog' }
@@ -529,6 +530,9 @@ export function App() {
       return <DixMilleMode key={`${JSON.stringify(screen.pending ?? null)}${screen.reset ?? ''}`} pending={screen.pending} onAccount={() => setScreen({ name: 'account', ...(lang !== 'fr' ? { back: 'dixmille' as const } : {}) })} pa={pa} settings={settings} onSettings={setSettings} onHome={home}
         onCollection={(open) => setScreen({ name: 'collection', from: 'dixmille', open })}
         displayName={settings.name} avatar={settings.avatar} />;
+    case 'camp-dm': // Route des Auberges : le Courtisan ouvert sur la carte de sa campagne
+      return <DixMilleMode key="camp-dm" pending={{ camp: true }} onAccount={() => setScreen({ name: 'account', ...(lang !== 'fr' ? { back: 'dixmille' as const } : {}) })} pa={pa} settings={settings} onSettings={setSettings} onHome={home}
+        onCollection={(open) => setScreen({ name: 'collection', from: 'dixmille', open })} displayName={settings.name} avatar={settings.avatar} />;
     case 'poker':
       return <PokerMenteurMode key={`${JSON.stringify(screen.pending ?? null)}${screen.reset ?? ''}`} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} onHome={home}
         onAccount={() => setScreen({ name: 'account', back: 'poker' })} onCollection={(open) => setScreen({ name: 'collection', from: 'poker', open })}

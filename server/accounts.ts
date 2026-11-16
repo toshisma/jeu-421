@@ -47,6 +47,7 @@ import type { DmLevel } from '../shared/dixmille/engine';
 import { applyPokerGame, pokerOnlineReward, pokerReward } from '../shared/pokermenteur/reward';
 import type { PmLevel } from '../shared/pokermenteur/engine';
 import { tdcSoloStart, tdcSoloEnd } from './comptoirs';
+import { cdmDmStart, cdmDmEnd } from './camp-dm'; // Route des Auberges (campagne du Courtisan)
 import { reputation as tdcReputation } from '../shared/progress/comptoirs';
 import { createRejeu, applyUnverified } from './solo-replay';
 import { replay421, setup421For, type Setup421 } from '../shared/rejeu/r421';
@@ -452,11 +453,15 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   const clock = () => opts.now?.() ?? Date.now();
   router.post('/dixmille/start', auth, (req, res) => {
     const token = randomBytes(18).toString('base64url');
-    soloGames.set(token, { userId: userOf(req).id, startedAt: clock(), boss: null });
-    soloGames.prune(clock() - 12 * 3600_000);
     // Nouvelle version : table vérifiée et graine, la partie sera rejouée à la fin.
-    const setup = req.body?.setup === undefined ? null : setupDmFrom(req.body.setup);
-    statSoloStart(store, token, { game: 'courtisan', userId: userOf(req).id, level: setup?.level ?? null, bots: setup?.bots.length ?? 1, opts: setup ? { target: setup.target } : undefined });
+    let setup = req.body?.setup === undefined ? null : setupDmFrom(req.body.setup);
+    // Route des Auberges : étape ouverte et table imposée de l'étape, sinon refus (étiquette « cdm:<étape> »).
+    const camp = cdmDmStart(store, userOf(req).id, req.body?.camp, setup);
+    if (camp && 'error' in camp) return fail(res, 400, camp.error);
+    if (camp) setup = camp.setup;
+    soloGames.set(token, { userId: userOf(req).id, startedAt: clock(), boss: camp ? camp.tag : null });
+    soloGames.prune(clock() - 12 * 3600_000);
+    statSoloStart(store, token, { game: 'courtisan', userId: userOf(req).id, level: setup?.level ?? null, bots: setup?.bots.length ?? 1, opts: setup ? { target: setup.target } : undefined, ...(camp ? { kind: camp.tag } : {}) });
     res.json({ ok: true, gameToken: token, ...(setup ? { seed: rejeu.issue(token, 'dm', setup, clock()), setup } : {}) });
   });
   router.post('/dixmille/end', auth, (req, res) => {
@@ -471,6 +476,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const ticket = rejeu.take(b.gameToken, 'dm');
     const replayed = ticket && b.moves !== undefined ? replayDm(ticket.setup as SetupDm, ticket.seed, b.moves) : null;
     statSoloEnd(store, b.gameToken, replayed?.ok ? { won: replayed.facts.won, bots: replayed.facts.opponents, level: replayed.facts.level, extra: { target: replayed.facts.target } } : { won: !ticket && !!b.won });
+    // Route des Auberges : étoiles d'une partie rejouée seulement, avant le plafond quotidien (comme la Tournée).
+    const campResult = replayed?.ok ? cdmDmEnd(store, u.id, g.boss, replayed.facts, clock()) : null;
     const day = today();
     if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.');
     const levels: DmLevel[] = ['debutant', 'habitue', 'fouine'];
@@ -479,13 +486,13 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
       // Partie rejouée : résultat et exploits calculés ici (succès du Courtisan compris).
       const f = replayed.facts;
       const reward = dixMilleReward({ won: f.won, place: f.place, opponents: f.opponents, level: f.level, minutes, day, now: clock() });
-      const applied = applyDixMilleGame(store.profileOf(u), reward, day, {
+      const applied = applyDixMilleGame(store.profileOf(store.userById(u.id) ?? u), reward, day, {
         won: f.won, players: f.opponents + 1, minutes, mode: 'solo', level: f.level, bestTurn: f.bestTurn, now: clock(),
         verified: { online: false, target: f.target, misses: f.misses, botLevels: Array(f.opponents).fill(f.level), hotMax: f.hotMax, six: f.six, straight: f.straight, sixKind: f.sixKind },
       });
       store.saveProfile(u.id, applied.profile);
       leagueGain(u.id, reward.xp);
-      return res.json({ ok: true, verified: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
+      return res.json({ ok: true, verified: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) }, ...(campResult ? { camp: campResult } : {}) });
     }
     const opponents = Math.min(3, Math.max(1, Math.floor(Number(b.opponents) || 1)));
     const reward = dixMilleReward({

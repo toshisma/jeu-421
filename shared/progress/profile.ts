@@ -26,6 +26,7 @@ import { EMPTY_DM_STATS, cleanDmStats, type DmStats } from '../dixmille/stats';
 import { EMPTY_PM_STATS, cleanPmStats, type PmStats } from '../pokermenteur/stats';
 import { applyFetesGame, cleanAdvent, cleanFete, feteTitle, type AdventState, type FeteState } from './fetes';
 import { capTdcImport, cleanTdc, tdcTitleFr } from './comptoirs';
+import { capCdmImport, cdmTitleFr, cleanCdm, isCdmTitle } from '../campaigns/dm'; // campagne du Courtisan
 import { capSerieImport, cleanSerie, serieRecord, type SerieReward, type SerieState } from './serie';
 
 export interface Profile {
@@ -84,6 +85,8 @@ export interface Profile {
   advent?: AdventState;
   /** Tournée des comptoirs : bistrot → étoiles (masque, voir comptoirs.ts). */
   tdc?: Record<string, number>;
+  /** La Route des Auberges (campagne du Courtisan) : étape → étoiles (masque, voir shared/campaigns/dm.ts). */
+  campDm?: Record<string, number>;
   /** Série de jours joués (voir serie.ts). */
   serie?: SerieState;
 }
@@ -208,6 +211,7 @@ export function sanitizeProfile(raw: unknown): Profile {
   }
   if (Array.isArray(r.titles)) p.titles = [...new Set(r.titles.filter((t): t is string => typeof t === 'string' && /^(pass|ligue|patron|album|serie|saison|fete|tdc):[\w-]{1,20}$/.test(t)))];
   if (Array.isArray(r.album)) p.album = [...new Set(r.album.filter((k): k is string => typeof k === 'string' && ALBUM_KEYS.includes(k)))];
+  if (Array.isArray(r.titles)) { const cdm = r.titles.filter((t): t is string => typeof t === 'string' && isCdmTitle(t)); if (cdm.length) p.titles = [...new Set([...(p.titles ?? []), ...cdm])]; } // titres de la campagne du Courtisan
   if (Array.isArray(r.albumPages)) p.albumPages = [...new Set(r.albumPages.filter((k): k is string => typeof k === 'string' && ALBUM.some((a) => a.id === k)))];
   for (const k of ['month', 'prevMonth'] as const) {
     const m = r[k];
@@ -252,6 +256,8 @@ export function sanitizeProfile(raw: unknown): Profile {
   if (pmSt) p.pm = pmSt;
   const tdc = cleanTdc(r.tdc);
   if (tdc) p.tdc = tdc;
+  const campDm = cleanCdm(r.campDm);
+  if (campDm) p.campDm = campDm;
   const serie = cleanSerie(r.serie);
   if (serie) p.serie = serie;
   if (Array.isArray(r.showcase)) {
@@ -335,6 +341,9 @@ export function capGuestImport(p: Profile): Profile {
   // Tournée des comptoirs : seulement le premier quartier (ni titre ni tapis : donnés à la partie suivante).
   const tdc = capTdcImport(p.tdc);
   if (tdc) base.tdc = tdc;
+  // Route des Auberges (Courtisan) : seulement le premier chapitre (titre donné à la partie de campagne suivante).
+  const campDm = capCdmImport(p.campDm);
+  if (campDm) base.campDm = campDm;
   // Série de jours joués : une semaine au plus, sans joker (serie.ts).
   const serie = capSerieImport(p.serie, today());
   if (serie) base.serie = serie;
@@ -846,6 +855,7 @@ export function titleLabel(id: string | undefined): string | null {
   if (!id) return null;
   if (id.startsWith('patron:')) return `Tombeur de ${BOSSES.find((b) => b.id === id.slice(7))?.name ?? 'patron'}`;
   if (id.startsWith('tdc:')) return tdcTitleFr(id.slice(4));
+  if (id.startsWith('cdm:')) return cdmTitleFr(id.slice(4));
   if (id === 'album:complet') return 'Collectionneur de combinaisons';
   if (id.startsWith('fete:')) return feteTitle(id);
   if (id.startsWith('pass:')) return `Champion ${ofMonth(id.slice(5))}`;

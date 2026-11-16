@@ -1,0 +1,115 @@
+/* --- La Route des Auberges (campagne du Courtisan, client/src/campaigns/DmCampaign.tsx) ---------- */
+.cdm-stars { display: inline-flex; gap: 2px; font-size: 15px; line-height: 1; letter-spacing: 0; }
+.cdm-stars i { font-style: normal; color: rgba(255,255,255,0.22); text-shadow: 0 1px 0 rgba(0,0,0,0.4); }
+.cdm-stars i.on { color: #f5c542; text-shadow: 0 0 8px rgba(245,197,66,0.55), 0 1px 0 rgba(0,0,0,0.5); }
+.cdm-stars i.new { animation: cdm-star-pop 0.7s cubic-bezier(.2,1.6,.4,1) both; }
+@keyframes cdm-star-pop { 0% { transform: scale(0) rotate(-90deg); opacity: 0; } 70% { transform: scale(1.5) rotate(10deg); opacity: 1; } 100% { transform: scale(1) rotate(0); } }
+@media (prefers-reduced-motion: reduce) { .cdm-stars i.new { animation: none; } .cdm-sign.next { animation: none; } }
+
+/* Entrée du menu du Courtisan : enseigne d'auberge suspendue */
+.cdm-entry { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 66px; padding: 8px 14px 8px 10px; border: 0; border-radius: 16px; cursor: pointer; text-align: left; color: #f6ecd8;
+  background: linear-gradient(180deg, #5a3416 0%, #3a200c 100%);
+  box-shadow: inset 0 0 0 2px #f3cf7a, inset 0 2px 0 rgba(255,255,255,.18), 0 4px 0 #2a1606, 0 10px 20px rgba(0,0,0,.35); }
+.cdm-entry:active { transform: translateY(2px); }
+.cdm-entry-sign { flex: none; width: 46px; display: flex; flex-direction: column; align-items: center; }
+.cdm-entry-chain { width: 30px; height: 7px; border: 2px solid #c9a35a; border-bottom: 0; border-radius: 6px 6px 0 0; }
+.cdm-entry-board { display: grid; place-items: center; width: 46px; height: 36px; border-radius: 6px; font-size: 21px;
+  background: repeating-linear-gradient(0deg, #8a5a2e 0 6px, #7a4e26 6px 7px); box-shadow: inset 0 0 0 2px #3a200c, 0 3px 6px rgba(0,0,0,.4); animation: cdm-swing 4s ease-in-out infinite; transform-origin: 50% -6px; }
+@keyframes cdm-swing { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@media (prefers-reduced-motion: reduce) { .cdm-entry-board { animation: none; } }
+.cdm-entry-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cdm-entry-text b { font: 800 19px/1.1 var(--cond); color: #f3cf7a; text-shadow: 0 1px 0 #2a1606; }
+.cdm-entry-text small { color: #e6d6bb; font-size: 12.5px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.cdm-entry-n, .cdm-entry-new { flex: none; font-style: normal; font-weight: 800; padding: 4px 9px; border-radius: 999px; background: rgba(0,0,0,0.35); color: #f5c542; font-size: 14px; white-space: nowrap; }
+.cdm-entry-n small { color: #d9c9a8; font-weight: 600; font-size: 11px; }
+.cdm-entry-new { background: #f3cf7a; color: #3a200c; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Carte de la route */
+.cdm-screen { background: radial-gradient(120% 55% at 50% 0%, #3a2612 0%, #1c120a 55%, #100a06 100%); }
+.cdm-main { flex: 1; overflow-y: auto; overflow-x: hidden; width: 100%; max-width: 560px; margin: 0 auto; padding: 6px 16px 28px; display: flex; flex-direction: column; gap: 14px; box-sizing: border-box; }
+.cdm-head h1 { margin: 6px 0 2px; font: 900 1.75rem/1.1 var(--cond); color: #f3cf7a; letter-spacing: 0.01em; text-shadow: 0 2px 0 #2a1606, 0 0 18px rgba(241,204,125,.25); }
+.cdm-head p { margin: 0; color: #e6d6bb; font-size: 0.92rem; line-height: 1.35; }
+.cdm-head .cdm-guest { margin-top: 8px; font-size: 0.82rem; color: #bfae8e; }
+.cdm-progress { margin-top: 10px; display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: rgba(0,0,0,0.35); box-shadow: inset 0 0 0 1px rgba(243,207,122,0.3); }
+.cdm-progress-n { font: 800 1.5rem/1 var(--cond); color: #f5c542; }
+.cdm-progress small { color: #d9c9a8; font-size: 12.5px; text-align: right; }
+.cdm-bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; }
+.cdm-bar i { display: block; height: 100%; background: linear-gradient(90deg, #d79f3c, #f6d98d); border-radius: 3px; }
+.cdm-chip-max { opacity: 0.7; font-size: 11px; }
+.cdm-star-ic { color: #f5c542; margin-right: 2px; }
+
+/* Chapitres : bannière, puis la route qui serpente entre les enseignes */
+.cdm-chapter { position: relative; padding: 10px 10px 8px; border-radius: 18px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c) 32%, #1c120a) 0%, #160f09 100%); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 70%, transparent); }
+.cdm-chapter.locked { filter: saturate(0.25); opacity: 0.8; }
+.cdm-c-head { display: flex; align-items: center; gap: 10px; }
+.cdm-c-icon { flex: none; width: 38px; height: 38px; display: grid; place-items: center; font-size: 20px; border-radius: 10px 10px 50% 50%; background: var(--c); box-shadow: 0 0 0 2px rgba(255,255,255,.25), 0 3px 6px rgba(0,0,0,.4); }
+.cdm-c-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cdm-c-text small { color: #d9c9a8; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.cdm-c-text b { font: 800 1.12rem/1.15 var(--cond); color: #f6ecd8; overflow-wrap: anywhere; }
+.cdm-c-stars { flex: none; color: #f5c542; font-weight: 800; white-space: nowrap; }
+.cdm-c-stars small { color: #d9c9a8; font-weight: 600; }
+.cdm-c-desc { margin: 6px 2px 0; color: #d9c9a8; font-size: 12.5px; line-height: 1.3; }
+.cdm-road { position: relative; list-style: none; margin: 10px 0 0; padding: 4px 0; display: flex; flex-direction: column; gap: 10px; }
+.cdm-road::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 0; margin-left: -1.5px; border-left: 3px dashed rgba(243,207,122,0.28); }
+.cdm-stop { position: relative; display: flex; justify-content: flex-start; }
+.cdm-stop.r { justify-content: flex-end; }
+.cdm-milestone { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; display: grid; place-items: center; border-radius: 50%; font: 800 11px/1 var(--font); color: #1c120a;
+  background: #6b5236; box-shadow: 0 0 0 2px #1c120a; z-index: 1; }
+.cdm-stop:has(.cdm-sign.won) .cdm-milestone { background: #f5c542; }
+.cdm-sign { position: relative; z-index: 2; width: calc(50% - 16px); min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px 8px; border: 0; border-radius: 10px; cursor: pointer; color: #f6ecd8; text-align: center;
+  background: repeating-linear-gradient(0deg, #5a3a1c 0 9px, #50331a 9px 10px); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--acc) 65%, #2a1606), 0 6px 12px rgba(0,0,0,0.45); }
+.cdm-sign::before, .cdm-sign::after { content: ''; position: absolute; top: -8px; width: 2px; height: 8px; background: #c9a35a; }
+.cdm-sign::before { left: 22%; } .cdm-sign::after { right: 22%; }
+.cdm-sign-face { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; font-size: 24px;
+  background: radial-gradient(circle at 50% 40%, var(--felt) 0%, #0c0805 100%); box-shadow: 0 0 0 3px var(--rim), 0 0 0 4.5px #1c120a; }
+.cdm-sign-text { display: flex; flex-direction: column; min-width: 0; width: 100%; }
+.cdm-sign-text b { font: 800 0.86rem/1.15 var(--cond); overflow-wrap: anywhere; hyphens: auto; }
+.cdm-sign-text small { color: #d9c9a8; font-size: 11px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cdm-sign.won { box-shadow: inset 0 0 0 2px #f5c542, 0 6px 14px rgba(245,197,66,0.22); }
+.cdm-sign.next { animation: cdm-glow 2.2s ease-in-out infinite; }
+@keyframes cdm-glow { 0%, 100% { box-shadow: inset 0 0 0 2px #f3cf7a, 0 6px 12px rgba(0,0,0,.45); } 50% { box-shadow: inset 0 0 0 2px #f3cf7a, 0 0 18px rgba(243,207,122,.55); } }
+.cdm-sign.locked { filter: grayscale(0.9); opacity: 0.6; }
+.cdm-sign.locked .cdm-sign-face { color: #d9c9a8; }
+.cdm-prize { margin: 10px 2px 0; font-size: 12px; color: #d9c9a8; display: flex; gap: 6px; align-items: center; line-height: 1.3; }
+.cdm-prize.got { color: #9fdcae; }
+.cdm-foot { text-align: center; margin: 0; line-height: 1.4; color: #bfae8e; font-size: 12.5px; }
+
+/* Fiche d'une auberge */
+.cdm-fiche h3 { margin: 14px 0 6px; font: 700 0.95rem/1.2 var(--cond); text-transform: uppercase; letter-spacing: 0.06em; color: #f3cf7a; }
+.cdm-fiche-top { display: flex; gap: 12px; align-items: center; }
+.cdm-fiche-table { position: relative; flex: none; width: 74px; height: 74px; display: grid; place-items: center; border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, var(--felt) 0%, #0c0805 100%); box-shadow: 0 0 0 5px var(--rim), 0 0 0 7px #1c120a, 0 6px 14px rgba(0,0,0,.5); }
+.cdm-fiche-host { font-size: 34px; }
+.cdm-fiche-die { position: absolute; right: -8px; bottom: -6px; }
+.cdm-fiche-top p { margin: 0; }
+.cdm-fiche-c { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #bfae8e; }
+.cdm-fiche-host-name { margin: 2px 0 !important; font-size: 14px; }
+.cdm-fiche-amb { font-size: 13px; line-height: 1.35; color: #e6d6bb; }
+.cdm-rules, .cdm-opps, .cdm-goals { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cdm-rules li { position: relative; padding-left: 16px; font-size: 13.5px; line-height: 1.35; }
+.cdm-rules li::before { content: '◆'; position: absolute; left: 0; color: #d79f3c; font-size: 10px; top: 3px; }
+.cdm-opps li { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 10px; background: rgba(0,0,0,.25); }
+.cdm-opps li > span:first-child { font-size: 22px; }
+.cdm-opp-t { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cdm-opp-t small { color: #bfae8e; font-size: 12px; }
+.cdm-opps em { flex: none; font-style: normal; font-size: 12px; font-weight: 700; color: #f3cf7a; }
+.cdm-goals li { display: flex; align-items: center; gap: 8px; font-size: 13.5px; line-height: 1.3; }
+.cdm-goals li > span:nth-child(2) { flex: 1; min-width: 0; }
+.cdm-goal-star { color: rgba(255,255,255,.25); font-size: 17px; }
+.cdm-goals li.got .cdm-goal-star { color: #f5c542; }
+.cdm-goals li.got { color: #cfe9d4; }
+.cdm-why { display: flex; gap: 6px; align-items: center; margin: 16px 0 0; color: #d9c9a8; font-size: 13px; }
+.cdm-sit { margin-top: 16px; }
+
+/* Bilan de fin de partie */
+.cdm-end { margin: 8px 0 2px; padding: 10px 12px; border-radius: 14px; text-align: center; background: rgba(0,0,0,.3); box-shadow: inset 0 0 0 1.5px rgba(243,207,122,.45); }
+.cdm-end p { margin: 4px 0 0; font-size: 13px; line-height: 1.3; }
+.cdm-end-name { font: 800 15px/1.2 var(--cond) !important; color: #f3cf7a; margin: 0 0 4px !important; }
+.cdm-end-msg.ok { color: #f6ecd8; font-weight: 700; }
+.cdm-end-c, .cdm-end-gr { color: #f5c542; font-weight: 700; }
+.cdm-end-next { color: #9fdcae; }
+
+/* Préparation de la table (graine du serveur) */
+.cdm-prep { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.cdm-prep p { margin: 0; color: #e6d6bb; font-size: 14px; line-height: 1.4; }
