@@ -19,7 +19,9 @@ import { STARTER_DECKS } from '../../../shared/cards/catalog';
 import { CARDS, cfText } from './i18n';
 import { buildAutoDeck } from '../../../shared/cards/autodeck';
 import { CF_LEVEL_LABEL, type CfLevel } from '../../../shared/cards/ai';
-import { botToPlay, playMine, startBotMatch, stepBotAction, type BotMatch, type BotMatchSetup } from '../../../shared/cards/botmatch';
+import { botToPlay, playMine, replayBotMatch, startBotMatch, stepBotAction, type BotMatch, type BotMatchSetup } from '../../../shared/cards/botmatch';
+import { ccfBots, ccfFacts, ccfRival, ccfStage, type CcfFacts, type CcfResult } from '../../../shared/campaigns/cf';
+import type { Profile } from '../../../shared/progress/profile';
 import { actionKey, decisionKind, defaultAction, eventsFor, legalActions, viewFor, waitingFor, type CfAction, type CfEvent } from '../../../shared/cards/engine';
 import { ScreenGate, type CfController, type CfSeat, type CfSnapshot } from './controller';
 
@@ -57,6 +59,15 @@ export interface LocalCfOptions {
    * comme au 421 et au Courtisan (null : rien, partie trop courte).
    */
   onGuestEnd?: (r: { won: boolean; place: number; players: number; minutes: number; level: CfLevel }) => { coins: number; bags: number } | null;
+  /**
+   * Campagne « Les Comptoirs rivaux » : comptoir joué (shared/campaigns/cf.ts). La table (adversaires, niveaux,
+   * decks) est celle du comptoir : imposée par le serveur pour un compte, construite ici pour un invité.
+   * Fin : étoiles du serveur (compte, `onCampaignProfile` reçoit le profil à jour) ou de l'appareil (invité,
+   * `onCampaignGuest` après un rejeu local de la partie). Le résultat va dans `finished.reward.campaign`.
+   */
+  campaign?: string;
+  onCampaignProfile?: (p: Profile) => void;
+  onCampaignGuest?: (stage: string, f: CcfFacts) => CcfResult | null;
 }
 
 /** Autres habitués du comptoir pour les parties à plusieurs (noms originaux). */
@@ -107,6 +118,10 @@ export class LocalCfController implements CfController {
   private pendingStart: CfEvent[];
   private startedAt = Date.now();
   private onGuestEnd: LocalCfOptions['onGuestEnd'];
+  /** Comptoir de la campagne joué, s'il y en a un. */
+  readonly campaign: string | null;
+  private onCampaignProfile: LocalCfOptions['onCampaignProfile'];
+  private onCampaignGuest: LocalCfOptions['onCampaignGuest'];
   /** Actions envoyées au serveur à la fin (= match.mine). */
   get actions(): CfAction[] { return this.match.mine; }
   get setup(): BotMatchSetup { return this.match.setup; }
@@ -114,6 +129,9 @@ export class LocalCfController implements CfController {
   private constructor(o: LocalCfOptions, setup: BotMatchSetup, gameId: string | null, notice: string | null) {
     this.level = o.level;
     this.onGuestEnd = !o.token && !o.tour && !o.tourSteps?.length ? o.onGuestEnd : undefined;
+    this.campaign = o.campaign ?? null;
+    this.onCampaignProfile = o.onCampaignProfile;
+    this.onCampaignGuest = o.onCampaignGuest;
     this.gameId = gameId;
     this.rewarded = !!gameId;
     this.notice = notice;
@@ -130,7 +148,12 @@ export class LocalCfController implements CfController {
     this.pendingStart = events;
     this.seats = [
       { id: setup.me.id, name: o.me.name || setup.me.name, avatar: o.me.avatar, photo: o.me.photo ?? undefined, account: o.me.account },
-      ...setup.bots.map((b) => ({ id: b.id, name: b.name, bot: true, avatar: CF_BOTS[b.level]?.avatar ?? '🤖', label: cfText(CF_LEVEL_LABEL[b.level]) })),
+      ...setup.bots.map((b, i) => {
+        // Campagne : les gens du comptoir (avatar du personnage).
+        const st = this.campaign ? ccfStage(this.campaign) : undefined;
+        const rival = st?.rivals[i] ? ccfRival(st.rivals[i]) : undefined;
+        return { id: b.id, name: b.name, bot: true, avatar: rival?.avatar ?? CF_BOTS[b.level]?.avatar ?? '🤖', label: cfText(CF_LEVEL_LABEL[b.level]) };
+      }),
     ];
   }
 
@@ -141,19 +164,27 @@ export class LocalCfController implements CfController {
   static async create(o: LocalCfOptions): Promise<LocalCfController> {
     if (o.token) {
       try {
-        const r = await cfBotStart(o.token, o.level, o.deckId ?? undefined, o.opponents ?? 1);
+        const r = await cfBotStart(o.token, o.level, o.deckId ?? undefined, o.opponents ?? 1, o.campaign);
         if (r && typeof r.seed === 'number' && r.me && Array.isArray(r.bots) && r.bots.length) {
           return new LocalCfController(o, { seed: r.seed, me: r.me, bots: r.bots }, r.gameId, null);
         }
       } catch (e) {
         // Refus explicite du serveur (deck invalide…) : on le dit. Route absente (404) : partie locale.
         if (e instanceof ApiError && e.status !== 404 && e.status !== 0) throw e;
+        // Campagne d'un compte : jamais de partie locale à la place (elle ne rapporterait aucune étoile).
+        if (o.campaign) throw e;
       }
     }
     const seed = o.seed ?? (crypto.getRandomValues(new Uint32Array(1))[0] >>> 0 || 1);
     let s = seed;
     const rnd = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
     const bot = CF_BOTS[o.level];
+    const stage = o.campaign ? ccfStage(o.campaign) : undefined;
+    if (stage) {
+      // Invité : la table du comptoir, construite comme sur le serveur.
+      const setup: BotMatchSetup = { seed, me: { id: 'moi', name: o.me.name || tr('cf.boardparts.vous'), deck: o.deck }, bots: ccfBots(stage) };
+      return new LocalCfController(o, setup, null, null);
+    }
     const setup: BotMatchSetup = {
       seed,
       me: { id: 'moi', name: o.me.name || tr('cf.boardparts.vous'), deck: o.deck },
@@ -266,16 +297,25 @@ export class LocalCfController implements CfController {
     this.closed = true;
     this.clearTimer();
     this.publish([]);
-    if (!this.token && this.onGuestEnd) {
+    if (!this.token && (this.onGuestEnd || this.campaign)) {
       const place = Math.max(1, standings.indexOf(this.me) + 1);
-      const r = this.onGuestEnd({ won: place === 1, place, players: standings.length || 2, minutes: (Date.now() - this.startedAt) / 60000, level: this.level });
-      if (r) { this.finished = { standings, reward: { coins: r.coins, bags: r.bags } }; this.publish([]); }
+      const r = this.onGuestEnd?.({ won: place === 1, place, players: standings.length || 2, minutes: (Date.now() - this.startedAt) / 60000, level: this.level }) ?? null;
+      // Campagne d'un invité : la partie est rejouée ici (mêmes fonctions que le serveur) pour en tirer les faits.
+      let campaign: CcfResult | null = null;
+      if (this.campaign && this.onCampaignGuest) {
+        const evs: CfEvent[] = [];
+        const rep = replayBotMatch(this.match.setup, this.match.mine, (e) => evs.push(...e));
+        if (rep.ok) campaign = this.onCampaignGuest(this.campaign, ccfFacts(this.match.setup, rep.state, evs));
+      }
+      if (r || campaign) { this.finished = { standings, reward: { ...(r ? { coins: r.coins + (campaign?.coins ?? 0), bags: r.bags } : { coins: campaign?.coins ?? 0 }), ...(campaign ? { campaign } : {}) } }; this.publish([]); }
       return;
     }
     if (!this.gameId || !this.token) return;
     try {
       const r = await cfBotEnd(this.token, this.gameId, this.match.mine);
-      this.finished = { standings, reward: r.reward ?? { note: tr('cf.local.plafond_du_jour_atteint_pas_de') } };
+      if (r.profile) this.onCampaignProfile?.(r.profile);
+      const base = r.reward ?? (this.campaign ? {} : { note: tr('cf.local.plafond_du_jour_atteint_pas_de') });
+      this.finished = { standings, reward: this.campaign ? { ...base, coins: ((base as { coins?: number }).coins ?? 0) + (r.campaign?.coins ?? 0), campaign: r.campaign ?? null } : base };
     } catch (e) {
       this.finished = { standings, reward: { error: e instanceof Error ? cfText(e.message) : tr('cf.local.resultat_non_enregistre') } };
     }

@@ -66,6 +66,9 @@ interface Props {
   onBags?: () => void;
   /** Session en ligne (tchat de table, réactions), pour une partie en ligne. */
   online?: CfOnline | null;
+  /** Bloc en plus sur l'écran de fin (campagne : étoiles gagnées) et nom du bouton de sortie. */
+  endExtra?: (snap: CfSnapshot) => React.ReactNode;
+  exitLabel?: string;
 }
 
 const NO_KEEP = [false, false, false];
@@ -76,7 +79,7 @@ const reduced = () => typeof window !== 'undefined' && !!window.matchMedia?.('(p
 let rollSeed = 1;
 const nextSeed = () => (rollSeed = (Math.imul(rollSeed, 1664525) + 1013904223) >>> 0);
 
-export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onAgain, onAccount, onBags, online }: Props) {
+export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onAgain, onAccount, onBags, online, endExtra, exitLabel }: Props) {
   const tray = useRef<DiceTrayHandle>(null);
   const [snap, setSnap] = useState<CfSnapshot | null>(null);
   const spectator = !!(controller as { spectator?: boolean }).spectator;
@@ -588,7 +591,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       {!overlayOpen && choiceMine && <ChoiceWindow v={v} legal={legal} pending={pending} onAct={act} focus={focus === 'choice'} tuto={guide?.text ?? null} />}
       {(snap.finished || v.phase === 'over') && !animating && <EndScreen snap={snap} v={v} me={me} onExit={close} onAgain={onAgain} onAccount={onAccount} onBags={onBags}
         bot={controller.kind === 'bot'} guest={!pa.isAccount} ranked={controller.ranked} spectator={spectator} rewarded={(controller as { rewarded?: boolean }).rewarded ?? controller.kind === 'online'}
-        againLabel={isTuto ? tr('cf.game.contre_l_ordinateur') : undefined}
+        againLabel={isTuto ? tr('cf.game.contre_l_ordinateur') : undefined} extra={endExtra?.(snap)} exitLabel={exitLabel}
         onShare={spectator || isTuto || !moments.current.best() ? undefined : () => { const m = moments.current.best(); if (m) void share(m); }} sharing={sharing} />}
 
       {fiche && <Fiche key={`${fiche.uid ?? fiche.id}`} t={fiche} v={v} legal={legal} snapLegal={snap.legal} pending={pending} discard={discardMode} onAct={act} onClose={() => setFiche(null)}

@@ -9,6 +9,8 @@ import type { CfDivision, CfLeagueBoard, CfOpenedCard, CfState } from '../../../
 import type { BotMatchSetup } from '../../../shared/cards/botmatch';
 import type { CfAction } from '../../../shared/cards/engine';
 import type { CfLevel } from '../../../shared/cards/ai';
+import type { CcfResult } from '../../../shared/campaigns/cf';
+import type { Profile } from '../../../shared/progress/profile';
 import type { CfFriendPresence, CfChallengeMsg, CfGameReward } from '../../../shared/cards/protocol';
 
 export type { CfState, CfOpenedCard, CfLeagueBoard, CfDivision };
@@ -71,11 +73,11 @@ export const cfAutoDeck = (token: Tok, name?: string) => api<WithState<{ id: str
 export type { CfFriendPresence, CfGameReward };
 
 /** Nouvelle partie : graine et decks (le deck actif, ou `deckId`). Le résultat sert tel quel de `BotMatchSetup`. */
-export const cfBotStart = (token: Tok, level: CfLevel, deckId?: string, opponents = 1) =>
-  api<{ ok: true; gameId: string } & BotMatchSetup>('/cf/bot/start', { token, body: { level, opponents, ...(deckId ? { deckId } : {}) } });
+export const cfBotStart = (token: Tok, level: CfLevel, deckId?: string, opponents = 1, campaign?: string) =>
+  api<{ ok: true; gameId: string } & BotMatchSetup>('/cf/bot/start', { token, body: { level, opponents, ...(deckId ? { deckId } : {}), ...(campaign ? { campaign } : {}) } });
 /** Fin de partie : le serveur rejoue `actions` (= match.mine) ; une seule fois par partie. */
 export const cfBotEnd = (token: Tok, gameId: string, actions: CfAction[]) =>
-  api<WithState<{ won: boolean; reward: CfGameReward | null }>>('/cf/bot/end', { token, body: { gameId, actions } });
+  api<WithState<{ won: boolean; reward: CfGameReward | null; campaign?: CcfResult | null; profile?: Profile }>>('/cf/bot/end', { token, body: { gameId, actions } });
 /** Partie abandonnée : rien n'est gagné. */
 export const cfBotAbandon = (token: Tok, gameId: string) => api<{ ok: true }>('/cf/bot/abandon', { token, body: { gameId } });
 

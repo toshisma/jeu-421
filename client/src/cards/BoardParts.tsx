@@ -876,7 +876,7 @@ export function ChoiceWindow({ v, legal, pending, onAct, focus, tuto }: { v: CfV
   return null;
 }
 
-export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, onBags, bot, guest, rewarded, ranked, spectator, onShare, sharing, againLabel }: { againLabel?: string; onBags?: () => void; snap: CfSnapshot; v: CfView; me: string; onExit: () => void; onAgain?: () => void; onAccount: () => void; bot: boolean; guest: boolean; rewarded: boolean; ranked: boolean; spectator: boolean; onShare?: () => void; sharing?: boolean }) {
+export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, onBags, bot, guest, rewarded, ranked, spectator, onShare, sharing, againLabel, extra, exitLabel }: { againLabel?: string; extra?: React.ReactNode; exitLabel?: string; onBags?: () => void; snap: CfSnapshot; v: CfView; me: string; onExit: () => void; onAgain?: () => void; onAccount: () => void; bot: boolean; guest: boolean; rewarded: boolean; ranked: boolean; spectator: boolean; onShare?: () => void; sharing?: boolean }) {
   const standings = snap.finished?.standings ?? v.ranking;
   const won = standings[0] === me;
   // Fin à la dernière manche : le premier n’est pas forcément déchargé.
@@ -898,10 +898,11 @@ export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, onBags, bot
         <span className="cf-end-rays" aria-hidden />
         {spectator ? <h2>{nameIn(v, standings[0])}{tr('cf.boardparts.gagne')}</h2> : <h2>{won ? tr('cf.boardparts.victoire_2') : standings.length > 2 && standings.indexOf(me) > 0 ? tr('cf.boardparts.e_place', { a: standings.indexOf(me) + 1 }) : tr('cf.boardparts.defaite')}</h2>}
         {abandon && <p>{abandon}</p>}
-        <p>{abandon ? '' : unloaded ? (won ? tr('cf.boardparts.plus_un_seul_jeton_le_comptoir') : tr('cf.boardparts.s_est_decharge_le_premier', { a: nameIn(v, standings[0]) })) : (won ? tr('cf.boardparts.le_bistrot_ferme_vous_avez_le') : tr('cf.boardparts.le_bistrot_ferme_a_le_moins', { a: nameIn(v, standings[0]) }))} {v.round}{tr('cf.boardparts.manche')}{v.round > 1 ? 's' : ''}.</p>
+        <p>{abandon ? '' : unloaded ? (won ? tr('cf.boardparts.plus_un_seul_jeton_le_comptoir') : tr('cf.boardparts.s_est_decharge_le_premier', { a: nameIn(v, standings[0]) })) : (won ? tr('cf.boardparts.le_bistrot_ferme_vous_avez_le') : tr('cf.boardparts.le_bistrot_ferme_a_le_moins', { a: nameIn(v, standings[0]) }))} {plural(v.round, 'manche')}.</p>
         <ol className="cf-standings">
           {standings.map((id, i) => <li key={id} className={id === me ? 'me' : ''}><span>{i + 1}</span><b>{nameIn(v, id)}</b><small>{plural(v.players.find((p) => p.id === id)?.tokens ?? 0, 'jeton')}</small></li>)}
         </ol>
+        {extra}
         <div className="cf-gains">
           {capsules !== null && capsules > 0 && <span className="cf-gain"><b>+{capsules}</b><CapsuleIcon size={22} /> <small>{tr('cf.boardparts.capsule')}{capsules > 1 ? 's' : ''}</small></span>}
           {coins !== null && coins > 0 && <span className="cf-gain coins"><b>+{coins}</b><CoinArt size={22} /> <small>{tr('cf.boardparts.piece')}{coins > 1 ? 's' : ''}</small></span>}
@@ -912,12 +913,12 @@ export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, onBags, bot
           {note && <small className="cf-gain-note">{note}</small>}
           {error && <small className="cf-gain-note">{error}</small>}
           {!reward && rewarded && !spectator && <small className="cf-gain-note">{tr('cf.boardparts.calcul_des_gains')}</small>}
-          {!reward && !rewarded && bot && <small className="cf-gain-note">{guest ? tr('cf.boardparts.partie_d_essai_aucun_gain') : tr('cf.boardparts.partie_d_entrainement_pas_de_capsule')}</small>}
+          {!reward && !rewarded && bot && !extra && <small className="cf-gain-note">{guest ? tr('cf.boardparts.partie_d_essai_aucun_gain') : tr('cf.boardparts.partie_d_entrainement_pas_de_capsule')}</small>}
         </div>
         {guest && bot && <button className="cf-link" onClick={onAccount}>{tr('cf.boardparts.creer_un_compte_gratuit_pour_gagner')}</button>}
         {onShare && <button className="cf-btn violet" disabled={sharing} onClick={onShare}><Icon name="share" size={18} />{tr('cf.boardparts.partager_mon_plus_beau_coup')}</button>}
         <div className="cf-modal-btns">
-          <button className="cf-btn ghost" onClick={onExit}>{tr('cf.boardparts.menu_du_mode')}</button>
+          <button className="cf-btn ghost" onClick={onExit}>{exitLabel ?? tr('cf.boardparts.menu_du_mode')}</button>
           {onAgain && <button className="cf-btn gold" onClick={onAgain}>{againLabel ?? tr('cf.boardparts.rejouer')}</button>}
         </div>
       </div>

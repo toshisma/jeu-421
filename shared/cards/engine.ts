@@ -233,7 +233,7 @@ export interface CfEvent {
   throwIndex?: number;
   /** Données de rejeu : quels dés ont été (re)lancés. */
   rolled?: number[];
-  /** Joueur visé (pose d'un piège à 3-4 joueurs). */
+  /** Joueur visé (pose d'un piège à 3-4 joueurs ; piège déclenché : sa victime ; comptes : le perdant de la manche). */
   target?: string;
 }
 
@@ -392,7 +392,7 @@ function triggerTrap(c: Ctx, t: PosedTrap): boolean {
     emit(c, { kind: 'videur', player: victim.id, card: t.id, who: victim.id, text: `Le Videur de ${victim.name} met dehors le piège ${cardName(t.id)} de ${owner.name}.`, textYou: `Votre Videur met dehors le piège ${cardName(t.id)} de ${owner.name}.` });
     return false;
   }
-  emit(c, { kind: 'piege-revele', player: owner.id, card: t.id, text: `${owner.name} révèle un piège : ${cardName(t.id)} !`, who: owner.id, textYou: `Votre piège se déclenche : ${cardName(t.id)} !` });
+  emit(c, { kind: 'piege-revele', player: owner.id, target: victim.id, card: t.id, text: `${owner.name} révèle un piège : ${cardName(t.id)} !`, who: owner.id, textYou: `Votre piège se déclenche : ${cardName(t.id)} !` });
   complice(c, owner);
   return true;
 }
@@ -711,7 +711,7 @@ function settle(c: Ctx) {
       : efface ? `${W.name} gagne la manche avec ${ev[best].combo.label}, mais ${L.name} efface tout : il ne reçoit qu’un jeton.`
       : `${W.name} gagne la manche avec ${ev[best].combo.label} et donne ${plural(given, 'jeton')} à ${L.name}${extra}.${sante > 0 ? ` À votre santé ! ${W.name} reçoit aussi ${plural(sante, 'jeton')}.` : ''}`;
     summary = { round: s.round, winner: W.id, loser: L.id, amount: given, reversed, combos, text, detail, ...(given < amount ? { cappedFrom: amount } : {}) };
-    emit(c, { kind: 'comptes', player: W.id, text });
+    emit(c, { kind: 'comptes', player: W.id, target: L.id, text });
     // Le Lot de consolation (0.46) : piège sur le gagnant, son poseur gagne 1 Tournée et pioche 1 carte.
     for (const t of trapsOn(s, W.id, 'lot-consolation')) {
       if (triggerTrap(c, t)) {
