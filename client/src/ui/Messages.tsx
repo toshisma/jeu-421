@@ -10,6 +10,7 @@ import { onPm, setUnread, useUnread, type PmMessage } from '../messages';
 import { BigAction, Empty, Initial, Section, Shell } from './kit';
 import { Icon } from './Icon';
 import { ReportDialog, ReportMsgButton, type ReportTarget } from './Report';
+import { PmReportDialog } from './PmReport';
 const hhmm = (m: string, h: string, mi: string) => (getLang() === 'fr' ? `${h} h ${mi}` : m);
 
 const PM_MAX = 500;
@@ -115,13 +116,15 @@ function Thread({ pa, username, onBack }: { pa: ProfileApi; username: string; on
   const [err, setErr] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [report, setReport] = useState<ReportTarget | null>(null);
+  const [convReport, setConvReport] = useState(false);
+  const [modClosed, setModClosed] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const vh = useViewportHeight();
   const key = username.toLowerCase();
 
-  const load = () => api<{ messages: PmMessage[]; friend: boolean }>(`/messages/${encodeURIComponent(username)}`, { token: pa.token! })
-    .then((r) => { setMsgs(r.messages); setFriend(r.friend); setErr(null); })
+  const load = () => api<{ messages: PmMessage[]; friend: boolean; modClosed?: boolean }>(`/messages/${encodeURIComponent(username)}`, { token: pa.token! })
+    .then((r) => { setMsgs(r.messages); setFriend(r.friend); setModClosed(!!r.modClosed); setErr(null); })
     .catch((e) => setErr((e as Error).message));
   useEffect(() => {
     void load();
@@ -161,6 +164,7 @@ function Thread({ pa, username, onBack }: { pa: ProfileApi; username: string; on
         <button className="icon-btn" onClick={onBack} aria-label={tr('app.retour')}><Icon name="back" /></button>
         <Initial name={username} />
         <h2>{username}</h2>
+        {msgs && msgs.length > 0 && <button className="pmr-btn" onClick={() => setConvReport(true)} aria-label={tr('mpm.reportAria', { username })}><Icon name="flag" size={16} /><span>{tr('mpm.reportBtn')}</span></button>}
       </header>
       <div className="pm-scroll" ref={box} aria-live="polite">
         {!msgs && !err && <p className="muted center">{tr('app.chargement')}</p>}
@@ -183,6 +187,7 @@ function Thread({ pa, username, onBack }: { pa: ProfileApi; username: string; on
         })}
       </div>
       {err && <p className="error small pm-err">{err}</p>}
+      {friend && <p className="pm-notice">{tr('mpm.notice')}</p>}
       {friend ? (
         <form className="pm-input" onSubmit={(e) => { e.preventDefault(); void send(); }}>
           <textarea ref={input} value={text} rows={1} maxLength={PM_MAX} placeholder={tr('app.message_a', { username })} aria-label={tr('app.message_a', { username })}
@@ -191,8 +196,9 @@ function Thread({ pa, username, onBack }: { pa: ProfileApi; username: string; on
           <button className="btn primary pm-send" disabled={!text.trim() || sending} aria-label={tr('app.envoyer')}><Icon name="send" size={20} /></button>
           {text.length > PM_MAX - 100 && <small className="pm-left">{PM_MAX - text.length}</small>}
         </form>
-      ) : <p className="muted small pm-closed">{tr('app.vous_n_etes_plus_amis_avec_vous', { username })}</p>}
+      ) : <p className="muted small pm-closed">{modClosed ? tr('mpm.closed') : tr('app.vous_n_etes_plus_amis_avec_vous', { username })}</p>}
       {report && <ReportDialog pa={pa} target={report} onClose={() => setReport(null)} />}
+      {convReport && <PmReportDialog pa={pa} username={username} onClose={() => setConvReport(false)} onBlocked={() => { setConvReport(false); onBack(); }} />}
     </div>
   );
 }

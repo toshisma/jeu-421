@@ -1,3 +1,4 @@
+import { mpmodDe } from './zones/mpmod.de';
 import { serieDe } from './zones/serie.de';
 import { pokerDe } from './zones/poker.de';
 import { rejeuDe } from './zones/rejeu.de';
@@ -14,6 +15,7 @@ import { tdcDe } from './zones/comptoirs.de';
 
 /** Textes allemands (« du », ton direct). Une clé absente s'affiche en français. */
 export const de: Partial<Record<MessageKey, string>> = {
+  ...mpmodDe,
   ...serieDe,
   ...communDe,
   ...clubsDe,

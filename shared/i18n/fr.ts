@@ -1,3 +1,4 @@
+import { mpmodFr } from './zones/mpmod.fr';
 import { serieFr } from './zones/serie.fr';
 import { pokerFr } from './zones/poker.fr';
 import { rejeuFr } from "./zones/rejeu.fr";
@@ -15,6 +16,7 @@ import { fetesFr } from "./zones/fetes.fr";
 import { tdcFr } from "./zones/comptoirs.fr";
 
 export const fr = {
+  ...mpmodFr,
   ...serieFr,
   ...communFr,
   ...clubsFr,

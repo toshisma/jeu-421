@@ -50,9 +50,17 @@ export function LegalScreen({ onBack }: { onBack: () => void }) {
 
         <h3>{tr('app.duree_de_conservation')}</h3>
         <p>{tr('app.jusqu_a_la_suppression_de_votre_comp')}</p>
+        <p>{tr('mpm.legal.duree')}</p>
 
         <h3>{tr('app.qui_y_a_acces')}</h3>
         <p>{tr('app.l_editeur_et_l_hebergeur_du_serveur', { host: trServer(LEGAL.host) })}</p>
+
+        <h3 id="messages-prives">{tr('mpm.legal.title')}</h3>
+        <p>{tr('mpm.legal.p1')}</p>
+        <p>{tr('mpm.legal.p2')}</p>
+        <p>{tr('mpm.legal.p3')}</p>
+        <p>{tr('mpm.legal.p4')}</p>
+        <p>{tr('mpm.legal.p5')}</p>
 
         <h3>{tr('app.vos_droits')}</h3>
         <p>{withContact(tr('app.vous_pouvez_acceder_a_vos_donnees_le'))}<b>{tr('app.autorite_de_protection_des_donnees')}</b> {tr('app.autoriteprotectiondonnees_be')}</p>

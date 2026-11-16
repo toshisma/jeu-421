@@ -10,6 +10,7 @@ import { askConfirm } from './confirm';
 import { Shell } from './Screens';
 import { ModerationPanel, useModeration } from './Moderation';
 import { LiveTab } from './AdminLive';
+import { AdminPmPanel } from './AdminPm';
 
 /** Statistiques des cartes de Coups Fourrés : chargées à la demande (illustrations des cartes). */
 const CfAdminStats = lazyScreen(() => import('../cards/CfAdminStats'), 'CfAdminStats');
@@ -20,9 +21,9 @@ const dayShort = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('f
 const dayLong = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 const dateTime = (t: number | null) => (t ? new Date(t).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–');
 
-type Tab = 'enligne' | 'apercu' | 'signalements' | 'personnes' | 'joueurs' | 'visiteurs' | 'retention' | 'activite' | 'economie' | 'cf' | 'journal';
+type Tab = 'enligne' | 'apercu' | 'signalements' | 'mp' | 'personnes' | 'joueurs' | 'visiteurs' | 'retention' | 'activite' | 'economie' | 'cf' | 'journal';
 const TABS: [Tab, string][] = [
-  ['enligne', 'En ligne'], ['apercu', 'Vue d’ensemble'], ['signalements', 'Signalements'], ['personnes', 'Personnes'], ['joueurs', 'Joueurs'], ['visiteurs', 'Visiteurs'], ['retention', 'Rétention'],
+  ['enligne', 'En ligne'], ['apercu', 'Vue d’ensemble'], ['signalements', 'Signalements'], ['mp', 'Messages privés'], ['personnes', 'Personnes'], ['joueurs', 'Joueurs'], ['visiteurs', 'Visiteurs'], ['retention', 'Rétention'],
   ['activite', 'Activité'], ['economie', 'Économie'], ['cf', 'Coups Fourrés'], ['journal', 'Journal admin'],
 ];
 
@@ -728,6 +729,7 @@ export function AdminDashboard({ pa, onBack }: { pa: ProfileApi; onBack: () => v
             onOpenVisitor={(label) => { setPeopleSearch((p) => ({ q: label.replace(/^Visiteur /, ''), n: p.n + 1 })); setTab('personnes'); }} />}
           {tab === 'apercu' && <OverviewTab o={o} live={live} onLive={() => setTab('enligne')} />}
           {tab === 'signalements' && <ModerationPanel token={token} admin onPending={setPending} />}
+          {tab === 'mp' && <AdminPmPanel token={token} admin />}
           {tab === 'personnes' && <PeopleTab key={peopleSearch.n} initialSearch={peopleSearch.q} token={token} onOpen={(id) => { setOpenPlayer(id); setTab('joueurs'); }} />}
           {tab === 'joueurs' && <PlayersTab token={token} open={openPlayer} onActivity={(u) => { setActivityUser(u); setTab('activite'); }} onChanged={reload} />}
           {tab === 'visiteurs' && <VisitorsTab token={token} />}

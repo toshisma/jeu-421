@@ -46,10 +46,14 @@ export function createMessages(c: Ctx) {
   const sockets = new Map<string, Set<string>>();
   let ns: Namespace | null = null;
   const sent = new Map<string, number[]>();
+  /** Sécurité (server/pm-mod.ts, branchée par app.ts) : échange fermé par l'équipe, repérage à l'envoi. */
+  let safety: { pairBlocked: (a: string, b: string) => boolean; afterSend: (m: PmRow) => unknown } | null = null;
+  const setSafety = (s: typeof safety) => { safety = s; };
+  const modClosed = (a: string, b: string) => !!safety?.pairBlocked(a, b);
 
   const isOpen = (userId: string) => (sockets.get(userId)?.size ?? 0) > 0;
   const emitTo = (userId: string, ev: string, data: unknown) => { for (const id of sockets.get(userId) ?? []) ns?.sockets.get(id)?.emit(ev, data); };
-  const canTalk = (a: string, b: string) => store.isFriend(a, b) && store.isFriend(b, a) && !store.isBlocked(a, b);
+  const canTalk = (a: string, b: string) => store.isFriend(a, b) && store.isFriend(b, a) && !store.isBlocked(a, b) && !modClosed(a, b);
   const view = (m: PmRow, meId: string, names: Record<string, string>) => ({
     id: m.id, from: names[m.from_id] ?? 'Joueur supprimé', text: m.text, at: m.created_at, mine: m.from_id === meId, read: m.read_at !== null,
   });
@@ -87,7 +91,7 @@ export function createMessages(c: Ctx) {
     const names = { [me.id]: me.username, [f.id]: f.username };
     const marked = store.pmMarkRead(me.id, f.id, c.now());
     if (marked) { emitTo(f.id, 'pm:read', { by: me.username }); emitTo(me.id, 'pm:unread', { unread: store.pmUnread(me.id) }); }
-    res.json({ ok: true, username: f.username, friend: canTalk(me.id, f.id), messages: rows.map((m) => view(m, me.id, names)), more: rows.length === 50 });
+    res.json({ ok: true, username: f.username, friend: canTalk(me.id, f.id), modClosed: modClosed(me.id, f.id), messages: rows.map((m) => view(m, me.id, names)), more: rows.length === 50 });
   });
 
   router.post('/messages/:username/read', auth, (req, res) => {
@@ -99,6 +103,7 @@ export function createMessages(c: Ctx) {
   router.post('/messages/:username', auth, (req, res) => {
     const me = userOf(req), f = other(req);
     if (!f || f.id === me.id) return fail(res, 404, 'Aucun joueur avec ce pseudo.');
+    if (modClosed(me.id, f.id)) return fail(res, 403, 'La modération a fermé cette conversation.');
     if (!canTalk(me.id, f.id)) return fail(res, 403, 'Vous ne pouvez écrire qu’à vos amis.');
     const mute = store.modMuteOf(me.id, c.now());
     if (mute) return fail(res, 403, muteText(mute));
@@ -108,6 +113,7 @@ export function createMessages(c: Ctx) {
     const slow = throttle(me.id);
     if (slow) return fail(res, 429, slow);
     const m = store.pmAdd(me.id, f.id, text, c.now());
+    safety?.afterSend(m); // repérage discret : ne bloque jamais le message
     const names = { [me.id]: me.username, [f.id]: f.username };
     // Destinataire : en direct si le jeu est ouvert, sinon notification push.
     emitTo(f.id, 'pm:message', { with: me.username, message: view(m, f.id, names), unread: store.pmUnread(f.id) });
@@ -136,5 +142,5 @@ export function createMessages(c: Ctx) {
     });
   }
 
-  return { attach, isOpen, cleanMessage };
+  return { attach, isOpen, cleanMessage, setSafety };
 }

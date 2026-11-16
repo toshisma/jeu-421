@@ -12,7 +12,7 @@ export const LEGAL = {
   postalAddress: 'rue Victor Croisier 32, 4000 Liège, Belgique',
   /** Hébergeur du serveur de jeu. */
   host: 'Render Services, Inc. (render.com), serveurs situés à Francfort (Allemagne)',
-  updated: '2 novembre 2026',
+  updated: '16 novembre 2026',
 };
 
 /** Lien « Signaler un problème » : un e-mail prérempli avec les informations utiles. */

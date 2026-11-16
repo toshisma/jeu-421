@@ -2,6 +2,7 @@
  * Modération : raisons de signalement, décisions possibles et textes communs au client et au serveur.
  * Le serveur fait foi : il vérifie chaque raison, chaque durée et retrouve lui-même les messages signalés.
  */
+import { PM_REPORT_REASONS } from './pm-safety';
 
 export const REPORT_REASONS = [
   { id: 'insultes', label: 'Insultes ou harcèlement' },
@@ -13,7 +14,7 @@ export const REPORT_REASONS = [
   { id: 'autre', label: 'Autre' },
 ] as const;
 export type ReportReason = (typeof REPORT_REASONS)[number]['id'];
-export const reasonLabel = (id: string) => REPORT_REASONS.find((r) => r.id === id)?.label ?? 'Autre';
+export const reasonLabel = (id: string) => REPORT_REASONS.find((r) => r.id === id)?.label ?? PM_REPORT_REASONS.find((r) => r.id === id)?.label ?? 'Autre';
 export const isReportReason = (v: unknown): v is ReportReason => REPORT_REASONS.some((r) => r.id === v);
 
 /** Commentaire facultatif du joueur qui signale. */

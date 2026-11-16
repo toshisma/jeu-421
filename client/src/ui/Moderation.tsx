@@ -9,6 +9,7 @@ import type { ProfileApi } from '../account/useProfile';
 import { DECISIONS, DURATIONS, type Decision } from '../../../shared/moderation';
 import { askConfirm } from './confirm';
 import { Shell } from './kit';
+import { AdminPmPanel } from './AdminPm';
 
 const when = (t: number | null | undefined) => (t ? new Date(t).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–');
 const hour = (t: number) => new Date(t).toLocaleTimeString('fr-BE', { timeZone: 'Europe/Brussels', hour: '2-digit', minute: '2-digit' }).replace(/(\d{1,2}):(\d{2})/, '$1 h $2');
@@ -280,7 +281,10 @@ export function ModerationScreen({ pa, onBack }: { pa: ProfileApi; onBack: () =>
   return (
     <Shell title="Modération" onBack={onBack} wide icon="flag" sub={pending != null ? (pending ? `${pending} signalement${pending > 1 ? 's' : ''} à traiter` : 'Rien à traiter') : undefined}>
       {!me ? <p className="muted">Chargement…</p> : !(me.admin || me.moderator) ? <p className="error">Accès réservé à l’équipe de modération.</p>
-        : <ModerationPanel token={pa.token} admin={me.admin} onPending={setPending} />}
+        : <>
+          <ModerationPanel token={pa.token} admin={me.admin} onPending={setPending} />
+          <section className="adm-card"><h3>Messages privés à vérifier</h3><AdminPmPanel token={pa.token} admin={me.admin} /></section>
+        </>}
     </Shell>
   );
 }

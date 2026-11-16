@@ -24,6 +24,7 @@ import { createAccounts, type AccountsOptions } from './accounts';
 import { createStats, type StatsOptions } from './stats';
 import { createAdmin } from './admin';
 import { createModeration, type TableChatEntry } from './moderation';
+import { createPmMod } from './pm-mod';
 import { createBistrots } from './bistrots';
 import { muteText } from '../shared/moderation';
 import { today } from '../shared/progress/quests';
@@ -331,6 +332,19 @@ export async function startServer(opts: ServerOptions) {
     },
   });
   app.use('/api', moderation.router);
+  // Messages privés : signalement de conversation, alertes discrètes, lecture tracée par l'équipe, purge à 12 mois.
+  const notifyAdmins = (title: string, body: string) => {
+    for (const name of (process.env.ADMIN_USERS ?? '').split(',').map((x) => x.trim()).filter(Boolean)) {
+      const u = store.userByName(name);
+      if (u) void accounts.social.push(u.id, title, body, '/');
+    }
+  };
+  const pmMod = createPmMod({
+    store, isAdmin: stats.isAdmin, userFromToken: accounts.userFromToken, now: opts.admin?.now ?? Date.now,
+    ban: admin.ban, banOf: admin.banOf, log: admin.log, notifyAdmins, purgeEveryMs: process.env.VITEST ? 0 : undefined,
+  });
+  accounts.messages.setSafety(pmMod);
+  app.use('/api', pmMod.router);
   // Bistrots entre amis : classement de la semaine nourri par les parties arbitrées ici (voir server/bistrots.ts).
   const bistrots = createBistrots({
     store, userFromToken: accounts.userFromToken, isStaff: moderation.isStaff, log: admin.log, now: opts.accounts?.now,
@@ -2055,7 +2069,9 @@ export async function startServer(opts: ServerOptions) {
     cfTour,
     cfStats,
     bistrots,
+    pmMod,
     close: () => new Promise<void>((resolve) => {
+      pmMod.close();
       accounts.social.close();
       bistrots.close();
       cfTour.close();

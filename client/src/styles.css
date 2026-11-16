@@ -5016,3 +5016,27 @@ button.mode-chip { cursor: pointer; }
 .cf-table-list li.cf-table-p { position: relative; }
 .pk-seat-av .rep-on-av { left: -12px; top: -3px; bottom: auto; }
 .dm-seat > .rep-corner { top: -9px; }
+
+/* --- Messages privés : sécurité (zone mpmod) --- */
+.pm-head .pmr-btn { margin-left: auto; flex: none; display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 10px; border: 1px solid rgba(255,255,255,0.14); border-radius: 999px; background: transparent; color: var(--texte-2); font: 600 13px var(--font); cursor: pointer; }
+.pm-notice { flex: none; margin: 0; padding: 4px 16px 2px; color: var(--texte-3); font-size: 11.5px; line-height: 1.3; text-align: center; }
+.pmr-block { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.35; cursor: pointer; }
+.pmr-block input { flex: none; width: 20px; height: 20px; margin: 0; }
+.pmr-help { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; padding: 10px 12px; border-radius: 12px; background: rgba(0,0,0,0.25); font-size: 12.5px; line-height: 1.35; color: var(--texte-2); }
+.pmr-help b { color: var(--blanc); font-size: 13px; }
+.pmr-help a { color: var(--xp); }
+.apm { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.apm-queue { display: grid; gap: 12px; }
+.apm-motive input { width: 100%; min-height: 44px; margin: 10px 0; padding: 0 12px; border: 0; border-radius: 8px; background: var(--ardoise-2); color: var(--blanc); }
+.apm-flags { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.apm-thread { list-style: none; margin: 10px 0; padding: 0; display: grid; gap: 6px; }
+.apm-thread li { max-width: 80%; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,0.05); min-width: 0; overflow-wrap: anywhere; }
+.apm-thread li.b { justify-self: end; background: rgba(224,177,85,0.10); }
+.apm-thread li.hit { outline: 1px solid rgba(220,120,90,0.6); }
+.apm-thread li.removed p { text-decoration: line-through; opacity: 0.6; }
+.apm-thread p { margin: 4px 0; white-space: pre-wrap; }
+.apm-meta small, .apm-gone { color: var(--texte-3); }
+.apm-thread .btn { min-height: 28px; padding: 0 8px; font-size: 12px; }
+.apm-susp { margin-top: 10px; }
+.apm-susp select, .apm-susp input { flex: 1 1 140px; min-width: 0; min-height: 40px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--ardoise-2); color: var(--blanc); }
+.apm-who { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }

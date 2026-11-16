@@ -1,3 +1,4 @@
+import { mpmodEn } from './zones/mpmod.en';
 import { serieEn } from './zones/serie.en';
 import { pokerEn } from './zones/poker.en';
 import { rejeuEn } from './zones/rejeu.en';
@@ -14,6 +15,7 @@ import { tdcEn } from './zones/comptoirs.en';
 
 /** Textes anglais. Ton : direct et simple ; vocabulaire de Farkle (farkle, bank, hot dice). */
 export const en: Partial<Record<MessageKey, string>> = {
+  ...mpmodEn,
   ...serieEn,
   ...communEn,
   ...clubsEn,
