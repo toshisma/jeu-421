@@ -13,7 +13,7 @@ import { Cat, catsOf, claimOptions, evaluate, isTop, nextHigher, rankOf, canon, 
 import { canBelieve, lastClaim, type PmAction, type PmEvent, type PmState } from '../../../shared/pokermenteur/engine';
 import { PM_FACE_INK } from '../../../shared/pokermenteur/look';
 import type { PmPersona } from '../../../shared/pokermenteur/personas';
-import { PmScene } from './PmScene';
+import { PmScene, type PmLook } from './PmScene';
 import { catName, faceLetter, faceLetters, handFull, handName } from './labels';
 import { Avatar } from '../ui/Avatar';
 import { RepBadge } from '../ui/RepBadge';
@@ -165,6 +165,8 @@ function useCountdown(deadline: number | null | undefined) {
 
 export interface BoardProps {
   anim: ReturnType<typeof usePmAnimator>;
+  /** Ambiance 3D de la table (campagne « Les Arrière-salles »). */
+  look?: PmLook;
   seats: Seat[];
   meId: string | null;
   /** Je peux jouer (pas spectateur, connexion ok). */
@@ -182,7 +184,7 @@ export interface BoardProps {
   onRules: () => void;
 }
 
-export function PmBoard({ anim, seats, meId, canAct, onAct, onLeave, settings, deadline, end, banner, extra, overlay, onRules }: BoardProps) {
+export function PmBoard({ look, anim, seats, meId, canAct, onAct, onLeave, settings, deadline, end, banner, extra, overlay, onRules }: BoardProps) {
   useLang();
   const s = anim.shown;
   const ns = s.options.noStraights;
@@ -204,7 +206,7 @@ export function PmBoard({ anim, seats, meId, canAct, onAct, onLeave, settings, d
   useEffect(() => {
     if (!host.current) return;
     let sc: PmScene | null = null;
-    try { sc = new PmScene(host.current, faceLetters(), { reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches, quality: settings.quality === 'haute' ? 'haute' : 'normale' }); }
+    try { sc = new PmScene(host.current, faceLetters(), { reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches, quality: settings.quality === 'haute' ? 'haute' : 'normale', look }); }
     catch { sc = null; }
     anim.attach(sc);
     return () => { anim.attach(null); sc?.dispose(); };

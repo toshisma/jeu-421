@@ -15,6 +15,7 @@ import { fetesNl } from './zones/fetes.nl';
 import { tdcNl } from './zones/comptoirs.nl';
 import { chmNl } from './zones/camphome.nl';
 import { cdmNl } from './zones/campdm.nl'; // campagne du Courtisan
+import { cpmNl } from './zones/camppm.nl'; // campagne du Poker menteur
 
 /** Textes néerlandais (« je », ton direct). Une clé absente s'affiche en français. */
 export const nl: Partial<Record<MessageKey, string>> = {
@@ -76,4 +77,5 @@ export const nl: Partial<Record<MessageKey, string>> = {
   ...tdcNl,
   ...chmNl,
   ...cdmNl,
+  ...cpmNl,
 };

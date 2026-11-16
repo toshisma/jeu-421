@@ -3,7 +3,7 @@
  * répliques sont dans la zone de textes `poker` : `pm.p.<id>.menteur` (il crie), `.gagne` (il a eu
  * raison), `.perd` (il perd une vie), `.tag` (présentation).
  */
-export interface PmPersona { id: string; name: string; avatar: string; color: string; /** Temps de réflexion moyen (ms). */ tempo: number }
+export interface PmPersona { id: string; name: string; avatar: string; color: string; /** Temps de réflexion moyen (ms). */ tempo: number; /** Préfixe des répliques (défaut `pm.p.<id>` ; campagne : `cpm.c.<id>`). */ lines?: string }
 export const PM_PERSONAS: PmPersona[] = [
   { id: 'gege', name: 'Gégé', avatar: '🧔', color: '#e2694f', tempo: 900 },
   { id: 'lulu', name: 'Mamie Lulu', avatar: '👵', color: '#a477d6', tempo: 1500 },

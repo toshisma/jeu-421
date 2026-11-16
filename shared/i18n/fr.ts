@@ -17,6 +17,7 @@ import { fetesFr } from "./zones/fetes.fr";
 import { tdcFr } from "./zones/comptoirs.fr";
 import { chmFr } from "./zones/camphome.fr";
 import { cdmFr } from './zones/campdm.fr'; // campagne du Courtisan
+import { cpmFr } from './zones/camppm.fr'; // campagne du Poker menteur
 
 export const fr = {
   ...mpmodFr,
@@ -31,6 +32,7 @@ export const fr = {
   ...tdcFr,
   ...chmFr,
   ...cdmFr,
+  ...cpmFr,
   ...pokerFr,
   "common.back": "Retour",
   "common.close": "Fermer",

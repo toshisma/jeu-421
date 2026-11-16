@@ -27,6 +27,7 @@ import { EMPTY_PM_STATS, cleanPmStats, type PmStats } from '../pokermenteur/stat
 import { applyFetesGame, cleanAdvent, cleanFete, feteTitle, type AdventState, type FeteState } from './fetes';
 import { capTdcImport, cleanTdc, tdcTitleFr } from './comptoirs';
 import { capCdmImport, cdmTitleFr, cleanCdm, isCdmTitle } from '../campaigns/dm'; // campagne du Courtisan
+import { capCpmImport, cleanCpm, cpmTitleFr } from '../campaigns/pm';
 import { capSerieImport, cleanSerie, serieRecord, type SerieReward, type SerieState } from './serie';
 
 export interface Profile {
@@ -87,6 +88,8 @@ export interface Profile {
   tdc?: Record<string, number>;
   /** La Route des Auberges (campagne du Courtisan) : étape → étoiles (masque, voir shared/campaigns/dm.ts). */
   campDm?: Record<string, number>;
+  /** Campagne du Poker menteur « Les Arrière-salles » : étape → étoiles (masque, shared/campaigns/pm.ts). */
+  cpm?: Record<string, number>;
   /** Série de jours joués (voir serie.ts). */
   serie?: SerieState;
 }
@@ -209,7 +212,7 @@ export function sanitizeProfile(raw: unknown): Profile {
   if (r.season && typeof r.season.id === 'string' && /^\d{4}-\d{2}$/.test(r.season.id)) {
     p.season = { id: r.season.id, points: num(r.season.points), claimed: Array.isArray(r.season.claimed) ? [...new Set(r.season.claimed.map(num).filter((n) => n >= 1 && n <= PASS_TIERS))] : [] };
   }
-  if (Array.isArray(r.titles)) p.titles = [...new Set(r.titles.filter((t): t is string => typeof t === 'string' && /^(pass|ligue|patron|album|serie|saison|fete|tdc):[\w-]{1,20}$/.test(t)))];
+  if (Array.isArray(r.titles)) p.titles = [...new Set(r.titles.filter((t): t is string => typeof t === 'string' && /^(pass|ligue|patron|album|serie|saison|fete|tdc|cpm):[\w-]{1,20}$/.test(t)))];
   if (Array.isArray(r.album)) p.album = [...new Set(r.album.filter((k): k is string => typeof k === 'string' && ALBUM_KEYS.includes(k)))];
   if (Array.isArray(r.titles)) { const cdm = r.titles.filter((t): t is string => typeof t === 'string' && isCdmTitle(t)); if (cdm.length) p.titles = [...new Set([...(p.titles ?? []), ...cdm])]; } // titres de la campagne du Courtisan
   if (Array.isArray(r.albumPages)) p.albumPages = [...new Set(r.albumPages.filter((k): k is string => typeof k === 'string' && ALBUM.some((a) => a.id === k)))];
@@ -258,6 +261,8 @@ export function sanitizeProfile(raw: unknown): Profile {
   if (tdc) p.tdc = tdc;
   const campDm = cleanCdm(r.campDm);
   if (campDm) p.campDm = campDm;
+  const cpm = cleanCpm(r.cpm);
+  if (cpm) p.cpm = cpm;
   const serie = cleanSerie(r.serie);
   if (serie) p.serie = serie;
   if (Array.isArray(r.showcase)) {
@@ -344,6 +349,9 @@ export function capGuestImport(p: Profile): Profile {
   // Route des Auberges (Courtisan) : seulement le premier chapitre (titre donné à la partie de campagne suivante).
   const campDm = capCdmImport(p.campDm);
   if (campDm) base.campDm = campDm;
+  // Campagne du Poker menteur : seulement le premier chapitre (titre donné à la partie suivante).
+  const cpm = capCpmImport(p.cpm);
+  if (cpm) base.cpm = cpm;
   // Série de jours joués : une semaine au plus, sans joker (serie.ts).
   const serie = capSerieImport(p.serie, today());
   if (serie) base.serie = serie;
@@ -856,6 +864,7 @@ export function titleLabel(id: string | undefined): string | null {
   if (id.startsWith('patron:')) return `Tombeur de ${BOSSES.find((b) => b.id === id.slice(7))?.name ?? 'patron'}`;
   if (id.startsWith('tdc:')) return tdcTitleFr(id.slice(4));
   if (id.startsWith('cdm:')) return cdmTitleFr(id.slice(4));
+  if (id.startsWith('cpm:')) return cpmTitleFr(id.slice(4));
   if (id === 'album:complet') return 'Collectionneur de combinaisons';
   if (id.startsWith('fete:')) return feteTitle(id);
   if (id.startsWith('pass:')) return `Champion ${ofMonth(id.slice(5))}`;

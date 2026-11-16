@@ -142,7 +142,8 @@ type Screen =
   | { name: 'moderation' }
   | { name: 'tdc'; via?: 'home' | 'campaigns' }
   | { name: 'campaigns' }
-  | { name: 'tdc-game'; controller: TdcController };
+  | { name: 'tdc-game'; controller: TdcController }
+  | { name: 'camp-pm' }; // campagne du Poker menteur « Les Arrière-salles » (menu du mode ouvert sur la carte)
 
 /**
  * Nettoie l'adresse (lien d'invitation, page de confidentialité) sans recharger la page.
@@ -359,7 +360,7 @@ export function App() {
   const [plus, setPlus] = useState<PlusSheet | null>(null);
   /** Le menu de jeu d'où l'on vient (retour des écrans communs ouverts par la barre). */
   const ctx: Back = 'from' in screen && screen.from && screen.from !== 'stats' ? screen.from
-    : screen.name === 'cf' ? 'cf' : screen.name === 'dixmille' ? 'dixmille' : screen.name === 'poker' ? 'poker'
+    : screen.name === 'cf' ? 'cf' : screen.name === 'dixmille' ? 'dixmille' : screen.name === 'poker' || screen.name === 'camp-pm' ? 'poker'
       : CLASSIC_SCREENS.has(screen.name) ? 'classic' : 'home';
   /** Changer d'écran par la barre : d'abord la règle de départ de l'écran affiché (partie en cours…). */
   const go = (f: () => void) => () => { void confirmLeave().then((ok) => { if (!ok) return; setPlus(null); refreshResume(); f(); }); };
@@ -537,6 +538,10 @@ export function App() {
       return <PokerMenteurMode key={`${JSON.stringify(screen.pending ?? null)}${screen.reset ?? ''}`} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} onHome={home}
         onAccount={() => setScreen({ name: 'account', back: 'poker' })} onCollection={(open) => setScreen({ name: 'collection', from: 'poker', open })}
         displayName={settings.name} avatar={settings.avatar} />;
+    case 'camp-pm':
+      return <PokerMenteurMode pending={{ camp: true }} pa={pa} settings={settings} onSettings={setSettings} onHome={home}
+        onAccount={() => setScreen({ name: 'account', back: 'poker' })} onCollection={(open) => setScreen({ name: 'collection', from: 'poker', open })}
+        displayName={settings.name} avatar={settings.avatar} />;
     case 'cf':
       return <CfMode key={`${JSON.stringify(screen.pending ?? null)}${screen.reset ?? ''}`} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
         onHome={home} onFriends={() => setScreen({ name: 'friends', from: 'cf' })} onBags={() => setScreen({ name: 'collection', from: 'cf', open: true })}
@@ -569,7 +574,7 @@ export function App() {
       return <LeaderboardScreen pa={pa} onBack={backTo(screen.from)} onAccount={() => setScreen({ name: 'account' })} />;
   } })();
   // Invitation d'un ami : bandeau partout, sauf quand on est déjà à une table en ligne.
-  const atTable = screen.name === 'online' || screen.name === 'tournament' || screen.name === 'watch' || screen.name === 'dixmille' || screen.name === 'poker';
+  const atTable = screen.name === 'online' || screen.name === 'tournament' || screen.name === 'watch' || screen.name === 'dixmille' || screen.name === 'poker' || screen.name === 'camp-pm';
   // Cadeau de bienvenue : seulement pour ce compte, hors partie et hors des écrans où l'on ouvre déjà ses cadeaux.
   const showGift = !STANDALONE && pa.isAccount && !!gift && gift.user === pa.session?.username && !inGame && !guestInvite
     && screen.name !== 'account' && screen.name !== 'legal' && screen.name !== 'collection' && !(screen.name === 'cf' && screen.pending?.boosters);

@@ -9,7 +9,10 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { act, currentPlayer, placeOf, ranking, viewFor, PM_LEVELS, type PmAction, type PmEvent, type PmLevel, type PmOptions, type PmState } from '../../../shared/pokermenteur/engine';
-import { encodePm, newGamePm, pmBotDecide, MAX_MOVES_PM, type SetupPm } from '../../../shared/rejeu/poker';
+import { encodePm, newGamePm, pmBotDecideFor, replayPm, MAX_MOVES_PM, type SetupPm } from '../../../shared/rejeu/poker';
+import type { CpmResult } from '../../../shared/campaigns/pm';
+import type { PmLook } from './PmScene';
+import { CpmMenuCard, PmCampaign } from '../campaigns/PmCampaign';
 import { PM_PERSONAS, type PmPersona } from '../../../shared/pokermenteur/personas';
 import { PM_TABLE_MAX, type PmPublicMember } from '../../../shared/pokermenteur/protocol';
 import { ACHIEVEMENTS } from '../../../shared/progress/achievements';
@@ -91,8 +94,8 @@ export function PmRules() {
 // ---------------------------------------------------------------------------------------------
 // Fin de partie
 
-function EndDialog({ s, seats, reward, buttons, waiting, bags = 0, quests = [], achievements = [], onBags, isAccount }: {
-  s: PmState; seats: Seat[]; reward: Reward | null | undefined; buttons: React.ReactNode; waiting?: string;
+function EndDialog({ s, seats, reward, buttons, waiting, bags = 0, quests = [], achievements = [], onBags, isAccount, extra }: {
+  s: PmState; seats: Seat[]; reward: Reward | null | undefined; buttons: React.ReactNode; waiting?: string; extra?: React.ReactNode;
   bags?: number; quests?: string[]; achievements?: string[]; onBags?: () => void; isAccount?: boolean;
 }) {
   useEffect(() => { if (bags > 0) sound.chips(3); }, [bags]);
@@ -102,6 +105,7 @@ function EndDialog({ s, seats, reward, buttons, waiting, bags = 0, quests = [], 
     <div className="dm-end-back">
       <div className={`dm-end pk-end${s.players.length > 4 ? ' many' : ''}`} role="dialog" aria-label={tr('pm.end')}>
         <h2>{me && s.winner === me.id ? tr('pm.won') : tr('pm.wins', { name: w?.name ?? '?' })}</h2>
+        {extra}
         <ol className="dm-rank">
           {ranking(s).map((p) => {
             const seat = seats.find((x) => x.id === p.id);
@@ -143,26 +147,36 @@ const achName = (id: string, fallback: string, game?: string) => (game === 'poke
 // ---------------------------------------------------------------------------------------------
 // Contre l'ordinateur (sur l'appareil)
 
-function personaLine(p: PmPersona | undefined, kind: 'menteur' | 'gagne' | 'perd') { return p ? tr(K(`pm.p.${p.id}.${kind}`)) : ''; }
+function personaLine(p: PmPersona | undefined, kind: 'menteur' | 'gagne' | 'perd') { return p ? tr(K(`${p.lines ?? `pm.p.${p.id}`}.${kind}`)) : ''; }
 
 type PmSoloProps = {
   setup: PmSetup; opponents: PmPersona[]; pa: ProfileApi; settings: Settings;
   me: { name: string; avatar: string; photo: string | null }; onExit: () => void; onReplay: () => void; onBags?: () => void;
+  /** Campagne « Les Arrière-salles » : table imposée de l'étape, ambiance, bilan des étoiles en fin de partie. */
+  camp?: PmCampPlay;
 };
+export interface PmCampPlay {
+  id: string;
+  setup: (start: number) => SetupPm;
+  look?: PmLook;
+  /** Bilan de l'étape (`pending` : en attente du serveur). */
+  panel: (o: { result: CpmResult | null; pending: boolean }) => React.ReactNode;
+  backLabel: string;
+}
 
 /**
  * Partie contre l'ordinateur : avec un compte, le serveur donne d'abord la graine (la partie sera rejouée
  * par lui à la fin, shared/rejeu/poker.ts). On l'attend au plus 4 s avant de distribuer les dés.
  */
 export function PmSoloGame(props: PmSoloProps) {
-  const { setup, opponents, pa } = props;
+  const { setup, opponents, pa, camp } = props;
   // Qui commence : tiré ici, avant de connaître la graine (je reste à ma place à table).
   const [start] = useState(() => Math.floor(Math.random() * (opponents.length + 1)));
   const [ticket, setTicket] = useState<{ seed: number; verified: boolean } | null>(null);
   useEffect(() => {
     let live = true;
-    const table: SetupPm = { level: setup.level, lives: setup.lives, noStraights: setup.noStraights, bots: opponents.map((p) => p.id), start };
-    void Promise.race([pa.onPokerStart(table), wait(4000).then(() => null)]).then((seed) => {
+    const table: SetupPm = camp ? camp.setup(start) : { level: setup.level, lives: setup.lives, noStraights: setup.noStraights, bots: opponents.map((p) => p.id), start };
+    void Promise.race([pa.onPokerStart(table, camp?.id), wait(4000).then(() => null)]).then((seed) => {
       if (live) setTicket(seed != null ? { seed, verified: true } : { seed: crypto.getRandomValues(new Uint32Array(1))[0], verified: false });
     });
     return () => { live = false; };
@@ -171,13 +185,15 @@ export function PmSoloGame(props: PmSoloProps) {
   return <PmSoloTable {...props} start={start} seed={ticket.seed} verified={ticket.verified} />;
 }
 
-function PmSoloTable({ setup, opponents, pa, settings, me, onExit, onReplay, onBags, start, seed, verified }: PmSoloProps & { start: number; seed: number; verified: boolean }) {
+function PmSoloTable({ setup, opponents, pa, settings, me, onExit, onReplay, onBags, start, seed, verified, camp }: PmSoloProps & { start: number; seed: number; verified: boolean }) {
+  // Table jouée (campagne : celle de l'étape, avec niveau et style de chaque ordinateur).
+  const table = useMemo<SetupPm>(() => (camp ? camp.setup(start) : { level: setup.level, lives: setup.lives, noStraights: setup.noStraights, bots: opponents.map((p) => p.id), start }), []); // eslint-disable-line react-hooks/exhaustive-deps
   const seats = useMemo<Seat[]>(() => [
     { id: 'moi', name: me.name || tr('pm.you'), avatar: me.avatar, color: COLORS[0], photo: me.photo, isMe: true },
     ...opponents.map((p) => ({ id: p.id, name: p.name, avatar: p.avatar, color: p.color, isMe: false, bot: true, persona: p })),
   ], []); // eslint-disable-line react-hooks/exhaustive-deps
   // Ordre tiré au sort (qui commence), mais je reste à ma place à table ; dés tirés de la graine.
-  const initial = useMemo(() => newGamePm({ level: setup.level, lives: setup.lives, noStraights: setup.noStraights, bots: opponents.map((p) => p.id), start }, seed, seats.map((x) => x.name)), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const initial = useMemo(() => newGamePm(table, seed, seats.map((x) => x.name)), []); // eslint-disable-line react-hooks/exhaustive-deps
   /** Décisions du joueur, pour le rejeu par le serveur. */
   const moves = useRef<string[]>([]);
   const truth = useRef(initial);
@@ -226,12 +242,12 @@ function PmSoloTable({ setup, opponents, pa, settings, me, onExit, onReplay, onB
     if (pid === 'moi') return;
     const p = persona(pid);
     const delay = (t0.phase === 'decision' ? 700 : t0.phase === 'relance' ? 450 : 600) + (p?.tempo ?? 900) * (0.4 + Math.random() * 0.5);
-    const t = setTimeout(() => { if (alive.current && truth.current === t0) run(pmBotDecide(t0, setup.level)); }, delay);
+    const t = setTimeout(() => { if (alive.current && truth.current === t0) run(pmBotDecideFor(table, t0)); }, delay);
     return () => clearTimeout(t);
-  }, [s, anim.busy, run, setup.level]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [s, anim.busy, run, table]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fin : récompense (une fois).
-  const [end, setEnd] = useState<{ reward: Reward | null; bags: number; quests: string[]; achievements: string[]; unverified?: boolean } | null>(null);
+  const [end, setEnd] = useState<{ reward: Reward | null; bags: number; quests: string[]; achievements: string[]; unverified?: boolean; cpm?: CpmResult | null } | null>(null);
   const ended = useRef(false);
   useEffect(() => {
     if (s.phase !== 'fini' || anim.busy || ended.current) return;
@@ -239,8 +255,11 @@ function PmSoloTable({ setup, opponents, pa, settings, me, onExit, onReplay, onB
     void (async () => {
       const place = placeOf(truth.current, 'moi');
       const proof = verified && moves.current.length <= MAX_MOVES_PM ? { moves: moves.current.join('.') } : {};
-      const [r] = await Promise.all([pa.onPokerEnd({ won: truth.current.winner === 'moi', place, opponents: opponents.length, level: setup.level, ...proof }), wait(900)]);
-      if (alive.current) setEnd({ reward: r?.reward ?? null, bags: r?.bags ?? 0, quests: r?.quests ?? [], achievements: r?.achievements ?? [], unverified: !!r?.unverified });
+      const [r] = await Promise.all([pa.onPokerEnd({ won: truth.current.winner === 'moi', place, opponents: opponents.length, level: table.level, ...proof }), wait(900)]);
+      // Campagne : étoiles du serveur (compte) ; invité : rejeu fait ici, étoiles sur le profil de l'appareil.
+      let cpm: CpmResult | null = r?.cpm ?? null;
+      if (camp && !pa.isAccount) { const rp = replayPm(table, seed, moves.current.join('.')); cpm = rp.ok ? pa.onCpmGuestEnd(camp.id, rp.facts) : null; }
+      if (alive.current) setEnd({ reward: r?.reward ?? null, bags: r?.bags ?? 0, quests: r?.quests ?? [], achievements: r?.achievements ?? [], unverified: !!r?.unverified, cpm });
     })();
   }, [s, anim.busy]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -252,11 +271,11 @@ function PmSoloTable({ setup, opponents, pa, settings, me, onExit, onReplay, onB
 
   return (
     <>
-      <PmBoard anim={anim} seats={seats} meId="moi" canAct onAct={run} onLeave={() => void leave()} settings={settings} onRules={() => setRules(true)}
+      <PmBoard look={camp?.look} anim={anim} seats={seats} meId="moi" canAct onAct={run} onLeave={() => void leave()} settings={settings} onRules={() => setRules(true)}
         overlay={say && <div className="pk-speech" key={say.k} style={{ ['--pc' as string]: seats.find((x) => x.id === say.id)?.color }}><b>{seats.find((x) => x.id === say.id)?.name}</b> {say.text}</div>}
         end={end && <EndDialog s={s} seats={seats} reward={end.reward} bags={end.bags} quests={end.quests} achievements={end.achievements} isAccount={pa.isAccount} onBags={onBags}
-          waiting={end.unverified ? tr('rej.update') : undefined} buttons={<>
-          <button className="btn secondary" onClick={onExit}>{tr('pm.back')}</button>
+          waiting={end.unverified ? tr('rej.update') : undefined} extra={camp?.panel({ result: end.cpm ?? null, pending: false })} buttons={<>
+          <button className="btn secondary" onClick={onExit}>{camp?.backLabel ?? tr('pm.back')}</button>
           <button className="btn primary" onClick={onReplay}><Icon name="resume" size={18} /> {tr('pm.replay')}</button>
         </>} />} />
       {rules && <Sheet title={tr('pm.rules')} onClose={() => setRules(false)}><PmRules /></Sheet>}
@@ -600,8 +619,9 @@ function PmAchievements({ profile, compact, onOpen }: { profile: Profile; compac
 
 const helpUrl = (path: string) => (NO_SERVER || !/^https?:$/.test(location.protocol) ? `https://421online.com${path}` : path);
 
-function PmMenu({ pa, onHome, onRules, onSetup, onOnline, onCollection }: {
+function PmMenu({ pa, onHome, onRules, onSetup, onOnline, onCollection, onCamp }: {
   pa: ProfileApi; onHome: () => void; onRules: () => void; onSetup: (tab: 'solo' | 'ligne') => void; onOnline: (m: PmOnlineMode) => void; onCollection?: (open?: boolean) => void;
+  /** Campagne solo « Les Arrière-salles ». */ onCamp: () => void;
 }) {
   const p = pa.profile;
   const acc = pa.isAccount;
@@ -627,6 +647,7 @@ function PmMenu({ pa, onHome, onRules, onSetup, onOnline, onCollection }: {
           </span>
         </section>
         <div className="dm-plays">
+          <CpmMenuCard pa={pa} onOpen={onCamp} />
           <button className="dm-play solo" onClick={() => onSetup('solo')}>
             <span className="dm-play-ic" aria-hidden><Icon name="dice" size={26} /></span>
             <span className="dm-play-text"><b>{tr('pm.vsCpu')}</b><small>{tr('pm.vsSub')}</small></span>
@@ -684,23 +705,24 @@ function PmMenu({ pa, onHome, onRules, onSetup, onOnline, onCollection }: {
 // Mode complet
 
 /** `play` : lien direct `/?jouer=poker` (une partie contre UN ordinateur Débutant). */
-export type PmPending = { join?: string; watch?: string; resume?: boolean; play?: boolean };
+export type PmPending = { join?: string; watch?: string; resume?: boolean; play?: boolean; /** Ouvrir la campagne « Les Arrière-salles ». */ camp?: boolean };
 
 export function PokerMenteurMode({ pa, settings, onHome, displayName, avatar, pending, onCollection }: {
   pa: ProfileApi; settings: Settings; onSettings?: (s: Settings) => void; onHome: () => void; displayName: string; avatar: string;
   pending?: PmPending; onAccount?: () => void; onCollection?: (open?: boolean) => void;
 }) {
-  type Route = { r: 'menu' } | { r: 'setup'; tab: 'solo' | 'ligne' } | { r: 'game'; setup: PmSetup; opponents: PmPersona[]; key: number } | { r: 'online'; mode: PmOnlineMode; key: number; from: 'menu' | 'setup' };
+  type Route = { r: 'menu' } | { r: 'camp' } | { r: 'setup'; tab: 'solo' | 'ligne' } | { r: 'game'; setup: PmSetup; opponents: PmPersona[]; key: number } | { r: 'online'; mode: PmOnlineMode; key: number; from: 'menu' | 'setup' };
   const [route, setRoute] = useState<Route>(() => pending?.join ? { r: 'online', mode: { kind: 'join', code: pending.join }, key: 1, from: 'menu' }
     : pending?.watch ? { r: 'online', mode: { kind: 'watch', code: pending.watch }, key: 1, from: 'menu' }
       : pending?.resume ? { r: 'online', mode: { kind: 'resume' }, key: 1, from: 'menu' }
-        : pending?.play ? { r: 'game', setup: { opponents: 1, level: 'debutant', lives: 3, noStraights: false }, opponents: shuffled(PM_PERSONAS).slice(0, 1), key: 1 } : { r: 'menu' });
+        : pending?.camp ? { r: 'camp' } : pending?.play ? { r: 'game', setup: { opponents: 1, level: 'debutant', lives: 3, noStraights: false }, opponents: shuffled(PM_PERSONAS).slice(0, 1), key: 1 } : { r: 'menu' });
   const [rules, setRules] = useState(false);
   usePresenceLayer(route.r === 'menu' || route.r === 'setup' ? { view: route.r === 'setup' ? 'preparation' : 'menu', state: 'menu', depth: 1 } : null);
   useLang();
   const me = { name: pa.session?.username ?? displayName ?? tr('pm.you'), avatar, photo: pa.photo };
   const toMenu = () => setRoute({ r: 'menu' });
   const bags = onCollection && (() => onCollection(true));
+  if (route.r === 'camp') return <PmCampaign pa={pa} settings={settings} me={me} onBack={toMenu} onBags={bags} />;
   if (route.r === 'game') {
     return <PmSoloGame key={route.key} setup={route.setup} opponents={route.opponents} pa={pa} settings={settings} me={me}
       onExit={() => setRoute({ r: 'setup', tab: 'solo' })} onBags={bags}
@@ -716,7 +738,7 @@ export function PokerMenteurMode({ pa, settings, onHome, displayName, avatar, pe
       {route.r === 'setup'
         ? <PmSetupScreen initialTab={route.tab} onBack={toMenu} onRules={() => setRules(true)} onOnline={(m) => online(m, 'setup')}
           onStart={(setup, opponents) => { sound.unlock(); setRoute({ r: 'game', setup, opponents, key: Date.now() }); }} />
-        : <PmMenu pa={pa} onHome={onHome} onRules={() => setRules(true)} onSetup={(tab) => setRoute({ r: 'setup', tab })} onOnline={(m) => online(m, 'menu')} onCollection={onCollection} />}
+        : <PmMenu pa={pa} onHome={onHome} onRules={() => setRules(true)} onSetup={(tab) => setRoute({ r: 'setup', tab })} onOnline={(m) => online(m, 'menu')} onCollection={onCollection} onCamp={() => setRoute({ r: 'camp' })} />}
       {rules && <Sheet title={tr('pm.rules')} onClose={() => setRules(false)}><PmRules /></Sheet>}
     </>
   );

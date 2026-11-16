@@ -19,7 +19,10 @@ type Tween = { t0: number; dur: number; step: (k: number) => void; done: () => v
 const ease = (k: number) => (k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2);
 const easeOut = (k: number) => 1 - (1 - k) ** 3;
 
-export interface SceneOpts { reducedMotion?: boolean; quality?: 'haute' | 'normale' | 'basse' }
+/** Ambiance d'une table (campagne « Les Arrière-salles ») : feutrine, bord, gobelet, fond, lampe. */
+export interface PmLook { felt: string; rim: string; cup: string; bg: string; lamp: string }
+export interface SceneOpts { reducedMotion?: boolean; quality?: 'haute' | 'normale' | 'basse'; look?: PmLook }
+const darker = (hex: string, k = 0.55) => `#${new THREE.Color(hex).multiplyScalar(k).getHexString()}`;
 
 export class PmScene {
   private renderer: THREE.WebGLRenderer;
@@ -55,11 +58,12 @@ export class PmScene {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, opts.quality === 'haute' ? 2 : 1.6));
     this.renderer.domElement.className = 'pk-canvas';
     host.appendChild(this.renderer.domElement);
-    this.scene.background = new THREE.Color('#140d08');
+    const look = opts.look;
+    this.scene.background = new THREE.Color(look?.bg ?? '#140d08');
 
     // Lumières : lampe de comptoir chaude au-dessus, ciel doux.
-    this.scene.add(new THREE.HemisphereLight('#fff1d6', '#2b170b', 0.85));
-    const sun = new THREE.DirectionalLight('#ffe6bf', 1.9);
+    this.scene.add(new THREE.HemisphereLight(look ? new THREE.Color('#fff1d6').lerp(new THREE.Color(look.lamp), 0.4) : '#fff1d6', '#2b170b', 0.85));
+    const sun = new THREE.DirectionalLight(look?.lamp ?? '#ffe6bf', 1.9);
     sun.position.set(-2.5, 7, 3.5);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
@@ -72,14 +76,14 @@ export class PmScene {
     this.scene.add(this.glow);
 
     // Table ronde : feutrine verte, bord en bois.
-    const f = felt('#1f6b45', 7);
+    const f = felt(look?.felt ?? '#1f6b45', 7);
     f.map.repeat.set(3, 3); f.bump.repeat.set(3, 3);
     const top = new THREE.Mesh(new THREE.CircleGeometry(3.6, 64), new THREE.MeshStandardMaterial({ map: f.map, bumpMap: f.bump, bumpScale: 0.6, roughness: 0.95 }));
     top.rotation.x = -Math.PI / 2;
     top.scale.set(1.25, 0.82, 1);
     top.receiveShadow = true;
     this.scene.add(top);
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(3.62, 0.2, 14, 80), new THREE.MeshStandardMaterial({ map: wood('#6b3d1d', '#3a1f0c'), roughness: 0.55, metalness: 0.05 }));
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(3.62, 0.2, 14, 80), new THREE.MeshStandardMaterial({ map: look ? wood(look.rim, darker(look.rim)) : wood('#6b3d1d', '#3a1f0c'), roughness: 0.55, metalness: 0.05 }));
     rim.rotation.x = -Math.PI / 2;
     rim.scale.set(1.25, 0.82, 1);
     rim.position.y = 0.05;
@@ -88,7 +92,7 @@ export class PmScene {
 
     // Gobelet : cuir brun, liseré doré, ouvert en bas.
     const prof = [[0.66, 0], [0.64, 0.06], [0.58, 0.9], [0.56, 1.05], [0.0, 1.07]].map(([x, y]) => new THREE.Vector2(x, y));
-    const cupMesh = new THREE.Mesh(new THREE.LatheGeometry(prof, 40), new THREE.MeshStandardMaterial({ map: leather('#6a2e17', 9), roughness: 0.7, side: THREE.DoubleSide }));
+    const cupMesh = new THREE.Mesh(new THREE.LatheGeometry(prof, 40), new THREE.MeshStandardMaterial({ map: leather(look?.cup ?? '#6a2e17', 9), roughness: 0.7, side: THREE.DoubleSide }));
     cupMesh.castShadow = true;
     const band = (y: number, r: number) => { const m = new THREE.Mesh(new THREE.TorusGeometry(r, 0.035, 8, 48), new THREE.MeshStandardMaterial({ color: '#d4a64a', metalness: 0.8, roughness: 0.3 })); m.rotation.x = Math.PI / 2; m.position.y = y; return m; };
     this.cup.add(cupMesh, band(0.05, 0.655), band(0.95, 0.575));
