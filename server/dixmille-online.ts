@@ -13,6 +13,7 @@
  * (anti double-clic) et n'est acceptée que du joueur dont c'est le tour.
  */
 import { noteOnlineGame } from './chiffres';
+import { noteRun } from './games-stats';
 import type { RepInfo } from '../shared/progress/repu';
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Namespace, Server, Socket } from 'socket.io';
@@ -438,6 +439,8 @@ export function createDixMilleOnline(c: Ctx) {
         achievements: (out.applied.achievementsDone ?? []).map((x) => x.id), ...(potTo === m.userId ? { potPaid } : {}) } satisfies DmRewardMsg);
     }
     noteOnlineGame(c.store, 'courtisan'); // « Le 421 en chiffres » (server/chiffres.ts)
+    noteRun(c.store, { game: 'courtisan', server: true, startedAt: t.startedAt, bots: botLevels.length, mode: t.solo ? 'solo' : 'online', opts: { target: g.target, stake: t.stake, levels: botLevels.join(',') }, // statistiques admin (server/games-stats.ts)
+      players: inGame.filter((m) => !m.bot).map((m) => ({ key: m.userId ? `u:${m.userId}` : `g:${m.id}`, userId: m.userId ?? null, won: g.winner === m.id, left: !!m.quit })) });
     c.verifiedGame?.({ game: 'courtisan', players: inGame.filter((m) => m.userId && !m.bot).map((m) => ({ userId: m.userId!, won: g.winner === m.id, abandoned: !!m.quit })) });
   }
 

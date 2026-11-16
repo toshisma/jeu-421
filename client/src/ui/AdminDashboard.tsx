@@ -10,6 +10,7 @@ import { askConfirm } from './confirm';
 import { Shell } from './Screens';
 import { ModerationPanel, useModeration } from './Moderation';
 import { LiveTab } from './AdminLive';
+import { GamesOverview, GamesTab } from './AdminGames'; // statistiques des 4 jeux
 
 /** Statistiques des cartes de Coups Fourrés : chargées à la demande (illustrations des cartes). */
 const CfAdminStats = lazyScreen(() => import('../cards/CfAdminStats'), 'CfAdminStats');
@@ -20,10 +21,10 @@ const dayShort = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('f
 const dayLong = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 const dateTime = (t: number | null) => (t ? new Date(t).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–');
 
-type Tab = 'enligne' | 'apercu' | 'signalements' | 'personnes' | 'joueurs' | 'visiteurs' | 'retention' | 'activite' | 'economie' | 'cf' | 'journal';
+type Tab = 'enligne' | 'apercu' | 'signalements' | 'personnes' | 'joueurs' | 'visiteurs' | 'retention' | 'activite' | 'economie' | 'jeux' | 'cf' | 'journal';
 const TABS: [Tab, string][] = [
   ['enligne', 'En ligne'], ['apercu', 'Vue d’ensemble'], ['signalements', 'Signalements'], ['personnes', 'Personnes'], ['joueurs', 'Joueurs'], ['visiteurs', 'Visiteurs'], ['retention', 'Rétention'],
-  ['activite', 'Activité'], ['economie', 'Économie'], ['cf', 'Coups Fourrés'], ['journal', 'Journal admin'],
+  ['activite', 'Activité'], ['economie', 'Économie'], ['jeux', 'Jeux'], ['cf', 'Coups Fourrés'], ['journal', 'Journal admin'],
 ];
 
 /** Chargement d'une route admin, avec rechargement à la demande. */
@@ -133,7 +134,7 @@ interface Overview {
 }
 interface Live { live: { online: number; gamesInProgress: number; inRooms: number }; connected?: { name: string | null; state: string; since: number }[] }
 
-function OverviewTab({ o, live, onLive }: { o: Overview; live: Live | null; onLive: () => void }) {
+function OverviewTab({ o, live, onLive, token }: { o: Overview; live: Live | null; onLive: () => void; token: string | null }) {
   const sum = (k: 'signups' | 'solo' | 'online' | 'tournaments') => o.days.reduce((a, d) => a + d[k], 0);
   return (
     <>
@@ -141,14 +142,15 @@ function OverviewTab({ o, live, onLive }: { o: Overview; live: Live | null; onLi
         <Kpi value={nf(o.active.today)} label="comptes actifs aujourd’hui" />
         <Kpi value={nf(o.active.week)} label="actifs sur 7 jours" />
         <Kpi value={nf(o.active.month)} label="actifs sur 30 jours" />
-        <Kpi value={nf(o.games.solo)} label="parties solo" hint="Depuis le début" />
-        <Kpi value={nf(o.games.online)} label="parties en ligne" hint="Depuis le début (tables de tournoi comprises)" />
+        <Kpi value={nf(o.games.solo)} label="parties solo de 421" hint="Depuis le début (les autres jeux : blocs ci-dessous et onglet Jeux)" />
+        <Kpi value={nf(o.games.online)} label="parties en ligne de 421" hint="Depuis le début (tables de tournoi comprises)" />
         <Kpi value={nf(o.games.tournaments)} label="tournois terminés" hint="Comptés depuis l’arrivée de ce tableau de bord" />
         <Kpi value={nf(o.bags)} label="sacs non ouverts" />
         <Kpi value={nf(o.bannedCount)} label="comptes suspendus" />
       </div>
+      <GamesOverview token={token} />
       <section className="adm-card">
-        <Bars title="Parties par jour (30 jours)" rows={o.days} series={[{ key: 'solo', label: 'Solo', cls: 's1' }, { key: 'online', label: 'En ligne', cls: 's2' }]} />
+        <Bars title="Parties de 421 par jour (30 jours)" rows={o.days} series={[{ key: 'solo', label: 'Solo', cls: 's1' }, { key: 'online', label: 'En ligne', cls: 's2' }]} />
         <p className="muted small">{nf(sum('solo'))} solo, {nf(sum('online'))} en ligne et {nf(sum('tournaments'))} tournois sur la période.</p>
       </section>
       <div className="adm-grid">
@@ -726,7 +728,7 @@ export function AdminDashboard({ pa, onBack }: { pa: ProfileApi; onBack: () => v
           </nav>
           {tab === 'enligne' && <LiveTab token={token} onOpenPlayer={(id) => { setOpenPlayer(id); setTab('joueurs'); }}
             onOpenVisitor={(label) => { setPeopleSearch((p) => ({ q: label.replace(/^Visiteur /, ''), n: p.n + 1 })); setTab('personnes'); }} />}
-          {tab === 'apercu' && <OverviewTab o={o} live={live} onLive={() => setTab('enligne')} />}
+          {tab === 'apercu' && <OverviewTab o={o} live={live} onLive={() => setTab('enligne')} token={token} />}
           {tab === 'signalements' && <ModerationPanel token={token} admin onPending={setPending} />}
           {tab === 'personnes' && <PeopleTab key={peopleSearch.n} initialSearch={peopleSearch.q} token={token} onOpen={(id) => { setOpenPlayer(id); setTab('joueurs'); }} />}
           {tab === 'joueurs' && <PlayersTab token={token} open={openPlayer} onActivity={(u) => { setActivityUser(u); setTab('activite'); }} onChanged={reload} />}
@@ -734,6 +736,7 @@ export function AdminDashboard({ pa, onBack }: { pa: ProfileApi; onBack: () => v
           {tab === 'retention' && <RetentionTab token={token} />}
           {tab === 'activite' && <ActivityTab token={token} user={activityUser} setUser={setActivityUser} />}
           {tab === 'economie' && <EconomyTab token={token} coins={o.coins} />}
+          {tab === 'jeux' && <GamesTab token={token} onOpenCf={() => setTab('cf')} />}
           {tab === 'cf' && <Suspense fallback={<p className="muted">Chargement…</p>}><CfAdminStats token={token} /></Suspense>}
           {tab === 'journal' && <LogTab token={token} />}
         </div>

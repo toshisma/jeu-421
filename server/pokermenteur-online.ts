@@ -12,6 +12,7 @@
  * la révélation (« Menteur ! »).
  */
 import { noteOnlineGame } from './chiffres';
+import { noteRun } from './games-stats';
 import type { RepInfo } from '../shared/progress/repu';
 import { randomInt, randomUUID } from 'node:crypto';
 import type { Namespace, Server, Socket } from 'socket.io';
@@ -319,6 +320,8 @@ export function createPokerOnline(c: Ctx) {
       } satisfies PmRewardMsg);
     }
     noteOnlineGame(c.store, 'poker'); // « Le 421 en chiffres » (server/chiffres.ts)
+    noteRun(c.store, { game: 'poker', server: true, startedAt: t.startedAt, bots: botLevels.length, mode: 'online', opts: { lives: t.options.lives, noStraights: t.options.noStraights, levels: botLevels.join(','), quick: !!t.quick }, // statistiques admin (server/games-stats.ts)
+      players: inGame.filter((m) => !m.bot).map((m) => ({ key: m.userId ? `u:${m.userId}` : `g:${m.id}`, userId: m.userId ?? null, won: g.winner === m.id, left: !!m.quit })) });
     c.verifiedGame?.({ game: 'poker', players: inGame.filter((m) => m.userId && !m.bot).map((m) => ({ userId: m.userId!, won: g.winner === m.id, abandoned: !!m.quit })) });
   }
 
