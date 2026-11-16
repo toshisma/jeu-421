@@ -5068,3 +5068,7 @@ button.mode-chip { cursor: pointer; }
 @media (min-height: 700px) { .mm-modes.four .mm-mode:has(.mm-mode-badge) .mm-mode-text { padding-top: 11px; } }
 .mm-mode-live.zero .live-dot, .mm-site.zero .live-dot { background: #9aa39e; box-shadow: none; animation: none; }
 .mm-mode-live.zero { box-shadow: 0 0 0 1px rgba(255,255,255,0.18); color: rgba(255,255,255,0.85); }
+
+/* Tuile « Sacs de dés » : le bouton « Ouvrir » écrasait le titre (« Sacs d… ») sur les téléphones larges.
+   Sur téléphone, la tuile entière s'ouvre au toucher et le sous-titre dit déjà « 3 à ouvrir › » : bouton masqué. */
+@media (max-width: 560px) { .mm-bags-go { display: none; } }

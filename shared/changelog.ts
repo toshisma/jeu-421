@@ -7,6 +7,10 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.58', date: '2026-11-16T11:06:00+01:00', title: 'Qui est là ?', items: [
+    'Sur l’accueil : le nombre de personnes sur le site, et le nombre de joueurs dans chacun des 4 jeux.',
+    'Le fil des parties récentes ne coupe plus les pseudos, et les titres des tuiles ne sont plus tronqués sur téléphone.',
+  ] },
   { version: '0.57', date: '2026-11-16T10:29:00+01:00', title: 'Plus de sécurité dans les messages', items: [
     'Un bouton « Signaler » dans chaque conversation privée, avec la possibilité de bloquer la personne en un geste.',
     'Pour la sécurité de tous, en particulier des plus jeunes, la modération peut lire les messages privés. La page Confidentialité explique comment.',
