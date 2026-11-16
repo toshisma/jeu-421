@@ -629,6 +629,7 @@ export function GameScreen({ controller, settings, onSettings, onExit, personas,
                 <WhatIf s={s} meId={controller.meId} />
               </div>
             )}
+            {pending && controller.preparingTicket?.() && <p className="muted" role="status" style={{ textAlign: 'center', margin: '0 0 6px' }}>{tr('rej.preparing')}</p>}
             <div className="buttons">
               {s.throwsUsed === 0 && (
                 <button className="btn primary big ab-roll" disabled={pending} onClick={() => act('roll')}><Icon name="dice" /> {tr('g421.rollBtn')}</button>

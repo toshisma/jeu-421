@@ -8,6 +8,7 @@ const BOSS_DICE: Record<string, string> = { baron: 'dc-nacre', josiane: 'dc-lave
 const rnd = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
 
 export class BossController extends LocalController {
+  protected ticketWaitMs = 30_000; // partie à enjeu : on attend vraiment la graine du serveur
   readonly boss: BossDef;
   /** Personnages à la table (ia-0 : le patron) : répliques et avatars de l'écran de partie. */
   readonly cast: Record<string, Persona>;

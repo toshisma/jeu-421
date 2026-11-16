@@ -173,14 +173,27 @@ export function PmSoloGame(props: PmSoloProps) {
   // Qui commence : tiré ici, avant de connaître la graine (je reste à ma place à table).
   const [start] = useState(() => Math.floor(Math.random() * (opponents.length + 1)));
   const [ticket, setTicket] = useState<{ seed: number; verified: boolean } | null>(null);
+  // Campagne (compte) : sans graine, la partie ne serait pas vérifiée et les étoiles seraient perdues ;
+  // on l'attend donc jusqu'à 30 s, puis on propose « Réessayer » au lieu de lancer une partie qui ne compte pas.
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let live = true;
     const table: SetupPm = camp ? camp.setup(start) : { level: setup.level, lives: setup.lives, noStraights: setup.noStraights, bots: opponents.map((p) => p.id), start };
-    void Promise.race([pa.onPokerStart(table, camp?.id), wait(4000).then(() => null)]).then((seed) => {
-      if (live) setTicket(seed != null ? { seed, verified: true } : { seed: crypto.getRandomValues(new Uint32Array(1))[0], verified: false });
+    void Promise.race([pa.onPokerStart(table, camp?.id), wait(camp && pa.isAccount ? 30_000 : 4000).then(() => null)]).catch(() => null).then((seed) => {
+      if (!live) return;
+      if (seed == null && camp && pa.isAccount) { setFailed(true); return; }
+      setTicket(seed != null ? { seed, verified: true } : { seed: crypto.getRandomValues(new Uint32Array(1))[0], verified: false });
     });
     return () => { live = false; };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [attempt]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (failed) return (
+    <div className="pk-preparing" role="alert" style={{ display: 'grid', placeItems: 'center', gap: 12, minHeight: '60vh', textAlign: 'center', padding: 16 }}>
+      <p>{tr('rej.prepFailed')}</p>
+      <button className="btn primary" onClick={() => { setFailed(false); setAttempt((n) => n + 1); }}>{tr('rej.retry')}</button>
+      <button className="btn" onClick={props.onExit}>{tr('rej.back')}</button>
+    </div>
+  );
   if (!ticket) return <div className="pk-preparing" role="status" style={{ display: 'grid', placeItems: 'center', minHeight: '60vh' }}><p className="muted">{tr('rej.preparing')}</p></div>;
   return <PmSoloTable {...props} start={start} seed={ticket.seed} verified={ticket.verified} />;
 }

@@ -59,6 +59,15 @@ export class LocalController implements GameController {
     this.newGame();
   }
 
+  /**
+   * Attente maximale de la graine du serveur. 4 s pour une partie libre ; la Tournée, le patron et les
+   * adversaires de fête attendent bien plus longtemps (30 s) : sans graine, la partie ne serait pas vérifiée
+   * et le joueur perdrait étoiles, titre ou victoire contre le patron sans comprendre pourquoi.
+   */
+  protected ticketWaitMs = TICKET_WAIT_MS;
+  /** Vrai tant que la graine du serveur est attendue (l'écran affiche « On prépare la table… »). */
+  preparingTicket(): boolean { return this.gate !== null; }
+
   protected newGame() {
     const players = this.meta.map((m) => ({ id: m.id, name: m.name }));
     this.firstUsed = this.firstIdx ?? Math.floor(Math.random() * players.length);
@@ -87,7 +96,7 @@ export class LocalController implements GameController {
         resolve();
       };
       this.openGate = finish;
-      setTimeout(() => finish(null), TICKET_WAIT_MS);
+      setTimeout(() => finish(null), this.ticketWaitMs);
     });
   }
   /** Graine demandée par l'écran au début de la partie (null : invité, hors ligne, ancienne table). */

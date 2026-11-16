@@ -20,6 +20,7 @@ export function patronPersona(id: string): Persona | undefined {
 export const tdcPersona = (id: string): Persona => patronPersona(id) ?? PERSONAS.find((p) => p.id === id) ?? PERSONAS[0];
 
 export class TdcController extends LocalController {
+  protected ticketWaitMs = 30_000; // partie à enjeu : on attend vraiment la graine du serveur
   readonly bistro: TdcBistro;
   readonly personas: Record<string, Persona>;
   constructor(b: TdcBistro, me: { name: string; avatar: string; photo?: string | null; account?: string; title?: string; accessory?: string }) {

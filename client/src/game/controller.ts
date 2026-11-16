@@ -44,6 +44,8 @@ export type GameEvent =
   | { type: 'state'; state: GameState };
 
 export interface GameController {
+  /** Partie solo : graine du serveur encore attendue (facultatif). */
+  preparingTicket?(): boolean;
   readonly mode: 'solo' | 'online';
   readonly meId: string;
   getMeta(): MetaPlayer[];
