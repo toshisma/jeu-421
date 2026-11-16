@@ -1,3 +1,4 @@
+import { enligneDe } from './zones/enligne.de';
 import { mpmodDe } from './zones/mpmod.de';
 import { serieDe } from './zones/serie.de';
 import { pokerDe } from './zones/poker.de';
@@ -17,6 +18,7 @@ import { tdcDe } from './zones/comptoirs.de';
 export const de: Partial<Record<MessageKey, string>> = {
   ...mpmodDe,
   ...serieDe,
+  ...enligneDe,
   ...communDe,
   ...clubsDe,
   ...repuDe,

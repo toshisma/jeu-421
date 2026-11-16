@@ -1,7 +1,7 @@
 /** Poker menteur (4e jeu) : allemand (« du »). Clés `pm.*` (voir poker.fr.ts). */
 export const pokerDe: Record<keyof typeof import('./poker.fr').pokerFr, string> = {
   "pm.name": "Lügenpoker",
-  "pm.homeSub": "Bluffen unterm Becher, 2 bis 6 Spieler",
+  "pm.homeSub": "Bluff unterm Becher, 2–6 Spieler",
   "pm.resumeHome": "Lügenpoker-Spiel läuft",
   "pm.sub": "Bluffen unterm Becher, Pokerwürfel",
   "pm.hero": "Fünf Pokerwürfel unter einem Becher. Sag eine Hand an, wahr oder gelogen: Der Nächste glaubt dir … oder ruft „Lügner!“.",

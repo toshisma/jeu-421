@@ -1,3 +1,4 @@
+import { enligneEn } from './zones/enligne.en';
 import { mpmodEn } from './zones/mpmod.en';
 import { serieEn } from './zones/serie.en';
 import { pokerEn } from './zones/poker.en';
@@ -17,6 +18,7 @@ import { tdcEn } from './zones/comptoirs.en';
 export const en: Partial<Record<MessageKey, string>> = {
   ...mpmodEn,
   ...serieEn,
+  ...enligneEn,
   ...communEn,
   ...clubsEn,
   ...repuEn,

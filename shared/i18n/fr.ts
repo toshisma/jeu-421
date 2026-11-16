@@ -1,3 +1,4 @@
+import { enligneFr } from './zones/enligne.fr';
 import { mpmodFr } from './zones/mpmod.fr';
 import { serieFr } from './zones/serie.fr';
 import { pokerFr } from './zones/poker.fr';
@@ -18,6 +19,7 @@ import { tdcFr } from "./zones/comptoirs.fr";
 export const fr = {
   ...mpmodFr,
   ...serieFr,
+  ...enligneFr,
   ...communFr,
   ...clubsFr,
   ...repuFr,

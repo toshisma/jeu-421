@@ -1,3 +1,4 @@
+import { enligneNl } from './zones/enligne.nl';
 import { mpmodNl } from './zones/mpmod.nl';
 import { serieNl } from './zones/serie.nl';
 import { pokerNl } from './zones/poker.nl';
@@ -17,6 +18,7 @@ import { tdcNl } from './zones/comptoirs.nl';
 export const nl: Partial<Record<MessageKey, string>> = {
   ...mpmodNl,
   ...serieNl,
+  ...enligneNl,
   ...communNl,
   ...clubsNl,
   ...repuNl,

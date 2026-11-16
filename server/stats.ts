@@ -19,6 +19,7 @@ import type { Namespace, Server } from 'socket.io';
 import type { Store, UserRow } from './db';
 import { cleanTabInfo, deviceKindOf, type PresenceEntry } from './live';
 import { noteStart } from './games-stats';
+import { isRobotUa } from './online-count';
 
 export interface StatsOptions {
   /** Durée minimale d'une partie solo pour qu'elle compte. */
@@ -93,6 +94,7 @@ export function createStats(store: Store, opts: StatsOptions & { userFromToken: 
       presence.set(socket.id, {
         device, state: 'menu', name: user?.username, userId: user?.id, since: t0, changedAt: t0,
         kind: deviceKindOf(String(socket.handshake.headers['user-agent'] ?? '')), info: cleanTabInfo('menu'),
+        robot: isRobotUa(String(socket.handshake.headers['user-agent'] ?? '')),
       });
       checkPeak();
       const others = () => [...presence.values()].filter((x) => x.device !== device).length;

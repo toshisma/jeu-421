@@ -22,6 +22,7 @@ import {
 import { Store } from './db';
 import { createAccounts, type AccountsOptions } from './accounts';
 import { createStats, type StatsOptions } from './stats';
+import { cachedOnline, countOnline, type OnlineGame } from './online-count';
 import { createAdmin } from './admin';
 import { createModeration, type TableChatEntry } from './moderation';
 import { createPmMod } from './pm-mod';
@@ -378,6 +379,18 @@ export async function startServer(opts: ServerOptions) {
     return null;
   });
 
+  // Accueil : combien de personnes sur le site et dans chaque jeu (nombres seulement, cache 5 s ; voir online-count.ts).
+  const onlineCounts = cachedOnline(() => countOnline(stats.presenceEntries(), (userId): OnlineGame | null => {
+    if (dmPresence(userId)) return 'courtisan';
+    if (pmPresence(userId)) return 'poker';
+    for (const r of rooms.values()) if (r.members.some((x) => x.userId === userId && x.socketId != null)) return '421';
+    return cfSeat(userId) ? 'cf' : null;
+  }), clock);
+  app.get('/api/online', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const c = onlineCounts();
+    res.json({ ok: true, site: c.site, games: c.games, at: c.at });
+  });
   // Listes publiques : salons en attente de joueurs et tournois ouverts aux inscriptions.
   app.get('/api/lobbies', (_req, res) => {
     const lobbies: LobbyEntry[] = [...rooms.values()]

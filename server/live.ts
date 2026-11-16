@@ -34,6 +34,8 @@ export interface PresenceEntry {
   /** Type d'appareil d'après le navigateur (jamais le texte du navigateur lui-même). */
   kind: 'mobile' | 'tablette' | 'ordinateur';
   info: TabInfo;
+  /** Navigateur automatique (robot d'indexation, aperçu de lien…) : exclu des nombres publics (online-count.ts). */
+  robot?: boolean;
 }
 
 const SCREEN_RE = /^[a-z][a-z-]{0,23}$/;

@@ -5040,3 +5040,31 @@ button.mode-chip { cursor: pointer; }
 .apm-susp { margin-top: 10px; }
 .apm-susp select, .apm-susp input { flex: 1 1 140px; min-width: 0; min-height: 40px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--ardoise-2); color: var(--blanc); }
 .apm-who { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+/* --- Accueil : fil des parties récentes et joueurs en ligne (zone « enligne ») ---
+   Une ligne sous le logo, sur la vitrine : [● 12 sur le site] [🎲 Pseudo a gagné…]. Le fil est aligné à
+   gauche (le pseudo d'abord) et abrégé à la fin seulement ; la ligne ne prend aucune hauteur (absolue).
+   Les règles plus anciennes (.home2.v2 / .main-menu) se contredisaient (haut ET bas fixés, texte centré
+   coupé des deux côtés) : celles-ci, plus précises, les remplacent pour le menu principal. */
+.home2.v2.main-menu .h2-news { display: flex; top: 50px; bottom: auto; left: 12px; right: 12px; max-width: none; align-items: center; justify-content: flex-start; gap: 6px; }
+.home2.v2.main-menu .mm-hero:has(.mm-bistrot) .h2-news { top: 82px; }
+.home2.v2.main-menu .h2-news { align-items: flex-start; }
+.home2.v2.main-menu .h2-news .news-ticker { flex: 0 1 auto; min-width: 0; height: auto; text-align: left; opacity: 1; animation: news-in .45s ease-out;
+  white-space: normal; overflow-wrap: break-word; border-radius: 12px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.home2.v2.main-menu .h2-news .news-ticker small { opacity: .75; }
+@keyframes news-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .home2.v2.main-menu .h2-news .news-ticker { animation: none; } }
+.mm-site { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border-radius: 999px; background: rgba(0,0,0,0.5); color: #fff; font: 700 12px/1.2 var(--font); white-space: nowrap; }
+.mm-site .live-dot { width: 7px; height: 7px; box-shadow: 0 0 0 2px rgba(95,211,141,0.25); margin: 0; vertical-align: 0; }
+@media (max-height: 619px) { .home2.v2.main-menu .h2-news { display: none; } }
+/* Pastille « N en ligne » d'un jeu : sur l'illustration de la carte (n'enlève rien au texte). */
+.mm-mode-live { position: absolute; left: 6px; bottom: 5px; z-index: 1; display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px 2px 5px; border-radius: 999px;
+  background: rgba(0,0,0,0.62); box-shadow: 0 0 0 1px rgba(95,211,141,0.35); color: #fff; font: 800 10.5px/1.15 var(--font); white-space: nowrap; pointer-events: none; }
+.mm-mode-live .live-dot { width: 6px; height: 6px; margin: 0; box-shadow: none; vertical-align: 0; }
+/* Badge (« +20 », « Nouveau »…) : bien à l'intérieur du coin arrondi de la carte. */
+.mm-modes.four .mm-mode-badge { top: 5px; left: 6px; padding: 3px 5px; font-size: 9.5px; transform: rotate(-4deg); }
+/* … et, quand la place le permet, le titre descend un peu pour ne pas passer sous le badge. */
+.mm-modes.four .mm-mode:has(.mm-mode-badge) .mm-mode-text { padding-top: 9px; }
+@media (min-height: 700px) { .mm-modes.four .mm-mode:has(.mm-mode-badge) .mm-mode-text { padding-top: 11px; } }
+.mm-mode-live.zero .live-dot, .mm-site.zero .live-dot { background: #9aa39e; box-shadow: none; animation: none; }
+.mm-mode-live.zero { box-shadow: 0 0 0 1px rgba(255,255,255,0.18); color: rgba(255,255,255,0.85); }

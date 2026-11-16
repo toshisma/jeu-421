@@ -32,7 +32,8 @@ import { MessagesButton } from './Messages';
 import { DISCORD_RESULTS, DiscordCard, takeDiscordReturn, useDiscord } from './Discord';
 import { ChestArt, GiftArt, Rays, RewardBurst, ScrollArt, TicketArt } from './illustrations';
 import { Sheet } from './kit';
-import { inTime, tournamentInfo, useCfPeek, useGroschenPeek, useOnlineCount, useProgramme } from './menuData';
+import { inTime, tournamentInfo, useCfPeek, useGroschenPeek, useProgramme } from './menuData';
+import { useOnlineNow } from './onlineCount';
 import { GROSCHEN_DAILY } from '../../../shared/dixmille/groschen';
 import { FetesBanner, FetesSheet, fetesBannerDue } from '../fetes/Fetes';
 import { TdcHomeChip } from '../comptoirs/MenuEntry';
@@ -71,12 +72,15 @@ export interface HomeProps {
 type SheetKind = 'coffre' | 'cadeau' | 'missions' | 'discord';
 
 /** Grande entrée d'un jeu : illustration, nom, ce qui l'attend. */
-function ModeCard({ tone, title, art, status, hot, badge, onClick }: {
-  tone: 'classique' | 'cartes' | 'dixmille' | 'poker'; title: string; art: React.ReactNode; status: React.ReactNode; hot?: boolean; badge?: string; onClick: () => void;
+function ModeCard({ tone, title, art, status, hot, badge, live, onClick }: {
+  tone: 'classique' | 'cartes' | 'dixmille' | 'poker'; title: string; art: React.ReactNode; status: React.ReactNode; hot?: boolean; badge?: string;
+  /** Personnes dans ce jeu en ce moment (pastille sur l'illustration, 0 compris ; rien tant que le serveur n'a pas répondu). */
+  live?: number; onClick: () => void;
 }) {
   return (
     <button className={`mm-mode ${tone}${hot ? ' hot' : ''}`} onClick={onClick}>
       <span className="mm-mode-art" aria-hidden>{art}</span>
+      {live != null && <span className={`mm-mode-live${live ? "" : " zero"}`} title={tr('onl.gameAria', { n: live })}><i className="live-dot" aria-hidden /><b aria-hidden>{live}</b><span className="sr-only">{tr('onl.gameAria', { n: live })}</span></span>}
       <span className="mm-mode-text"><b>{title}</b><small>{status}</small></span>
       {badge ? <em className="mm-mode-badge">{badge}</em> : <svg className="mm-mode-go" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden><path d="M9 6l6 6-6 6" /></svg>}
     </button>
@@ -105,7 +109,8 @@ export function Home(props: HomeProps) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 15_000); return () => clearInterval(t); }, []);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
-  const online = useOnlineCount();
+  const online = useOnlineNow();
+  const liveIn = (g: 'classique' | 'cf' | 'courtisan' | 'poker') => online?.games[g === 'classique' ? '421' : g];
   const prog = useProgramme(pa.token);
   const cf = useCfPeek(pa);
   const gr = useGroschenPeek(pa);
@@ -197,7 +202,7 @@ export function Home(props: HomeProps) {
   const classicRes = props.resume && !props.resume.courtisan && !props.resume.poker && !STANDALONE;
   const classic = classicRes ? { status: <><b className="mm-hot">{tr('app.partie_en_cours')}</b> {tr('app.table_2')} {props.resume!.code}</>, hot: true }
     : !STANDALONE && t.registered ? { status: <><b className="mm-hot">{tr('app.inscrit')}</b> {tr('app.tournoi_de')} {t.label} {t.open ? tr('app.salon_ouvert') : inTime(t.minutes)}</>, hot: t.open, badge: t.open ? tr('app.go') : undefined }
-    : { status: STANDALONE ? tr('app.contre_l_ordinateur_entre_amis') : <>{online != null && <><i className="live-dot" aria-hidden />{online} {tr('app.en_ligne')} </>}{tr('app.tournoi')} {t.label} {inTime(t.minutes)}</> };
+    : { status: STANDALONE ? tr('app.contre_l_ordinateur_entre_amis') : <>{tr('app.tournoi')} {t.label} {inTime(t.minutes)}</> };
   const cardsSt = !acc ? { status: tr('app.le_421_aux_cartes_essai_gratuit') }
     : !cf ? { status: tr('app.bluff_fouine_et_coups_bas') }
     : !cf.discovered ? { status: <><b className="mm-hot">{tr('app.nouveau')}</b> {tr('app.3_boosters_offerts')}</>, hot: true, badge: tr('app.nouveau') }
@@ -237,17 +242,20 @@ export function Home(props: HomeProps) {
           {titleL(profile.title) && <span className="h2-title-chip">{titleL(profile.title)}</span>}
           {props.onTournee && <TdcHomeChip profile={profile} onOpen={props.onTournee} />}
           {acc && <BistrotChip pa={pa} onOpen={props.onFriends} />}
-          {!STANDALONE && <div className="h2-news"><NewsTicker /></div>}
+          {!STANDALONE && <div className="h2-news">
+            {online && <span className={`mm-site${online.site ? "" : " zero"}`} title={tr('onl.siteAria', { n: online.site })}><i className="live-dot" aria-hidden /><span aria-hidden>{tr('onl.site', { n: online.site })}</span><span className="sr-only">{tr('onl.siteAria', { n: online.site })}</span></span>}
+            <NewsTicker />
+          </div>}
         </section>
 
         <nav className={`mm-modes${props.onPoker ? " four" : ""}`} aria-label={tr('app.les_jeux')}>
-          <ModeCard tone="classique" title={tr('app.421_classique')} onClick={props.onClassic} {...classic}
+          <ModeCard tone="classique" title={tr('app.421_classique')} onClick={props.onClassic} live={liveIn('classique')} {...classic}
             art={<span className="mm-plate">421</span>} />
-          <ModeCard tone="cartes" title="Coups Fourrés" onClick={props.onCards} {...cardsSt}
+          <ModeCard tone="cartes" title="Coups Fourrés" onClick={props.onCards} live={liveIn('cf')} {...cardsSt}
             art={<span className="mm-fan"><i className="h" /><i className="v" /><i className="p" /></span>} />
-          <ModeCard tone="dixmille" title={tr('app.le_courtisan')} onClick={props.onDixMille} {...courtSt}
+          <ModeCard tone="dixmille" title={tr('app.le_courtisan')} onClick={props.onDixMille} live={liveIn('courtisan')} {...courtSt}
             art={<span className="mm-dice"><DieCube id={profile.equipped.dice} size={30} /></span>} />
-          {props.onPoker && <ModeCard tone="poker" title={tr('pm.name')} onClick={props.onPoker} {...pokerSt}
+          {props.onPoker && <ModeCard tone="poker" title={tr('pm.name')} onClick={props.onPoker} live={liveIn('poker')} {...pokerSt}
             art={<span className="mm-cup" aria-hidden><i className="cup" /><i className="d">{tr('pm.face.5')}</i><i className="d r">{tr('pm.face.4')}</i></span>} />}
         </nav>
 
