@@ -129,6 +129,8 @@ export function ClassicMenu(props: ClassicMenuProps) {
 
       <main className="h2-main">
         {banner}
+        {/* Tournée des comptoirs (campagne solo) : l'entrée principale du menu, avant la partie contre l'ordinateur */}
+        {props.onTournee && <TdcMenuCard profile={profile} onOpen={props.onTournee} />}
         {/* Vitrine 3D et partie contre l'ordinateur */}
         <section className="h2-hero" ref={heroRef}>
           <HeroTray pa={pa} settings={props.settings} bottom={heroBottom} />
@@ -137,8 +139,6 @@ export function ClassicMenu(props: ClassicMenuProps) {
           <button className="h2-play" ref={playRef} onClick={props.onSolo}><Icon name="dice" size={26} /><span>{tr('g421.menu.playCpu')}</span><Icon name="back" size={20} /></button>
         </section>
 
-        {/* Tournée des comptoirs : la carrière solo, juste sous la partie contre l'ordinateur */}
-        {props.onTournee && <TdcMenuCard profile={profile} onOpen={props.onTournee} />}
 
         {/* Jeu en ligne : la grande carte rouge et or */}
         {STANDALONE ? <p className="note">{tr('g421.menu.standalone')}</p> : (

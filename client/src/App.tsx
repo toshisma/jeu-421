@@ -59,6 +59,8 @@ import { loadTrayScene } from './ui/DiceTray';
 import { INVITE_DELAY_MS, inviteDue, lastInviteClosed, loadWelcomeGift, markInviteClosed, onGuestInvite, saveWelcomeGift, type InviteGame, type WelcomeGift } from './ui/guestInvite';
 import { syncPushLang } from './push';
 import type { TdcController } from './comptoirs/controller';
+import { campaignScreen } from '../../shared/campaigns';
+import { gameOfScreen, noteLastGame } from './campaigns/lastGame';
 import { tdcBistro, tdcFactsFrom, type TdcBistro, type TdcProgress } from '../../shared/progress/comptoirs';
 
 // Écrans secondaires : chargés à la demande (voir lazy.ts). L'accueil n'attend aucun d'eux.
@@ -80,6 +82,8 @@ const AdminDashboard = lazyScreen(() => import('./ui/AdminDashboard'), 'AdminDas
 const ModerationScreen = lazyScreen(() => import('./ui/Moderation'), 'ModerationScreen');
 /** Tournée des comptoirs (carrière solo du 421). */
 const TourneeScreen = lazyScreen(() => import('./comptoirs/Tournee'), 'TourneeScreen');
+/** Campagnes solo des quatre jeux (écran « Campagnes », zone chm). */
+const CampaignsScreen = lazyScreen(() => import('./campaigns/CampaignsScreen'), 'CampaignsScreen');
 const TdcEndPanel = lazyScreen(() => import('./comptoirs/Tournee'), 'TdcEndPanel');
 /** Coups Fourrés, le mode cartes : tout le mode est chargé à part, seulement quand on l'ouvre. */
 const CfMode = lazyScreen(() => import('./cards/CfMode'), 'CfMode');
@@ -135,7 +139,8 @@ type Screen =
   | { name: 'duel'; duel: DuelPlay }
   | { name: 'admin'; from?: 'stats' }
   | { name: 'moderation' }
-  | { name: 'tdc' }
+  | { name: 'tdc'; via?: 'home' | 'campaigns' }
+  | { name: 'campaigns' }
   | { name: 'tdc-game'; controller: TdcController };
 
 /**
@@ -307,6 +312,15 @@ export function App() {
     sound.unlock();
     void import('./comptoirs/controller').then(({ TdcController }) => setScreen({ name: 'tdc-game', controller: new TdcController(b, meInfo()) }));
   };
+  // --- Campagnes solo (registre shared/campaigns) : écran d'entrée `camp-<id>` (la Tournée garde `tdc`) ---------
+  /** D'où l'on est venu à la Tournée (son bouton « Menu » y ramène, même après une partie). */
+  const tdcFrom = useRef<'home' | 'campaigns' | undefined>(undefined);
+  const openCampaign = (id: string, from: 'home' | 'campaigns') => {
+    const name = campaignScreen(id);
+    if (name === 'tdc') { tdcFrom.current = from; setScreen({ name: 'tdc', via: from }); } else setScreen({ name } as unknown as Screen);
+  };
+  // Dernier jeu ouvert : l'accueil montre sa campagne en premier.
+  useEffect(() => { const g = gameOfScreen(screen.name, CLASSIC_SCREENS.has(screen.name)); if (g) noteLastGame(g); }, [screen.name]);
   const startTutorial = () => {
     sound.unlock();
     setScreen({ name: 'tutorial', controller: new TutorialController({ name: settings.name || pa.session?.username || tr('g421.guestName'), avatar: settings.avatar, photo: pa.photo }) });
@@ -380,6 +394,7 @@ export function App() {
     onParty: go(() => setScreen({ name: 'party-setup' })),
     onOnline: go(() => setScreen({ name: 'hub', tab: 'tables' })),
     onChallenge: go(() => { sound.unlock(); setScreen({ name: 'challenge' }); }),
+    onCampaigns: go(() => setScreen({ name: 'campaigns' })),
   };
   const activeTab: NavTab = screen.name === 'home' ? 'home' : screen.name === 'friends' || screen.name === 'messages' ? 'friends'
     : screen.name === 'collection' ? 'collection' : screen.name === 'shop' ? 'shop' : null;
@@ -403,6 +418,7 @@ export function App() {
         onTournaments={() => setScreen({ name: 'hub', tab: 'tournois' })} onAlbum={() => setScreen({ name: 'album' })} onParty={() => setScreen({ name: 'party-setup' })}
         onOnline={() => setScreen({ name: 'hub', tab: 'tables' })} onChallenge={() => { sound.unlock(); setScreen({ name: 'challenge' }); }}
         onJoinScheduled={onJoinScheduled} notif={notif} discord={discord} onFeteBoss={startFeteBoss} onTournee={() => setScreen({ name: 'tdc' })} onQuickPlay={() => quickPlay('accueil')}
+        onCampaign={(id) => openCampaign(id, 'home')} onCampaigns={() => setScreen({ name: 'campaigns' })}
         resume={resume ?? (courtResume ? { code: courtResume.code, courtisan: true } : pokerResume ? { code: pokerResume.code, poker: true } : null)} onResume={resumeGame} />;
     case 'classic':
       return <ClassicMenu profile={profile} pa={pa} settings={settings} onBack={home}
@@ -416,7 +432,7 @@ export function App() {
         onChallenge={() => { sound.unlock(); setScreen({ name: 'challenge' }); }}
         onBoss={startBoss}
         onFeteBoss={startFeteBoss}
-        onTournee={() => setScreen({ name: 'tdc' })}
+        onTournee={() => { tdcFrom.current = undefined; setScreen({ name: 'tdc' }); }}
         onAlbum={() => setScreen({ name: 'album' })}
         onLeaderboard={() => setScreen({ name: 'leaderboard', from: 'classic' })}
         onStats={() => setScreen({ name: 'stats', from: 'classic' })}
@@ -471,10 +487,12 @@ export function App() {
         onGameEnd={(st, ctx) => pa.onGameEnd(st, c.meId, ctx, c.proof())} />;
     }
     case 'tdc':
-      return <TourneeScreen pa={pa} onBack={classic} onPlay={startTdc} />;
+      return <TourneeScreen pa={pa} onBack={screen.via === 'home' ? home : screen.via === 'campaigns' ? () => setScreen({ name: 'campaigns' }) : classic} onPlay={startTdc} />;
+    case 'campaigns':
+      return <CampaignsScreen pa={pa} onBack={home} onOpen={(id) => openCampaign(id, 'campaigns')} />;
     case 'tdc-game': {
       const c = screen.controller, b = c.bistro;
-      return <GameScreen controller={c} personas={c.personas} settings={settings} onSettings={setSettings} onExit={() => setScreen({ name: 'tdc' })}
+      return <GameScreen controller={c} personas={c.personas} settings={settings} onSettings={setSettings} onExit={() => setScreen({ name: 'tdc', via: tdcFrom.current })}
         appearance={{ ...profile.equipped, ...b.look }} pa={pa}
         onGameStart={() => { setTdcBefore({ ...(pa.profile.tdc ?? {}) }); setTdcPending(false); c.attachTicket(pa.onSoloStart(undefined, b.id, c.soloSetup())); }}
         onGameEnd={async (st, ctx) => {

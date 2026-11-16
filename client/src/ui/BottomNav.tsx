@@ -38,6 +38,8 @@ export interface NavActions {
   onAdmin: () => void; onModeration: () => void;
   onLeaderboard: () => void; onRules: () => void; onTutorial: () => void; onTournaments: () => void; onAlbum: () => void;
   onParty: () => void; onOnline: () => void; onChallenge: () => void;
+  /** Écran « Campagnes » (campagnes solo des quatre jeux). */
+  onCampaigns?: () => void;
 }
 
 type Discord = ReturnType<typeof useDiscord>['discord'];
@@ -82,6 +84,7 @@ function PlusMenu({ a, pa, settings, onChangeSettings, discord, unread, onSheet,
       { label: 'Modération', icon: 'flag', go: a.onModeration, show: role.moderator && !admin, dot: role.pending > 0, keys: 'signalements sanctions moderateur' },
     ] },
     { title: tr('plus.g.games'), items: [
+      ...(a.onCampaigns ? [{ label: tr('chm.title'), icon: 'trophy' as const, go: a.onCampaigns, keys: 'campagne solo etoiles tournee des comptoirs carriere campaign kampagne' }] : []),
       { label: tr('plus.classic'), icon: 'dice', go: a.onClassic, keys: 'jeu de base solo en ligne' },
       { label: tr('plus.cf'), icon: 'cards', go: a.onCards, keys: 'cartes mode cartes deck booster capsules ligue' },
       { label: tr('plus.courtier'), icon: 'dice', go: a.onDixMille, keys: '10000 dix mille farkle six des courtisan groschen' },

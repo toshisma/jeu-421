@@ -36,7 +36,7 @@ import { inTime, tournamentInfo, useCfPeek, useGroschenPeek, useProgramme } from
 import { useOnlineNow } from './onlineCount';
 import { GROSCHEN_DAILY } from '../../../shared/dixmille/groschen';
 import { FetesBanner, FetesSheet, fetesBannerDue } from '../fetes/Fetes';
-import { TdcHomeChip } from '../comptoirs/MenuEntry';
+import { CampaignHomeCard, campaignStarsOf } from '../campaigns/HomeCard';
 import { showQuickPlay } from '../quickPlay';
 import { SerieChip } from './Serie';
 
@@ -65,22 +65,28 @@ export interface HomeProps {
   onFeteBoss?: () => void;
   /** Notifications et Discord : chargés une fois par l'application (la barre du bas s'en sert aussi). */
   notif: ReturnType<typeof useNotifications>; discord: ReturnType<typeof useDiscord>;
-  /** Tournée des comptoirs : pastille sur la vitrine (ne prend aucune hauteur). */
+  /** Tournée des comptoirs (gardé pour compatibilité ; l'accueil passe par onCampaign). */
   onTournee?: () => void;
+  /** Campagnes solo : ouvrir une campagne (son écran d'entrée) ou l'écran « Campagnes ». */
+  onCampaign?: (id: string) => void; onCampaigns?: () => void;
 }
 
 type SheetKind = 'coffre' | 'cadeau' | 'missions' | 'discord';
 
 /** Grande entrée d'un jeu : illustration, nom, ce qui l'attend. */
-function ModeCard({ tone, title, art, status, hot, badge, live, onClick }: {
+function ModeCard({ tone, title, art, status, hot, badge, live, camp, onClick }: {
   tone: 'classique' | 'cartes' | 'dixmille' | 'poker'; title: string; art: React.ReactNode; status: React.ReactNode; hot?: boolean; badge?: string;
   /** Personnes dans ce jeu en ce moment (pastille sur l'illustration, 0 compris ; rien tant que le serveur n'a pas répondu). */
-  live?: number; onClick: () => void;
+  live?: number;
+  /** Campagne solo du jeu : étoiles gagnées (pastille sur l'illustration, au-dessus des joueurs en ligne). */
+  camp?: { stars: number; max: number };
+  onClick: () => void;
 }) {
   return (
     <button className={`mm-mode ${tone}${hot ? ' hot' : ''}`} onClick={onClick}>
       <span className="mm-mode-art" aria-hidden>{art}</span>
       {live != null && <span className={`mm-mode-live${live ? "" : " zero"}`} title={tr('onl.gameAria', { n: live })}><i className="live-dot" aria-hidden /><b aria-hidden>{live}</b><span className="sr-only">{tr('onl.gameAria', { n: live })}</span></span>}
+      {camp && <span className={`mm-mode-camp${camp.stars ? '' : ' zero'}`} title={tr('chm.modeAria', { n: camp.stars, max: camp.max })}><span aria-hidden>★{camp.stars}<small>/{camp.max}</small></span><span className="sr-only">{tr('chm.modeAria', { n: camp.stars, max: camp.max })}</span></span>}
       <span className="mm-mode-text"><b>{title}</b><small>{status}</small></span>
       {badge ? <em className="mm-mode-badge">{badge}</em> : <svg className="mm-mode-go" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden><path d="M9 6l6 6-6 6" /></svg>}
     </button>
@@ -236,11 +242,12 @@ export function Home(props: HomeProps) {
       <main className="mm-main">
         {banner}
         {/* Vitrine 3D : le bac du joueur, avec ses dés (on peut lancer) */}
-        <section className="h2-hero mm-hero">
+        <section className={`h2-hero mm-hero${props.onCampaign ? ' has-camp' : ''}`}>
           <HeroTray pa={pa} settings={props.settings} />
           <h1 className="mm-brand"><span className="plaque" aria-hidden>421</span><span aria-hidden>online</span><span className="sr-only">{tr('app.421_en_ligne_jeux_de_des_et')}</span></h1>
           {titleL(profile.title) && <span className="h2-title-chip">{titleL(profile.title)}</span>}
-          {props.onTournee && <TdcHomeChip profile={profile} onOpen={props.onTournee} />}
+          {/* Campagne solo (dernier jeu ouvert, ou la Tournée) : bloc posé en bas de la vitrine, à la place de l'ancienne pastille « Tournée des comptoirs ». */}
+          {props.onCampaign && <CampaignHomeCard profile={profile} onOpen={props.onCampaign} onAll={props.onCampaigns ?? (() => props.onCampaign!('r421'))} />}
           {acc && <BistrotChip pa={pa} onOpen={props.onFriends} />}
           {!STANDALONE && <div className="h2-news">
             {online && <span className={`mm-site${online.site ? "" : " zero"}`} title={tr('onl.siteAria', { n: online.site })}><i className="live-dot" aria-hidden /><span aria-hidden>{tr('onl.site', { n: online.site })}</span><span className="sr-only">{tr('onl.siteAria', { n: online.site })}</span></span>}
@@ -249,13 +256,13 @@ export function Home(props: HomeProps) {
         </section>
 
         <nav className={`mm-modes${props.onPoker ? " four" : ""}`} aria-label={tr('app.les_jeux')}>
-          <ModeCard tone="classique" title={tr('app.421_classique')} onClick={props.onClassic} live={liveIn('classique')} {...classic}
+          <ModeCard tone="classique" camp={campaignStarsOf(profile, '421')} title={tr('app.421_classique')} onClick={props.onClassic} live={liveIn('classique')} {...classic}
             art={<span className="mm-plate">421</span>} />
-          <ModeCard tone="cartes" title="Coups Fourrés" onClick={props.onCards} live={liveIn('cf')} {...cardsSt}
+          <ModeCard tone="cartes" camp={campaignStarsOf(profile, 'cf')} title="Coups Fourrés" onClick={props.onCards} live={liveIn('cf')} {...cardsSt}
             art={<span className="mm-fan"><i className="h" /><i className="v" /><i className="p" /></span>} />
-          <ModeCard tone="dixmille" title={tr('app.le_courtisan')} onClick={props.onDixMille} live={liveIn('courtisan')} {...courtSt}
+          <ModeCard tone="dixmille" camp={campaignStarsOf(profile, 'dm')} title={tr('app.le_courtisan')} onClick={props.onDixMille} live={liveIn('courtisan')} {...courtSt}
             art={<span className="mm-dice"><DieCube id={profile.equipped.dice} size={30} /></span>} />
-          {props.onPoker && <ModeCard tone="poker" title={tr('pm.name')} onClick={props.onPoker} live={liveIn('poker')} {...pokerSt}
+          {props.onPoker && <ModeCard tone="poker" camp={campaignStarsOf(profile, 'pm')} title={tr('pm.name')} onClick={props.onPoker} live={liveIn('poker')} {...pokerSt}
             art={<span className="mm-cup" aria-hidden><i className="cup" /><i className="d">{tr('pm.face.5')}</i><i className="d r">{tr('pm.face.4')}</i></span>} />}
         </nav>
 

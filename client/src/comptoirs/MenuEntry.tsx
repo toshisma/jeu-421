@@ -1,28 +1,24 @@
-/** Entrées de la Tournée des comptoirs : carte du menu du 421 et pastille de l'accueil (sans hauteur en plus). */
-import { TDC_BISTROS, TDC_MAX_STARS, reputation } from '../../../shared/progress/comptoirs';
+/**
+ * Entrée de la Tournée des comptoirs dans le menu du 421 : l'entrée principale du menu (au-dessus de la vitrine
+ * « Jouer contre l'ordinateur »), avec la prochaine étape et un bouton « Continuer ».
+ * (L'accueil passe par le bloc Campagne : client/src/campaigns/HomeCard.tsx.)
+ */
+import { campaignSummary } from '../../../shared/campaigns/r421';
 import type { Profile } from '../../../shared/progress/profile';
 import { tr } from '../i18n/lang';
+import { goLabel, nextLine } from '../campaigns/HomeCard';
 
 export function TdcMenuCard({ profile, onOpen }: { profile: Profile; onOpen: () => void }) {
-  const rep = reputation(profile.tdc);
-  const won = TDC_BISTROS.filter((b) => (profile.tdc?.[b.id] ?? 0) & 1).length;
+  const s = campaignSummary(profile);
   return (
-    <button className="tdc-entry" onClick={onOpen}>
+    <button className="tdc-entry featured" onClick={onOpen} aria-label={`${tr('tdc.title')} · ${tr('chm.starsAria', { n: s.stars, max: s.maxStars })}`}>
       <span className="tdc-entry-art" aria-hidden><span className="tdc-awning" /><span className="tdc-entry-door">🍺</span></span>
       <span className="tdc-entry-text">
+        <small className="tdc-entry-eyebrow">{tr('chm.eyebrow')} · <span className="tdc-entry-rep-in"><span aria-hidden>★</span>{s.stars}<span className="tdc-entry-rep-max">/{s.maxStars}</span></span></small>
         <b>{tr('tdc.title')}</b>
-        <small>{rep ? tr('tdc.menuSub', { n: rep, b: won, t: TDC_BISTROS.length }) : tr('tdc.q.marche.d')}</small>
+        <small>{nextLine(s)}</small>
       </span>
-      {rep ? <em className="tdc-entry-rep"><span aria-hidden>★</span>{rep}<small>/{TDC_MAX_STARS}</small></em> : <em className="tdc-entry-new">{tr('tdc.menuNew')}</em>}
-    </button>
-  );
-}
-
-export function TdcHomeChip({ profile, onOpen }: { profile: Profile; onOpen: () => void }) {
-  const rep = reputation(profile.tdc);
-  return (
-    <button className="tdc-home-chip" onClick={onOpen} aria-label={tr('tdc.homeAria', { n: rep })}>
-      <span aria-hidden>🍺</span><span className="tdc-home-chip-t">{tr('tdc.title')}</span><b><span aria-hidden>★</span>{rep}</b>
+      <em className="camp-go tdc-entry-go">{goLabel(s)}</em>
     </button>
   );
 }

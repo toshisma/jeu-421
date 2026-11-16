@@ -1,0 +1,20 @@
+/** Campagnes solo sur l'accueil (bloc Campagne, pastilles, écran « Campagnes ») : textes français, clés `chm.`. */
+export const chmFr = {
+  'chm.eyebrow': 'Campagne',
+  'chm.soon': 'Bientôt',
+  'chm.first': 'Première étape : {name}',
+  'chm.next': 'Prochaine étape : {name}',
+  'chm.more': 'Encore des étoiles à gagner : {name}',
+  'chm.done': 'Campagne terminée, bravo !',
+  'chm.locked': 'Gagnez des étoiles pour ouvrir la suite',
+  'chm.start': 'Commencer',
+  'chm.continue': 'Continuer',
+  'chm.see': 'Voir',
+  'chm.starsAria': '{n} étoiles sur {max}',
+  'chm.pickAria': 'Campagne {name} : {n} étoiles sur {max}',
+  'chm.modeAria': 'Campagne solo : {n} étoiles sur {max}',
+  'chm.all': 'Toutes les campagnes',
+  'chm.title': 'Campagnes',
+  'chm.sub': 'Une campagne solo par jeu : des tables de plus en plus coriaces et trois étoiles à gagner à chacune. 5 pièces par nouvelle étoile.',
+  'chm.guest': 'Progression gardée sur cet appareil. Avec un compte gratuit, elle vous suit partout.',
+};
