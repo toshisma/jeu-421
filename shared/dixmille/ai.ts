@@ -6,7 +6,7 @@
  *   points en jeu), ne garde que les dés utiles, et tient compte de l'écart au score.
  */
 import { mulberry32, type Rng } from '../rng';
-import { DM_DICE, currentPlayer, diceAfter, inPlay, validSelections, type DmAction, type DmLevel, type DmState } from './engine';
+import { DM_DICE, canBank, currentPlayer, diceAfter, inPlay, validSelections, type DmAction, type DmLevel, type DmState } from './engine';
 
 /** Probabilité de rater (aucun dé qui rapporte) selon le nombre de dés lancés. */
 export const MISS_CHANCE = [1, 2 / 3, 4 / 9, 60 / 216, 204 / 1296, 600 / 7776, 1440 / 46656];
@@ -98,7 +98,7 @@ export function decide(s: DmState, level: DmLevel, rng: Rng = mulberry32(s.seed 
     let at = BANK_AT[level][n];
     // Le débutant est imprévisible : parfois il pousse encore plus loin.
     if (level === 'debutant') at *= 0.8 + rng() * 0.9;
-    return { type: T >= at ? 'encaisser' : 'relancer', pick: x.pick };
+    return { type: T >= at && canBank(s, T) ? 'encaisser' : 'relancer', pick: x.pick };
   }
 
   // Fine fouine : la meilleure sélection selon l'espérance, ajustée à la situation.
@@ -112,7 +112,8 @@ export function decide(s: DmState, level: DmLevel, rng: Rng = mulberry32(s.seed 
     const n = diceAfter(s, x.pick);
     const c = continueValue(T, n);
     // Avec de l'urgence, les points encaissés valent moins que la chance d'aller plus loin.
-    const bankV = T * (1 - urgency);
+    // Seuil d'ouverture pas atteint : encaisser est interdit.
+    const bankV = canBank(s, T) ? T * (1 - urgency) : -1;
     const a: DmAction = c > bankV ? { type: 'relancer', pick: x.pick } : { type: 'encaisser', pick: x.pick };
     const v = Math.max(c, bankV);
     if (!best || v > best.v) best = { a, v };

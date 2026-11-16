@@ -12,6 +12,8 @@
  *   identique en plus double (4 = ×2, 5 = ×4, 6 = ×8) ; suites 1-2-3-4-5 = 500, 2-3-4-5-6 = 750,
  *   1-2-3-4-5-6 = 1 500. Une combinaison doit être prise dans un seul lancer.
  * - Le premier qui atteint le score cible en encaissant gagne aussitôt.
+ * - Option « seuil d'ouverture » (`entry`, règle maison de la campagne, absente ailleurs) : tant qu'un
+ *   joueur n'a encore rien encaissé, il ne peut encaisser qu'un tour d'au moins `entry` points.
  */
 import { mulberry32 } from '../rng';
 
@@ -22,6 +24,8 @@ export const DM_MAX_PLAYERS = 6;
 export const DM_TARGETS = [2000, 4000, 10000] as const;
 export type DmTarget = (typeof DM_TARGETS)[number];
 export type DmLevel = 'debutant' | 'habitue' | 'fouine';
+/** Seuils d'ouverture permis (règle maison de la campagne du Courtisan). */
+export const DM_ENTRIES = [300, 500, 1000] as const;
 export const DM_LEVELS: { v: DmLevel; label: string; hint: string }[] = [
   { v: 'debutant', label: 'Débutant', hint: 'Tente trop sa chance' },
   { v: 'habitue', label: 'Habitué', hint: 'Joue raisonnablement' },
@@ -172,15 +176,24 @@ export interface DmState {
   draws: number;
   /** Derniers événements (le contrôleur les lit pour animer). */
   events: DmEvent[];
+  /** Seuil d'ouverture (règle maison) : absent = aucune. */
+  entry?: number;
 }
 
-export function newGame(players: { id: string; name: string; bot?: DmLevel }[], target: number, seed: number): DmState {
+export function newGame(players: { id: string; name: string; bot?: DmLevel }[], target: number, seed: number, rules?: { entry?: number }): DmState {
   if (players.length < DM_MIN_PLAYERS || players.length > DM_MAX_PLAYERS) throw new Error(`${DM_MIN_PLAYERS} à ${DM_MAX_PLAYERS} joueurs`);
+  const entry = rules?.entry && (DM_ENTRIES as readonly number[]).includes(rules.entry) ? rules.entry : 0;
   return {
     target, players: players.map((p) => ({ ...p, score: 0, misses: 0, best: 0 })), current: 0, phase: 'debut',
     dice: [1, 2, 3, 4, 5, 6], out: Array(DM_DICE).fill(false), rolled: Array(DM_DICE).fill(false),
     turnPoints: 0, setAside: [], turns: 0, throws: 0, winner: null, seed: seed >>> 0, draws: 0, events: [],
+    ...(entry ? { entry } : {}),
   };
+}
+
+/** Le joueur en cours peut-il encaisser un tour de `turnTotal` points (seuil d'ouverture) ? */
+export function canBank(s: DmState, turnTotal: number): boolean {
+  return !s.entry || currentPlayer(s).score > 0 || turnTotal >= s.entry;
 }
 
 export type DmAction = { type: 'lancer' } | { type: 'relancer'; pick: number[] } | { type: 'encaisser'; pick: number[] };
@@ -254,6 +267,7 @@ export function act(prev: DmState, a: DmAction): { state: DmState } | { error: s
   if (s.phase !== 'choisir') return { error: 'Lancez d’abord les dés.' };
   const pts = pickPoints(s, a.pick);
   if (pts === null) return { error: 'Chaque dé mis de côté doit rapporter des points.' };
+  if (a.type === 'encaisser' && !canBank(s, s.turnPoints + pts)) return { error: `Il faut au moins ${s.entry} points pour ouvrir votre compteur.` };
   s.turnPoints += pts;
   s.setAside.push({ dice: a.pick.map((i) => s.dice[i]), points: pts });
   for (const i of a.pick) s.out[i] = true;

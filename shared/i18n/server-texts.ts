@@ -14,6 +14,7 @@ import { PM_RULES } from './zones/poker-server';
 import { REJEU_RULES } from './zones/rejeu-server';
 import { translateFetes } from './zones/fetes-server';
 import { translateTdc } from './zones/comptoirs-server';
+import { translateCdm } from './zones/campdm-server'; // campagne du Courtisan
 import { translateClubRule } from './zones/clubs-server';
 import { SER_RULES } from './zones/serie-server';
 import { MPM_RULES } from './zones/mpmod-server';
@@ -120,6 +121,7 @@ export function translateServerText(lang: Lang, text: string): string {
   const cf = translateCfRule(lang, text); if (cf !== null) return cf;
   const fet = translateFetes(lang, text); if (fet !== null) return fet;
   const tdc = translateTdc(lang, text); if (tdc !== null) return tdc;
+  const cdm = translateCdm(lang, text); if (cdm !== null) return cdm;
   const club = translateClubRule(lang, text); if (club !== null) return club;
   for (const [re, t] of RULES) {
     if (re.test(text)) {

@@ -13,6 +13,7 @@ import type { MessageKey } from './fr';
 import { g421De } from './zones/jeu421.de';
 import { fetesDe } from './zones/fetes.de';
 import { tdcDe } from './zones/comptoirs.de';
+import { cdmDe } from './zones/campdm.de'; // campagne du Courtisan
 
 /** Textes allemands (« du », ton direct). Une clé absente s'affiche en français. */
 export const de: Partial<Record<MessageKey, string>> = {
@@ -72,4 +73,5 @@ export const de: Partial<Record<MessageKey, string>> = {
   ...fetesDe,
   ...rejeuDe,
   ...tdcDe,
+  ...cdmDe,
 };

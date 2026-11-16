@@ -63,7 +63,7 @@ export function playDm(setup: SetupDm, seed: number, humanLevel: 'debutant' | 'h
   const moves: string[] = [];
   while (s.phase !== 'fini') {
     const mine = currentPlayer(s).id === 'moi';
-    const a: DmAction = mine ? dmDecide(s, humanLevel) : dmDecide(s, setup.level);
+    const a: DmAction = mine ? dmDecide(s, humanLevel) : dmDecide(s, currentPlayer(s).bot ?? setup.level);
     const r = act(s, a);
     if ('error' in r) throw new Error(r.error);
     if (mine) moves.push(encodeDm(a));

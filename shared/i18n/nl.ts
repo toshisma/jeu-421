@@ -13,6 +13,7 @@ import type { MessageKey } from './fr';
 import { g421Nl } from './zones/jeu421.nl';
 import { fetesNl } from './zones/fetes.nl';
 import { tdcNl } from './zones/comptoirs.nl';
+import { cdmNl } from './zones/campdm.nl'; // campagne du Courtisan
 
 /** Textes néerlandais (« je », ton direct). Une clé absente s'affiche en français. */
 export const nl: Partial<Record<MessageKey, string>> = {
@@ -72,4 +73,5 @@ export const nl: Partial<Record<MessageKey, string>> = {
   ...fetesNl,
   ...rejeuNl,
   ...tdcNl,
+  ...cdmNl,
 };

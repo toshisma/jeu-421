@@ -15,6 +15,7 @@ import { cartesFr } from './zones/cartes.fr';
 import { g421Fr } from "./zones/jeu421.fr";
 import { fetesFr } from "./zones/fetes.fr";
 import { tdcFr } from "./zones/comptoirs.fr";
+import { cdmFr } from './zones/campdm.fr'; // campagne du Courtisan
 
 export const fr = {
   ...mpmodFr,
@@ -27,6 +28,7 @@ export const fr = {
   ...cartesFr,
   ...courtisan2Fr,
   ...tdcFr,
+  ...cdmFr,
   ...pokerFr,
   "common.back": "Retour",
   "common.close": "Fermer",
