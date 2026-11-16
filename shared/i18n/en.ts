@@ -16,6 +16,7 @@ import { tdcEn } from './zones/comptoirs.en';
 import { chmEn } from './zones/camphome.en';
 import { cdmEn } from './zones/campdm.en'; // campagne du Courtisan
 import { cpmEn } from './zones/camppm.en'; // campagne du Poker menteur
+import { ccfEn } from './zones/campcf.en';
 
 /** Textes anglais. Ton : direct et simple ; vocabulaire de Farkle (farkle, bank, hot dice). */
 export const en: Partial<Record<MessageKey, string>> = {
@@ -387,4 +388,5 @@ export const en: Partial<Record<MessageKey, string>> = {
   ...chmEn,
   ...cdmEn,
   ...cpmEn,
+  ...ccfEn,
 };

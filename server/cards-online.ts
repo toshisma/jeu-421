@@ -30,6 +30,7 @@ import {
   type CfAction, type CfEvent, type CfState,
 } from '../shared/cards/engine';
 import { replayBotMatch, type BotMatchSetup } from '../shared/cards/botmatch';
+import { applyCcf, ccfBots, ccfFacts, ccfStage, stageUnlocked, type CcfResult } from '../shared/campaigns/cf';
 import { CF_LEVEL_LABEL, type CfLevel } from '../shared/cards/ai';
 import { cfDivisionOf, type CfMissionKind } from '../shared/cards/progress';
 import { CfPlayTracker, deckCounts } from '../shared/cards/stats';
@@ -220,7 +221,8 @@ export function createCfOnline(c: Ctx) {
   const queue = new Map<string, QueueEntry>();
   const menu = new Map<string, number>(); // userId → dernier signal « dans le menu du mode »
   const userSockets = new Map<string, Set<string>>();
-  const bots = new Map<string, { userId: string; setup: BotMatchSetup; startedAt: number }>();
+  /** Parties contre l'ordinateur en cours ; `campaign` : comptoir de la campagne « Les Comptoirs rivaux » imposé au départ. */
+  const bots = new Map<string, { userId: string; setup: BotMatchSetup; startedAt: number; campaign?: string }>();
   let chatSeq = 0;
 
   const sock = (id: string | null | undefined) => (id ? ns.sockets.get(id) : undefined);
@@ -971,7 +973,14 @@ export function createCfOnline(c: Ctx) {
     const u = user(req);
     const level = LEVELS.includes(req.body?.level) ? (req.body.level as CfLevel) : null;
     if (!level) return failRes(res, 400, `Niveau inconnu (${LEVELS.map((l) => CF_LEVEL_LABEL[l]).join(', ')}).`);
-    const d = deckFor(u.id, cleanDeckId(req.body?.deckId), true);
+    // Campagne « Les Comptoirs rivaux » : comptoir ouvert pour ce compte (profil du serveur), table imposée ici,
+    // deck du joueur (pas de deck d'entraînement). Le client ne choisit ni les adversaires ni leurs decks.
+    const campaign = req.body?.campaign === undefined ? null : ccfStage(req.body.campaign);
+    if (req.body?.campaign !== undefined) {
+      if (!campaign) return failRes(res, 400, 'Comptoir inconnu.');
+      if (!stageUnlocked(store.profileOf(u).ccf, campaign.id)) return failRes(res, 403, 'Ce comptoir n’est pas encore ouvert.');
+    }
+    const d = deckFor(u.id, cleanDeckId(req.body?.deckId), !campaign);
     if ('error' in d) return failRes(res, 400, d.error);
     const t = now();
     for (const [id, b] of bots) if (t - b.startedAt > BOT_TTL) bots.delete(id);
@@ -984,9 +993,9 @@ export function createCfOnline(c: Ctx) {
       const name = names.splice(randomInt(names.length), 1)[0];
       return { id: i ? `ordi${i + 1}` : 'ordi', name, deck: parcoursStepOf(d.deckId) ? [...d.cards] : deckList(cfBotDeck().cards), level };
     });
-    const setup: BotMatchSetup = { seed: randomInt(1, 2 ** 31), me: { id: 'joueur', name: u.username, deck: d.cards }, bots: botSeats };
+    const setup: BotMatchSetup = { seed: randomInt(1, 2 ** 31), me: { id: 'joueur', name: u.username, deck: d.cards }, bots: campaign ? ccfBots(campaign) : botSeats };
     const gameId = randomUUID();
-    bots.set(gameId, { userId: u.id, setup, startedAt: t });
+    bots.set(gameId, { userId: u.id, setup, startedAt: t, ...(campaign ? { campaign: campaign.id } : {}) });
     menu.set(u.id, t);
     res.json({ ok: true, gameId, ...setup });
   });
@@ -1020,7 +1029,16 @@ export function createCfOnline(c: Ctx) {
       humans: [{ userId: u.id, won, deck: deckCounts(b.setup.me.deck), plays: track.playsOf(b.setup.me.id), firstLeader: track.firstLeader === b.setup.me.id }],
     });
     if (reward) reward.missions = [...missionsDone, ...reward.missions];
-    res.json({ ok: true, won, reward, state: cards.state(u.id) });
+    // Campagne : étoiles calculées sur la partie REJOUÉE (table imposée au départ), une seule fois chacune.
+    let campaign: CcfResult | null = null;
+    if (b.campaign && ccfStage(b.campaign)) {
+      const row = store.userById(u.id) ?? u;
+      const applied = applyCcf(store.profileOf(row), b.campaign, ccfFacts(b.setup, r.state, events));
+      campaign = applied.result;
+      if (campaign.newStars.length || campaign.title) store.saveProfile(u.id, applied.profile);
+      if (campaign.capsules) cards.grantCapsules(u.id, campaign.capsules);
+    }
+    res.json({ ok: true, won, reward, state: cards.state(u.id), ...(b.campaign ? { campaign, profile: store.profileOf(store.userById(u.id) ?? u) } : {}) });
   });
   router.post('/cf/bot/abandon', auth, (req, res) => {
     const b = bots.get(String(req.body?.gameId ?? ''));

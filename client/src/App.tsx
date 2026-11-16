@@ -143,7 +143,9 @@ type Screen =
   | { name: 'tdc'; via?: 'home' | 'campaigns' }
   | { name: 'campaigns' }
   | { name: 'tdc-game'; controller: TdcController }
-  | { name: 'camp-pm' }; // campagne du Poker menteur « Les Arrière-salles » (menu du mode ouvert sur la carte)
+  | { name: 'camp-pm' } // campagne du Poker menteur « Les Arrière-salles » (menu du mode ouvert sur la carte)
+  // Campagne solo de Coups Fourrés « Les Comptoirs rivaux » (client/src/campaigns/CfCampaign.tsx, dans le mode).
+  | { name: 'camp-cf' };
 
 /**
  * Nettoie l'adresse (lien d'invitation, page de confidentialité) sans recharger la page.
@@ -544,6 +546,10 @@ export function App() {
         displayName={settings.name} avatar={settings.avatar} />;
     case 'cf':
       return <CfMode key={`${JSON.stringify(screen.pending ?? null)}${screen.reset ?? ''}`} pending={screen.pending} pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
+        onHome={home} onFriends={() => setScreen({ name: 'friends', from: 'cf' })} onBags={() => setScreen({ name: 'collection', from: 'cf', open: true })}
+        onAccount={() => setScreen({ name: 'account', back: 'cf' })} onLogin={() => setScreen({ name: 'account', tab: 'login', back: 'cf' })} />;
+    case 'camp-cf':
+      return <CfMode pending={{ campaign: true }} pa={pa} settings={settings} onSettings={setSettings} avatar={settings.avatar} displayName={settings.name}
         onHome={home} onFriends={() => setScreen({ name: 'friends', from: 'cf' })} onBags={() => setScreen({ name: 'collection', from: 'cf', open: true })}
         onAccount={() => setScreen({ name: 'account', back: 'cf' })} onLogin={() => setScreen({ name: 'account', tab: 'login', back: 'cf' })} />;
     case 'friends':

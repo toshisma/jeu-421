@@ -47,6 +47,8 @@ import { trackEvent } from '../visit';
 import { CardZoomHost } from './zoom';
 import { usePresenceLayer } from '../presence';
 import { DeckBadge, DeckChoiceSheet, DeckPicker, type DeckOption } from './DeckPicker';
+import { CcfEndPanel, CfCampaignEntry, CfCampaignScreen, ccfStageName } from '../campaigns/CfCampaign';
+import { ccfHost, ccfPlayers, type CcfProgress, type CcfStage } from '../../../shared/campaigns/cf';
 
 export interface CfModeProps {
   pa: ProfileApi;
@@ -63,7 +65,7 @@ export interface CfModeProps {
   /** Sacs de dés gagnés en fin de partie : la collection de dés (commune aux trois jeux) s'ouvre dessus. */
   onBags?: () => void;
   /** À faire dès l'ouverture (venu de la liste d'amis) : défier ce pseudo, ou regarder cette partie. */
-  pending?: { challenge?: string; watch?: string; tournoi?: boolean; boosters?: boolean; play?: boolean };
+  pending?: { challenge?: string; watch?: string; tournoi?: boolean; boosters?: boolean; play?: boolean; campaign?: boolean };
 }
 
 type Route =
@@ -80,7 +82,8 @@ type Route =
   | { r: 'lexicon' }
   | { r: 'tournoi' }
   | { r: 'enigme' }
-  | { r: 'game'; ctrl: CfController; mode: string; again?: () => void; online?: boolean };
+  | { r: 'campaign' }
+  | { r: 'game'; ctrl: CfController; mode: string; again?: () => void; online?: boolean; ccf?: { stage: CcfStage; before: CcfProgress } };
 
 /** Pages du mode → vue de présence (voir server/live.ts). */
 const CF_VIEWS: Partial<Record<Route['r'], string>> = {
@@ -128,7 +131,7 @@ function CfModeScreens(props: CfModeProps) {
   const acc = pa.isAccount;
   const [st, setSt] = useState<CfState | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
-  const [route, setRoute] = useState<Route>(() => (props.pending?.tournoi ? { r: 'tournoi' } : { r: 'menu' }));
+  const [route, setRoute] = useState<Route>(() => (props.pending?.tournoi ? { r: 'tournoi' } : props.pending?.campaign ? { r: 'campaign' } : { r: 'menu' }));
   const [sheet, setSheet] = useState<SheetKind>(null);
   const [toast, showToast] = useCfToast();
   const [waiting, setWaiting] = useState<{ kind: 'queue' | 'challenge'; title: string; deckId?: string } | null>(null);
@@ -252,6 +255,29 @@ function CfModeScreens(props: CfModeProps) {
     } finally { setStarting(false); }
   }, [starting, st, pa.token, pa.photo, pa.session, pa.onCfGuestEnd, name, props.avatar, showToast, offerTutorial]);
 
+  /** Campagne « Les Comptoirs rivaux » : un comptoir, la table imposée, le deck choisi par le joueur. */
+  const startCampaign = useCallback(async (stage: CcfStage, deckId: string) => {
+    if (starting) return;
+    sound.unlock();
+    setStarting(true);
+    try {
+      const own = acc ? st?.decks.find((d) => d.id === deckId && d.valid) : undefined;
+      // Compte : toujours son propre deck, partie vérifiée par le serveur (jamais de partie locale sans étoiles).
+      if (acc && !own) { showToast(tr('cf.mode.il_vous_faut_un_deck_complet'), 'err'); return; }
+      const cards = own?.cards ?? (STARTER_DECKS.find((d) => d.id === deckId) ?? STARTER_DECKS[0]).cards;
+      const before = { ...(pa.profile.ccf ?? {}) };
+      const ctrl = await LocalCfController.create({
+        level: ccfHost(stage).level, deck: deckList(cards), deckId: own ? own.id : null, token: own ? pa.token : null, opponents: ccfPlayers(stage) - 1,
+        campaign: stage.id, onCampaignProfile: pa.onServerProfile, onCampaignGuest: pa.onCcfGuestEnd,
+        me: { name, avatar: props.avatar, photo: pa.photo, account: pa.session?.username },
+        onGuestEnd: pa.onCfGuestEnd,
+      });
+      setRoute({ r: 'game', ctrl, mode: ccfStageName(stage.id), again: () => void startCampaign(stage, deckId), ccf: { stage, before } });
+    } catch (e) {
+      showToast(e instanceof Error ? cfText(e.message) : tr('cf.mode.impossible_de_lancer_la_partie'), 'err');
+    } finally { setStarting(false); }
+  }, [starting, acc, st, pa.token, pa.photo, pa.session, pa.profile.ccf, pa.onServerProfile, pa.onCcfGuestEnd, pa.onCfGuestEnd, name, props.avatar, showToast]);
+
   // Lien direct /?jouer=cartes : une partie contre l'ordinateur tout de suite (la partie guidée pour un tout
   // nouveau joueur, sinon l'étape suivante du parcours débutant ou le deck actif, niveau débutant).
   // Compte qui n'a pas encore découvert le mode : son écran de découverte (decks offerts) passe d'abord.
@@ -313,9 +339,11 @@ function CfModeScreens(props: CfModeProps) {
 
   // --- écrans ----------------------------------------------------------------------------------
   if (route.r === 'game') {
+    const ccf = route.ccf;
     return <CfGame key={gameKey(route.ctrl)} controller={route.ctrl} mode={route.mode} settings={props.settings} onSettings={props.onSettings} pa={pa}
-      online={route.online ? online : null} onExit={() => { if (route.mode === 'tournoi') { setRoute({ r: 'tournoi' }); void reload(); pa.refresh(); } else menu(); }} onAgain={route.again ? () => { route.again!(); } : undefined}
-      onAccount={props.onAccount} onBags={props.onBags} />;
+      online={route.online ? online : null} onExit={() => { if (route.mode === 'tournoi') { setRoute({ r: 'tournoi' }); void reload(); pa.refresh(); } else if (ccf) { setRoute({ r: 'campaign' }); void reload(); pa.refresh(); } else menu(); }} onAgain={route.again ? () => { route.again!(); } : undefined}
+      onAccount={props.onAccount} onBags={props.onBags}
+      endExtra={ccf ? (snap) => <CcfEndPanel stage={ccf.stage} snap={snap} before={ccf.before} /> : undefined} exitLabel={ccf ? tr('ccf.back') : undefined} />;
   }
   if (route.r === 'discover' && st) {
     return <Discover onGo={async () => {
@@ -342,6 +370,16 @@ function CfModeScreens(props: CfModeProps) {
   if (route.r === 'cards') return <CardsCatalogScreen onBack={menu} />;
   if (route.r === 'tips') return <TipsScreen onBack={menu} />;
   if (route.r === 'lexicon') return <LexiconScreen onBack={menu} />;
+  if (route.r === 'campaign') {
+    const pn = parcoursNext();
+    return <>
+      <CfCampaignScreen profile={pa.profile} acc={acc} st={st} starting={starting} onBack={menu} onDecks={() => setRoute({ r: 'decks' })}
+        parcours={pn <= PARCOURS.length && !st?.history.length ? { next: pn, total: PARCOURS.length } : null}
+        onParcours={() => { setRoute({ r: 'menu' }); setSheet('bot'); }}
+        onPlay={(stage, deckId) => void startCampaign(stage, deckId)} />
+      {toast}
+    </>;
+  }
   if (route.r === 'enigme') return <EnigmeScreen token={pa.token} acc={acc} onBack={menu} onAccount={props.onAccount} />;
   if (route.r === 'tournoi') {
     return <>
@@ -360,7 +398,7 @@ function CfModeScreens(props: CfModeProps) {
         onDecks={() => setRoute({ r: 'decks' })} onBoosters={() => setSheet('boosters')} onCollection={() => setRoute({ r: 'collection' })}
         onMissions={() => setSheet('missions')} onLeague={() => setRoute({ r: 'league' })} onRules={() => setRoute({ r: 'rules' })}
         onTuto={startTutorial} onChallenge={challenge} onWatch={(f) => f.code && watch(f.code)} onRetry={() => void reload()} onTournament={() => setRoute({ r: 'tournoi' })} onEnigme={() => setRoute({ r: 'enigme' })}
-        onLearn={() => setSheet('learn')}
+        onLearn={() => setSheet('learn')} onCampaign={() => setRoute({ r: 'campaign' })}
         top={<>
           {resumeGame && <button className="cf-banner gold" onClick={() => void tryOnline((o) => o.resume(resumeGame.id))}><b>{tr('cf.mode.partie_en_cours')}</b><span>{resumeGame.ranked ? tr('cf.mode.classee') : tr('cf.mode.entre_amis')}{tr('cf.mode.reprenez_la_avant_d_etre_compte')}</span><em>{tr('cf.mode.reprendre')}</em></button>}
           {online?.challenges.map((c) => (
@@ -469,6 +507,8 @@ function CfMenu(p: CfModeProps & {
   onLearn: () => void;
   onTuto: () => void;
   onTournament: () => void; onEnigme: () => void; token?: string | null; top?: React.ReactNode;
+  /** Campagne solo « Les Comptoirs rivaux ». */
+  onCampaign: () => void;
 }) {
   const { pa, st } = p;
   const acc = pa.isAccount;
@@ -539,6 +579,7 @@ function CfMenu(p: CfModeProps & {
           <button className="cf-league guest" onClick={p.onRetry}><span className="cf-league-text"><b>{p.loadErr}</b><small>{tr('cf.mode.touchez_pour_reessayer')}</small></span></button>
         ) : <div className="cf-league skeleton" aria-hidden />}
 
+        <CfCampaignEntry profile={pa.profile} onOpen={p.onCampaign} />
         <div className="cf-plays">
           <button className="cf-play rank" onClick={p.onRanked} aria-disabled={!acc}>
             <span className="cf-play-ic" aria-hidden><Icon name="trophy" size={26} /></span>

@@ -2,6 +2,7 @@
  * Profil du joueur, en mode invité (enregistré sur l'appareil) ou connecté à un compte
  * (enregistré sur le serveur, qui fait foi). L'interface utilise les mêmes actions dans les deux cas.
  */
+import { applyCcf, type CcfFacts, type CcfResult } from '../../../shared/campaigns/cf';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Setup421 } from '../../../shared/rejeu/r421';
 import type { SetupDm } from '../../../shared/rejeu/dixmille';
@@ -351,6 +352,13 @@ export function useProfile(enabled: boolean) {
     if (ref.current.session) return;
     setProfile(applyTdc(ref.current.profile, bistro, f).profile);
   }, [setProfile]);
+  /** Coups Fourrés, campagne « Les Comptoirs rivaux », invité : étoiles, pièces et titre sur le profil de l'appareil. */
+  const onCcfGuestEnd = useCallback((stage: string, f: CcfFacts): CcfResult | null => {
+    if (ref.current.session) return null;
+    const r = applyCcf(ref.current.profile, stage, f);
+    setProfile(r.profile);
+    return r.result;
+  }, [setProfile]);
 
   /** Route des Auberges (Courtisan), invité : étoiles sur le profil de l'appareil (les comptes : le serveur, à /dixmille/end). */
   const onCdmGuestEnd = useCallback((stage: string, f: CdmFacts): CdmResult | null => {
@@ -491,7 +499,7 @@ export function useProfile(enabled: boolean) {
     register, login, recover, logout, deleteAccount,
     submitChallenge,
     buyItem, equipItem, claim, blocked, block, isBlocked, claimDailyReward, openEveningChest, claimPass, chooseTitle, finishTutorial, prestige, openAdventBox,
-    onSoloStart, onGameEnd, onTdcGuestEnd, onCdmGuestEnd, onCfGuestEnd, onDixMilleStart, onDixMilleEnd, onPokerStart, onPokerEnd, onCpmGuestEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
+    onSoloStart, onGameEnd, onTdcGuestEnd, onCdmGuestEnd, onCfGuestEnd, onCcfGuestEnd, onDixMilleStart, onDixMilleEnd, onPokerStart, onPokerEnd, onCpmGuestEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
     token: session?.token ?? null,
   };
 }

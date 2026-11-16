@@ -587,7 +587,14 @@ export function createCards(c: CardsCtx) {
     router.get('/cf/league', auth, (req, res) => { res.setHeader('Cache-Control', 'no-store'); res.json({ ok: true, ...league(id(req)) }); });
   }
 
+  /** Capsules offertes par le serveur (fin de quartier de la campagne « Les Comptoirs rivaux »). */
+  function grantCapsules(userId: string, n: number): void {
+    if (!(n > 0) || !store.userById(userId)) return;
+    store.cfTx(() => { const p = store.cfPlayer(userId, c.now()); store.cfPlayerSet(userId, { capsules: p.capsules + Math.floor(n) }); });
+  }
+
   return {
+    grantCapsules,
     state, discover, tutorialDone, buyBooster, openBooster, craft, recycle, recycleExtras, legendPick, createDeck, autoDeck, updateDeck, deleteDeck, setActive, league,
     recordCfGame, progressCfMission, rollCfSeason, missions,
   };

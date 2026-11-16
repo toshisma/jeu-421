@@ -16,6 +16,7 @@ import { tdcDe } from './zones/comptoirs.de';
 import { chmDe } from './zones/camphome.de';
 import { cdmDe } from './zones/campdm.de'; // campagne du Courtisan
 import { cpmDe } from './zones/camppm.de'; // campagne du Poker menteur
+import { ccfDe } from './zones/campcf.de';
 
 /** Textes allemands (« du », ton direct). Une clé absente s'affiche en français. */
 export const de: Partial<Record<MessageKey, string>> = {
@@ -78,4 +79,5 @@ export const de: Partial<Record<MessageKey, string>> = {
   ...chmDe,
   ...cdmDe,
   ...cpmDe,
+  ...ccfDe,
 };
