@@ -218,7 +218,7 @@ export const g421De: Partial<Record<keyof typeof g421Fr, string>> = {
   "g421.menu.beaten": "Besiegt",
   "g421.menu.beatenLow": "besiegt",
   "g421.menu.combos": "Kombinationen",
-  "g421.menu.defi": "Tagesherausforderung",
+  "g421.menu.defi": "Tagesaufgabe",
   "g421.menu.friends": "Mit Freunden",
   "g421.menu.g1": "421 online spielen",
   "g421.menu.g2": "421-Regeln",
