@@ -180,7 +180,30 @@ interface Profile {
   smartKeep: boolean;
   /** Choisit l'annonce la plus crédible pour le suivant. */
   credible: boolean;
+  /** Mensonges forcés : toujours le plus petit cran (small) ou souvent bien plus haut (wide). Absent : selon le niveau. */
+  lie?: 'small' | 'wide';
 }
+/**
+ * Styles de bluff (personnages de la campagne « Les Arrière-salles », shared/campaigns/pm.ts) : un
+ * réglage du profil du niveau, sans autre hasard que celui de la décision (rejeu identique).
+ *  - prudent : bluffe rarement, ment du plus petit cran, crie plus volontiers « Menteur ! » ;
+ *  - bluffeur : bluffe souvent et haut, croit facilement les autres ;
+ *  - calculateur : presque sans erreur d'estimation, annonce la main la plus crédible ;
+ *  - imprévisible : estimations très bruitées, bluffs fréquents, parfois énormes.
+ * Sans style : exactement le comportement du niveau (parties libres, en ligne).
+ */
+export type PmStyle = 'prudent' | 'bluffeur' | 'calculateur' | 'imprevisible';
+export const PM_STYLES: PmStyle[] = ['prudent', 'bluffeur', 'calculateur', 'imprevisible'];
+function styled(p: Profile, style: PmStyle | undefined): Profile {
+  switch (style) {
+    case 'prudent': return { ...p, bluff: p.bluff * 0.25, caught: p.caught + 0.12, trust: Math.max(0, p.trust - 0.06), lie: 'small' };
+    case 'bluffeur': return { ...p, bluff: Math.max(0.3, p.bluff * 2.5), trust: p.trust + 0.06, caught: p.caught - 0.04, lie: 'wide' };
+    case 'calculateur': return { ...p, noise: p.noise * 0.3, smartKeep: true, credible: true, bluff: p.bluff * 0.7 };
+    case 'imprevisible': return { ...p, noise: p.noise + 0.15, bluff: p.bluff + 0.12, lie: 'wide' };
+    default: return p;
+  }
+}
+
 const PROFILES: Record<PmLevel, Profile> = {
   debutant: { trust: 0.1, noise: 0.3, caught: 0.45, bluff: 0.18, smartKeep: false, credible: false },
   habitue: { trust: 0.2, noise: 0.1, caught: 0.55, bluff: 0.12, smartKeep: true, credible: false },
@@ -191,8 +214,8 @@ const PROFILES: Record<PmLevel, Profile> = {
 function belief(raw: number, trust: number) { return raw + (1 - raw) * trust; }
 
 /** Décision de l'ordinateur dont c'est le tour. `rng` : tirage (rejouable dans les simulations). */
-export function decide(s: PmState, level: PmLevel, rng: Rng = Math.random): PmAction {
-  const P = PROFILES[level] ?? PROFILES.habitue;
+export function decide(s: PmState, level: PmLevel, rng: Rng = Math.random, style?: PmStyle): PmAction {
+  const P = styled(PROFILES[level] ?? PROFILES.habitue, style);
   const ns = s.options.noStraights;
   const jitter = () => (rng() * 2 - 1) * P.noise;
 
@@ -242,7 +265,7 @@ export function decide(s: PmState, level: PmLevel, rng: Rng = Math.random): PmAc
   if (actual >= min) {
     // Main vraie. Le plus souvent : on l'annonce. Parfois : on bluffe un peu plus haut pour gêner le suivant.
     if (rng() < P.bluff) {
-      const span = level === 'debutant' ? 12 : 6;
+      const span = level === 'debutant' || P.lie === 'wide' ? 12 : 6;
       const r = actual + 1 + Math.floor(rng() * span);
       if (!P.credible || credibility(r) > 0.25) return pick(r);
     }
@@ -251,6 +274,8 @@ export function decide(s: PmState, level: PmLevel, rng: Rng = Math.random): PmAc
   }
 
   // Il faut mentir.
+  if (P.lie === 'small') return pick(min);
+  if (P.lie === 'wide') return pick(min + Math.floor(rng() * (rng() < 0.4 ? 10 : 3)));
   if (!P.credible) {
     const span = level === 'debutant' ? (rng() < 0.3 ? 8 : 1) : (rng() < 0.25 ? 3 : 1);
     return pick(min + Math.floor(rng() * span));

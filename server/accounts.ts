@@ -47,6 +47,7 @@ import type { DmLevel } from '../shared/dixmille/engine';
 import { applyPokerGame, pokerOnlineReward, pokerReward } from '../shared/pokermenteur/reward';
 import type { PmLevel } from '../shared/pokermenteur/engine';
 import { tdcSoloStart, tdcSoloEnd } from './comptoirs';
+import { cpmPokerStart, cpmPokerEnd } from './camp-pm'; // campagne du Poker menteur « Les Arrière-salles »
 import { reputation as tdcReputation } from '../shared/progress/comptoirs';
 import { createRejeu, applyUnverified } from './solo-replay';
 import { replay421, setup421For, type Setup421 } from '../shared/rejeu/r421';
@@ -529,12 +530,14 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   // téléphone : il ne compte que pour les victoires et le barème du solo, jamais pour les succès vérifiés.
   router.post('/poker/start', auth, (req, res) => {
     const token = randomBytes(18).toString('base64url');
-    soloGames.set(token, { userId: userOf(req).id, startedAt: clock(), boss: null });
+    // Campagne « Les Arrière-salles » : étape ouverte pour ce compte, table IMPOSÉE par le serveur (« cpm:<étape> »).
+    const camp = req.body?.camp === undefined ? null : cpmPokerStart(store.profileOf(userOf(req)), req.body.camp, req.body?.setup?.start);
+    soloGames.set(token, { userId: userOf(req).id, startedAt: clock(), boss: camp?.tag ?? null });
     soloGames.prune(clock() - 12 * 3600_000);
     // Nouvelle version : table vérifiée et graine, la partie sera rejouée à la fin.
-    const setup = req.body?.setup === undefined ? null : setupPmFrom(req.body.setup);
-    statSoloStart(store, token, { game: 'poker', userId: userOf(req).id, level: setup?.level ?? null, bots: setup?.bots.length ?? 1, opts: setup ? { lives: setup.lives, noStraights: setup.noStraights } : undefined });
-    res.json({ ok: true, gameToken: token, ...(setup ? { seed: rejeu.issue(token, 'pm', setup, clock()), setup } : {}) });
+    const setup = camp ? camp.setup : req.body?.setup === undefined ? null : setupPmFrom(req.body.setup);
+    statSoloStart(store, token, { game: 'poker', userId: userOf(req).id, kind: camp?.tag, level: setup?.level ?? null, bots: setup?.bots.length ?? 1, opts: setup ? { lives: setup.lives, noStraights: setup.noStraights } : undefined });
+    res.json({ ok: true, gameToken: token, ...(camp ? { camp: true } : {}), ...(setup ? { seed: rejeu.issue(token, 'pm', setup, clock()), setup } : {}) });
   });
   router.post('/poker/end', auth, (req, res) => {
     const u = userOf(req);
@@ -548,6 +551,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const ticket = rejeu.take(b.gameToken, 'pm');
     const replayed = ticket && b.moves !== undefined ? replayPm(ticket.setup as SetupPm, ticket.seed, b.moves) : null;
     statSoloEnd(store, b.gameToken, replayed?.ok ? { won: replayed.facts.won, bots: replayed.facts.opponents, level: replayed.facts.level } : { won: !ticket && !!b.won });
+    // Campagne : étoiles (une seule fois chacune) pour une partie rejouée seulement, avant le plafond quotidien.
+    const cpm = replayed?.ok && ticket ? cpmPokerEnd(store, u, g.boss, ticket.setup as SetupPm, replayed.facts) : null;
     const day = today();
     if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.');
     const minutes = (clock() - g.startedAt) / 60000;
@@ -555,13 +560,13 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
       // Partie rejouée : résultat et exploits calculés ici (succès du Poker menteur compris).
       const f = replayed.facts;
       const reward = pokerReward({ won: f.won, place: f.place, opponents: f.opponents, level: f.level, minutes, day, now: clock() });
-      const applied = applyPokerGame(store.profileOf(u), reward, day, {
+      const applied = applyPokerGame(store.profileOf(store.userById(u.id) ?? u), reward, day, {
         won: f.won, players: f.opponents + 1, minutes, mode: 'solo', level: f.level, now: clock(),
         verified: { online: false, botLevels: Array(f.opponents).fill(f.level), callsRight: f.callsRight, bluffsPassed: f.bluffsPassed, pokerAs: f.pokerAs, livesLost: f.livesLost },
       });
       store.saveProfile(u.id, applied.profile);
       leagueGain(u.id, reward.xp);
-      return res.json({ ok: true, verified: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) } });
+      return res.json({ ok: true, verified: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) }, ...(cpm ? { cpm } : {}) });
     }
     // Partie non vérifiée (ancienne version du jeu, décisions refusées) : récompense de base seulement.
     const levels: PmLevel[] = ['debutant', 'habitue', 'fouine'];

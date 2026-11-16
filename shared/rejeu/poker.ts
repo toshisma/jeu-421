@@ -4,7 +4,7 @@
  * propre à l'état de la partie (`pmBotRng`) au lieu de Math.random : même décision partout.
  */
 import { act, newGame, placeOf, PM_LEVELS, PM_LIVES, type PmAction, type PmLevel, type PmState } from '../pokermenteur/engine';
-import { decide } from '../pokermenteur/ai';
+import { decide, type PmStyle } from '../pokermenteur/ai';
 import { newPmFeat, trackPmFeats, type PmFeats } from '../pokermenteur/feats';
 import { REJEU_ERRORS, isPersonaId, streamAt, type ReplayResult } from './common';
 import type { Rng } from '../rng';
@@ -18,11 +18,20 @@ export interface SetupPm {
   bots: string[];
   /** Siège de celui qui commence (tiré par le téléphone avant de connaître la graine). */
   start: number;
+  /**
+   * Campagne « Les Arrière-salles » seulement (table posée par le SERVEUR, jamais reçue du téléphone :
+   * setupPmFrom les refuse) : niveau et style de bluff de chaque ordinateur, dans l'ordre de `bots`.
+   * `level` vaut alors le niveau le plus facile de la table (barème de la récompense).
+   */
+  levels?: PmLevel[];
+  styles?: (PmStyle | null)[];
 }
 
 export function setupPmFrom(raw: unknown): SetupPm | null {
   const r = (raw && typeof raw === 'object' ? raw : null) as Record<string, unknown> | null;
   if (!r) return null;
+  // Niveaux et styles par ordinateur : tables de la campagne, posées par le serveur seulement.
+  if (r.levels !== undefined || r.styles !== undefined) return null;
   const bots = Array.isArray(r.bots) ? r.bots : null;
   if (!bots || bots.length < 1 || bots.length > 5 || !bots.every(isPersonaId) || new Set(bots).size !== bots.length || bots.includes(PM_ME)) return null;
   if (!PM_LEVELS.includes(r.level as PmLevel) || !(PM_LIVES as readonly number[]).includes(r.lives as number) || typeof r.noStraights !== 'boolean') return null;
@@ -32,14 +41,19 @@ export function setupPmFrom(raw: unknown): SetupPm | null {
 
 /** Sièges : moi puis les ordinateurs ; l'ordre de jeu commence au siège `start`. */
 export function newGamePm(setup: SetupPm, seed: number, names?: string[]): PmState {
-  const seats = [{ id: PM_ME, name: names?.[0] ?? PM_ME }, ...setup.bots.map((id, i) => ({ id, name: names?.[i + 1] ?? id, bot: setup.level }))];
+  const seats = [{ id: PM_ME, name: names?.[0] ?? PM_ME }, ...setup.bots.map((id, i) => ({ id, name: names?.[i + 1] ?? id, bot: setup.levels?.[i] ?? setup.level }))];
   const order = [...seats.slice(setup.start), ...seats.slice(0, setup.start)];
   return newGame(order, { lives: setup.lives, noStraights: setup.noStraights }, seed);
 }
 
 /** Tirage d'un ordinateur pour la décision en cours (dérivé de la graine et de l'état). */
 export const pmBotRng = (s: PmState): Rng => streamAt(s.seed, (s.turns * 64 + s.draws) * 8 + ['annonce', 'decision', 'relance', 'fini'].indexOf(s.phase), 0x9a7 + s.current);
-export const pmBotDecide = (s: PmState, level: PmLevel): PmAction => decide(s, level, pmBotRng(s));
+export const pmBotDecide = (s: PmState, level: PmLevel, style?: PmStyle | null): PmAction => decide(s, level, pmBotRng(s), style ?? undefined);
+/** Décision de l'ordinateur dont c'est le tour, avec le niveau et le style que la table lui donne. */
+export function pmBotDecideFor(setup: SetupPm, s: PmState): PmAction {
+  const i = setup.bots.indexOf(s.players[s.current].id);
+  return pmBotDecide(s, setup.levels?.[i] ?? setup.level, setup.styles?.[i]);
+}
 
 /** M = « Menteur ! » ; C = je crois ; R<positions> = relancer ces dés ; A<5 faces 0–5> = annoncer. Séparées par « . ». */
 export function encodePm(a: PmAction): string {
@@ -63,6 +77,10 @@ function decodePm(m: string): PmAction | null {
 export interface FactsPm {
   won: boolean; place: number; opponents: number; level: PmLevel;
   callsRight: number; bluffsPassed: number; pokerAs: number; livesLost: number;
+  /** Adversaires éliminés par le joueur lui-même (vie perdue face à lui : son « Menteur ! » juste ou son annonce vraie). */
+  knockouts: number;
+  /** Manches jouées. */
+  rounds: number;
 }
 
 export function replayPm(setup: SetupPm, seed: number, moves: unknown): ReplayResult<FactsPm> {
@@ -71,7 +89,7 @@ export function replayPm(setup: SetupPm, seed: number, moves: unknown): ReplayRe
   if (list.length > MAX_MOVES_PM) return { ok: false, error: REJEU_ERRORS.tooLong };
   let s = newGamePm(setup, seed);
   const feats: PmFeats = { [PM_ME]: newPmFeat() };
-  let mi = 0;
+  let mi = 0, knockouts = 0;
   for (let guard = 0; s.phase !== 'fini'; guard++) {
     if (guard > 100_000) return { ok: false, error: REJEU_ERRORS.tooLong };
     const mine = s.players[s.current].id === PM_ME;
@@ -80,10 +98,12 @@ export function replayPm(setup: SetupPm, seed: number, moves: unknown): ReplayRe
       if (mi >= list.length) return { ok: false, error: REJEU_ERRORS.incomplete };
       a = decodePm(list[mi++]);
       if (!a) return { ok: false, error: REJEU_ERRORS.format };
-    } else a = pmBotDecide(s, setup.level);
+    } else a = pmBotDecideFor(setup, s);
     const r = act(s, a);
     if ('error' in r) return { ok: false, error: mine ? REJEU_ERRORS.illegal : REJEU_ERRORS.setup };
     trackPmFeats(feats, s, a, r.state, true);
+    const rv = a.type === 'menteur' ? r.state.lastReveal : null;
+    if (rv && rv.loser !== PM_ME && (rv.caller === PM_ME || rv.by === PM_ME) && r.state.players.find((p) => p.id === rv.loser)!.out > 0) knockouts++;
     s = r.state;
   }
   if (mi < list.length) return { ok: false, error: REJEU_ERRORS.extra };
@@ -91,5 +111,6 @@ export function replayPm(setup: SetupPm, seed: number, moves: unknown): ReplayRe
   return { ok: true, facts: {
     won: s.winner === PM_ME, place: placeOf(s, PM_ME), opponents: setup.bots.length, level: setup.level,
     callsRight: f.callsRight, bluffsPassed: f.bluffsPassed, pokerAs: f.pokerAs, livesLost: f.livesLost,
+    knockouts, rounds: s.round,
   } };
 }

@@ -28,10 +28,12 @@ import type { DmLevel } from '../../../shared/dixmille/engine';
 import { cfCoinReward } from '../../../shared/cards/coins';
 import { applyFetesGame, claimAdvent } from '../../../shared/progress/fetes';
 import { applyTdc, type TdcFacts } from '../../../shared/progress/comptoirs';
+import { applyCpm, type CpmFacts, type CpmResult } from '../../../shared/campaigns/pm';
 
 export interface EndReward { reward: Reward; applied: Applied }
 /** Fin d'une partie du Courtisan : récompense, sacs de dés trouvés, défis du jour accomplis. */
-export interface DmEndResult { reward: Reward; levelBefore: number; levelAfter: number; bags: number; quests: string[]; /** Succès débloqués (identifiants). */ achievements?: string[]; /** Partie que le serveur n'a pas pu rejouer : récompense de base seulement. */ unverified?: boolean }
+export interface DmEndResult { reward: Reward; levelBefore: number; levelAfter: number; bags: number; quests: string[]; /** Succès débloqués (identifiants). */ achievements?: string[]; /** Partie que le serveur n'a pas pu rejouer : récompense de base seulement. */ unverified?: boolean;
+  /** Campagne du Poker menteur : étoiles calculées par le serveur après rejeu (comptes). */ cpm?: CpmResult }
 
 /** Défi du jour déjà joué sur cet appareil (affichage et récompense des invités). */
 const DEFI = '421.defi';
@@ -410,7 +412,7 @@ export function useProfile(enabled: boolean) {
   // --- Poker menteur contre l'ordinateur (joué sur l'appareil) : comme le Courtisan --------------------
   const pmGame = useRef<{ token: string | null; startedAt: number; stat?: string } | null>(null);
   /** Avec une table (`setup`) : graine du serveur, la partie sera rejouée à la fin (null : invité, hors ligne). */
-  const onPokerStart = useCallback((setup?: SetupPm): Promise<number | null> => {
+  const onPokerStart = useCallback((setup?: SetupPm, camp?: string): Promise<number | null> => {
     pmGame.current = { token: null, startedAt: Date.now() };
     if (!enabled) return Promise.resolve(null);
     trackFirstPlay('poker');
@@ -418,7 +420,7 @@ export function useProfile(enabled: boolean) {
     const s = ref.current.session;
     const g = pmGame.current;
     if (!s) { api<{ token: string }>('/stats/guest/start', { body: { game: 'poker', ...(setup ? { setup } : {}) } }).then((r) => { g.stat = r.token; }).catch(() => {}); return Promise.resolve(null); }
-    return api<{ gameToken: string; seed?: number; setup?: SetupPm }>('/poker/start', { body: setup ? { setup } : {}, token: s.token })
+    return api<{ gameToken: string; seed?: number; setup?: SetupPm }>('/poker/start', { body: { ...(setup ? { setup } : {}), ...(camp ? { camp } : {}) }, token: s.token })
       .then((r) => { g.token = r.gameToken; return r.seed !== undefined && setup && stableJson(r.setup) === stableJson(setup) ? r.seed : null; })
       .catch(() => null);
   }, [enabled]);
@@ -440,12 +442,20 @@ export function useProfile(enabled: boolean) {
     }
     if (!g.token) return null;
     try {
-      const res = await api<{ verified?: boolean; reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { text: string }[]; achievementsDone?: { id: string }[] } }>('/poker/end', { token: s.token, body: { gameToken: g.token, ...r } });
+      const res = await api<{ verified?: boolean; cpm?: CpmResult; reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { text: string }[]; achievementsDone?: { id: string }[] } }>('/poker/end', { token: s.token, body: { gameToken: g.token, ...r } });
       setProfile(sanitizeProfile(res.applied.profile));
-      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter, bags: res.applied.bagsFound ?? 0, quests: (res.applied.questsDone ?? []).map((q) => q.text), achievements: (res.applied.achievementsDone ?? []).map((a) => a.id), unverified: res.verified === false };
+      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter, bags: res.applied.bagsFound ?? 0, quests: (res.applied.questsDone ?? []).map((q) => q.text), achievements: (res.applied.achievementsDone ?? []).map((a) => a.id), unverified: res.verified === false, ...(res.cpm ? { cpm: res.cpm } : {}) };
     } catch {
       return null;
     }
+  }, [setProfile]);
+
+  /** Campagne du Poker menteur, invité : étoiles sur le profil de l'appareil (faits du rejeu fait ici). Comptes : le serveur. */
+  const onCpmGuestEnd = useCallback((stage: string, f: CpmFacts): CpmResult | null => {
+    if (ref.current.session) return null;
+    const r = applyCpm(ref.current.profile, stage, f);
+    setProfile(r.profile);
+    return r.result;
   }, [setProfile]);
 
   /** Photo de profil : envoyée au serveur (compte) ou gardée sur l'appareil (invité). */
@@ -472,7 +482,7 @@ export function useProfile(enabled: boolean) {
     register, login, recover, logout, deleteAccount,
     submitChallenge,
     buyItem, equipItem, claim, blocked, block, isBlocked, claimDailyReward, openEveningChest, claimPass, chooseTitle, finishTutorial, prestige, openAdventBox,
-    onSoloStart, onGameEnd, onTdcGuestEnd, onCfGuestEnd, onDixMilleStart, onDixMilleEnd, onPokerStart, onPokerEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
+    onSoloStart, onGameEnd, onTdcGuestEnd, onCfGuestEnd, onDixMilleStart, onDixMilleEnd, onPokerStart, onPokerEnd, onCpmGuestEnd, onServerReward, onServerProfile, openBag, craft, setVitrine, equipFx: equipFxAction, refresh,
     token: session?.token ?? null,
   };
 }

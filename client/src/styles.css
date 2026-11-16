@@ -5072,3 +5072,60 @@ button.mode-chip { cursor: pointer; }
 /* Tuile « Sacs de dés » : le bouton « Ouvrir » écrasait le titre (« Sacs d… ») sur les téléphones larges.
    Sur téléphone, la tuile entière s'ouvre au toucher et le sous-titre dit déjà « 3 à ouvrir › » : bouton masqué. */
 @media (max-width: 560px) { .mm-bags-go { display: none; } }
+
+/* ===== Campagne du Poker menteur « Les Arrière-salles » (client/src/campaigns/PmCampaign.tsx) ===== */
+.cpm-entry { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 58px; padding: 8px 12px; border: 0; border-radius: 16px; cursor: pointer; text-align: left; color: #f5eedf;
+  background: radial-gradient(90% 140% at 12% 0%, rgba(255,200,110,0.28) 0%, transparent 55%), linear-gradient(135deg, #3d1a14 0%, #241009 60%, #160806 100%);
+  box-shadow: inset 0 0 0 2px rgba(255,190,120,0.6), 0 4px 0 #0c0403, 0 10px 18px rgba(0,0,0,0.4); }
+.cpm-entry:active { transform: translateY(2px); }
+.cpm-entry-art { flex: none; width: 44px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.cpm-entry-lamp { width: 22px; height: 9px; border-radius: 11px 11px 2px 2px; background: #f1cc7d; box-shadow: 0 6px 14px 4px rgba(255,200,110,0.55); }
+.cpm-entry-door { display: grid; place-items: center; width: 36px; height: 26px; border-radius: 4px 4px 8px 8px; background: #1a0b06; box-shadow: inset 0 0 0 1px rgba(241,204,125,0.5); font-size: 15px; }
+.cpm-entry-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.cpm-entry-text b { font: 800 19px/1.05 var(--cond); letter-spacing: 0.01em; }
+.cpm-entry-text small { color: #e3cfae; font-size: 12.5px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.cpm-entry-n, .cpm-entry-new { flex: none; font-style: normal; font-weight: 800; padding: 4px 9px; border-radius: 999px; background: rgba(0,0,0,0.4); color: #f5c542; font-size: 14px; white-space: nowrap; }
+.cpm-entry-n small { color: #e3cfae; font-weight: 600; font-size: 11px; }
+.cpm-entry-new { background: #f1cc7d; color: #3a1a10; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.cpm-screen { background: radial-gradient(120% 55% at 50% 0%, #4a1812 0%, #210a07 55%, #0e0403 100%); }
+.cpm-main { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px 16px 24px; display: flex; flex-direction: column; gap: 14px; }
+.cpm-head h1 { margin: 6px 0 2px; font: 400 1.7rem/1.1 'Alfa Slab One', var(--cond); color: #f1cc7d; text-shadow: 0 2px 0 #000, 0 0 18px rgba(255,190,110,0.35); }
+.cpm-head p { margin: 0; color: #e3cfae; font-size: 0.92rem; line-height: 1.35; }
+.cpm-head .cpm-guest { margin-top: 8px; font-size: 0.82rem; color: var(--texte-3); }
+.cpm-prog { margin-top: 10px; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: rgba(0,0,0,0.35); box-shadow: inset 0 0 0 1px rgba(241,204,125,0.3); }
+.cpm-prog-n { grid-row: span 2; font: 800 1.6rem/1 var(--cond); color: #f5c542; }
+.cpm-prog-text { display: flex; justify-content: space-between; gap: 8px; min-width: 0; }
+.cpm-prog-text small { color: #e3cfae; font-size: 12px; text-align: right; }
+.cpm-chapter { position: relative; padding: 10px 10px 8px; border-radius: 18px; background: linear-gradient(180deg, color-mix(in srgb, var(--q) 28%, #150806) 0%, #120605 100%); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--q) 70%, transparent); }
+.cpm-chapter.locked { filter: saturate(0.25); opacity: 0.8; }
+.cpm-ch-head { display: flex; align-items: center; gap: 10px; }
+.cpm-ch-num { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--q); color: #fff; font: 800 1rem/1 var(--cond); box-shadow: 0 0 0 2px rgba(255,255,255,0.3); }
+.cpm-ch-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cpm-ch-text b { font: 700 1.08rem/1.15 var(--cond); }
+.cpm-ch-text small { color: #e3cfae; font-size: 12px; line-height: 1.3; }
+.cpm-ch-stars { flex: none; color: #f5c542; font-weight: 800; white-space: nowrap; }
+.cpm-ch-stars small { color: #e3cfae; font-weight: 600; }
+.cpm-room { margin-top: 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cpm-spot { position: relative; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 4px 8px; border: 0; border-radius: 12px; cursor: pointer; color: #f5eedf; overflow: hidden;
+  background: radial-gradient(80% 60% at 50% 0%, color-mix(in srgb, var(--lamp) 26%, transparent) 0%, transparent 70%), linear-gradient(180deg, #24100b 0%, #150806 100%);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--lamp) 40%, transparent), 0 6px 12px rgba(0,0,0,0.45); }
+.cpm-lamp { position: absolute; top: 0; left: 50%; width: 18px; height: 7px; margin-left: -9px; border-radius: 0 0 9px 9px; background: var(--lamp); box-shadow: 0 4px 16px 3px color-mix(in srgb, var(--lamp) 60%, transparent); }
+.cpm-table { display: grid; place-items: center; width: 54px; height: 38px; border-radius: 50%; background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--felt) 80%, #fff) 0%, var(--felt) 60%, #050302 100%);
+  box-shadow: 0 0 0 3px var(--rim), 0 6px 8px rgba(0,0,0,0.5); color: #e3cfae; }
+.cpm-host { font-size: 24px; transform: translateY(-6px); filter: drop-shadow(0 2px 2px rgba(0,0,0,0.6)); }
+.cpm-spot-name { font: 700 0.82rem/1.15 var(--cond); text-align: center; min-height: 2.3em; display: flex; align-items: center; overflow-wrap: anywhere; hyphens: auto; }
+.cpm-spot.won { box-shadow: inset 0 0 0 2px #f5c542, 0 6px 14px rgba(245,197,66,0.2); }
+.cpm-spot.locked { filter: grayscale(0.9); opacity: 0.6; }
+.cpm-spot-lock { font-size: 11px; color: #e3cfae; text-transform: uppercase; letter-spacing: 0.05em; }
+.cpm-prize { margin: 8px 2px 0; font-size: 12px; color: #e3cfae; display: flex; gap: 6px; align-items: center; line-height: 1.3; }
+.cpm-prize.got { color: #9fdcae; }
+.cpm-foot { text-align: center; margin: 0; line-height: 1.4; }
+.cpm-rules li::before { content: '🎲'; }
+.cpm-opps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cpm-opps li { display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 6px; border-radius: 12px; background: rgba(255,255,255,0.06); }
+.cpm-opp-av { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; font-size: 19px; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.25); }
+.cpm-opp-t { min-width: 0; display: flex; flex-direction: column; }
+.cpm-opp-t b { font-size: 0.95rem; }
+.cpm-opp-t small { color: var(--texte-3); font-size: 0.8rem; }
+.cpm-end { margin: 4px 0 8px; }
