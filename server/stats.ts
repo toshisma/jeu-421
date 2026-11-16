@@ -18,6 +18,7 @@ import express, { type Request, type Response } from 'express';
 import type { Namespace, Server } from 'socket.io';
 import type { Store, UserRow } from './db';
 import { cleanTabInfo, deviceKindOf, type PresenceEntry } from './live';
+import { noteStart } from './games-stats';
 
 export interface StatsOptions {
   /** Durée minimale d'une partie solo pour qu'elle compte. */
@@ -182,6 +183,7 @@ export function createStats(store: Store, opts: StatsOptions & { userFromToken: 
     if ([...guestSolo.values()].filter((v) => v.ip === ip).length >= 20) return res.status(429).json({ ok: false, error: 'Trop de parties ouvertes.' });
     const token = randomUUID();
     guestSolo.set(token, { startedAt: t, ip });
+    noteStart(store, '421', 'invite'); // parties commencées (administration : onglet « Jeux »)
     res.json({ ok: true, token });
   });
   router.post('/stats/solo/end', json, (req, res) => {

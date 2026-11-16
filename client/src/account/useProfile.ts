@@ -350,7 +350,7 @@ export function useProfile(enabled: boolean) {
   }, [setProfile]);
 
   // --- Le Dix mille contre l'ordinateur ---------------------------------------------------------
-  const dmGame = useRef<{ token: string | null; startedAt: number } | null>(null);
+  const dmGame = useRef<{ token: string | null; startedAt: number; stat?: string } | null>(null);
   /**
    * Coups Fourrés, invité : pièces, XP (barème du 421) et sac de dés éventuel sur le profil de l'appareil.
    * Les comptes, eux, sont payés par le serveur. Renvoie les pièces gagnées et les sacs trouvés.
@@ -374,7 +374,8 @@ export function useProfile(enabled: boolean) {
     setPresence('solo');
     const s = ref.current.session;
     const g = dmGame.current;
-    if (!s) return Promise.resolve(null);
+    // Invité : jeton anonyme pour les statistiques de l'administration (aucune récompense).
+    if (!s) { api<{ token: string }>('/stats/guest/start', { body: { game: 'courtisan', ...(setup ? { setup } : {}) } }).then((r) => { g.stat = r.token; }).catch(() => {}); return Promise.resolve(null); }
     return api<{ gameToken: string; seed?: number; setup?: SetupDm }>('/dixmille/start', { body: setup ? { setup } : {}, token: s.token })
       .then((r) => { g.token = r.gameToken; return r.seed !== undefined && setup && stableJson(r.setup) === stableJson(setup) ? r.seed : null; })
       .catch(() => null);
@@ -388,6 +389,7 @@ export function useProfile(enabled: boolean) {
     if (!s) {
       // Invité : même durée minimale que le solo (20 s), pour ne pas compter une partie vide.
       if (Date.now() - g.startedAt < 20_000) return null;
+      if (g.stat) api('/stats/guest/end', { body: { token: g.stat, won: r.won, device: deviceId() } }).catch(() => {});
       const day = today();
       const minutes = (Date.now() - g.startedAt) / 60000;
       const reward = dixMilleReward({ ...r, minutes, day, now: Date.now() });
@@ -406,7 +408,7 @@ export function useProfile(enabled: boolean) {
   }, [setProfile]);
 
   // --- Poker menteur contre l'ordinateur (joué sur l'appareil) : comme le Courtisan --------------------
-  const pmGame = useRef<{ token: string | null; startedAt: number } | null>(null);
+  const pmGame = useRef<{ token: string | null; startedAt: number; stat?: string } | null>(null);
   /** Avec une table (`setup`) : graine du serveur, la partie sera rejouée à la fin (null : invité, hors ligne). */
   const onPokerStart = useCallback((setup?: SetupPm): Promise<number | null> => {
     pmGame.current = { token: null, startedAt: Date.now() };
@@ -415,7 +417,7 @@ export function useProfile(enabled: boolean) {
     setPresence('solo');
     const s = ref.current.session;
     const g = pmGame.current;
-    if (!s) return Promise.resolve(null);
+    if (!s) { api<{ token: string }>('/stats/guest/start', { body: { game: 'poker', ...(setup ? { setup } : {}) } }).then((r) => { g.stat = r.token; }).catch(() => {}); return Promise.resolve(null); }
     return api<{ gameToken: string; seed?: number; setup?: SetupPm }>('/poker/start', { body: setup ? { setup } : {}, token: s.token })
       .then((r) => { g.token = r.gameToken; return r.seed !== undefined && setup && stableJson(r.setup) === stableJson(setup) ? r.seed : null; })
       .catch(() => null);
@@ -428,6 +430,7 @@ export function useProfile(enabled: boolean) {
     const s = ref.current.session;
     if (!s) {
       if (Date.now() - g.startedAt < 20_000) return null;
+      if (g.stat) api('/stats/guest/end', { body: { token: g.stat, won: r.won, device: deviceId() } }).catch(() => {});
       const day = today();
       const minutes = (Date.now() - g.startedAt) / 60000;
       const reward = pokerReward({ ...r, minutes, day, now: Date.now() });

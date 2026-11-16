@@ -52,6 +52,7 @@ import { createRejeu, applyUnverified } from './solo-replay';
 import { replay421, setup421For, type Setup421 } from '../shared/rejeu/r421';
 import { replayDm, setupDmFrom, type SetupDm } from '../shared/rejeu/dixmille';
 import { replayPm, setupPmFrom, type SetupPm } from '../shared/rejeu/poker';
+import { kind421, soloEnd as statSoloEnd, soloStart as statSoloStart, variant421 } from './games-stats'; // statistiques admin par jeu
 
 export interface AccountsOptions {
   /** Pour les tests : configuration et appel Discord simulés. */
@@ -359,6 +360,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     // Nouvelle version du jeu : la table envoyée est vérifiée, la partie sera rejouée à la fin (graine).
     const setup = req.body?.setup === undefined ? null : setup421For(req.body.setup, { boss: tdc ? null : boss, tdc: tdc ? tdc.slice(4) : null, day: today() });
     const seed = setup ? rejeu.issue(token, '421', setup) : undefined;
+    statSoloStart(store, token, { game: '421', userId: userOf(req).id, kind: kind421(boss), variant: variant421(setup?.config), bots: setup?.opponents.length ?? 1 });
     res.json({ ok: true, gameToken: token, ...(tdc ? { tdc: true } : {}), ...(setup ? { seed, setup } : {}) });
   });
   router.post('/solo/end', auth, (req, res) => {
@@ -369,7 +371,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     if (Date.now() - g.startedAt < MIN_SOLO) return fail(res, 400, 'Partie trop courte pour être récompensée.');
     soloGames.delete(b.gameToken);
     // Plafond quotidien vérifié AVANT le rejeu (qui coûte du calcul au serveur).
-    if (store.soloCountToday(u.id, today()) >= SOLO_CAP) { rejeu.take(b.gameToken, '421'); return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.'); }
+    if (store.soloCountToday(u.id, today()) >= SOLO_CAP) { rejeu.take(b.gameToken, '421'); statSoloEnd(store, b.gameToken, { won: false }); return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.'); }
     // Rejeu : avec la graine du début et les décisions du joueur, le serveur calcule lui-même le résultat.
     const ticket = rejeu.take(b.gameToken, '421');
     const replayed = ticket && b.moves !== undefined ? replay421(ticket.setup as Setup421, ticket.seed, b.moves) : null;
@@ -377,6 +379,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     // La partie est terminée : elle compte dans les statistiques, même au-delà du plafond de récompenses.
     opts.onSoloFinished?.({ id: b.gameToken, userId: u.id, startedAt: g.startedAt, opponents: facts?.opponents ?? Math.min(5, Math.max(1, Math.floor(Number(b.opponents) || 1))), won: facts ? facts.won : !ticket && !!b.won });
     // Tournée des comptoirs : étoiles (une seule fois chacune) pour une partie rejouée seulement, avant le plafond quotidien.
+    statSoloEnd(store, b.gameToken, { won: facts ? facts.won : !ticket && !!b.won, bots: facts?.opponents });
     const tdcResult = facts ? tdcSoloEnd(store, u, g.boss, { won: facts.won, place: facts.place, rounds: facts.rounds, roundsLost: facts.roundsLost, count421: facts.count421, combos: facts.combos }, Date.now() - g.startedAt, opts.tdcRoundMs) : null;
     if (g.boss?.startsWith('tdc:')) g.boss = null;
     const day = today();
@@ -453,6 +456,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     soloGames.prune(clock() - 12 * 3600_000);
     // Nouvelle version : table vérifiée et graine, la partie sera rejouée à la fin.
     const setup = req.body?.setup === undefined ? null : setupDmFrom(req.body.setup);
+    statSoloStart(store, token, { game: 'courtisan', userId: userOf(req).id, level: setup?.level ?? null, bots: setup?.bots.length ?? 1, opts: setup ? { target: setup.target } : undefined });
     res.json({ ok: true, gameToken: token, ...(setup ? { seed: rejeu.issue(token, 'dm', setup, clock()), setup } : {}) });
   });
   router.post('/dixmille/end', auth, (req, res) => {
@@ -463,9 +467,10 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     if (clock() - g.startedAt < MIN_SOLO) return fail(res, 400, 'Partie trop courte pour être récompensée.');
     soloGames.delete(b.gameToken);
     // Plafond quotidien vérifié AVANT le rejeu (qui coûte du calcul au serveur).
-    if (store.soloCountToday(u.id, today()) >= SOLO_CAP) { rejeu.take(b.gameToken, 'dm'); return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.'); }
+    if (store.soloCountToday(u.id, today()) >= SOLO_CAP) { rejeu.take(b.gameToken, 'dm'); statSoloEnd(store, b.gameToken, { won: false }); return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.'); }
     const ticket = rejeu.take(b.gameToken, 'dm');
     const replayed = ticket && b.moves !== undefined ? replayDm(ticket.setup as SetupDm, ticket.seed, b.moves) : null;
+    statSoloEnd(store, b.gameToken, replayed?.ok ? { won: replayed.facts.won, bots: replayed.facts.opponents, level: replayed.facts.level, extra: { target: replayed.facts.target } } : { won: !ticket && !!b.won });
     const day = today();
     if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.');
     const levels: DmLevel[] = ['debutant', 'habitue', 'fouine'];
@@ -528,6 +533,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     soloGames.prune(clock() - 12 * 3600_000);
     // Nouvelle version : table vérifiée et graine, la partie sera rejouée à la fin.
     const setup = req.body?.setup === undefined ? null : setupPmFrom(req.body.setup);
+    statSoloStart(store, token, { game: 'poker', userId: userOf(req).id, level: setup?.level ?? null, bots: setup?.bots.length ?? 1, opts: setup ? { lives: setup.lives, noStraights: setup.noStraights } : undefined });
     res.json({ ok: true, gameToken: token, ...(setup ? { seed: rejeu.issue(token, 'pm', setup, clock()), setup } : {}) });
   });
   router.post('/poker/end', auth, (req, res) => {
@@ -538,9 +544,10 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     if (clock() - g.startedAt < MIN_SOLO) return fail(res, 400, 'Partie trop courte pour être récompensée.');
     soloGames.delete(b.gameToken);
     // Plafond quotidien vérifié AVANT le rejeu (qui coûte du calcul au serveur).
-    if (store.soloCountToday(u.id, today()) >= SOLO_CAP) { rejeu.take(b.gameToken, 'pm'); return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.'); }
+    if (store.soloCountToday(u.id, today()) >= SOLO_CAP) { rejeu.take(b.gameToken, 'pm'); statSoloEnd(store, b.gameToken, { won: false }); return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.'); }
     const ticket = rejeu.take(b.gameToken, 'pm');
     const replayed = ticket && b.moves !== undefined ? replayPm(ticket.setup as SetupPm, ticket.seed, b.moves) : null;
+    statSoloEnd(store, b.gameToken, replayed?.ok ? { won: replayed.facts.won, bots: replayed.facts.opponents, level: replayed.facts.level } : { won: !ticket && !!b.won });
     const day = today();
     if (store.bumpSolo(u.id, day) > SOLO_CAP) return fail(res, 429, 'Plafond de parties solo récompensées atteint pour aujourd\'hui.');
     const minutes = (clock() - g.startedAt) / 60000;

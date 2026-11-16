@@ -41,6 +41,7 @@ import { createScheduled, slotLabel } from './scheduled';
 import { createDiscordHooks } from './discord-hooks';
 import { createCfOnline, type CfOnlineOptions } from './cards-online';
 import { createCfStats } from './cf-stats';
+import { createGamesStats, noteRun, variant421 } from './games-stats';
 import { createCfTournament, type CfTourOptions } from './cf-tournament';
 import { cleanDmCode, createDixMilleOnline, type DmOnlineOptions } from './dixmille-online';
 import { cleanPmCode, createPokerOnline, type PmOnlineOptions } from './pokermenteur-online';
@@ -314,6 +315,8 @@ export async function startServer(opts: ServerOptions) {
   // Coups Fourrés : statistiques réelles des cartes (onglet d'administration).
   const cfStats = createCfStats({ store, now: opts.accounts?.now ?? Date.now, isAdmin: stats.isAdmin, userFromToken: accounts.userFromToken });
   app.use('/api', cfStats.router);
+  // Statistiques de tous les jeux (onglet « Jeux » de l'administration, aperçu par jeu ; invités du Courtisan / Poker menteur).
+  app.use('/api', createGamesStats(store, { isAdmin: stats.isAdmin, userFromToken: accounts.userFromToken, minSoloMs: opts.accounts?.minSoloMs }).router);
   // Tchat de table : derniers messages gardés en mémoire (signalements : le serveur retrouve le texte).
   const tableChat: TableChatEntry[] = [];
   let tableChatSeq = 0;
@@ -874,6 +877,11 @@ export async function startServer(opts: ServerOptions) {
       humans: r.members.filter((m) => !m.bot && g.players.some((p) => p.id === m.id))
         .map((m) => ({ key: m.userId ? `u:${m.userId}` : `g:${m.id}`, userId: m.userId ?? null, won: didWin(g, m.id) })),
     });
+    // Détails pour l'administration (variante, genre de table) : server/games-stats.ts.
+    noteRun(store, { game: '421', mode: 'online', server: true, startedAt: r.startedAt, variant: variant421(r.config),
+      kind: r.tournament ? (tournaments.get(r.tournament)?.sched ? 'tournoi programmé' : 'tournoi') : r.quick ? 'partie rapide' : 'salon',
+      bots: r.members.filter((m) => m.bot && g.players.some((p) => p.id === m.id)).length, opts: { stake: r.table.stake },
+      players: inGameMembers(r).filter((m) => !m.bot).map((m) => ({ key: m.userId ? `u:${m.userId}` : `g:${m.id}`, userId: m.userId ?? null, won: didWin(g, m.id), left: abandoned(m) })) });
     // Rivalités entre comptes : qui a fini devant qui.
     const ranked = g.ranking.map((id) => r.members.find((m) => m.id === id)?.userId).filter((x): x is string => !!x);
     if (ranked.length > 1) accounts.recordRivalry(ranked);
