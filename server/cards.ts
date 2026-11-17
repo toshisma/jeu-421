@@ -126,7 +126,7 @@ export interface CardsCtx {
    * (barème du 421, plafond quotidien des parties contre l'ordinateur) : fourni par accounts.ts.
    * Renvoie null si rien n'est versé (plafond atteint).
    */
-  generalReward?: (userId: string, o: { won: boolean; place: number; players: number; minutes: number; botLevel?: CfLevel | null; day: string }) => { coins: number; xp: number; bags?: number } | null;
+  generalReward?: (userId: string, o: { won: boolean; place: number; players: number; minutes: number; botLevel?: CfLevel | null; day: string }) => { coins: number; xp: number; bags?: number; week?: { gained: number; points: number } } | null;
 }
 
 export interface CfGameInput {
@@ -146,7 +146,7 @@ export interface CfGameInput {
   minutes?: number;
   botLevel?: CfLevel | null;
 }
-export interface CfGameReward { userId: string; won: boolean; capsules: number; booster: boolean; points: number; leaguePoints: number | null; missions: string[]; coins?: number; xp?: number; bags?: number }
+export interface CfGameReward { userId: string; won: boolean; capsules: number; booster: boolean; points: number; leaguePoints: number | null; missions: string[]; coins?: number; xp?: number; bags?: number; week?: { gained: number; points: number } }
 
 export function createCards(c: CardsCtx) {
   const { store } = c;
@@ -320,7 +320,7 @@ export function createCards(c: CardsCtx) {
           won: r.won, place: r.won ? 1 : g.loserPlace ?? Math.max(2, g.players ?? 2), players: g.players ?? 2,
           minutes: g.minutes ?? 0, botLevel: g.vsBot ? g.botLevel ?? 'habitue' : null, day: day(),
         });
-        if (gen) { r.coins = gen.coins; r.xp = gen.xp; r.bags = gen.bags ?? 0; }
+        if (gen) { r.coins = gen.coins; r.xp = gen.xp; r.bags = gen.bags ?? 0; if (gen.week) r.week = gen.week; }
       }
     }
     return out;

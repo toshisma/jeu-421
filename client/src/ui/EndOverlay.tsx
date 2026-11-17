@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { SoloWeekNote } from './SoloWeek';
 import { trFeteDone } from '../fetes/Fetes';
 import { BagIcon } from './BagIcon';
 import type { GameState } from '../../../shared/engine';
@@ -80,6 +81,7 @@ export function EndOverlay({ reward, state, meta, meId, canRematch, online, onRe
         </ol>
         {note && <p className="end-note">{note}</p>}
         {extra}
+        <SoloWeekNote week={reward?.week} />
         {reward && <RewardBox r={reward} />}
         {iWon && referral && (
           <div className="end-share">

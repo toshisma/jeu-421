@@ -38,6 +38,7 @@ import type { CfLevel } from '../shared/cards/ai';
 import { DIVISIONS, SEASON_DIE_FROM, SEASON_TITLE_FROM, divisionIndex, divisionOf, nextSeasonStart, seasonDelta, seasonOf } from '../shared/season';
 import { today } from '../shared/progress/quests';
 import { createSerie } from './serie';
+import { createSoloWeek } from './solo-week';
 import { bossOfWeek } from '../shared/progress/boss';
 import { adminNameList, usernameProblem } from '../shared/names';
 import type { ComboKind } from '../shared/combos';
@@ -75,6 +76,8 @@ export interface AccountsOptions {
   tdcRoundMs?: number;
   /** Partie solo d'un compte réellement terminée (statistiques). */
   onSoloFinished?: (g: { id: string; userId: string; startedAt: number; opponents: number; won: boolean }) => void;
+  /** Classement solo de la semaine : clôture vérifiée toutes les … ms (0 = jamais, tests). */
+  soloWeekRollMs?: number;
 }
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -102,6 +105,8 @@ function publicProfile(u: UserRow, p: Profile) {
 export function createAccounts(store: Store, opts: AccountsOptions = {}) {
   // Série de jours joués : comptée par le serveur à chaque partie terminée (voir leagueGain).
   const serie = createSerie({ store, now: () => opts.now?.() ?? Date.now() });
+  // Classement solo de la semaine (victoires contre l'ordinateur vérifiées par le serveur, 4 jeux).
+  const soloWeek = createSoloWeek({ store, now: () => opts.now?.() ?? Date.now(), push: (u, t, b, url) => void social.push(u, t, b, url), rollEveryMs: opts.soloWeekRollMs });
   const MIN_SOLO = opts.minSoloMs ?? 20_000;
   const SOLO_CAP = opts.soloDailyCap ?? 40;
   const ATTEMPTS = opts.authAttempts ?? 12;
@@ -398,7 +403,9 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
       const applied = applyGameEnd(store.profileOf(store.userById(u.id) ?? u), reward, ctx, day);
       store.saveProfile(u.id, applied.profile);
       if (!ctx.suddenDeath) { leagueGain(u.id, reward.xp); checkReferral(u.id); if (facts.won) clubWin(u.id); } else serie.played(u.id);
-      return res.json({ ok: true, verified: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) }, ...(tdcResult ? { tdc: tdcResult } : {}) });
+      // Classement solo : pas la mort subite (une seule manche).
+      const week = ctx.suddenDeath ? null : soloWeek.record(u.id, { game: '421', won: facts.won, level: facts.difficulty, opponents: facts.opponents });
+      return res.json({ ok: true, verified: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) }, ...(tdcResult ? { tdc: tdcResult } : {}), ...(week ? { week } : {}) });
     }
     const int = (v: unknown, min: number, max: number) => Math.min(max, Math.max(min, Math.floor(Number(v) || 0)));
     const diffs: Difficulty[] = ['facile', 'normal', 'difficile'];
@@ -494,7 +501,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
       });
       store.saveProfile(u.id, applied.profile);
       leagueGain(u.id, reward.xp);
-      return res.json({ ok: true, verified: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) }, ...(campResult ? { camp: campResult } : {}) });
+      const week = soloWeek.record(u.id, { game: 'courtisan', won: f.won, level: f.level, opponents: f.opponents });
+      return res.json({ ok: true, verified: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) }, ...(campResult ? { camp: campResult } : {}), ...(week ? { week } : {}) });
     }
     const opponents = Math.min(3, Math.max(1, Math.floor(Number(b.opponents) || 1)));
     const reward = dixMilleReward({
@@ -575,7 +583,8 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
       });
       store.saveProfile(u.id, applied.profile);
       leagueGain(u.id, reward.xp);
-      return res.json({ ok: true, verified: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) }, ...(cpm ? { cpm } : {}) });
+      const week = soloWeek.record(u.id, { game: 'poker', won: f.won, level: f.level, opponents: f.opponents });
+      return res.json({ ok: true, verified: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) }, ...(cpm ? { cpm } : {}), ...(week ? { week } : {}) });
     }
     // Partie non vérifiée (ancienne version du jeu, décisions refusées) : récompense de base seulement.
     const levels: PmLevel[] = ['debutant', 'habitue', 'fouine'];
@@ -837,6 +846,12 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     const me = userOf(req);
     invites.set(me.id, invitesOf(me.id).filter((i) => i.code !== String(req.body?.code ?? '')));
     res.json({ ok: true });
+  });
+
+  // Classement solo de la semaine : visible de tous ; « moi » et « mes amis » avec un compte.
+  router.get('/solo-week', (req, res) => {
+    const h = req.headers.authorization ?? '';
+    res.json({ ok: true, ...soloWeek.board(userFromToken(h.startsWith('Bearer ') ? h.slice(7) : '')) });
   });
 
   router.get('/players/:username', (req, res) => {
@@ -1130,7 +1145,9 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
     // Saint-Nicolas / fêtes : la partie compte pour les défis d'événement.
     store.saveProfile(userId, applyFetesGame(bag.profile, { game: 'cf', won: o.won }, o.day).profile);
     leagueGain(userId, reward.xp);
-    return { coins: reward.coins + applied.levelBonusCoins, xp: reward.xp, bags: bag.found };
+    // Partie contre l'ordinateur rejouée par le serveur (server/cards-online.ts) : classement solo de la semaine.
+    const week = o.botLevel ? soloWeek.record(userId, { game: 'cf', won: o.won, level: o.botLevel, opponents: Math.max(1, o.players - 1) }) : null;
+    return { coins: reward.coins + applied.levelBonusCoins, xp: reward.xp, bags: bag.found, ...(week ? { week } : {}) };
   };
   const cards = createCards({ router, store, auth, userOf, fail, now: () => opts.now?.() ?? Date.now(), push: (u, t, b, url) => void social.push(u, t, b, url), rng: opts.cardsRng, generalReward: cfGeneralReward });
   // Coups Fourrés : l'énigme du jour (score recalculé ici, une validation par jour).

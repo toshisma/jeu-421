@@ -7,6 +7,8 @@
  * au serveur avec les garde-fous du solo (jeton de départ, durée minimale, plafond quotidien).
  * En ligne, le serveur fait foi et n'envoie les dés qu'au détenteur du gobelet.
  */
+import { SoloWeekNote } from '../ui/SoloWeek';
+import type { SoloWeekGain } from '../account/useProfile';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { act, currentPlayer, placeOf, ranking, viewFor, PM_LEVELS, type PmAction, type PmEvent, type PmLevel, type PmOptions, type PmState } from '../../../shared/pokermenteur/engine';
 import { encodePm, newGamePm, pmBotDecideFor, replayPm, MAX_MOVES_PM, type SetupPm } from '../../../shared/rejeu/poker';
@@ -260,7 +262,7 @@ function PmSoloTable({ setup, opponents, pa, settings, me, onExit, onReplay, onB
   }, [s, anim.busy, run, table]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fin : récompense (une fois).
-  const [end, setEnd] = useState<{ reward: Reward | null; bags: number; quests: string[]; achievements: string[]; unverified?: boolean; cpm?: CpmResult | null } | null>(null);
+  const [end, setEnd] = useState<{ reward: Reward | null; bags: number; quests: string[]; achievements: string[]; unverified?: boolean; cpm?: CpmResult | null; week?: SoloWeekGain } | null>(null);
   const ended = useRef(false);
   useEffect(() => {
     if (s.phase !== 'fini' || anim.busy || ended.current) return;
@@ -272,7 +274,7 @@ function PmSoloTable({ setup, opponents, pa, settings, me, onExit, onReplay, onB
       // Campagne : étoiles du serveur (compte) ; invité : rejeu fait ici, étoiles sur le profil de l'appareil.
       let cpm: CpmResult | null = r?.cpm ?? null;
       if (camp && !pa.isAccount) { const rp = replayPm(table, seed, moves.current.join('.')); cpm = rp.ok ? pa.onCpmGuestEnd(camp.id, rp.facts) : null; }
-      if (alive.current) setEnd({ reward: r?.reward ?? null, bags: r?.bags ?? 0, quests: r?.quests ?? [], achievements: r?.achievements ?? [], unverified: !!r?.unverified, cpm });
+      if (alive.current) setEnd({ reward: r?.reward ?? null, bags: r?.bags ?? 0, quests: r?.quests ?? [], achievements: r?.achievements ?? [], unverified: !!r?.unverified, cpm, ...(r?.week ? { week: r.week } : {}) });
     })();
   }, [s, anim.busy]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -287,7 +289,7 @@ function PmSoloTable({ setup, opponents, pa, settings, me, onExit, onReplay, onB
       <PmBoard look={camp?.look} anim={anim} seats={seats} meId="moi" canAct onAct={run} onLeave={() => void leave()} settings={settings} onRules={() => setRules(true)}
         overlay={say && <div className="pk-speech" key={say.k} style={{ ['--pc' as string]: seats.find((x) => x.id === say.id)?.color }}><b>{seats.find((x) => x.id === say.id)?.name}</b> {say.text}</div>}
         end={end && <EndDialog s={s} seats={seats} reward={end.reward} bags={end.bags} quests={end.quests} achievements={end.achievements} isAccount={pa.isAccount} onBags={onBags}
-          waiting={end.unverified ? tr('rej.update') : undefined} extra={camp?.panel({ result: end.cpm ?? null, pending: false })} buttons={<>
+          waiting={end.unverified ? tr('rej.update') : undefined} extra={<>{camp?.panel({ result: end.cpm ?? null, pending: false })}<SoloWeekNote week={end.week} /></>} buttons={<>
           <button className="btn secondary" onClick={onExit}>{camp?.backLabel ?? tr('pm.back')}</button>
           <button className="btn primary" onClick={onReplay}><Icon name="resume" size={18} /> {tr('pm.replay')}</button>
         </>} />} />

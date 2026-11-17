@@ -32,10 +32,13 @@ import { applyTdc, type TdcFacts } from '../../../shared/progress/comptoirs';
 import { applyCdm, type CdmFacts, type CdmResult } from '../../../shared/campaigns/dm'; // campagne du Courtisan
 import { applyCpm, type CpmFacts, type CpmResult } from '../../../shared/campaigns/pm';
 
-export interface EndReward { reward: Reward; applied: Applied }
+/** `week` : points gagnés au classement solo de la semaine (victoire vérifiée contre l'ordinateur, comptes). */
+export interface EndReward { reward: Reward; applied: Applied; week?: SoloWeekGain }
+export interface SoloWeekGain { gained: number; points: number }
 /** Fin d'une partie du Courtisan : récompense, sacs de dés trouvés, défis du jour accomplis. */
 export interface DmEndResult { /** null : plafond du jour atteint, seules les étoiles de campagne sont rendues. */ reward: Reward | null; levelBefore: number; levelAfter: number; bags: number; quests: string[]; /** Succès débloqués (identifiants). */ achievements?: string[]; /** Partie que le serveur n'a pas pu rejouer : récompense de base seulement. */ unverified?: boolean; /** Route des Auberges : étoiles données par le serveur. */ camp?: CdmResult;
-  /** Campagne du Poker menteur : étoiles calculées par le serveur après rejeu (comptes). */ cpm?: CpmResult }
+  /** Campagne du Poker menteur : étoiles calculées par le serveur après rejeu (comptes). */ cpm?: CpmResult;
+  /** Classement solo de la semaine. */ week?: SoloWeekGain }
 
 /** Défi du jour déjà joué sur cet appareil (affichage et récompense des invités). */
 const DEFI = '421.defi';
@@ -418,9 +421,9 @@ export function useProfile(enabled: boolean) {
     }
     if (!g.token) return null;
     try {
-      const res = await api<{ verified?: boolean; camp?: CdmResult; reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { text: string }[]; achievementsDone?: { id: string }[] } }>('/dixmille/end', { token: s.token, body: { gameToken: g.token, ...r } });
+      const res = await api<{ verified?: boolean; camp?: CdmResult; week?: SoloWeekGain; reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { text: string }[]; achievementsDone?: { id: string }[] } }>('/dixmille/end', { token: s.token, body: { gameToken: g.token, ...r } });
       setProfile(sanitizeProfile(res.applied.profile));
-      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter, bags: res.applied.bagsFound ?? 0, quests: (res.applied.questsDone ?? []).map((q) => q.text), achievements: (res.applied.achievementsDone ?? []).map((a) => a.id), unverified: res.verified === false, ...(res.camp ? { camp: res.camp } : {}) };
+      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter, bags: res.applied.bagsFound ?? 0, quests: (res.applied.questsDone ?? []).map((q) => q.text), achievements: (res.applied.achievementsDone ?? []).map((a) => a.id), unverified: res.verified === false, ...(res.camp ? { camp: res.camp } : {}), ...(res.week ? { week: res.week } : {}) };
     } catch (e) {
       // Plafond du jour : pas de récompense, mais les étoiles de la Route des Auberges restent acquises.
       const camp = e instanceof ApiError ? (e.data.camp as CdmResult | undefined) : undefined;
@@ -462,9 +465,9 @@ export function useProfile(enabled: boolean) {
     }
     if (!g.token) return null;
     try {
-      const res = await api<{ verified?: boolean; cpm?: CpmResult; reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { text: string }[]; achievementsDone?: { id: string }[] } }>('/poker/end', { token: s.token, body: { gameToken: g.token, ...r } });
+      const res = await api<{ verified?: boolean; cpm?: CpmResult; week?: SoloWeekGain; reward: Reward; applied: { profile: Profile; levelBefore: number; levelAfter: number; bagsFound?: number; questsDone?: { text: string }[]; achievementsDone?: { id: string }[] } }>('/poker/end', { token: s.token, body: { gameToken: g.token, ...r } });
       setProfile(sanitizeProfile(res.applied.profile));
-      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter, bags: res.applied.bagsFound ?? 0, quests: (res.applied.questsDone ?? []).map((q) => q.text), achievements: (res.applied.achievementsDone ?? []).map((a) => a.id), unverified: res.verified === false, ...(res.cpm ? { cpm: res.cpm } : {}) };
+      return { reward: res.reward, levelBefore: res.applied.levelBefore, levelAfter: res.applied.levelAfter, bags: res.applied.bagsFound ?? 0, quests: (res.applied.questsDone ?? []).map((q) => q.text), achievements: (res.applied.achievementsDone ?? []).map((a) => a.id), unverified: res.verified === false, ...(res.cpm ? { cpm: res.cpm } : {}), ...(res.week ? { week: res.week } : {}) };
     } catch (e) {
       // Plafond du jour : pas de récompense, mais les étoiles de campagne restent acquises.
       const cpm = e instanceof ApiError ? (e.data.cpm as CpmResult | undefined) : undefined;

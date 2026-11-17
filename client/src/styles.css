@@ -5145,6 +5145,33 @@ button.mode-chip { cursor: pointer; }
 .camp-card-text .camp-card-game { font: 800 10.5px/1 var(--font); letter-spacing: 0.07em; text-transform: uppercase; color: #f1cc7d; display: block; }
 .camp-card-side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .camp-card .camp-go { min-height: 34px; padding: 0 12px; font-size: 14px; }
+/* ===== Classement solo de la semaine (client/src/ui/SoloWeek.tsx) ===== */
+.sw-panel { margin-top: 16px; padding: 12px 12px 14px; border-radius: 18px; color: #f5eedf; background: linear-gradient(160deg, #2a1c0c 0%, #160e06 100%); box-shadow: inset 0 0 0 1px rgba(241,204,125,0.45), 0 4px 0 rgba(0,0,0,0.45); scroll-margin-top: 8px; }
+.sw-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.sw-head h2 { margin: 0; font: 800 21px/1.1 var(--cond); color: #f5eedf; }
+.sw-ends { font: 700 12px/1 var(--font); color: #f1cc7d; white-space: nowrap; }
+.sw-rule { margin: 6px 0 0; font-size: 12.5px; line-height: 1.35; color: #e6d6b5; }
+.sw-me { display: flex; flex-direction: column; gap: 2px; margin: 10px 0 0; padding: 8px 10px; border-radius: 12px; background: rgba(241,204,125,0.14); font: 700 14px/1.25 var(--font); }
+.sw-me small { font-weight: 600; font-size: 12px; color: #d9c9a8; }
+.sw-tabs { display: flex; gap: 6px; margin-top: 10px; }
+.sw-tabs button { flex: 1; min-height: 36px; border: 0; border-radius: 999px; cursor: pointer; font: 800 14px/1 var(--cond); color: #f5eedf; background: rgba(255,255,255,0.08); box-shadow: inset 0 0 0 1px rgba(241,204,125,0.35); }
+.sw-tabs button.on { background: #f1cc7d; color: #2a1a06; }
+.sw-rows { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.sw-rows li { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 10px; border-radius: 10px; background: rgba(255,255,255,0.05); }
+.sw-rows li.me { background: rgba(241,204,125,0.22); box-shadow: inset 0 0 0 1.5px #f1cc7d; }
+.sw-friend { margin-left: 6px; padding: 2px 6px; border-radius: 999px; background: rgba(241,204,125,0.18); color: #f1cc7d; font: 700 10.5px/1 var(--font); vertical-align: 2px; }
+.sw-rank { flex: none; width: 34px; font: 800 15px/1 var(--font); color: #f1cc7d; text-align: center; }
+.sw-name { flex: 1; min-width: 0; font: 700 14px/1.2 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sw-pts { flex: none; font: 800 14px/1 var(--font); color: #f5c542; white-space: nowrap; }
+.sw-empty { margin: 10px 0 0; font-size: 13px; color: #d9c9a8; }
+.sw-last { margin-top: 12px; opacity: 0.9; }
+.sw-last h3 { margin: 0; font: 800 14px/1.2 var(--cond); letter-spacing: 0.04em; text-transform: uppercase; color: #f1cc7d; }
+.sw-note { margin: 8px 0 0; padding: 6px 10px; border-radius: 10px; background: rgba(241,204,125,0.16); color: #f5e3b5; font: 700 13px/1.3 var(--font); text-align: center; }
+.sw-note.capped { opacity: 0.8; font-weight: 600; }
+.sw-badge { gap: 3px; padding: 0 7px 0 5px; }
+.sw-badge b { font: 800 12px/1 var(--font); }
+/* Petits téléphones : pastilles plus serrées pour que « Campagne » reste lisible à côté du trophée. */
+@media (max-width: 400px) { .camp-home-top { gap: 3px; } .camp-pills { gap: 2px; } .camp-pill { padding: 0 5px 0 3px; gap: 1px; } .sw-badge { padding: 0 5px 0 3px; gap: 1px; } }
 /* Menu du 421 : la Tournée, entrée principale (au-dessus de la vitrine « Jouer contre l'ordinateur »). */
 .tdc-entry.featured { min-height: 58px; padding: 6px 8px 6px 10px; gap: 9px; box-shadow: inset 0 0 0 2px #f1cc7d, 0 0 16px rgba(241,204,125,0.28), 0 6px 14px rgba(0,0,0,0.4); }
 .tdc-entry.featured .tdc-entry-text { gap: 1px; }

@@ -141,7 +141,7 @@ type Screen =
   | { name: 'admin'; from?: 'stats' }
   | { name: 'moderation' }
   | { name: 'tdc'; via?: 'home' | 'campaigns' }
-  | { name: 'campaigns' }
+  | { name: 'campaigns'; focus?: 'ranking' }
   | { name: 'tdc-game'; controller: TdcController }
   | { name: 'camp-pm' } // campagne du Poker menteur « Les Arrière-salles » (menu du mode ouvert sur la carte)
   // Campagne solo de Coups Fourrés « Les Comptoirs rivaux » (client/src/campaigns/CfCampaign.tsx, dans le mode).
@@ -181,6 +181,8 @@ export function App() {
   // Bistrots entre amis : lien d'invitation (/?bistrot=CODE) ou notification : écran Amis.
   const openBistrot = useMemo(() => captureBistrotLink(), []);
   const openNotifs = useMemo(() => { const v = new URLSearchParams(location.search).has('notifs'); if (v) cleanUrl(); return v; }, []);
+  // Notification du lundi (podium du classement solo) : ouvre l'écran Campagnes sur le classement.
+  const openSoloWeek = useMemo(() => { const v = new URLSearchParams(location.search).has('classement-solo'); if (v) cleanUrl(); return v; }, []);
   // Lien de parrainage : le pseudo du parrain est retenu pour la création du compte.
   useMemo(() => {
     const p = new URLSearchParams(location.search).get('parrain');
@@ -201,7 +203,7 @@ export function App() {
         : tInvite && settings.name ? { name: 'tournament', mode: { kind: 'join', code: tInvite.toUpperCase() } }
           : tInvite || tSched ? { name: 'hub', tab: 'tournois' }
             : jouer === 'courtisan' ? { name: 'dixmille', pending: { play: true } } : jouer === 'cartes' ? { name: 'cf', pending: { play: true } } : jouer === 'poker' ? { name: 'poker', pending: { play: true } }
-              : jouer === 'amis' ? { name: 'online', mode: { kind: 'create' } } : openCf ? { name: 'cf', ...(openCf === 'tournoi' ? { pending: { tournoi: true } } : {}) } : openDefi ? { name: 'challenge' } : openPm ? { name: 'messages', with: openPm } : openBistrot ? { name: 'friends' } : { name: 'home' });
+              : jouer === 'amis' ? { name: 'online', mode: { kind: 'create' } } : openCf ? { name: 'cf', ...(openCf === 'tournoi' ? { pending: { tournoi: true } } : {}) } : openDefi ? { name: 'challenge' } : openPm ? { name: 'messages', with: openPm } : openBistrot ? { name: 'friends' } : openSoloWeek ? { name: 'campaigns', focus: 'ranking' } : { name: 'home' });
   const [resume, setResume] = useState(loadSession);
   const [courtResume, setCourtResume] = useState(loadDmSession);
   const [pokerResume, setPokerResume] = useState(loadPmSession);
@@ -422,7 +424,7 @@ export function App() {
         onTournaments={() => setScreen({ name: 'hub', tab: 'tournois' })} onAlbum={() => setScreen({ name: 'album' })} onParty={() => setScreen({ name: 'party-setup' })}
         onOnline={() => setScreen({ name: 'hub', tab: 'tables' })} onChallenge={() => { sound.unlock(); setScreen({ name: 'challenge' }); }}
         onJoinScheduled={onJoinScheduled} notif={notif} discord={discord} onFeteBoss={startFeteBoss} onTournee={() => setScreen({ name: 'tdc' })} onQuickPlay={() => quickPlay('accueil')}
-        onCampaign={(id) => openCampaign(id, 'home')} onCampaigns={() => setScreen({ name: 'campaigns' })}
+        onCampaign={(id) => openCampaign(id, 'home')} onCampaigns={() => setScreen({ name: 'campaigns' })} onSoloWeek={() => setScreen({ name: 'campaigns', focus: 'ranking' })}
         resume={resume ?? (courtResume ? { code: courtResume.code, courtisan: true } : pokerResume ? { code: pokerResume.code, poker: true } : null)} onResume={resumeGame} />;
     case 'classic':
       return <ClassicMenu profile={profile} pa={pa} settings={settings} onBack={home}
@@ -493,7 +495,7 @@ export function App() {
     case 'tdc':
       return <TourneeScreen pa={pa} onBack={screen.via === 'home' ? home : screen.via === 'campaigns' ? () => setScreen({ name: 'campaigns' }) : classic} onPlay={startTdc} />;
     case 'campaigns':
-      return <CampaignsScreen pa={pa} onBack={home} onOpen={(id) => openCampaign(id, 'campaigns')} />;
+      return <CampaignsScreen pa={pa} onBack={home} onOpen={(id) => openCampaign(id, 'campaigns')} focus={screen.focus} />;
     case 'tdc-game': {
       const c = screen.controller, b = c.bistro;
       return <GameScreen controller={c} personas={c.personas} settings={settings} onSettings={setSettings} onExit={() => setScreen({ name: 'tdc', via: tdcFrom.current })}

@@ -8,9 +8,13 @@ import { tr, useLang } from '../i18n/lang';
 import { ModeBar } from '../ui/ModeBar';
 import { GAME_ICON, GAME_TONE, gameName, goLabel, nextLine, trKey } from './HomeCard';
 import { noteLastGame } from './lastGame';
+import { useEffect } from 'react';
+import { SoloWeekPanel } from '../ui/SoloWeek';
 
-export function CampaignsScreen({ pa, onBack, onOpen }: { pa: ProfileApi; onBack: () => void; onOpen: (id: string) => void }) {
+export function CampaignsScreen({ pa, onBack, onOpen, focus }: { pa: ProfileApi; onBack: () => void; onOpen: (id: string) => void; focus?: 'ranking' }) {
   useLang();
+  // Ouvert depuis le trophée de l'accueil ou la notification du lundi : directement sur le classement.
+  useEffect(() => { if (focus === 'ranking') document.getElementById('classement-solo')?.scrollIntoView({ block: 'start' }); }, [focus]);
   const camps = readyCampaigns().map((c) => ({ c, s: summarize(c, pa.profile) }));
   const total = camps.reduce((n, x) => n + x.s.stars, 0);
   const max = camps.reduce((n, x) => n + x.s.maxStars, 0);
@@ -43,6 +47,7 @@ export function CampaignsScreen({ pa, onBack, onOpen }: { pa: ProfileApi; onBack
             </li>
           ))}
         </ul>
+        <SoloWeekPanel token={pa.token} isAccount={pa.isAccount} />
       </main>
     </div>
   );

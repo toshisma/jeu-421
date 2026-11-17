@@ -68,7 +68,7 @@ export interface HomeProps {
   /** Tournée des comptoirs (gardé pour compatibilité ; l'accueil passe par onCampaign). */
   onTournee?: () => void;
   /** Campagnes solo : ouvrir une campagne (son écran d'entrée) ou l'écran « Campagnes ». */
-  onCampaign?: (id: string) => void; onCampaigns?: () => void;
+  onCampaign?: (id: string) => void; onCampaigns?: () => void; onSoloWeek?: () => void;
 }
 
 type SheetKind = 'coffre' | 'cadeau' | 'missions' | 'discord';
@@ -247,7 +247,8 @@ export function Home(props: HomeProps) {
           <h1 className="mm-brand"><span className="plaque" aria-hidden>421</span><span aria-hidden>online</span><span className="sr-only">{tr('app.421_en_ligne_jeux_de_des_et')}</span></h1>
           {titleL(profile.title) && <span className="h2-title-chip">{titleL(profile.title)}</span>}
           {/* Campagne solo (dernier jeu ouvert, ou la Tournée) : bloc posé en bas de la vitrine, à la place de l'ancienne pastille « Tournée des comptoirs ». */}
-          {props.onCampaign && <CampaignHomeCard profile={profile} onOpen={props.onCampaign} onAll={props.onCampaigns ?? (() => props.onCampaign!('r421'))} />}
+          {props.onCampaign && <CampaignHomeCard profile={profile} onOpen={props.onCampaign} onAll={props.onCampaigns ?? (() => props.onCampaign!('r421'))}
+            ranking={props.onSoloWeek && !STANDALONE ? { token: pa.token, isAccount: pa.isAccount, onOpen: props.onSoloWeek } : undefined} />}
           {acc && <BistrotChip pa={pa} onOpen={props.onFriends} />}
           {!STANDALONE && <div className="h2-news">
             {online && <span className={`mm-site${online.site ? "" : " zero"}`} title={tr('onl.siteAria', { n: online.site })}><i className="live-dot" aria-hidden /><span aria-hidden>{tr('onl.site', { n: online.site })}</span><span className="sr-only">{tr('onl.siteAria', { n: online.site })}</span></span>}

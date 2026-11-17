@@ -14,6 +14,7 @@ import type { Profile } from '../../../shared/progress/profile';
 import { tr } from '../i18n/lang';
 import { Icon } from '../ui/Icon';
 import { lastGame, noteLastGame } from './lastGame';
+import { SoloWeekBadge } from '../ui/SoloWeek';
 
 /** Texte d'une clé venue d'un fichier de campagne (vide si la clé n'existe pas encore). */
 export const trKey = (k: string): string => (k in DICTS.fr ? tr(k as MessageKey) : '');
@@ -32,7 +33,7 @@ export function nextLine(s: CampaignSummary): string {
 /** Libellé du bouton d'une campagne. */
 export const goLabel = (s: CampaignSummary): string => tr(s.stars === 0 ? 'chm.start' : s.done && !s.next ? 'chm.see' : 'chm.continue');
 
-export function CampaignHomeCard({ profile, onOpen, onAll }: { profile: Profile; onOpen: (id: string) => void; onAll: () => void }) {
+export function CampaignHomeCard({ profile, onOpen, onAll, ranking }: { profile: Profile; onOpen: (id: string) => void; onAll: () => void; ranking?: { token: string | null | undefined; isAccount: boolean; onOpen: () => void } }) {
   const [pick, setPick] = useState<CampaignGame | null>(lastGame);
   const camps = readyCampaigns();
   const c: Campaign = homeCampaign(pick);
@@ -54,6 +55,7 @@ export function CampaignHomeCard({ profile, onOpen, onAll }: { profile: Profile;
             );
           })}
         </span>}
+        {ranking && <SoloWeekBadge {...ranking} />}
         <button className="camp-all" onClick={onAll} aria-label={tr('chm.all')} title={tr('chm.all')}><Icon name="history" size={16} /></button>
       </div>
       <div className="camp-home-row">

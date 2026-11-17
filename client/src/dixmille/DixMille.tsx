@@ -7,6 +7,8 @@
  * « joueur d'animations » (`useDmAnimator`) rejoue chaque action dans le bac 3D, pour tout le monde
  * de la même façon (graine d'animation partagée en ligne).
  */
+import { SoloWeekNote } from '../ui/SoloWeek';
+import type { SoloWeekGain } from '../account/useProfile';
 import { useGuestInviteAtEnd } from '../ui/guestInvite';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { act, canBank, currentPlayer, diceAfter, inPlay, newGame, pickPoints, ranking, validSelections, DM_LEVELS, DM_TARGETS, DM_VALUES, type DmAction, type DmEvent, type DmLevel, type DmState } from '../../../shared/dixmille/engine';
@@ -654,7 +656,7 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
   const anim = useDmAnimator(tray, initial, seatsRef, { trail: pa.profile.fx?.trainee, fete: pa.profile.fx?.fete });
   // État officiel (moteur local), en avance sur l'écran pendant les animations.
   const truth = useRef(initial);
-  const [end, setEnd] = useState<{ reward: Reward | null; bags: number; quests: string[]; achievements: string[]; unverified?: boolean; camp?: CdmResult | null } | null>(null);
+  const [end, setEnd] = useState<{ reward: Reward | null; bags: number; quests: string[]; achievements: string[]; unverified?: boolean; camp?: CdmResult | null; week?: SoloWeekGain } | null>(null);
   const setup0 = setup;
   const alive = useRef(true);
   // Partie vérifiable (compte) : le serveur donne la graine au début et rejoue les décisions à la fin.
@@ -730,7 +732,7 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
         if (pa.isAccount) campRes = r?.camp ?? null;
         else { const rp = replayDm(campSetup, initial.seed, rj.moves.join('.')); campRes = rp.ok ? pa.onCdmGuestEnd(camp.id, rp.facts) : null; }
       }
-      if (alive.current) setEnd({ reward: r?.reward ?? null, bags: r?.bags ?? 0, quests: r?.quests ?? [], achievements: r?.achievements ?? [], unverified: !!r?.unverified, ...(camp ? { camp: campRes ?? null } : {}) });
+      if (alive.current) setEnd({ reward: r?.reward ?? null, bags: r?.bags ?? 0, quests: r?.quests ?? [], achievements: r?.achievements ?? [], unverified: !!r?.unverified, ...(camp ? { camp: campRes ?? null } : {}), ...(r?.week ? { week: r.week } : {}) });
     })();
   }, [s, anim.busy, pa, opponents.length, setup.level]);
 
@@ -761,7 +763,7 @@ export function DixMilleGame({ setup, opponents, pa, settings, onSettings, appea
           </div>
         </div>
       ) : end && <><DmAchToast ids={end.achievements} /><EndDialog s={s} seats={seats} reward={end.reward} bags={end.bags} quests={end.quests} achievements={end.achievements} isAccount={pa.isAccount} onBags={onBags}
-        extra={camp ? <CdmEndPanel stage={camp.id} before={campBefore.current} result={end.camp ?? null} /> : undefined}
+        extra={<>{camp ? <CdmEndPanel stage={camp.id} before={campBefore.current} result={end.camp ?? null} /> : null}<SoloWeekNote week={end.week} /></>}
         waiting={end.unverified ? tr('rej.update') : undefined} buttons={<>
         <button className="btn secondary" onClick={onExit}>{tr(camp ? 'cdm.backRoute' : 'dm.back')}</button>
         <button className="btn primary" onClick={onReplay}><Icon name="resume" size={18} /> {tr('dm.replay')}</button>

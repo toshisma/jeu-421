@@ -1,4 +1,5 @@
 import { cfText } from './i18n';
+import { SoloWeekNote } from '../ui/SoloWeek';
 import { getLang, tr } from '../i18n/lang';
 /**
  * Coups Fourrés : les pièces du plateau de partie (prototypes CFN validés par Sam le 5 novembre :
@@ -892,6 +893,7 @@ export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, onBags, bot
   const missions = Array.isArray(reward?.missions) ? (reward!.missions as string[]).length : 0;
   const error = reward && typeof reward.error === 'string' ? cfText(reward.error) : null;
   const note = reward && typeof reward.note === 'string' ? cfText(reward.note) : null;
+  const week = reward && reward.week && typeof (reward.week as { gained?: unknown }).gained === 'number' ? reward.week as { gained: number; points: number } : null;
   return (
     <div className="cf-modal end" role="dialog" aria-modal="true" aria-label={won ? tr('cf.boardparts.victoire') : tr('cf.boardparts.defaite')}>
       <div className={`cf-modal-card cf-end${won ? ' win' : ''}`}>
@@ -915,6 +917,7 @@ export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, onBags, bot
           {!reward && rewarded && !spectator && <small className="cf-gain-note">{tr('cf.boardparts.calcul_des_gains')}</small>}
           {!reward && !rewarded && bot && !extra && <small className="cf-gain-note">{guest ? tr('cf.boardparts.partie_d_essai_aucun_gain') : tr('cf.boardparts.partie_d_entrainement_pas_de_capsule')}</small>}
         </div>
+        <SoloWeekNote week={week} />
         {guest && bot && <button className="cf-link" onClick={onAccount}>{tr('cf.boardparts.creer_un_compte_gratuit_pour_gagner')}</button>}
         {onShare && <button className="cf-btn violet" disabled={sharing} onClick={onShare}><Icon name="share" size={18} />{tr('cf.boardparts.partager_mon_plus_beau_coup')}</button>}
         <div className="cf-modal-btns">

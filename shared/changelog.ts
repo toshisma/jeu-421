@@ -7,6 +7,10 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.60', date: '2026-11-17T23:22:00+01:00', title: 'Le classement solo de la semaine', items: [
+    'Nouveau : le classement solo de la semaine. Chaque victoire contre l’ordinateur, dans les 4 jeux, rapporte des points : plus la partie est difficile et plus il y a d’adversaires, plus elle rapporte (30 points au plus par jour).',
+    'Lundi, le podium gagne des pièces. Suivez votre place sur l’accueil (le petit trophée du bloc Campagne) et comparez-vous à vos amis dans l’écran « Campagnes ».',
+  ] },
   { version: '0.59', date: '2026-11-16T14:20:00+01:00', title: 'Une campagne solo pour chaque jeu', items: [
     'Chaque jeu a maintenant sa campagne solo : la Tournée des comptoirs (421), la Route des Auberges (Le Courtisan), les Arrière-salles (Poker menteur) et les Comptoirs rivaux (Coups Fourrés).',
     'Des adversaires de plus en plus coriaces, jusqu’à 3 étoiles à gagner à chaque étape, et une récompense à chaque chapitre terminé.',
