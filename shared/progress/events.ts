@@ -16,7 +16,7 @@ const utc = (y: number, m: number, d: number) => new Date(Date.UTC(y, m - 1, d))
 const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86400_000);
 
 /** Dimanche de Pâques (algorithme grégorien anonyme). */
-function easter(y: number): Date {
+export function easter(y: number): Date {
   const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
   const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
   const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);

@@ -12,6 +12,7 @@ import { cartesNl } from './zones/cartes.nl';
 import type { MessageKey } from './fr';
 import { g421Nl } from './zones/jeu421.nl';
 import { fetesNl } from './zones/fetes.nl';
+import { calendarNl } from './zones/calendar.nl';
 import { tdcNl } from './zones/comptoirs.nl';
 import { chmNl } from './zones/camphome.nl';
 import { cdmNl } from './zones/campdm.nl'; // campagne du Courtisan
@@ -74,6 +75,7 @@ export const nl: Partial<Record<MessageKey, string>> = {
   'dm.lv.debutant': 'Beginner', 'dm.lv.habitue': 'Vaste klant', 'dm.lv.fouine': 'Sluwe vos', 'dm.lh.debutant': 'Waagt te veel', 'dm.lh.habitue': 'Speelt verstandig', 'dm.lh.fouine': 'Berekent de kansen',
   ...g421Nl,
   ...fetesNl,
+  ...calendarNl,
   ...rejeuNl,
   ...tdcNl,
   ...chmNl,

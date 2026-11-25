@@ -143,7 +143,7 @@ export function applyDixMilleGame(p: Profile, r: Reward, day: string, f: DmGameF
   const dm = nextDmStats(p.dm, r.won, f);
   const bag = dixMilleBagRoll({ ...a.profile, quests, dm }, f, rng);
   // Saint-Nicolas / fêtes : la partie compte pour les défis d'événement.
-  const fe = applyFetesGame(bag.profile, { game: 'dm', won: r.won }, day);
+  const fe = applyFetesGame(bag.profile, { game: 'dm', won: r.won }, day, rng);
   // Succès (ceux du Courtisan, et ceux du niveau atteint) : pièces versées tout de suite.
   const ach = checkAchievements(fe.profile, f.now);
   return {

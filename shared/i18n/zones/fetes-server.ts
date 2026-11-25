@@ -13,6 +13,10 @@ const p6 = fetePush('2026-12-06')!, p24 = fetePush('2026-12-24')!, p1 = fetePush
 export const FETES_TEXTS: Record<string, T> = {
   [FETE_TITLES['fete:saint-nicolas']]: { en: 'Good child', de: 'Braves Kind', nl: 'Braaf kind' },
   [FETE_TITLES['fete:noel']]: { en: 'Holiday elf', de: 'Festtagswichtel', nl: 'Feestelf' },
+  // Calendrier de l'année (shared/progress/calendar.ts)
+  [FETE_TITLES['fete:paques']]: { en: 'Egg hunter', de: 'Eiersucher', nl: 'Eierenzoeker' },
+  [FETE_TITLES['fete:halloween']]: { en: 'Fearless at the bar', de: 'Furchtlos an der Theke', nl: 'Onverschrokken aan de toog' },
+  [FETE_TITLES['fete:reveillon']]: { en: 'New Year’s Eve podium', de: 'Silvester-Podest', nl: 'Oudejaarspodium' },
   [p6.title]: { en: 'Happy St Nicholas’ Day!', de: 'Frohen Nikolaustag!', nl: 'Fijne Sinterklaas!' },
   [p6.body]: {
     en: 'St Nicholas and Père Fouettard are waiting for you at the bar, and today’s advent calendar door hides a dice bag.',
@@ -36,6 +40,15 @@ export const FETES_TEXTS: Record<string, T> = {
 };
 
 /** Traduction d'un texte des fêtes, ou null s'il n'en est pas un. */
+/** Textes avec une valeur : titre de la galette (année), fil d'actualité (pseudo). */
+const PATTERNS: [RegExp, T][] = [
+  [/^Roi ou reine du 421 (\d{4})$/, { en: 'King or queen of 421 $1', de: 'König oder Königin des 421 $1', nl: 'Koning of koningin van 421 $1' }],
+  [/^👑 (.+) a trouvé la fève de la galette des rois !$/, { en: '👑 $1 found the charm in the king cake!', de: '👑 $1 hat die Bohne im Dreikönigskuchen gefunden!', nl: '👑 $1 vond de boon in de driekoningentaart!' }],
+];
+
 export function translateFetes(lang: Foreign, text: string): string | null {
-  return FETES_TEXTS[text]?.[lang] ?? null;
+  const t = FETES_TEXTS[text]?.[lang];
+  if (t) return t;
+  for (const [re, x] of PATTERNS) if (re.test(text)) return text.replace(re, x[lang]);
+  return null;
 }

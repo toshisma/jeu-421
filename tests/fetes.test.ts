@@ -92,7 +92,7 @@ describe('fêtes : défis d’événement et adversaire spécial (logique commun
     expect(feteState(a, '2026-12-22')?.k).toBe('fetes:2026');
   });
   it('adversaire spécial : battu une fois par édition (pièces, titre, accessoire), seulement au 421', () => {
-    const b = FETE_BOSSES['saint-nicolas'];
+    const b = FETE_BOSSES['saint-nicolas']!;
     let p = newProfile();
     p = applyFetesGame(p, { game: '421', won: false, boss: b.def.id }, day).profile;
     expect(p.fete?.boss).toBeUndefined();
@@ -259,7 +259,7 @@ describe('fêtes côté serveur', () => {
     expect(e.applied.profile.fete).toBeUndefined();
     vi.setSystemTime(new Date('2026-12-05T15:00:00Z'));
     // Vraie victoire (rejouée par le serveur) contre Saint-Nicolas, avec un 4-2-1.
-    const f = FETE_BOSSES['saint-nicolas'];
+    const f = FETE_BOSSES['saint-nicolas']!;
     const table = { config: {}, firstIdx: 0, opponents: f.cast.slice(0, 1 + f.def.sidekicks).map((id, i) => ({ persona: `fete-${id}`, difficulty: i ? 'normal' : 'difficile' })) };
     const w = await solo421(api as any, token, { boss: 'ev-saint-nicolas', setup: table, want: 'win', accept: (x) => x.count421 > 0, tries: 2000 });
     e = w.end;

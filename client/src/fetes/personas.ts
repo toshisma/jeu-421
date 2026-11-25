@@ -1,4 +1,4 @@
-/** Personnages des adversaires spéciaux (Saint-Nicolas, Père Fouettard, Père Noël) : bienveillants, répliques traduites. */
+/** Personnages des adversaires spéciaux (Saint-Nicolas, Père Fouettard, Père Noël, Lapin de Pâques, Fantôme du comptoir) : bienveillants, répliques traduites. */
 import type { MessageKey } from '../../../shared/i18n';
 import type { Persona } from '../game/personas';
 import { tr } from '../i18n/lang';
@@ -7,6 +7,9 @@ const LOOK: Record<string, Pick<Persona, 'avatar' | 'color' | 'tempo' | 'style' 
   'saint-nicolas': { avatar: '📖', color: '#b3161d', tempo: 1300, style: { caution: 0.01 }, dice: 'dice-saint-nicolas' },
   fouettard: { avatar: '🧺', color: '#5b4a8a', tempo: 1000, style: { caution: 0.02 }, dice: 'dice-mandarine' },
   'pere-noel': { avatar: '🎅', color: '#c8202a', tempo: 1200, style: { caution: 0 }, dice: 'dice-champagne' },
+  // Calendrier de l'année : Pâques, Nuit d'Halloween.
+  lapin: { avatar: '🐰', color: '#d77aa0', tempo: 900, style: { caution: -0.02 }, dice: 'dice-feve' },
+  fantome: { avatar: '👻', color: '#5a5f7a', tempo: 1400, style: { caution: 0.03 }, dice: 'dice-citrouille' },
 };
 
 /** Personnages dans la langue du moment (créés au lancement de la partie). */

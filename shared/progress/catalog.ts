@@ -161,6 +161,8 @@ export const ITEMS: Item[] = [
   // --- Saint-Nicolas et fêtes : gagnés pendant l'événement (tous les défis d'événement réussis), jamais en vente ---
   { id: 'dice-mandarine', category: 'dice', name: 'Mandarine', price: 0, level: 1, pass: 1, body: '#f39a2e', body2: '#d9761a', pip: '#2b1405', roughness: 0.55, metalness: 0, clearcoat: 0.35, description: 'Défis de Saint-Nicolas réussis.' },
   { id: 'dice-champagne', category: 'dice', name: 'Champagne', price: 0, level: 1, pass: 1, body: '#f1e3b4', body2: '#d8c27e', pip: '#3a2608', roughness: 0.2, metalness: 0.25, clearcoat: 1, description: 'Défis des fêtes réussis.' },
+  // Galette des rois (shared/progress/calendar.ts) : fève en porcelaine peinte, trouvée dans un sac (une par an).
+  { id: 'dice-feve', category: 'dice', name: 'Fève', price: 0, level: 1, pass: 1, body: '#f7f1e4', body2: '#e2d5b6', pip: '#1f3f7a', roughness: 0.18, metalness: 0, clearcoat: 1, description: 'Trouvée dans un sac pendant la galette des rois.' },
   // --- Pass de saison (gagnés, pas achetés) ---
   { id: 'dice-pass-cuivre', category: 'dice', name: 'Cuivre (pass)', price: 0, level: 1, pass: 1, body: '#cf8a55', body2: '#a8683a', pip: '#140802', roughness: 0.3, metalness: 0.8, clearcoat: 0.3 },
   { id: 'dice-pass-opale', category: 'dice', name: 'Opale (pass)', price: 0, level: 1, pass: 1, body: '#dff1f2', body2: '#a9c9e8', pip: '#6a3aa0', roughness: 0.1, metalness: 0.1, clearcoat: 1 },
@@ -187,6 +189,9 @@ export const ITEMS: Item[] = [
   // Adversaires spéciaux de Saint-Nicolas et des fêtes (battus une fois pendant l'événement).
   { id: 'acc-speculoos', category: 'accessoire', name: 'Spéculoos', price: 0, level: 1, pass: 1, emoji: '🍪' },
   { id: 'acc-cloche', category: 'accessoire', name: 'Cloche des fêtes', price: 0, level: 1, pass: 1, emoji: '🔔' },
+  // Adversaires spéciaux du calendrier de l'année (Pâques, Nuit d'Halloween).
+  { id: 'acc-oeuf', category: 'accessoire', name: 'Œuf de Pâques', price: 0, level: 1, pass: 1, emoji: '🥚' },
+  { id: 'acc-fantome', category: 'accessoire', name: 'Fantôme', price: 0, level: 1, pass: 1, emoji: '👻' },
   { id: 'acc-pass-etoile', category: 'accessoire', name: 'Étoile (pass)', price: 0, level: 1, pass: 1, emoji: '⭐' },
   { id: 'acc-pass-feu', category: 'accessoire', name: 'Flamme (pass)', price: 0, level: 1, pass: 1, emoji: '🔥' },
 ];

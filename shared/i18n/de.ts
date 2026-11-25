@@ -12,6 +12,7 @@ import { cartesDe } from './zones/cartes.de';
 import type { MessageKey } from './fr';
 import { g421De } from './zones/jeu421.de';
 import { fetesDe } from './zones/fetes.de';
+import { calendarDe } from './zones/calendar.de';
 import { tdcDe } from './zones/comptoirs.de';
 import { chmDe } from './zones/camphome.de';
 import { cdmDe } from './zones/campdm.de'; // campagne du Courtisan
@@ -74,6 +75,7 @@ export const de: Partial<Record<MessageKey, string>> = {
   'dm.lv.debutant': 'Anfänger', 'dm.lv.habitue': 'Stammgast', 'dm.lv.fouine': 'Fuchs', 'dm.lh.debutant': 'Riskiert zu viel', 'dm.lh.habitue': 'Spielt vernünftig', 'dm.lh.fouine': 'Berechnet die Chancen',
   ...g421De,
   ...fetesDe,
+  ...calendarDe,
   ...rejeuDe,
   ...tdcDe,
   ...chmDe,

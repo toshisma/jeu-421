@@ -30,7 +30,7 @@ const DIFFS: Difficulty[] = ['facile', 'normal', 'difficile'];
  */
 export const PERSONA_CAUTION: Record<string, number> = {
   marcel: 0.02, josiane: 0.05, baron: 0, lulu: -0.03, dede: -0.05, simone: 0.01, gege: 0.03,
-  'fete-saint-nicolas': 0.01, 'fete-fouettard': 0.02, 'fete-pere-noel': 0,
+  'fete-saint-nicolas': 0.01, 'fete-fouettard': 0.02, 'fete-pere-noel': 0, 'fete-lapin': -0.02, 'fete-fantome': 0.03,
 };
 /** Habitués du 421 (parties libres et acolytes du patron). */
 export const HABITUES = ['marcel', 'josiane', 'baron', 'lulu', 'dede', 'simone', 'gege'];

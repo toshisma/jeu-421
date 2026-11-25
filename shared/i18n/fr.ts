@@ -14,6 +14,7 @@ import { cartesFr } from './zones/cartes.fr';
  */
 import { g421Fr } from "./zones/jeu421.fr";
 import { fetesFr } from "./zones/fetes.fr";
+import { calendarFr } from "./zones/calendar.fr";
 import { tdcFr } from "./zones/comptoirs.fr";
 import { chmFr } from "./zones/camphome.fr";
 import { cdmFr } from './zones/campdm.fr'; // campagne du Courtisan
@@ -389,6 +390,7 @@ export const fr = {
   "dm.lh.fouine": "Calcule ses risques",
   ...g421Fr,
   ...fetesFr,
+  ...calendarFr,
   ...rejeuFr,
 };
 export type MessageKey = keyof typeof fr;

@@ -286,9 +286,10 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
 
   router.post('/bags/open', auth, (req, res) => {
     const u = userOf(req);
-    const r = openBag(store.profileOf(u));
+    const r = openBag(store.profileOf(u), undefined, today()); // jour du serveur : fève de la galette des rois
     if (!r) return fail(res, 400, 'Aucun sac à ouvrir.');
     store.saveProfile(u.id, r.profile);
+    if (r.result.feve) news(`👑 ${u.username} a trouvé la fève de la galette des rois !`);
     if (r.result.shiny) news(`✨ ${u.username} a trouvé un dé brillant !`);
     else if (r.result.rarity === 'legendaire') news(`✨ ${u.username} a sorti un dé légendaire d’un sac !`);
     else if (r.result.rarity === 'epique') news(`✨ ${u.username} a sorti un dé épique`);

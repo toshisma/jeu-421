@@ -13,8 +13,8 @@ import webpush from 'web-push';
 import { playChallenge } from '../shared/challenge';
 import type { DuelRow, Store, UserRow } from './db';
 import { happyHourOfDay } from '../shared/progress/events';
-import { fetePush } from '../shared/progress/fetes';
-import { isLang, type Lang } from '../shared/i18n';
+import { calendarPush, fetePush } from '../shared/progress/fetes';
+import { isLang, type Lang, type MessageKey } from '../shared/i18n';
 import { translateServerText } from '../shared/i18n/server-texts';
 import { createNotifs } from './notifs';
 
@@ -276,6 +276,12 @@ export function createSocial(c: Ctx) {
     if (fp && hour >= 10 && store.getMeta('push_fete') !== day) {
       store.setMeta('push_fete', day);
       for (const id of store.pushUsers()) notifs.notify(id, 'evenements', `fete:${day}`, { title: fp.title, body: fp.body });
+    }
+    // Calendrier de l'année (Chandeleur, Pâques, Réveillon…) : une notification traduite vers 10 h.
+    const cp = calendarPush(day);
+    if (cp && hour >= 10 && store.getMeta('push_cal') !== day) {
+      store.setMeta('push_cal', day);
+      for (const id of store.pushUsers()) notifs.notify(id, 'evenements', `cal:${day}`, { key: cp.key as MessageKey, bodyKey: cp.bodyKey as MessageKey, url: cp.id === 'reveillon' ? '/?tournois=1' : '/' });
     }
     // La série (et le cadeau du jour) : rappel vers 19 h dans notifs.tick (positif, désactivable).
   }
