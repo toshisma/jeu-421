@@ -160,3 +160,23 @@ describe('serveur', () => {
     expect((await api('/vie')).items.some((i: VieItem) => i.id === 'patron')).toBe(false);
   });
 });
+
+describe('sources branchées (calendrier, thème, arrivage)', () => {
+  it('chaque jour de 2026 à 2028 : clés présentes dans les 4 langues, actions valides', async () => {
+    const { VIE_SOURCES } = await import('../server/vie');
+    const { DICTS, LANGS } = await import('../shared/i18n');
+    expect(VIE_SOURCES.length).toBe(3);
+    const seen = new Set<string>();
+    for (let t = Date.parse('2026-11-01T12:00:00Z'); t < Date.parse('2028-12-31T12:00:00Z'); t += 86400_000) {
+      const day = new Date(t).toISOString().slice(0, 10);
+      for (const src of VIE_SOURCES) {
+        const it = src(day, t);
+        if (!it) continue;
+        seen.add(it.action);
+        expect(['fetes', 'ranking', 'shop']).toContain(it.action);
+        for (const l of LANGS) expect((DICTS as Record<string, Record<string, string>>)[l][it.key!], `${l} ${it.key} (${day})`).toBeTruthy();
+      }
+    }
+    expect([...seen].sort()).toEqual(['fetes', 'ranking', 'shop']);
+  });
+});
