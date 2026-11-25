@@ -7,6 +7,13 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.61', date: '2026-11-25T14:10:00+01:00', title: 'Le jeu bouge chaque semaine', items: [
+    'Sur l’accueil, une ligne d’actualité discrète à côté du nombre de joueurs : dernière mise à jour, mot du patron, champions de la semaine, fêtes à venir. Touchez-la pour en savoir plus.',
+    'Thème de la semaine : chaque lundi (dès le 30 novembre), un jeu ou un style de partie rapporte plus de points au classement solo.',
+    'Arrivage du mois : chaque mois, un dé ou un tapis exclusif en boutique, seulement pendant ce mois-là.',
+    'Des rendez-vous toute l’année : galette des rois et sa fève, Chandeleur, Pâques, poisson d’avril, fête de la musique, nuit d’Halloween et tournoi du Réveillon.',
+    'Boîte à idées : dans « Plus », envoyez une idée ou signalez un souci en quelques mots. Avec un compte, suivez la réponse dans « Mes envois ».',
+  ] },
   { version: '0.60', date: '2026-11-17T23:22:00+01:00', title: 'Le classement solo de la semaine', items: [
     'Nouveau : le classement solo de la semaine. Chaque victoire contre l’ordinateur, dans les 4 jeux, rapporte des points : plus la partie est difficile et plus il y a d’adversaires, plus elle rapporte (30 points au plus par jour).',
     'Lundi, le podium gagne des pièces. Suivez votre place sur l’accueil (le petit trophée du bloc Campagne) et comparez-vous à vos amis dans l’écran « Campagnes ».',
