@@ -3,11 +3,13 @@
  *  - SoloWeekPanel : section de l'écran « Campagnes » (classement général ou entre amis, ma place,
  *    plafond du jour, podium de la semaine passée) ;
  *  - SoloWeekBadge : petit trophée « 🏆 3e » du bloc Campagne de l'accueil ;
- *  - SoloWeekNote : ligne de fin de partie (« +4 points au classement solo de la semaine »).
+ *  - SoloWeekNote : ligne de fin de partie (« +4 points au classement solo de la semaine »), avec le bonus
+ *    du thème de la semaine s'il a compté (shared/weekly-theme.ts, zone `thm.`).
  * Le serveur fait foi (server/solo-week.ts) ; rien n'est calculé ici.
  */
 import { useEffect, useState } from 'react';
 import { SW_DAILY_CAP, SW_LEVEL_POINTS, SW_MIN_PLAYERS, SW_PRIZES, type SoloWeekBoard, type SoloWeekRow } from '../../../shared/soloweek';
+import { themeById } from '../../../shared/weekly-theme';
 import { api } from '../account/api';
 import { tr } from '../i18n/lang';
 
@@ -62,6 +64,7 @@ export function SoloWeekPanel({ token, isAccount }: { token: string | null | und
         <h2 id="sw-title"><span aria-hidden>🏆</span> {tr('chm.sw.title')}</h2>
         {board && <span className="sw-ends">{tr('chm.sw.ends', { t: timeLeft(board.endsAt) })}</span>}
       </header>
+      <ThemeLine id={board?.theme} />
       <p className="sw-rule">{tr('chm.sw.rule', { a: SW_LEVEL_POINTS[0], b: SW_LEVEL_POINTS[1], c: SW_LEVEL_POINTS[2], cap: SW_DAILY_CAP })}</p>
       <p className="sw-rule">{tr('chm.sw.prizes', { a: SW_PRIZES[0], b: SW_PRIZES[1], c: SW_PRIZES[2], n: SW_MIN_PLAYERS })}</p>
       {!isAccount && <p className="sw-me">{tr('chm.sw.guest')}</p>}
@@ -93,6 +96,18 @@ export function SoloWeekPanel({ token, isAccount }: { token: string | null | und
   );
 }
 
+/** Thème de la semaine (donné par le serveur) : une ligne en tête du classement. */
+function ThemeLine({ id }: { id: string | null | undefined }) {
+  const t = themeById(id);
+  if (!t) return null;
+  return (
+    <p className="sw-theme">
+      <span className="sw-theme-ico" aria-hidden>{t.icon}</span>
+      <span><b>{tr(`thm.t.${t.id}` as Parameters<typeof tr>[0])}</b> {tr(`thm.r.${t.id}` as Parameters<typeof tr>[0])}</span>
+    </p>
+  );
+}
+
 /** Trophée du bloc Campagne : ma place cette semaine (comptes), sinon le trophée seul. */
 export function SoloWeekBadge({ token, isAccount, onOpen }: { token: string | null | undefined; isAccount: boolean; onOpen: () => void }) {
   const { board } = useSoloWeek(isAccount ? token : null);
@@ -105,8 +120,14 @@ export function SoloWeekBadge({ token, isAccount, onOpen }: { token: string | nu
 }
 
 /** Ligne de fin de partie gagnée, d'après la réponse du serveur (`week`). */
-export function SoloWeekNote({ week }: { week: { gained: number; points: number } | null | undefined }) {
+export function SoloWeekNote({ week }: { week: { gained: number; points: number; theme?: string } | null | undefined }) {
   useEffect(() => { if (week) forgetSoloWeek(); }, [week]);
   if (!week) return null;
-  return <p className={`sw-note${week.gained > 0 ? '' : ' capped'}`}><span aria-hidden>🏆</span> {week.gained > 0 ? tr('chm.sw.gained', { n: week.gained }) : tr('chm.sw.capped')}</p>;
+  const theme = week.gained > 0 ? themeById(week.theme) : null;
+  return (
+    <p className={`sw-note${week.gained > 0 ? '' : ' capped'}`}>
+      <span aria-hidden>🏆</span> {week.gained > 0 ? tr('chm.sw.gained', { n: week.gained }) : tr('chm.sw.capped')}
+      {theme && <> {tr('thm.bonus', { name: tr(`thm.t.${theme.id}` as Parameters<typeof tr>[0]) })}</>}
+    </p>
+  );
 }

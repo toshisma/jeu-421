@@ -16,6 +16,11 @@ interface Base {
   /** Objet d'événement (en vente seulement pendant l'événement) ou du pass de saison (gagné, pas acheté). */
   event?: string;
   pass?: 0 | 1;
+  /**
+   * Arrivage du mois (shared/progress/arrivals.ts) : premier mois de vente « AAAA-MM ». En vente ce mois-là,
+   * puis de nouveau le même mois les années suivantes ; jamais en dehors. Acheté, il reste à vie.
+   */
+  arrival?: string;
 }
 
 export interface DecorItem extends Base {
@@ -113,6 +118,12 @@ export const ITEMS: Item[] = [
   { id: 'felt-confettis', category: 'felt', name: 'Confettis', price: 450, level: 1, event: 'carnaval', color: '#2a1550', pattern: 'etoiles' },
   { id: 'felt-outremeuse', category: 'felt', name: 'Outremeuse', price: 550, level: 1, event: 'outremeuse', color: '#1c3f8a', pattern: 'rayures' },
   { id: 'felt-coq', category: 'felt', name: 'Jaune wallon', price: 500, level: 1, event: 'wallonie', color: '#b8920a', pattern: 'damier' },
+  // --- Arrivages du mois (en vente un seul mois par an : shared/progress/arrivals.ts) ---
+  { id: 'felt-galette', category: 'felt', name: 'Galette', price: 550, level: 1, arrival: '2027-01', description: 'Pâte dorée, rayée au couteau.', color: '#94641f', pattern: 'losanges' },
+  { id: 'felt-giboulees', category: 'felt', name: 'Giboulées', price: 550, level: 1, arrival: '2027-03', description: 'Gris d’averse, rayé de pluie.', color: '#3d5566', pattern: 'rayures' },
+  { id: 'felt-muguet', category: 'felt', name: 'Muguet', price: 550, level: 1, arrival: '2027-05', description: 'Vert tendre semé de clochettes.', color: '#2f6b45', pattern: 'etoiles' },
+  { id: 'felt-lavande', category: 'felt', name: 'Lavande', price: 550, level: 1, arrival: '2027-07', description: 'Rangs de lavande au soleil.', color: '#5b4a8c', pattern: 'rayures' },
+  { id: 'felt-sous-bois', category: 'felt', name: 'Sous-bois', price: 550, level: 1, arrival: '2027-10', description: 'Tartan de feuilles mortes.', color: '#6a3a16', pattern: 'tartan' },
   { id: 'felt-pass-nuit', category: 'felt', name: 'Minuit (pass)', price: 0, level: 1, pass: 1, color: '#0b1430', pattern: 'etoiles' },
   { id: 'felt-pass-pourpre', category: 'felt', name: 'Pourpre (pass)', price: 0, level: 1, pass: 1, color: '#4a0f3a', pattern: 'losanges' },
   { id: 'felt-damier', category: 'felt', name: 'Damier', price: 2600, level: 15, color: '#3a1218', pattern: 'damier' },
@@ -158,6 +169,14 @@ export const ITEMS: Item[] = [
   { id: 'dice-carnaval', category: 'dice', name: 'Carnaval', price: 500, level: 1, event: 'carnaval', body: '#7b2ccf', body2: '#4a137f', pip: '#ffd23f', roughness: 0.25, metalness: 0, clearcoat: 0.9 },
   { id: 'dice-peket', category: 'dice', name: 'Péket', price: 700, level: 1, event: 'outremeuse', body: '#eef3ea', body2: '#c8d4c2', pip: '#2f6b3a', roughness: 0.08, metalness: 0.05, clearcoat: 1 },
   { id: 'dice-wallonie', category: 'dice', name: 'Coq hardi', price: 600, level: 1, event: 'wallonie', body: '#f6d42e', body2: '#d9ad12', pip: '#7a0617', roughness: 0.3, metalness: 0, clearcoat: 0.7 },
+  // --- Arrivages du mois (en vente un seul mois par an : shared/progress/arrivals.ts) ---
+  { id: 'dice-givre', category: 'dice', name: 'Givre', price: 650, level: 1, arrival: '2026-12', description: 'Bleu de glace, points d’encre marine.', body: '#d6ecf7', body2: '#a9cfe6', pip: '#14315a', roughness: 0.14, metalness: 0.08, clearcoat: 1 },
+  { id: 'dice-perce-neige', category: 'dice', name: 'Perce-neige', price: 650, level: 1, arrival: '2027-02', description: 'Blanc de neige, points vert sapin.', body: '#f6f8f2', body2: '#dfe7d8', pip: '#1f5a30', roughness: 0.35, metalness: 0, clearcoat: 0.7 },
+  { id: 'dice-cerisier', category: 'dice', name: 'Cerisier', price: 650, level: 1, arrival: '2027-04', description: 'Rose pâle des fleurs, points griotte.', body: '#f8d3dc', body2: '#eab3c2', pip: '#5e0f24', roughness: 0.3, metalness: 0, clearcoat: 0.8 },
+  { id: 'dice-citronnade', category: 'dice', name: 'Citronnade', price: 650, level: 1, arrival: '2027-06', description: 'Jaune citron, points de zeste brûlé.', body: '#f7e15a', body2: '#e2c22c', pip: '#3a2a04', roughness: 0.28, metalness: 0, clearcoat: 0.85 },
+  { id: 'dice-pasteque', category: 'dice', name: 'Pastèque', price: 650, level: 1, arrival: '2027-08', description: 'Chair rouge, points comme des pépins.', body: '#f0646e', body2: '#d84652', pip: '#0c0606', roughness: 0.32, metalness: 0, clearcoat: 0.75 },
+  { id: 'dice-vendanges', category: 'dice', name: 'Vendanges', price: 650, level: 1, arrival: '2027-09', description: 'Grain de raisin noir, points dorés.', body: '#3b1740', body2: '#240b29', pip: '#f2cf6b', roughness: 0.2, metalness: 0, clearcoat: 0.95 },
+  { id: 'dice-chataigne', category: 'dice', name: 'Châtaigne', price: 650, level: 1, arrival: '2027-11', description: 'Brun luisant, points crème.', body: '#6b3519', body2: '#4a220d', pip: '#f6e6c8', roughness: 0.22, metalness: 0.05, clearcoat: 0.9 },
   // --- Saint-Nicolas et fêtes : gagnés pendant l'événement (tous les défis d'événement réussis), jamais en vente ---
   { id: 'dice-mandarine', category: 'dice', name: 'Mandarine', price: 0, level: 1, pass: 1, body: '#f39a2e', body2: '#d9761a', pip: '#2b1405', roughness: 0.55, metalness: 0, clearcoat: 0.35, description: 'Défis de Saint-Nicolas réussis.' },
   { id: 'dice-champagne', category: 'dice', name: 'Champagne', price: 0, level: 1, pass: 1, body: '#f1e3b4', body2: '#d8c27e', pip: '#3a2608', roughness: 0.2, metalness: 0.25, clearcoat: 1, description: 'Défis des fêtes réussis.' },

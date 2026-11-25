@@ -404,7 +404,7 @@ export function createAccounts(store: Store, opts: AccountsOptions = {}) {
       store.saveProfile(u.id, applied.profile);
       if (!ctx.suddenDeath) { leagueGain(u.id, reward.xp); checkReferral(u.id); if (facts.won) clubWin(u.id); } else serie.played(u.id);
       // Classement solo : pas la mort subite (une seule manche).
-      const week = ctx.suddenDeath ? null : soloWeek.record(u.id, { game: '421', won: facts.won, level: facts.difficulty, opponents: facts.opponents });
+      const week = ctx.suddenDeath ? null : soloWeek.record(u.id, { game: '421', won: facts.won, level: facts.difficulty, opponents: facts.opponents, big: facts.count421 > 0 || (facts.combos['111'] ?? 0) > 0 });
       return res.json({ ok: true, verified: true, reward, applied: { ...applied, profile: store.profileOf(store.userById(u.id)!) }, ...(tdcResult ? { tdc: tdcResult } : {}), ...(week ? { week } : {}) });
     }
     const int = (v: unknown, min: number, max: number) => Math.min(max, Math.max(min, Math.floor(Number(v) || 0)));

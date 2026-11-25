@@ -8,7 +8,7 @@ import type { CfAction, CfEvent, CfView } from './engine';
 
 /** Gains d'une partie (même forme que CfGameReward côté serveur). */
 export interface CfGameReward { userId: string; won: boolean; capsules: number; booster: boolean; points: number; leaguePoints: number | null; missions: string[]; /** Pièces et XP (monnaie générale), comptes seulement. */ coins?: number; xp?: number; /** Sacs de dés trouvés (tirés par le serveur). */ bags?: number;
-  /** Classement solo de la semaine (victoire contre l'ordinateur). */ week?: { gained: number; points: number } }
+  /** Classement solo de la semaine (victoire contre l'ordinateur). */ week?: { gained: number; points: number; theme?: string } }
 
 export type CfAck<T extends object = object> = ({ ok: true } & T) | { ok: false; error: string };
 

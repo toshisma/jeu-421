@@ -41,6 +41,7 @@ for (const it of ITEMS) {
   if (TDC_FELTS.some((f) => f.id === it.id)) { add(it, 'name', `tdc.felt.${it.id}`); add(it, 'description', 'tdc.felt.d'); continue; }
   const s = seriesFelt.get(it.id);
   if (s) { dyn(it, 'name', (l) => translate(l, k('app.series_felt'), { name: translate(l, k(`app.series.${s.id}`)) })); dyn(it, 'description', (l) => translate(l, k('app.series_felt_d'), { name: translate(l, k(`app.series.${s.id}`)) })); continue; }
+  if (it.arrival) { add(it, 'name', `thm.item.${it.id}`); add(it, 'description', `thm.item.${it.id}.d`); continue; } // arrivage du mois (zone theme)
   if (has(`app.item.${it.id}`)) { add(it, 'name', `app.item.${it.id}`); add(it, 'description', `app.item.${it.id}.d`); continue; }
   add(it, 'name', `app.dc.${it.id}`); add(it, 'flavor', `app.dc.${it.id}.f`);
 }

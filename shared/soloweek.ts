@@ -45,6 +45,8 @@ export interface SoloWeekBoard {
   week: string;
   /** Fin de la semaine (lundi 0 h, heure de Bruxelles), en millisecondes. */
   endsAt: number;
+  /** Thème de la semaine (shared/weekly-theme.ts), null avant le lancement. */
+  theme?: string | null;
   top: SoloWeekRow[];
   /** Mes amis et moi (classés entre nous, rang général affiché). */
   friends: SoloWeekRow[];

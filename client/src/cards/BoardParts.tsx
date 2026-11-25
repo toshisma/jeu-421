@@ -893,7 +893,7 @@ export function EndScreen({ snap, v, me, onExit, onAgain, onAccount, onBags, bot
   const missions = Array.isArray(reward?.missions) ? (reward!.missions as string[]).length : 0;
   const error = reward && typeof reward.error === 'string' ? cfText(reward.error) : null;
   const note = reward && typeof reward.note === 'string' ? cfText(reward.note) : null;
-  const week = reward && reward.week && typeof (reward.week as { gained?: unknown }).gained === 'number' ? reward.week as { gained: number; points: number } : null;
+  const week = reward && reward.week && typeof (reward.week as { gained?: unknown }).gained === 'number' ? reward.week as { gained: number; points: number; theme?: string } : null;
   return (
     <div className="cf-modal end" role="dialog" aria-modal="true" aria-label={won ? tr('cf.boardparts.victoire') : tr('cf.boardparts.defaite')}>
       <div className={`cf-modal-card cf-end${won ? ' win' : ''}`}>

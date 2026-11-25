@@ -19,6 +19,7 @@ import { chmFr } from "./zones/camphome.fr";
 import { cdmFr } from './zones/campdm.fr'; // campagne du Courtisan
 import { cpmFr } from './zones/camppm.fr'; // campagne du Poker menteur
 import { ccfFr } from "./zones/campcf.fr";
+import { thmFr } from './zones/theme.fr'; // thème de la semaine, arrivage du mois
 
 export const fr = {
   ...mpmodFr,
@@ -35,6 +36,7 @@ export const fr = {
   ...cdmFr,
   ...cpmFr,
   ...ccfFr,
+  ...thmFr,
   ...pokerFr,
   "common.back": "Retour",
   "common.close": "Fermer",

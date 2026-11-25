@@ -11,6 +11,7 @@ import type { Store, UserRow } from './db';
 import { adjustCoins } from '../shared/progress/profile';
 import { today } from '../shared/progress/quests';
 import { weekKey } from '../shared/progress/boss';
+import { themeBonus, weeklyTheme, type WeeklyThemeId } from '../shared/weekly-theme';
 import {
   SW_DAILY_CAP, SW_MIN_PLAYERS, SW_PRIZES, SW_TOP, swPoints, swSort,
   type SoloWeekBoard, type SoloWeekGame, type SoloWeekRow,
@@ -72,7 +73,7 @@ export function createSoloWeek(d: SoloWeekDeps) {
    * Victoire contre l'ordinateur vérifiée par le serveur. Renvoie les points gagnés (0 au-delà du plafond
    * du jour) et le total de la semaine ; null pour une défaite ou une erreur.
    */
-  function record(userId: string, o: { game: SoloWeekGame; won: boolean; level: string | null | undefined; opponents: number }): { gained: number; points: number } | null {
+  function record(userId: string, o: { game: SoloWeekGame; won: boolean; level: string | null | undefined; opponents: number; big?: boolean }): { gained: number; points: number; theme?: WeeklyThemeId } | null {
     if (!o.won) return null;
     try {
       rollWeeks();
@@ -80,7 +81,10 @@ export function createSoloWeek(d: SoloWeekDeps) {
       const day = dayOf(t), week = weekOf(t);
       return tx(() => {
         const used = (db.prepare('SELECT points FROM solo_week_day WHERE day = ? AND user_id = ?').get(day, userId) as { points: number } | undefined)?.points ?? 0;
-        const gained = Math.max(0, Math.min(swPoints(o.level, o.opponents), SW_DAILY_CAP - used));
+        // Thème de la semaine (shared/weekly-theme.ts) : points en plus, AVANT le plafond du jour.
+        const base = swPoints(o.level, o.opponents);
+        const theme = themeBonus(day, { game: o.game, level: o.level, opponents: o.opponents, big: o.big });
+        const gained = Math.max(0, Math.min(base + (theme?.bonus ?? 0), SW_DAILY_CAP - used));
         if (gained) db.prepare(`INSERT INTO solo_week_day (day, user_id, points) VALUES (?, ?, ?)
           ON CONFLICT(day, user_id) DO UPDATE SET points = points + excluded.points`).run(day, userId, gained);
         // Une victoire au-delà du plafond compte quand même comme victoire (départage), sans points.
@@ -88,7 +92,8 @@ export function createSoloWeek(d: SoloWeekDeps) {
           ON CONFLICT(week, user_id) DO UPDATE SET points = points + excluded.points, wins = wins + 1, last_at = CASE WHEN excluded.points > 0 THEN excluded.last_at ELSE last_at END`)
           .run(week, userId, gained, t);
         const points = (db.prepare('SELECT points FROM solo_week WHERE week = ? AND user_id = ?').get(week, userId) as { points: number }).points;
-        return { gained, points };
+        // Le bonus n'est annoncé que s'il a vraiment rapporté quelque chose (plafond du jour compris).
+        return { gained, points, ...(theme && gained > base ? { theme: theme.id } : {}) };
       });
     } catch (e) { console.warn('[solo-week]', e); return null; }
   }
@@ -151,7 +156,7 @@ export function createSoloWeek(d: SoloWeekDeps) {
     const last = (db.prepare('SELECT rank, name, points, coins FROM solo_week_podium WHERE week = ? ORDER BY rank').all(prev) as { rank: number; name: string; points: number; coins: number }[])
       .map((r) => ({ rank: r.rank, username: r.name, points: r.points, coins: r.coins }));
     return {
-      week, endsAt: weekEndsAt(week),
+      week, endsAt: weekEndsAt(week), theme: weeklyTheme(dayOf())?.id ?? null,
       top: ranked.slice(0, SW_TOP),
       friends: u && friendIds.size ? ranked.filter((r) => r.me || r.friend) : [],
       me: u ? { rank: myIdx >= 0 ? myIdx + 1 : null, points: mine?.points ?? 0, wins: mine?.wins ?? 0, today: todayPts } : null,

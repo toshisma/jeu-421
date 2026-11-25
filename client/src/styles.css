@@ -5236,3 +5236,20 @@ button.mode-chip { cursor: pointer; }
 .cpm-opp-t b { font-size: 0.95rem; }
 .cpm-opp-t small { color: var(--texte-3); font-size: 0.8rem; }
 .cpm-end { margin: 4px 0 8px; }
+
+/* --- Thème de la semaine (classement solo) et arrivage du mois (haut de la boutique) --- */
+.sw-theme { display: flex; align-items: flex-start; gap: 8px; margin: 8px 0 0; padding: 7px 10px; border-radius: 12px; background: linear-gradient(90deg, rgba(241,204,125,0.24), rgba(241,204,125,0.08)); box-shadow: inset 0 0 0 1px rgba(241,204,125,0.4); font-size: 12.5px; line-height: 1.35; color: #f5eedf; }
+.sw-theme b { display: block; color: #f5c542; font-weight: 800; }
+.sw-theme-ico { flex: none; font-size: 18px; line-height: 1; }
+.arr-strip { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; }
+.arr-card { min-width: 0; display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 6px; border-radius: 16px; border: 1px solid rgba(241,204,125,0.55); color: var(--blanc); text-align: left; cursor: pointer;
+  background: radial-gradient(120% 140% at 0% 0%, rgba(241,204,125,0.22), rgba(241,204,125,0.04) 60%), rgba(255,255,255,0.04); box-shadow: 0 2px 0 rgba(0,0,0,0.3); }
+.arr-card.sel { border: 2px solid var(--laiton); padding: 5px 9px 5px 5px; }
+.arr-card .shop-thumb { flex: none; width: 104px; aspect-ratio: 4 / 3; }
+.arr-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.arr-eyebrow { font: 700 11px/1.2 var(--font); letter-spacing: 0.06em; text-transform: uppercase; color: #f1cc7d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.arr-text b { font: 700 1.05rem/1.15 var(--cond); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arr-meta { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 0.8125rem; font-weight: 600; }
+.arr-meta .price { color: #f1cc7d; }
+.arr-meta .own { color: #7fd3a0; }
+.arr-left { color: var(--texte-2); }

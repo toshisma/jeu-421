@@ -34,7 +34,7 @@ import { applyCpm, type CpmFacts, type CpmResult } from '../../../shared/campaig
 
 /** `week` : points gagnés au classement solo de la semaine (victoire vérifiée contre l'ordinateur, comptes). */
 export interface EndReward { reward: Reward; applied: Applied; week?: SoloWeekGain }
-export interface SoloWeekGain { gained: number; points: number }
+export interface SoloWeekGain { gained: number; points: number; /** Thème de la semaine qui a ajouté des points (shared/weekly-theme.ts). */ theme?: string }
 /** Fin d'une partie du Courtisan : récompense, sacs de dés trouvés, défis du jour accomplis. */
 export interface DmEndResult { /** null : plafond du jour atteint, seules les étoiles de campagne sont rendues. */ reward: Reward | null; levelBefore: number; levelAfter: number; bags: number; quests: string[]; /** Succès débloqués (identifiants). */ achievements?: string[]; /** Partie que le serveur n'a pas pu rejouer : récompense de base seulement. */ unverified?: boolean; /** Route des Auberges : étoiles données par le serveur. */ camp?: CdmResult;
   /** Campagne du Poker menteur : étoiles calculées par le serveur après rejeu (comptes). */ cpm?: CpmResult;

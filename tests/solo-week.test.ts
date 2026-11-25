@@ -14,6 +14,7 @@ import { mulberry32 } from '../shared/rng';
 import { PM_PERSONAS } from '../shared/pokermenteur/personas';
 import { today } from '../shared/progress/quests';
 import { translateServerText } from '../shared/i18n/server-texts';
+import { themeBonus } from '../shared/weekly-theme';
 
 describe('barème', () => {
   it('difficulté des quatre jeux et adversaires en plus', () => {
@@ -184,10 +185,15 @@ describe('serveur (vraies parties)', () => {
     expect(lost.verified).toBe(true);
     expect(lost.week).toBeUndefined();
     // En cherchant une défaite, des victoires faciles (1 point chacune) ont pu être jouées et comptées.
-    const before = (await call('/solo-week', undefined, t)).me.points;
+    const meBefore = (await call('/solo-week', undefined, t)).me;
+    const before = meBefore.points;
     const won = await game(t, { level: 'fouine', lives: 3, noStraights: false, bots: [PM_PERSONAS[0].id, PM_PERSONAS[1].id], start: 0 }, true);
     expect(won.verified).toBe(true);
-    expect(won.week).toEqual({ gained: swPoints('fouine', 2), points: before + swPoints('fouine', 2) });
+    // Thème de la semaine (jour réel) : bonus éventuel, plafond du jour compris (shared/weekly-theme.ts).
+    const th = themeBonus(today(), { game: 'poker', level: 'fouine', opponents: 2 });
+    const want = Math.min(swPoints('fouine', 2) + (th?.bonus ?? 0), SW_DAILY_CAP - meBefore.today);
+    expect(want).toBeGreaterThan(0);
+    expect(won.week).toEqual({ gained: want, points: before + want, ...(th && want > swPoints('fouine', 2) ? { theme: th.id } : {}) });
     // Ancien chemin sans décisions (victoire annoncée par le téléphone) : jamais au classement.
     const start = await call('/poker/start', {}, t);
     const fake = await call('/poker/end', { gameToken: start.gameToken, won: true, place: 1, opponents: 5, level: 'fouine' }, t);

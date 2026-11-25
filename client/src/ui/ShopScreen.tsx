@@ -15,6 +15,7 @@ import { ProfileChip } from './Screens';
 import { Avatar } from './Avatar';
 import { activeEvent, eventEnd } from '../../../shared/progress/events';
 import { today } from '../../../shared/progress/quests';
+import { arrivalDaysLeft, arrivalOpen, arrivalsOf } from '../../../shared/progress/arrivals';
 
 const CATS: Category[] = ['decor', 'felt', 'rim', 'shape', 'dice', 'accessoire'];
 
@@ -56,6 +57,9 @@ function Thumb({ item, base }: { item: Item; base: Appearance }) {
   );
 }
 
+/** « décembre », « December »… pour un mois « AAAA-MM ». */
+const monthLabel = (ym: string | undefined) => (ym ? new Date(`${ym}-15T12:00:00Z`).toLocaleDateString(loc(), { month: 'long', timeZone: 'UTC' }) : '');
+
 /** Tapis installé, éclairé par la lampe : fond des dés et accessoires. */
 function feltBg(a: Appearance): CSSProperties {
   return { backgroundColor: resolveAppearance(a).felt.color };
@@ -83,8 +87,9 @@ export function ShopScreen({ profile, settings, onBuy, onEquip, onBack }: Props)
   const tray = useRef<DiceTrayHandle>(null);
   const level = levelInfo(profile.xp).level;
 
-  // Changer d'onglet sélectionne l'objet équipé de cette catégorie.
-  useEffect(() => { setSelected(profile.equipped[cat]); setMsg(null); }, [cat]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Changer d'onglet sélectionne l'objet équipé de cette catégorie (ou l'arrivage du mois touché).
+  const pending = useRef<string | null>(null);
+  useEffect(() => { setSelected(pending.current ?? profile.equipped[cat]); pending.current = null; setMsg(null); }, [cat]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const item = getItem(selected)!;
   // Aperçu : l'apparence équipée, avec l'objet sélectionné essayé par-dessus.
@@ -95,7 +100,17 @@ export function ShopScreen({ profile, settings, onBuy, onEquip, onBack }: Props)
   const event = activeEvent(day);
   const check = canBuy(profile, item, day);
   // Objets d'événement visibles pendant l'événement (ou s'ils sont possédés) ; objets du pass si possédés.
-  const visible = (it: Item) => !(it.category === 'dice' && it.rarity) && (profile.owned.includes(it.id) || (it.event ? it.event === event?.id : !it.pass));
+  // Arrivage du mois : en vente pendant son mois seulement (le serveur refuse l'achat en dehors).
+  const visible = (it: Item) => !(it.category === 'dice' && it.rarity) && (profile.owned.includes(it.id) || (it.event ? it.event === event?.id : it.arrival ? arrivalOpen(it, day) : !it.pass));
+  const arrivals = arrivalsOf(day);
+  const daysLeft = arrivalDaysLeft(day);
+  const leftLabel = daysLeft <= 1 ? tr('thm.arr.last') : tr('thm.arr.left', { n: daysLeft });
+  const pickArrival = (it: Item) => {
+    setMsg(null);
+    if (it.category === cat) { setSelected(it.id); return; }
+    pending.current = it.id;
+    setCat(it.category);
+  };
 
   const [busy, setBusy] = useState(false);
   const doBuy = async () => {
@@ -131,7 +146,7 @@ export function ShopScreen({ profile, settings, onBuy, onEquip, onBack }: Props)
     : owned ? <button className="btn primary shop-buy" disabled={busy} onClick={doEquip}>{tr('app.installer')}</button>
       : check.ok ? <button className="btn shop-buy shop-buy-gold" disabled={busy} onClick={doBuy}>{item.price === 0 ? tr('app.prendre') : tr('app.acheter', { v: item.price.toLocaleString(loc()) })}</button>
         : <button className="btn shop-buy" disabled>
-          {check.reason === 'level' ? tr('app.niveau_requis', { level: item.level }) : check.reason === 'pass' ? tr('app.se_gagne_avec_le_pass') : check.reason === 'event' ? tr('app.evenement_termine') : tr('app.il_manque_pieces', { v: item.price - profile.coins })}
+          {check.reason === 'level' ? tr('app.niveau_requis', { level: item.level }) : check.reason === 'pass' ? tr('app.se_gagne_avec_le_pass') : check.reason === 'event' ? tr('app.evenement_termine') : check.reason === 'arrival' ? tr('thm.arr.closed', { month: monthLabel(item.arrival) }) : tr('app.il_manque_pieces', { v: item.price - profile.coins })}
         </button>;
 
   return (
@@ -157,11 +172,31 @@ export function ShopScreen({ profile, settings, onBuy, onEquip, onBack }: Props)
         </nav>
 
         <div className="shop-grid">
+          {arrivals.length > 0 && (
+            <section className="arr-strip" aria-label={tr('thm.arr.title')}>
+              {arrivals.map((it) => {
+                const own = profile.owned.includes(it.id);
+                return (
+                  <button key={it.id} className={`arr-card${it.id === selected ? ' sel' : ''}`} onClick={() => pickArrival(it)} aria-label={tr('thm.arr.aria', { name: it.name })}>
+                    <Thumb item={it} base={profile.equipped} />
+                    <span className="arr-text">
+                      <small className="arr-eyebrow"><span aria-hidden>📦</span> {tr('thm.arr.title')}</small>
+                      <b>{it.name}</b>
+                      <span className="arr-meta">
+                        <span className={own ? 'own' : 'price'}>{own ? tr('app.possede') : tr('app.pieces_6', { v: it.price.toLocaleString(loc()) })}</span>
+                        {!own && <span className="arr-left">{leftLabel}</span>}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </section>
+          )}
           {items.map((it) => {
             const own = profile.owned.includes(it.id);
             const eq = profile.equipped[cat] === it.id;
             const locked = !own && level < it.level;
-            const tag = it.event && !own ? tr('app.jusqu_au_2', { v: shortDateL(eventEnd(event!, day)) }) : it.pass ? (it.id.startsWith('felt-tdc-') ? tr('tdc.title') : tr('app.pass_de_saison')) : '';
+            const tag = it.arrival && !own ? leftLabel : it.event && !own ? tr('app.jusqu_au_2', { v: shortDateL(eventEnd(event!, day)) }) : it.pass ? (it.id.startsWith('felt-tdc-') ? tr('tdc.title') : tr('app.pass_de_saison')) : '';
             return (
               <button key={it.id} className={`shop-card${it.id === selected ? ' sel' : ''}${locked ? ' locked' : ''}`} onClick={() => { setSelected(it.id); setMsg(null); }}>
                 <Thumb item={it} base={profile.equipped} />

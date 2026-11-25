@@ -12,6 +12,7 @@
 import type { GameState } from '../engine';
 import type { Difficulty } from '../ai';
 import { DEFAULT_APPEARANCE, ITEMS, getItem, type Appearance, type Item } from './catalog';
+import { arrivalOpen } from './arrivals';
 import { applySummary, canClaim, questsFor, today, type GameSummary, type QuestDef, type QuestState } from './quests';
 import type { ComboKind } from '../combos';
 import { ACHIEVEMENTS, EMPTY_STATS, newlyUnlocked, type AchievementDef, type Stats } from './achievements';
@@ -328,7 +329,7 @@ export function capGuestImport(p: Profile): Profile {
   stats.onlineWins = Math.min(stats.onlineWins, stats.onlineGames, stats.won);
   // Objets : gratuits + objets de la boutique (hors événement et pass) de niveau atteint, dans un budget.
   let budget: number = GUEST_IMPORT.shopBudget;
-  const shop = p.owned.map((id) => getItem(id)).filter((it): it is Item => !!it && it.price > 0 && !it.pass && !it.event && it.level <= level)
+  const shop = p.owned.map((id) => getItem(id)).filter((it): it is Item => !!it && it.price > 0 && !it.pass && !it.event && !it.arrival && it.level <= level)
     .sort((a, b) => a.price - b.price);
   const kept: string[] = [];
   for (const it of shop) if (it.price <= budget) { budget -= it.price; kept.push(it.id); }
@@ -725,17 +726,19 @@ export function applyReward(p: Profile, r: Reward, count421: number): Applied {
 // ---------------------------------------------------------------------------------------------
 // Boutique
 
-export type BuyCheck = { ok: true } | { ok: false; reason: 'owned' | 'level' | 'coins' | 'unknown' | 'event' | 'pass' };
+export type BuyCheck = { ok: true } | { ok: false; reason: 'owned' | 'level' | 'coins' | 'unknown' | 'event' | 'pass' | 'arrival' };
 
 export function canBuy(p: Profile, item: Item | undefined, day = today()): BuyCheck {
   // Après un prestige, les niveaux requis ne s'appliquent plus.
-  if (item && (p.prestige ?? 0) > 0 && !p.owned.includes(item.id) && !item.pass && !(item.event && activeEvent(day)?.id !== item.event)) {
+  if (item && (p.prestige ?? 0) > 0 && !p.owned.includes(item.id) && !item.pass && !(item.event && activeEvent(day)?.id !== item.event) && !(item.arrival && !arrivalOpen(item, day))) {
     return p.coins < item.price ? { ok: false, reason: 'coins' } : { ok: true };
   }
   if (!item) return { ok: false, reason: 'unknown' };
   if (p.owned.includes(item.id)) return { ok: false, reason: 'owned' };
   if (item.pass) return { ok: false, reason: 'pass' };
   if (item.event && activeEvent(day)?.id !== item.event) return { ok: false, reason: 'event' };
+  // Arrivage du mois : en vente seulement pendant son mois (jour de Bruxelles donné par le serveur).
+  if (item.arrival && !arrivalOpen(item, day)) return { ok: false, reason: 'arrival' };
   if (levelInfo(p.xp).level < item.level) return { ok: false, reason: 'level' };
   if (p.coins < item.price) return { ok: false, reason: 'coins' };
   return { ok: true };
