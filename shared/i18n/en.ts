@@ -1,3 +1,4 @@
+import { fbEn } from './zones/feedback.en'; // boîte à idées
 import { enligneEn } from './zones/enligne.en';
 import { mpmodEn } from './zones/mpmod.en';
 import { serieEn } from './zones/serie.en';
@@ -395,4 +396,5 @@ export const en: Partial<Record<MessageKey, string>> = {
   ...cpmEn,
   ...ccfEn,
   ...thmEn,
+  ...fbEn,
 };

@@ -13,7 +13,9 @@ export interface DuelView {
   mine: { points: number; throws: number } | null; theirsPlayed: boolean; theirs: { points: number; throws: number } | null;
   winner: string | null; pot: number; seen: boolean;
 }
-export interface Notifs { requests: { username: string; at: number }[]; toPlay: DuelView[]; results: DuelView[]; notices?: { id: number; kind: string; text: string; at: number }[]; count: number }
+export interface Notifs { requests: { username: string; at: number }[]; toPlay: DuelView[]; results: DuelView[]; notices?: { id: number; kind: string; text: string; at: number }[];
+  /** Boîte à idées : réponses et idées réalisées pas encore vues. */
+  ideas?: { id: number; kind: string; status: string; reply: string | null; text: string; at: number }[]; count: number }
 
 /** Notifications dans le jeu : relues toutes les 30 s, au retour sur l'onglet, et à la demande. */
 export function useNotifications(pa: ProfileApi) {
@@ -69,10 +71,18 @@ export function NotifPanel({ pa, notifs, reload, onClose, onPlay, onDuels }: {
     setShownNotices((l) => [...fresh.filter((x) => !l.some((y) => y.id === x.id)), ...l]);
     void api('/notifications/seen', { body: { notices: fresh.map((x) => x.id) }, token: pa.token }).then(reload).catch(() => {});
   }, [notifs?.notices?.map((x) => x.id).join()]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Boîte à idées : réponses gardées à l'écran jusqu'à la fermeture, marquées vues aussitôt.
+  const [shownIdeas, setShownIdeas] = useState<NonNullable<Notifs['ideas']>>([]);
+  useEffect(() => {
+    const fresh = notifs?.ideas ?? [];
+    if (!fresh.length) return;
+    setShownIdeas((l) => [...fresh.filter((x) => !l.some((y) => y.id === x.id)), ...l]);
+    void api('/feedback/seen', { body: { ids: fresh.map((x) => x.id) }, token: pa.token }).then(reload).catch(() => {});
+  }, [notifs?.ideas?.map((x) => x.id).join()]); // eslint-disable-line react-hooks/exhaustive-deps
   const act = async (path: string, body: object, ok: string) => {
     try { await api(path, { body, token: pa.token }); setMsg(ok); sound.click(); reload(); } catch (e) { setMsg((e as Error).message); }
   };
-  const empty = notifs && !notifs.requests.length && !notifs.toPlay.length && !notifs.results.length && !shownNotices.length;
+  const empty = notifs && !notifs.requests.length && !notifs.toPlay.length && !notifs.results.length && !shownNotices.length && !shownIdeas.length;
   return (
     <div className="sheet-back" onClick={onClose}>
       <div className="sheet notif-sheet" role="dialog" aria-label={tr('app.notifications')} onClick={(e) => e.stopPropagation()}>
@@ -95,6 +105,21 @@ export function NotifPanel({ pa, notifs, reload, onClose, onPlay, onDuels }: {
                 <li key={x.id} className="mod-notice">
                   <span className="n-ico" aria-hidden>{x.kind === 'merci' ? '🙏' : x.kind === 'role' ? '🛡️' : '⚠️'}</span>
                   <div className="n-main"><b>{trServer(x.text)}</b><small>{ago(x.at)}</small></div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {shownIdeas.length > 0 && (
+          <section>
+            <h3>{tr('fb.notifHead')}</h3>
+            <ul className="notif-list">
+              {shownIdeas.map((x) => (
+                <li key={x.id} className="fb-notice">
+                  <span className="n-ico" aria-hidden>{x.status === 'faite' ? '💡' : '✉️'}</span>
+                  <div className="n-main"><b>{tr(x.status === 'faite' ? 'fb.n.doneT' : 'fb.n.replyT')}</b>
+                    <small className="fb-notice-quote">{x.text}{x.text.length >= 80 ? '…' : ''}</small>
+                    {x.reply && <small className="fb-notice-reply">{x.reply}</small>}<small>{ago(x.at)}</small></div>
                 </li>
               ))}
             </ul>
