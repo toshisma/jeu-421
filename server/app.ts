@@ -27,6 +27,7 @@ import { createAdmin } from './admin';
 import { createModeration, type TableChatEntry } from './moderation';
 import { createPmMod } from './pm-mod';
 import { createBistrots } from './bistrots';
+import { createFeedback } from './feedback';
 import { muteText } from '../shared/moderation';
 import { today } from '../shared/progress/quests';
 import { COUNTER_BOTS } from '../shared/bot-names';
@@ -204,6 +205,8 @@ export interface ServerOptions {
   dm?: DmOnlineOptions;
   /** Poker menteur en ligne (réglages de test). */
   pm?: PmOnlineOptions;
+  /** Boîte à idées : envois par jour (compte, adresse). */
+  feedback?: { account?: number; ip?: number };
   /** Tests seulement : dés imposés (selon le joueur et la partie) au lieu du tirage officiel. */
   testDie?: (playerId: string, state: GameState) => number;
 }
@@ -357,6 +360,13 @@ export async function startServer(opts: ServerOptions) {
   });
   accounts.setVerifiedGame((g) => bistrots.recordGame(g));
   app.use('/api', bistrots.router);
+  // Boîte à idées / signaler un souci (menu « Plus ») et son onglet d'administration « Idées ».
+  const feedback = createFeedback({
+    store, userFromToken: accounts.userFromToken, isAdmin: stats.isAdmin, log: admin.log, now: opts.accounts?.now, limits: opts.feedback,
+    push: (u, title, body, url, loc) => void accounts.social.push(u, title, body, url, loc), notifyAdmins,
+  });
+  accounts.social.setIdeas(feedback.unseenFor);
+  app.use('/api', feedback.router);
 
   // Le Courtisan en ligne (créé plus bas) : sa présence s'ajoute à celle des tables du 421.
   let dmPresence: (userId: string) => ReturnType<Parameters<typeof accounts.setPresence>[0]> = () => null;
@@ -2091,6 +2101,7 @@ export async function startServer(opts: ServerOptions) {
     cfStats,
     bistrots,
     pmMod,
+    feedback,
     close: () => new Promise<void>((resolve) => {
       pmMod.close();
       accounts.social.close();

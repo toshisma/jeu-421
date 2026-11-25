@@ -1,3 +1,4 @@
+import { fbFr } from './zones/feedback.fr'; // boîte à idées
 import { enligneFr } from './zones/enligne.fr';
 import { mpmodFr } from './zones/mpmod.fr';
 import { serieFr } from './zones/serie.fr';
@@ -35,6 +36,7 @@ export const fr = {
   ...cdmFr,
   ...cpmFr,
   ...ccfFr,
+  ...fbFr,
   ...pokerFr,
   "common.back": "Retour",
   "common.close": "Fermer",

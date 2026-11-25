@@ -1,3 +1,4 @@
+import { fbDe } from './zones/feedback.de'; // boîte à idées
 import { enligneDe } from './zones/enligne.de';
 import { mpmodDe } from './zones/mpmod.de';
 import { serieDe } from './zones/serie.de';
@@ -80,4 +81,5 @@ export const de: Partial<Record<MessageKey, string>> = {
   ...cdmDe,
   ...cpmDe,
   ...ccfDe,
+  ...fbDe,
 };

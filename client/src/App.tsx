@@ -361,7 +361,8 @@ export function App() {
 
   // --- Barre du bas (tous les écrans) -------------------------------------------------------------
   const inGame = useInGame();
-  const [plus, setPlus] = useState<PlusSheet | null>(null);
+  // Notification de la boîte à idées (/?idees=1) : « Mes envois » s'ouvre directement.
+  const [plus, setPlus] = useState<PlusSheet | null>(() => { if (STANDALONE || !new URLSearchParams(location.search).has('idees')) return null; cleanUrl(); return 'feedback-mine'; });
   /** Le menu de jeu d'où l'on vient (retour des écrans communs ouverts par la barre). */
   const ctx: Back = 'from' in screen && screen.from && screen.from !== 'stats' ? screen.from
     : screen.name === 'cf' || screen.name === 'camp-cf' ? 'cf' : screen.name === 'dixmille' || screen.name === 'camp-dm' ? 'dixmille' : screen.name === 'poker' || screen.name === 'camp-pm' ? 'poker'
@@ -609,7 +610,7 @@ export function App() {
           </Suspense>
         )}
         <NavSheets sheet={plus} setSheet={setPlus} a={nav} pa={pa} settings={settings} onChangeSettings={setSettings} discord={discord.discord}
-          displayName={settings.name} avatar={settings.avatar} />
+          displayName={settings.name} avatar={settings.avatar} screen={screen.name} />
       </div>
       <BottomNav active={plus === 'menu' ? null : activeTab} compact={inGame} plusOpen={plus === 'menu'} pa={pa} a={nav}
         requests={notif.notifs?.requests?.length ?? 0} bags={profile.bags ?? 0}

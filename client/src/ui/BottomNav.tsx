@@ -22,11 +22,12 @@ import { QuestsPanel } from './AccountScreens';
 import { ReferralCard } from './Referral';
 import { DiscordCard, type useDiscord } from './Discord';
 import { ProfileView } from './ProfileView';
+import { FeedbackSheet } from './Feedback';
 import { tr, useLang } from '../i18n/lang';
 import { FrenchOnlyNote } from '../i18n/LangSwitch';
 
 export type NavTab = 'home' | 'friends' | 'collection' | 'shop' | null;
-export type PlusSheet = 'menu' | 'profile' | 'missions' | 'parrainage' | 'discord';
+export type PlusSheet = 'menu' | 'profile' | 'missions' | 'parrainage' | 'discord' | 'feedback' | 'feedback-mine';
 type IconName = Parameters<typeof Icon>[0]['name'];
 
 /** Tout ce que la barre et le menu « Plus » savent ouvrir (déjà protégé par la confirmation de départ). */
@@ -60,6 +61,9 @@ function PlusMenu({ a, pa, settings, onChangeSettings, discord, unread, onSheet,
   const [role, setRole] = useState<{ admin: boolean; moderator: boolean; pending: number }>({ admin: false, moderator: false, pending: 0 });
   useEffect(() => { if (acc && pa.token) api<{ admin: boolean; moderator: boolean; pending: number }>('/moderation/whoami', { token: pa.token }).then(setRole).catch(() => {}); }, [acc, pa.token]);
   const admin = role.admin;
+  // Boîte à idées : messages pas encore ouverts (point sur « Administration »).
+  const [ideas, setIdeas] = useState(0);
+  useEffect(() => { if (admin && pa.token) api<{ unread: number }>('/admin/feedback/unread', { token: pa.token }).then((r) => setIdeas(r.unread)).catch(() => {}); }, [admin, pa.token]);
   type Item = { label: string; icon: IconName; go: () => void; show?: boolean; dot?: boolean; keys?: string; /** Montré seulement quand on cherche. */ search?: boolean };
   const groups: { title: string; items: Item[] }[] = [
     { title: tr('plus.g.mine'), items: [
@@ -80,7 +84,8 @@ function PlusMenu({ a, pa, settings, onChangeSettings, discord, unread, onSheet,
     { title: tr('plus.g.settings'), items: [
       { label: tr('plus.settings'), icon: 'settings', go: a.onSettings, keys: 'son vibration qualite graphismes secouer gobelet alerte' },
       { label: tr(acc ? 'plus.myAccount' : 'plus.account'), icon: 'key', go: acc ? a.onAccount : a.onLogin, show: !STANDALONE, keys: 'connexion mot de passe' },
-      { label: 'Administration', icon: 'settings', go: a.onAdmin, show: admin, dot: role.pending > 0, keys: 'admin bannir pieces tableau de bord signalements moderation cartes' },
+      { label: tr('fb.entry'), icon: 'chat', go: () => onSheet('feedback'), show: !STANDALONE, keys: 'idee suggestion souci bug probleme avis remarque contact idea feedback idee problem' },
+      { label: 'Administration', icon: 'settings', go: a.onAdmin, show: admin, dot: role.pending > 0 || ideas > 0, keys: 'admin bannir pieces tableau de bord signalements moderation cartes' },
       { label: 'Modération', icon: 'flag', go: a.onModeration, show: role.moderator && !admin, dot: role.pending > 0, keys: 'signalements sanctions moderateur' },
     ] },
     { title: tr('plus.g.games'), items: [
@@ -131,9 +136,11 @@ function PlusMenu({ a, pa, settings, onChangeSettings, discord, unread, onSheet,
 }
 
 /** Menu « Plus » et ses fiches (profil, défis du jour, parrainage, Discord), par-dessus l'écran en cours. */
-export function NavSheets({ sheet, setSheet, a, pa, settings, onChangeSettings, discord, displayName, avatar }: {
+export function NavSheets({ sheet, setSheet, a, pa, settings, onChangeSettings, discord, displayName, avatar, screen = 'autre' }: {
   sheet: PlusSheet | null; setSheet: (s: PlusSheet | null) => void; a: NavActions; pa: ProfileApi; settings: Settings; onChangeSettings: (s: Settings) => void;
   discord: Discord; displayName: string; avatar: string;
+  /** Nom de l'écran en cours (joint à un message de la boîte à idées). */
+  screen?: string;
 }) {
   const unread = useUnread(pa.token);
   const close = () => setSheet(null);
@@ -142,6 +149,7 @@ export function NavSheets({ sheet, setSheet, a, pa, settings, onChangeSettings, 
   if (sheet === 'profile') return <ProfileView pa={pa} displayName={displayName} avatar={avatar} onClose={close} />;
   if (sheet === 'missions') return <Sheet title={tr('app.defis_du_jour')} onClose={close}><QuestsPanel profile={pa.profile} onClaim={pa.claim} /></Sheet>;
   if (sheet === 'parrainage') return <Sheet title={tr('app.parrainage')} onClose={close}><ReferralCard pa={pa} onAccount={() => { close(); a.onAccount(); }} /></Sheet>;
+  if ((sheet === 'feedback' || sheet === 'feedback-mine') && !STANDALONE) return <FeedbackSheet pa={pa} screen={screen} initialTab={sheet === 'feedback-mine' ? 'mine' : 'write'} onClose={close} onAccount={() => { close(); a.onAccount(); }} />;
   if (sheet === 'discord' && discord) return <Sheet title="Discord" onClose={close}><DiscordCard pa={pa} state={discord} onAccount={() => { close(); a.onAccount(); }} /></Sheet>;
   return null;
 }

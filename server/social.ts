@@ -240,6 +240,9 @@ export function createSocial(c: Ctx) {
   });
 
   // --- Notifications dans le jeu : ce qui attend une action ou n'a pas encore été vu ----------
+  /** Boîte à idées (server/feedback.ts, branchée par app.ts) : réponses et idées réalisées pas encore vues. */
+  let ideasOf: (userId: string) => { id: number; kind: string; status: string; reply: string | null; text: string; at: number }[] = () => [];
+  const setIdeas = (f: typeof ideasOf) => { ideasOf = f; };
   router.get('/notifications', auth, (req, res) => {
     expireDuels();
     const me = userOf(req);
@@ -248,7 +251,8 @@ export function createSocial(c: Ctx) {
     const toPlay = duels.filter((d) => d.status === 'ouvert' && !d.mine);
     const results = duels.filter((d) => d.status !== 'ouvert' && !d.seen);
     const notices = store.modNotices(me.id);
-    res.json({ ok: true, requests, toPlay, results, notices, count: requests.length + toPlay.filter((d) => !d.sent).length + results.length + notices.length });
+    const ideas = ideasOf(me.id);
+    res.json({ ok: true, requests, toPlay, results, notices, ideas, count: requests.length + toPlay.filter((d) => !d.sent).length + results.length + notices.length + ideas.length });
   });
 
   /** Avis de la modération lus (affichés dans le panneau des notifications). */
@@ -282,5 +286,5 @@ export function createSocial(c: Ctx) {
   const timer = process.env.VITEST ? null : setInterval(reminders, 10 * 60_000);
   timer?.unref?.();
 
-  return { push, sent, reminders, notifs, expireDuels, close: () => { if (timer) clearInterval(timer); notifs.close(); } };
+  return { push, sent, reminders, notifs, expireDuels, setIdeas, close: () => { if (timer) clearInterval(timer); notifs.close(); } };
 }

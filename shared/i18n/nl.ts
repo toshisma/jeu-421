@@ -1,3 +1,4 @@
+import { fbNl } from './zones/feedback.nl'; // boîte à idées
 import { enligneNl } from './zones/enligne.nl';
 import { mpmodNl } from './zones/mpmod.nl';
 import { serieNl } from './zones/serie.nl';
@@ -80,4 +81,5 @@ export const nl: Partial<Record<MessageKey, string>> = {
   ...cdmNl,
   ...cpmNl,
   ...ccfNl,
+  ...fbNl,
 };

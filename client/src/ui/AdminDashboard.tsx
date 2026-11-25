@@ -11,6 +11,7 @@ import { Shell } from './Screens';
 import { ModerationPanel, useModeration } from './Moderation';
 import { LiveTab } from './AdminLive';
 import { AdminPmPanel } from './AdminPm';
+import { AdminIdeasPanel, useIdeasUnread } from './AdminIdeas'; // boîte à idées
 import { GamesOverview, GamesTab } from './AdminGames'; // statistiques des 4 jeux
 
 /** Statistiques des cartes de Coups Fourrés : chargées à la demande (illustrations des cartes). */
@@ -22,9 +23,9 @@ const dayShort = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('f
 const dayLong = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 const dateTime = (t: number | null) => (t ? new Date(t).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–');
 
-type Tab = 'enligne' | 'apercu' | 'signalements' | 'mp' | 'personnes' | 'joueurs' | 'visiteurs' | 'retention' | 'activite' | 'economie' | 'jeux' | 'cf' | 'journal';
+type Tab = 'enligne' | 'apercu' | 'signalements' | 'idees' | 'mp' | 'personnes' | 'joueurs' | 'visiteurs' | 'retention' | 'activite' | 'economie' | 'jeux' | 'cf' | 'journal';
 const TABS: [Tab, string][] = [
-  ['enligne', 'En ligne'], ['apercu', 'Vue d’ensemble'], ['signalements', 'Signalements'], ['mp', 'Messages privés'], ['personnes', 'Personnes'], ['joueurs', 'Joueurs'], ['visiteurs', 'Visiteurs'], ['retention', 'Rétention'],
+  ['enligne', 'En ligne'], ['apercu', 'Vue d’ensemble'], ['signalements', 'Signalements'], ['idees', 'Idées'], ['mp', 'Messages privés'], ['personnes', 'Personnes'], ['joueurs', 'Joueurs'], ['visiteurs', 'Visiteurs'], ['retention', 'Rétention'],
   ['activite', 'Activité'], ['economie', 'Économie'], ['jeux', 'Jeux'], ['cf', 'Coups Fourrés'], ['journal', 'Journal admin'],
 ];
 
@@ -712,6 +713,7 @@ export function AdminDashboard({ pa, onBack }: { pa: ProfileApi; onBack: () => v
   const mod = useModeration(token);
   const [pending, setPending] = useState<number | null>(null);
   const toTreat = pending ?? mod?.pending ?? 0;
+  const [ideas, setIdeas] = useIdeasUnread(token);
   return (
     <Shell title="Administration" onBack={onBack} wide>
       {error && <p className="error">{error}</p>}
@@ -725,12 +727,13 @@ export function AdminDashboard({ pa, onBack }: { pa: ProfileApi; onBack: () => v
             <Kpi value={nf(o.coins)} label="pièces en circulation" />
           </div>
           <nav className="tabs adm-tabs" role="tablist">
-            {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{k === 'signalements' && toTreat > 0 && <i className="tab-badge" aria-label={`${toTreat} à traiter`}>{toTreat > 99 ? '99+' : toTreat}</i>}</button>)}
+            {TABS.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{k === 'signalements' && toTreat > 0 && <i className="tab-badge" aria-label={`${toTreat} à traiter`}>{toTreat > 99 ? '99+' : toTreat}</i>}{k === 'idees' && ideas > 0 && <i className="tab-badge" aria-label={`${ideas} non lus`}>{ideas > 99 ? '99+' : ideas}</i>}</button>)}
           </nav>
           {tab === 'enligne' && <LiveTab token={token} onOpenPlayer={(id) => { setOpenPlayer(id); setTab('joueurs'); }}
             onOpenVisitor={(label) => { setPeopleSearch((p) => ({ q: label.replace(/^Visiteur /, ''), n: p.n + 1 })); setTab('personnes'); }} />}
           {tab === 'apercu' && <OverviewTab o={o} live={live} onLive={() => setTab('enligne')} token={token} />}
           {tab === 'signalements' && <ModerationPanel token={token} admin onPending={setPending} />}
+          {tab === 'idees' && <AdminIdeasPanel token={token} onUnread={setIdeas} />}
           {tab === 'mp' && <AdminPmPanel token={token} admin />}
           {tab === 'personnes' && <PeopleTab key={peopleSearch.n} initialSearch={peopleSearch.q} token={token} onOpen={(id) => { setOpenPlayer(id); setTab('joueurs'); }} />}
           {tab === 'joueurs' && <PlayersTab token={token} open={openPlayer} onActivity={(u) => { setActivityUser(u); setTab('activite'); }} onChanged={reload} />}
