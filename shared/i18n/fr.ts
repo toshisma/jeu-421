@@ -1,6 +1,7 @@
 import { enligneFr } from './zones/enligne.fr';
 import { mpmodFr } from './zones/mpmod.fr';
 import { serieFr } from './zones/serie.fr';
+import { vieFr } from './zones/vie.fr';
 import { pokerFr } from './zones/poker.fr';
 import { rejeuFr } from "./zones/rejeu.fr";
 import { courtisan2Fr } from './zones/courtisan2.fr';
@@ -25,6 +26,7 @@ import { thmFr } from './zones/theme.fr'; // thème de la semaine, arrivage du m
 export const fr = {
   ...mpmodFr,
   ...serieFr,
+  ...vieFr,
   ...enligneFr,
   ...communFr,
   ...clubsFr,

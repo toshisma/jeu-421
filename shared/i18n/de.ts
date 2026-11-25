@@ -1,6 +1,7 @@
 import { enligneDe } from './zones/enligne.de';
 import { mpmodDe } from './zones/mpmod.de';
 import { serieDe } from './zones/serie.de';
+import { vieDe } from './zones/vie.de';
 import { pokerDe } from './zones/poker.de';
 import { rejeuDe } from './zones/rejeu.de';
 import { courtisan2De } from './zones/courtisan2.de';
@@ -24,6 +25,7 @@ import { thmDe } from './zones/theme.de'; // thème de la semaine, arrivage du m
 export const de: Partial<Record<MessageKey, string>> = {
   ...mpmodDe,
   ...serieDe,
+  ...vieDe,
   ...enligneDe,
   ...communDe,
   ...clubsDe,

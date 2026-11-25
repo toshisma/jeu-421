@@ -12,6 +12,7 @@ import { ModerationPanel, useModeration } from './Moderation';
 import { LiveTab } from './AdminLive';
 import { AdminPmPanel } from './AdminPm';
 import { GamesOverview, GamesTab } from './AdminGames'; // statistiques des 4 jeux
+import { VieAdminTab } from './AdminVie'; // vie du jeu : mot du patron, publication de la semaine
 
 /** Statistiques des cartes de Coups Fourrés : chargées à la demande (illustrations des cartes). */
 const CfAdminStats = lazyScreen(() => import('../cards/CfAdminStats'), 'CfAdminStats');
@@ -22,10 +23,10 @@ const dayShort = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('f
 const dayLong = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString('fr-BE', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 const dateTime = (t: number | null) => (t ? new Date(t).toLocaleString('fr-BE', { timeZone: 'Europe/Brussels', day: 'numeric', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–');
 
-type Tab = 'enligne' | 'apercu' | 'signalements' | 'mp' | 'personnes' | 'joueurs' | 'visiteurs' | 'retention' | 'activite' | 'economie' | 'jeux' | 'cf' | 'journal';
+type Tab = 'enligne' | 'apercu' | 'signalements' | 'mp' | 'personnes' | 'joueurs' | 'visiteurs' | 'retention' | 'activite' | 'economie' | 'jeux' | 'cf' | 'vie' | 'journal';
 const TABS: [Tab, string][] = [
   ['enligne', 'En ligne'], ['apercu', 'Vue d’ensemble'], ['signalements', 'Signalements'], ['mp', 'Messages privés'], ['personnes', 'Personnes'], ['joueurs', 'Joueurs'], ['visiteurs', 'Visiteurs'], ['retention', 'Rétention'],
-  ['activite', 'Activité'], ['economie', 'Économie'], ['jeux', 'Jeux'], ['cf', 'Coups Fourrés'], ['journal', 'Journal admin'],
+  ['activite', 'Activité'], ['economie', 'Économie'], ['jeux', 'Jeux'], ['cf', 'Coups Fourrés'], ['vie', 'Vie du jeu'], ['journal', 'Journal admin'],
 ];
 
 /** Chargement d'une route admin, avec rechargement à la demande. */
@@ -740,6 +741,7 @@ export function AdminDashboard({ pa, onBack }: { pa: ProfileApi; onBack: () => v
           {tab === 'economie' && <EconomyTab token={token} coins={o.coins} />}
           {tab === 'jeux' && <GamesTab token={token} onOpenCf={() => setTab('cf')} />}
           {tab === 'cf' && <Suspense fallback={<p className="muted">Chargement…</p>}><CfAdminStats token={token} /></Suspense>}
+          {tab === 'vie' && <VieAdminTab token={token} />}
           {tab === 'journal' && <LogTab token={token} />}
         </div>
       )}

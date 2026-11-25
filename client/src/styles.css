@@ -5277,3 +5277,26 @@ button.mode-chip { cursor: pointer; }
 .sc-rev small { color: var(--texte-3); font-size: 0.8rem; }
 .sc-rev.won { flex-basis: 100%; display: block; color: #f6d36b; font-weight: 700; }
 .sched-lobby > .sc-rev { text-align: center; align-items: center; margin-bottom: 10px; }
+/* --- La vie du jeu (zone « vie », client/src/ui/VieTicker.tsx) ---------------------------------------------
+   La ligne d'actualité de l'accueil reprend la place du fil des parties récentes (à côté de « N sur le site »,
+   sur la vitrine) : UNE ligne, abrégée à la fin, aucune hauteur en plus. Les éléments de la vie du jeu se touchent. */
+.home2.v2.main-menu .h2-news .news-ticker.vie-tick { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-line-clamp: unset; line-clamp: unset; border-radius: 999px; }
+.home2.v2.main-menu .h2-news button.vie-tick { pointer-events: auto; cursor: pointer; border: 0; font: inherit; font-size: 12px; line-height: 1.2; color: #fff; text-align: left;
+  background: rgba(0,0,0,0.5); box-shadow: inset 0 0 0 1px rgba(241,204,125,0.45); -webkit-tap-highlight-color: transparent; }
+.home2.v2.main-menu .h2-news p.vie-tick { pointer-events: auto; }
+.home2.v2.main-menu .h2-news button.vie-tick:active { background: rgba(0,0,0,0.65); }
+.home2.v2.main-menu .h2-news button.vie-tick:focus-visible { outline: 2px solid #f1cc7d; outline-offset: 1px; }
+.vie-tick .vie-ic { margin-right: 5px; }
+.vie-tick.vie-patron { box-shadow: inset 0 0 0 1px rgba(241,204,125,0.8); }
+.vie-sheet { margin: 4px 0 8px; font-size: 1.02rem; line-height: 1.45; overflow-wrap: anywhere; }
+/* Administration : onglet « Vie du jeu » (mot du patron, publication de la semaine). */
+.adm-vie textarea { width: 100%; min-height: 64px; box-sizing: border-box; font: inherit; padding: 8px; border-radius: 10px; }
+.adm-vie .adm-vie-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+.adm-vie pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: .92rem; background: rgba(0,0,0,0.25); padding: 10px; border-radius: 10px; }
+.adm-vie canvas { width: 100%; max-width: 360px; height: auto; aspect-ratio: 1; border-radius: 12px; display: block; }
+/* Vitrine basse (360×640…) : la rangée « Campagne » remonte juste sous la ligne d'actualité ; on la resserre pour
+   qu'elles ne se chevauchent plus (avant : 8 px recouverts). */
+@container mmhero (max-height: 199px) {
+  .home2.v2.main-menu .h2-news { top: 46px; }
+  .home2.v2.main-menu .h2-news .news-ticker, .home2.v2.main-menu .h2-news .mm-site { padding-top: 3px; padding-bottom: 3px; }
+}

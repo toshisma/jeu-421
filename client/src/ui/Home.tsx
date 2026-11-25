@@ -23,7 +23,8 @@ import { DailyStreak, EveningChest, EventBanner, HappyHourBanner } from './Progr
 import type { DuelPlay } from './ChallengeScreen';
 import { QuestsPanel } from './AccountScreens';
 import { DieCube } from './DiceCollection';
-import { NewsTicker } from './Friends';
+import { VieTicker, vieText } from './VieTicker';
+import type { VieItem } from '../../../shared/vie';
 import { BistrotChip } from './Bistrots';
 import { NotifBell, NotifPanel, useNotifications } from './Social';
 import { HeroTray } from './HeroTray';
@@ -108,6 +109,8 @@ export function Home(props: HomeProps) {
   const { pa, profile } = props;
   const [sheet, setSheet] = useState<SheetKind | null>(null);
   const [feteOpen, setFeteOpen] = useState(false);
+  // Élément de « la vie du jeu » touché sans écran lié (mot du patron) : petite fiche avec le texte entier.
+  const [vieOpen, setVieOpen] = useState<VieItem | null>(null);
   const [showProfile, setShowProfile] = useState(false);
   const { notifs, reload } = props.notif;
   const [showNotifs, setShowNotifs] = useState(!!props.openNotifs);
@@ -133,6 +136,10 @@ export function Home(props: HomeProps) {
     setSheet('discord');
     if (r === 'ok') { sound.treasure(); pa.refresh(); reloadDiscord(); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const openVie = (it: VieItem) => {
+    const go = ({ news: props.onChangelog, campaigns: props.onCampaigns, ranking: props.onSoloWeek ?? props.onCampaigns, shop: props.onShop, fetes: () => setFeteOpen(true) } as Partial<Record<VieItem['action'], (() => void) | undefined>>)[it.action];
+    if (go) go(); else setVieOpen(it);
+  };
   const li = levelInfo(profile.xp);
   const name = pa.session?.username ?? (props.displayName || tr('app.invite'));
   const acc = pa.isAccount && !STANDALONE;
@@ -252,7 +259,7 @@ export function Home(props: HomeProps) {
           {acc && <BistrotChip pa={pa} onOpen={props.onFriends} />}
           {!STANDALONE && <div className="h2-news">
             {online && <span className={`mm-site${online.site ? "" : " zero"}`} title={tr('onl.siteAria', { n: online.site })}><i className="live-dot" aria-hidden /><span aria-hidden>{tr('onl.site', { n: online.site })}</span><span className="sr-only">{tr('onl.siteAria', { n: online.site })}</span></span>}
-            <NewsTicker />
+            <VieTicker onOpen={openVie} />
           </div>}
         </section>
 
@@ -308,6 +315,7 @@ export function Home(props: HomeProps) {
       {sheet === 'missions' && <Sheet title={tr('app.defis_du_jour')} onClose={() => setSheet(null)}><QuestsPanel profile={profile} onClaim={pa.claim} /></Sheet>}
       {showNotifs && <NotifPanel pa={pa} notifs={notifs} reload={reload} onClose={() => { setShowNotifs(false); reload(); }}
         onPlay={(d) => { setShowNotifs(false); props.onDuelPlay(d); }} onDuels={() => { setShowNotifs(false); props.onDuels(); }} />}
+      {vieOpen && <Sheet title={vieOpen.id === 'patron' ? tr('vie.patron') : tr('vie.aria')} onClose={() => setVieOpen(null)}><p className="vie-sheet"><span aria-hidden>{vieOpen.icon}</span> {vieText(vieOpen)}</p></Sheet>}
       {feteOpen && <FetesSheet pa={pa} onClose={() => setFeteOpen(false)} onShop={props.onShop} onBoss={props.onFeteBoss} />}
       {showProfile && <ProfileView pa={pa} displayName={props.displayName} avatar={props.avatar} onClose={() => setShowProfile(false)} />}
     </div>

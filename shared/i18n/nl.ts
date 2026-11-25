@@ -1,6 +1,7 @@
 import { enligneNl } from './zones/enligne.nl';
 import { mpmodNl } from './zones/mpmod.nl';
 import { serieNl } from './zones/serie.nl';
+import { vieNl } from './zones/vie.nl';
 import { pokerNl } from './zones/poker.nl';
 import { rejeuNl } from './zones/rejeu.nl';
 import { courtisan2Nl } from './zones/courtisan2.nl';
@@ -24,6 +25,7 @@ import { thmNl } from './zones/theme.nl'; // thème de la semaine, arrivage du m
 export const nl: Partial<Record<MessageKey, string>> = {
   ...mpmodNl,
   ...serieNl,
+  ...vieNl,
   ...enligneNl,
   ...communNl,
   ...clubsNl,
