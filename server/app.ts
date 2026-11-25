@@ -27,6 +27,7 @@ import { createAdmin } from './admin';
 import { createModeration, type TableChatEntry } from './moderation';
 import { createPmMod } from './pm-mod';
 import { createBistrots } from './bistrots';
+import { createVie } from './vie';
 import { muteText } from '../shared/moderation';
 import { today } from '../shared/progress/quests';
 import { COUNTER_BOTS } from '../shared/bot-names';
@@ -357,6 +358,9 @@ export async function startServer(opts: ServerOptions) {
   });
   accounts.setVerifiedGame((g) => bistrots.recordGame(g));
   app.use('/api', bistrots.router);
+  // La vie du jeu : ligne d'actualité de l'accueil (GET /api/vie) et mot du patron (admin). Autres sources : vie.addSource(…).
+  const vie = createVie({ store, isAdmin: stats.isAdmin, userFromToken: accounts.userFromToken, log: admin.log, now: opts.accounts?.now });
+  app.use('/api', vie.router);
 
   // Le Courtisan en ligne (créé plus bas) : sa présence s'ajoute à celle des tables du 421.
   let dmPresence: (userId: string) => ReturnType<Parameters<typeof accounts.setPresence>[0]> = () => null;
@@ -2090,6 +2094,7 @@ export async function startServer(opts: ServerOptions) {
     cfTour,
     cfStats,
     bistrots,
+    vie,
     pmMod,
     close: () => new Promise<void>((resolve) => {
       pmMod.close();

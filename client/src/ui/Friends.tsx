@@ -252,7 +252,12 @@ export function NewsTicker() {
   useEffect(() => { if (feed.length < 2) return; const t = setInterval(() => setI((x) => x + 1), 6000); return () => clearInterval(t); }, [feed.length]);
   if (!feed.length) return null;
   const f = feed[i % feed.length];
-  const m = Math.round((Date.now() - f.at) / 60_000);
-  // « 4-2-1 » ne se coupe jamais en fin de ligne (tirets insécables).
-  return <p className="news-ticker" aria-live="off" key={f.at}>{trServer(f.text).replace(/(\d)-(?=\d)/g, '$1\u2011').replace(/ ([!?:;])/g, '\u00a0$1')} <small>{m < 60 ? tr('app.il_y_a_min', { v: Math.max(1, m) }) : m < 1440 ? tr('app.il_y_a_h', { v: Math.round(m / 60) }) : tr('chm.yesterday')}</small></p>;
+  return <p className="news-ticker" aria-live="off" key={f.at}>{feedText(f.text)} <small>{feedAgo(f.at)}</small></p>;
 }
+/** Texte d'une entrée du fil : « 4-2-1 » ne se coupe jamais en fin de ligne (tirets insécables). */
+export const feedText = (text: string) => trServer(text).replace(/(\d)-(?=\d)/g, '$1\u2011').replace(/ ([!?:;])/g, '\u00a0$1');
+/** « il y a 5 min », « il y a 2 h », « hier ». */
+export const feedAgo = (at: number) => {
+  const m = Math.round((Date.now() - at) / 60_000);
+  return m < 60 ? tr('app.il_y_a_min', { v: Math.max(1, m) }) : m < 1440 ? tr('app.il_y_a_h', { v: Math.round(m / 60) }) : tr('chm.yesterday');
+};
