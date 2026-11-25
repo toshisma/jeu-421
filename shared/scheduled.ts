@@ -188,3 +188,26 @@ export interface ScheduledInfo {
   /** Nombre de joueurs au départ (null avant le départ). */
   starters: number | null;
 }
+
+// --- Tournoi du Réveillon (calendrier de l'année) ---------------------------------------------
+// Le tournoi de 21 h du 31 décembre. Inscription, barème de sacs et remboursements inchangés ;
+// en plus (gains bas) : le podium gagne le titre « Podium du Réveillon », le vainqueur le dé
+// Champagne s'il ne l'a pas déjà.
+
+export const REVEILLON_TITLE = 'fete:reveillon';
+export const REVEILLON_DIE = 'dice-champagne';
+export const REVEILLON_PODIUM = 3;
+/** Le rendez-vous est-il le Tournoi du Réveillon (« 2026-12-31-21h ») ? */
+export const isReveillonSlot = (slotId: string) => /^\d{4}-12-31-21h$/.test(slotId);
+
+/** Récompense de la place `place` (0 = premier) au Réveillon, appliquée au profil ; null si rien. */
+export function applyReveillon<P extends { owned: string[]; titles?: string[] }>(p: P, slotId: string, place: number): { profile: P; title: boolean; die: boolean } | null {
+  if (!isReveillonSlot(slotId) || place < 0 || place >= REVEILLON_PODIUM) return null;
+  const title = !(p.titles ?? []).includes(REVEILLON_TITLE);
+  const die = place === 0 && !p.owned.includes(REVEILLON_DIE);
+  if (!title && !die) return null;
+  return {
+    profile: { ...p, titles: title ? [...(p.titles ?? []), REVEILLON_TITLE] : p.titles, owned: die ? [...p.owned, REVEILLON_DIE] : p.owned },
+    title, die,
+  };
+}

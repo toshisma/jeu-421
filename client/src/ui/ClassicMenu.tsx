@@ -25,7 +25,7 @@ import { inTime, tournamentInfo, useLiveTables, useOnlineCount, useOpenLobbies, 
 import { tr } from '../i18n/lang';
 import { botName, trn } from '../i18n/g421';
 import type { MessageKey } from '../../../shared/i18n';
-import { feteBoss, feteState } from '../../../shared/progress/fetes';
+import { FETE_ICON, feteBoss, feteState } from '../../../shared/progress/fetes';
 import { FeteBossCard } from '../fetes/Fetes';
 import { TdcMenuCard } from '../comptoirs/MenuEntry';
 
@@ -113,7 +113,7 @@ export function ClassicMenu(props: ClassicMenuProps) {
       tag: t.registered ? tr(t.open ? 'g421.menu.go' : 'g421.menu.registered') : tr('g421.hour', { h: parseInt(t.label, 10) }), tagGold: !t.registered,
       sub: t.open ? `${tr('g421.menu.lobbyOpenLow')}${t.count != null ? ` · ${trn('g421.menu.players', t.count)}` : ''}` : inTime(t.minutes),
       go: () => (props.onJoinScheduled ? setSheet('tournoi') : props.onTournaments()) }] : []),
-    { id: 'patron', title: tr('g421.menu.patron'), art: <TopHatArt size={46} />, tone: 'felt', hot: feteNew, tag: feteNew ? (feteB!.fete === 'fetes' ? '🎅' : '🍊') : bossBeaten ? tr('g421.menu.beaten') : undefined, tagGold: feteNew,
+    { id: 'patron', title: tr('g421.menu.patron'), art: <TopHatArt size={46} />, tone: 'felt', hot: feteNew, tag: feteNew ? FETE_ICON[feteB!.fete] : bossBeaten ? tr('g421.menu.beaten') : undefined, tagGold: feteNew,
       sub: `${botName(boss.name)} · ${tr(bossBeaten ? 'g421.menu.beatenLow' : 'g421.menu.toBeat')}`, go: () => setSheet('patron') },
     { id: 'defi', title: tr('g421.menu.defi'), art: <TargetArt size={46} />, tone: 'felt', hot: false, tag: undefined, tagGold: false,
       sub: chalDone ? trn('g421.ptLong', chal!.points) : tr('g421.menu.oneTry'), go: () => setSheet('defi') },

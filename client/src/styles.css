@@ -5253,3 +5253,27 @@ button.mode-chip { cursor: pointer; }
 .arr-meta .price { color: #f1cc7d; }
 .arr-meta .own { color: #7fd3a0; }
 .arr-left { color: var(--texte-2); }
+/* ==== Calendrier de l'année (shared/progress/calendar.ts) : bandeau des moments légers, fève, Réveillon ==== */
+.home-banner.fet-banner.cal { border-color: rgba(255, 226, 160, 0.5);
+  background: linear-gradient(135deg, rgba(120, 82, 30, 0.92), rgba(70, 44, 20, 0.92)); }
+.home-banner.fet-banner.cal small { color: #ffe9c4; }
+.home-banner.fet-banner.cal-paques { background: linear-gradient(135deg, rgba(118, 70, 120, 0.92), rgba(60, 96, 120, 0.92)); }
+.home-banner.fet-banner.cal-poisson { background: linear-gradient(135deg, rgba(28, 92, 140, 0.92), rgba(18, 60, 96, 0.92)); }
+.home-banner.fet-banner.cal-musique { background: linear-gradient(135deg, rgba(92, 40, 120, 0.92), rgba(36, 30, 90, 0.92)); }
+.home-banner.fet-banner.cal-halloween { background: linear-gradient(135deg, rgba(120, 52, 10, 0.94), rgba(36, 20, 40, 0.94)); }
+.feve-found { display: flex; align-items: center; gap: 10px; margin-top: 4px; padding: 10px 14px; max-width: 36ch; border-radius: 12px;
+  background: linear-gradient(135deg, rgba(242, 196, 70, 0.26), rgba(242, 196, 70, 0.1)); border: 1px solid rgba(242, 196, 70, 0.6);
+  animation: feve-pop 0.5s cubic-bezier(.2, 1.4, .4, 1) both 0.25s; }
+.feve-found p { margin: 0; display: flex; flex-direction: column; text-align: left; }
+.feve-found b { color: #f6d36b; }
+.feve-found small { color: var(--texte-2, #e8e2d4); }
+.feve-crown { font-size: 26px; line-height: 1; }
+@keyframes feve-pop { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .feve-found { animation: none; } }
+.feve-hint { margin: 8px 0 0; padding: 6px 10px; border-radius: 10px; background: rgba(242, 196, 70, 0.14); color: #f6d36b; font-size: 0.85rem; }
+.sc-last { flex-wrap: wrap; }
+.sc-rev { margin: 0 0 4px; display: flex; flex-direction: column; gap: 2px; }
+.sc-rev b { color: #f6d36b; }
+.sc-rev small { color: var(--texte-3); font-size: 0.8rem; }
+.sc-rev.won { flex-basis: 100%; display: block; color: #f6d36b; font-weight: 700; }
+.sched-lobby > .sc-rev { text-align: center; align-items: center; margin-bottom: 10px; }

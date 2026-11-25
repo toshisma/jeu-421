@@ -1,4 +1,6 @@
-import { titleL } from '../i18n/data';
+import { shortDateL, titleL } from '../i18n/data';
+import { FEVE_DIE, feveTitle, galetteOf } from '../../../shared/progress/calendar';
+import { today } from '../../../shared/progress/quests';
 import { tr } from '../i18n/lang';
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { BagIcon } from './BagIcon';
@@ -105,13 +107,14 @@ function BagOpening({ pa, onClose }: { pa: ProfileApi; onClose: () => void }) {
           <>
             <div className="burst" aria-hidden />
             <div className="bag-sparks" aria-hidden>{SPARKS.map((sp, i) => <i key={i} style={sp} />)}</div>
-            {fx ? <FxBadge fx={fx} size={150} /> : <DieCube id={res.id} size={150} spin />}
+            {fx ? <FxBadge fx={fx} size={res.feve ? 100 : 150} /> : <DieCube id={res.id} size={res.feve ? 100 : 150} spin />}
             <RarityTag rarity={res.rarity} shiny={res.shiny} />
             <h2>{fx?.name ?? it!.name}</h2>
             {fx && <p className="fx-kind">{FX_KIND_LABEL[fx.kind]}</p>}
-            <p className="muted">{fx?.flavor ?? collectionDie(res.id)?.flavor}</p>
+            {!res.feve && <p className="muted">{fx?.flavor ?? collectionDie(res.id)?.flavor}</p>}
             <p className="bag-note">{res.duplicate ? tr('app.deja_dans_votre_collection_eclats', { shards: res.shards }) : res.shiny ? tr('app.un_de_brillant_seul_1_sac_sur') : tr('app.nouveau_dans_votre_collection')}</p>
             {series && <p className="bag-series">{tr('app.serie_completee_titre_et_tapis_exclu', { name: series.name, title: series.title })}</p>}
+            {res.feve && <FeveFound year={res.feve} />}
           </>
         )}
       </div>
@@ -122,6 +125,17 @@ function BagOpening({ pa, onClose }: { pa: ProfileApi; onClose: () => void }) {
         {(phase === 'reveal' || phase === 'error') && left > 0 && <button className="btn primary" onClick={() => void go()}>{tr('app.ouvrir_le_suivant', { left })}</button>}
         {(phase === 'reveal' || phase === 'error') && <button className="btn ghost" onClick={onClose}>{tr('app.fermer')}</button>}
       </div>
+    </div>
+  );
+}
+
+/** Galette des rois : la fève trouvée dans ce sac (tirée par le serveur, une par an). */
+function FeveFound({ year }: { year: number }) {
+  return (
+    <div className="feve-found" role="status">
+      <span className="feve-crown" aria-hidden>👑</span>
+      <DieCube id={FEVE_DIE} size={44} spin />
+      <p><b>{tr('cal.feve.found')}</b><small>{tr('cal.feve.got', { title: titleL(feveTitle(year)) ?? '', die: getItem(FEVE_DIE)?.name ?? '' })}</small></p>
     </div>
   );
 }
@@ -217,6 +231,7 @@ export function CollectionScreen({ pa, onBack, onAccount, onTry, openNow }: {
   const [opening, setOpening] = useState(() => !!openNow && pa.isAccount && (pa.profile.bags ?? 0) > 0);
   const count = collectionCount(p);
   const bags = p.bags ?? 0;
+  const galette = galetteOf(today());
   // Les dés possédés d'abord (du plus rare au plus commun), puis ceux qui restent à trouver.
   const list = useMemo(() => {
     const rank = (c: (typeof COLLECTION)[number]) => (p.owned.includes(c.id) || p.owned.includes(c.id + SHINY_SUFFIX) ? 0 : 10) + (3 - RARITIES.indexOf(c.rarity));
@@ -243,6 +258,7 @@ export function CollectionScreen({ pa, onBack, onAccount, onTry, openNow }: {
           <span><b>{p.shards ?? 0}</b> {tr('app.eclats_2')}</span>
         </div>
         {!pa.isAccount && <p className="note">{tr('app.vos_sacs_sont_gardes_avec_un_compte')}</p>}
+        {galette && p.feve !== galette.year && <p className="feve-hint"><span aria-hidden>👑</span> {tr('cal.feve.hint', { date: shortDateL(galette.end).replace(/\.$/, '') })}</p>}
       </section>
 
       <div className="seg wide-seg coll-tabs">

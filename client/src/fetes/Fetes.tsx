@@ -10,9 +10,10 @@ import type { Profile } from '../../../shared/progress/profile';
 import { getItem } from '../../../shared/progress/catalog';
 import { today } from '../../../shared/progress/quests';
 import {
-  ADVENT_LAST, FETE_BOSS_COINS, FETE_CHALLENGES, FETE_DIE, adventCell, adventDay, adventReward, challengeProgress,
+  ADVENT_LAST, FETE_BOSSES, FETE_BOSS_COINS, FETE_CHALLENGES, FETE_DIE, adventCell, adventDay, adventReward, challengeProgress,
   feteBoss, feteMoment, feteOf, feteState, type FeteBoss, type FeteMoment,
 } from '../../../shared/progress/fetes';
+import { lightIcon } from '../../../shared/progress/calendar';
 import type { ProfileApi } from '../account/useProfile';
 import { sound } from '../audio/sound';
 import { shortDateL, titleL } from '../i18n/data';
@@ -26,10 +27,11 @@ const plural = (base: string, n: number) => tr(k(`${base}.${n === 1 ? 'one' : 'm
 
 /** Titre du moment (« Saint-Nicolas passe dans 3 jours », « Joyeux Noël ! »…). */
 export function momentTitle(m: FeteMoment): string {
+  if (m.kind === 'cal') return tr(k(`cal.${m.id}.on`));
   return 'n' in m ? plural(`fet.m.${m.kind}`, m.n) : tr(k(`fet.m.${m.kind}`));
 }
 const momentIcon = (m: FeteMoment) =>
-  m.kind.startsWith('sn') ? '🍊' : m.kind === 'advent' ? '🎁' : m.kind.startsWith('ny') ? '🥂' : m.kind === 'fe-soon' ? '❄️' : '🎄';
+  m.kind === 'cal' ? lightIcon(m.id) : m.kind.startsWith('sn') ? '🍊' : m.kind === 'advent' ? '🎁' : m.kind.startsWith('ny') ? '🥂' : m.kind === 'fe-soon' ? '❄️' : '🎄';
 
 /** Le bandeau des fêtes est-il à montrer ? 'box' : la case du jour attend (prioritaire), 'show' : annonce ou événement. */
 export function fetesBannerDue(p: Profile, day = today()): 'box' | 'show' | null {
@@ -48,8 +50,8 @@ export function FetesBanner({ profile, onOpen }: { profile: Profile; onOpen: () 
   if (!m && !box) return null;
   const f = feteOf(day);
   const title = m ? momentTitle(m) : tr('fet.m.advent');
-  const sub = box ? tr('fet.sub.box') : f ? tr('fet.sub.event') : m && (m.kind === 'sn-soon' || m.kind === 'fe-soon') ? tr('fet.sub.soon') : tr('fet.sub.boxDone');
-  const tone = f?.id === 'fetes' || m?.kind === 'fe-soon' ? 'fe' : 'sn';
+  const sub = box ? tr('fet.sub.box') : m?.kind === 'cal' ? tr(feteBoss(day) ? 'cal.sub.boss' : 'cal.sub') : f ? tr('fet.sub.event') : m && (m.kind === 'sn-soon' || m.kind === 'fe-soon') ? tr('fet.sub.soon') : tr('fet.sub.boxDone');
+  const tone = m?.kind === 'cal' ? `cal cal-${m.id}` : f?.id === 'fetes' || m?.kind === 'fe-soon' ? 'fe' : 'sn';
   return (
     <button className={`home-banner fet-banner ${tone}${box ? ' box' : ''}`} onClick={onOpen}>
       <i className="fet-banner-ico" aria-hidden>{box ? '🎁' : m ? momentIcon(m) : '🎁'}</i>
@@ -65,7 +67,7 @@ export function FetesSheet({ pa, onClose, onShop, onBoss }: { pa: ProfileApi; on
   const day = today();
   const f = feteOf(day);
   const m = feteMoment(day);
-  const title = f?.id === 'saint-nicolas' || m?.kind === 'sn-soon' ? tr('fet.title.sn') : f || m?.kind === 'fe-soon' ? tr('fet.title.fe') : tr('fet.title.advent');
+  const title = m?.kind === 'cal' ? tr(k(`cal.${m.id}.name`)) : f?.id === 'saint-nicolas' || m?.kind === 'sn-soon' ? tr('fet.title.sn') : f || m?.kind === 'fe-soon' ? tr('fet.title.fe') : tr('fet.title.advent');
   const boss = feteBoss(day);
   return (
     <Sheet title={title} onClose={onClose}>
@@ -73,6 +75,7 @@ export function FetesSheet({ pa, onClose, onShop, onBoss }: { pa: ProfileApi; on
         {m && <p className="fet-lead"><span aria-hidden>{momentIcon(m)}</span> <b>{momentTitle(m)}</b>
           {m.kind === 'sn-soon' && <small>{tr('fet.when.sn')} · {tr('fet.sub.soon')}</small>}
           {m.kind === 'fe-soon' && <small>{tr('fet.when.fe')} · {tr('fet.sub.soon')}</small>}
+          {m.kind === 'cal' && <small>{tr(k(`cal.${m.id}.desc`))}</small>}
         </p>}
         <Advent pa={pa} />
         {boss && <FeteBossCard pa={pa} boss={boss} onPlay={onBoss ? () => { onClose(); onBoss(); } : undefined} />}
@@ -132,15 +135,15 @@ function Challenges({ profile }: { profile: Profile }) {
   const st = feteState(profile, day);
   if (!f || !st) return null;
   const die = FETE_DIE[f.id];
-  const dieName = getItem(die)?.name ?? '';
-  const won = profile.owned.includes(die);
+  const dieName = die ? getItem(die)?.name ?? '' : '';
+  const won = !!die && profile.owned.includes(die);
   return (
     <section className="fet-sec">
-      <h3>{tr('fet.ch.title')}</h3>
-      <div className="fet-die">
+      <h3>{tr(die ? 'fet.ch.title' : 'cal.ch.title')}</h3>
+      {die ? <div className="fet-die">
         <DieCube id={die} size={40} spin={won} />
         <p className="fet-note">{won ? <b>{tr('fet.ch.dieWon', { die: dieName })}</b> : tr('fet.ch.hint', { date: shortDateL(f.end).replace(/\.$/, ''), die: dieName })}<br /><small>{tr('fet.games')}</small></p>
-      </div>
+      </div> : <p className="fet-note">{tr('cal.ch.hint', { date: shortDateL(f.end).replace(/\.$/, '') })}<br /><small>{tr('fet.games')}</small></p>}
       <ul className="fet-ch">
         {FETE_CHALLENGES[f.id].map((c) => {
           const n = challengeProgress(st, c);
@@ -172,7 +175,7 @@ export function FeteBossCard({ pa, boss, onPlay }: { pa: ProfileApi; boss: FeteB
         <b>{tr(k(`fet.boss.${id}`))}{withWho ? ` ${withWho}` : ''}</b>
         <span>{tr(k(`fet.boss.${id}.t`))}</span>
         <q className="fet-quote">{tr(k(`fet.boss.${id}.q`))}</q>
-        <span className="boss-prize">{beaten ? tr('fet.boss.beaten') : tr('fet.boss.prize', { n: FETE_BOSS_COINS, title: titleL(boss.title) ?? '', acc: getItem(boss.accessory)?.name ?? '' })}</span>
+        <span className="boss-prize">{beaten ? tr('fet.boss.beaten') : tr('fet.boss.prize', { n: boss.coins ?? FETE_BOSS_COINS, title: titleL(boss.title) ?? '', acc: getItem(boss.accessory)?.name ?? '' })}</span>
         {!onPlay && <small>{tr('fet.boss.only421')}</small>}
       </div>
       {onPlay && <button className={`btn ${beaten ? '' : 'primary'}`} onClick={onPlay}>{tr('fet.boss.play')}</button>}
@@ -184,7 +187,8 @@ export function FeteBossCard({ pa, boss, onPlay }: { pa: ProfileApi; boss: FeteB
 export function trFeteDone(x: { id: string; name: string }): string | null {
   if (!x.id.startsWith('fet-')) return null;
   const id = x.id.slice(4);
-  if (id.startsWith('die-')) { const f = id.slice(4) as keyof typeof FETE_DIE; return tr('fet.done.die', { die: getItem(FETE_DIE[f])?.name ?? '' }); }
-  if (id.startsWith('boss-')) { const b = id.slice(5) === 'fetes' ? 'ev-noel' : 'ev-saint-nicolas'; return tr('fet.done.boss', { name: tr(k(`fet.boss.${b}`)) }); }
+  if (id.startsWith('die-')) { const f = id.slice(4) as keyof typeof FETE_DIE; return tr('fet.done.die', { die: getItem(FETE_DIE[f] ?? '')?.name ?? '' }); }
+  if (id.startsWith('boss-')) { const b = FETE_BOSSES[id.slice(5) as keyof typeof FETE_BOSSES]?.def.id ?? 'ev-saint-nicolas'; return tr('fet.done.boss', { name: tr(k(`fet.boss.${b}`)) }); }
+  if (id.startsWith('egg-')) return tr('cal.done.egg');
   return tr('fet.done.challenge', { text: tr(k(`fet.c.${id}`)) });
 }

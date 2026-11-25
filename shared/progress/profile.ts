@@ -25,6 +25,7 @@ import { randomFloat } from '../random';
 import { BOSSES, BOSS_COINS, bossOfWeek, weekKey } from './boss';
 import { EMPTY_DM_STATS, cleanDmStats, type DmStats } from '../dixmille/stats';
 import { EMPTY_PM_STATS, cleanPmStats, type PmStats } from '../pokermenteur/stats';
+import { drawFeve } from './calendar';
 import { applyFetesGame, cleanAdvent, cleanFete, feteTitle, type AdventState, type FeteState } from './fetes';
 import { capTdcImport, cleanTdc, tdcTitleFr } from './comptoirs';
 import { capCdmImport, cdmTitleFr, cleanCdm, isCdmTitle } from '../campaigns/dm'; // campagne du Courtisan
@@ -86,6 +87,8 @@ export interface Profile {
   fete?: FeteState;
   /** Calendrier de l'avent : cases ouvertes cette année. */
   advent?: AdventState;
+  /** Galette des rois : année de la dernière fève trouvée dans un sac (une par an, shared/progress/calendar.ts). */
+  feve?: number;
   /** Tournée des comptoirs : bistrot → étoiles (masque, voir comptoirs.ts). */
   tdc?: Record<string, number>;
   /** La Route des Auberges (campagne du Courtisan) : étape → étoiles (masque, voir shared/campaigns/dm.ts). */
@@ -257,6 +260,7 @@ export function sanitizeProfile(raw: unknown): Profile {
   if (fete) p.fete = fete;
   const advent = cleanAdvent(r.advent);
   if (advent) p.advent = advent;
+  if (Number.isInteger(r.feve) && (r.feve as number) >= 2020 && (r.feve as number) <= 2200) p.feve = r.feve;
   const dm = cleanDmStats(r.dm);
   if (dm) p.dm = dm;
   const pmSt = cleanPmStats(r.pm);
@@ -598,7 +602,7 @@ export function applyGameEnd(p: Profile, reward: Reward, ctx: RewardContext, day
   const found = (pity >= BAG_PITY || rng() < bagChance(reward, ctx) ? 1 : 0) + bossBag;
   base = { ...base, pity: found - bossBag > 0 ? 0 : pity, bags: Math.min(BAGS_MAX, (base.bags ?? 0) + found) };
   // Saint-Nicolas / fêtes : défis d'événement et adversaire spécial.
-  const fe = applyFetesGame(base, { game: '421', won: reward.won, combos: ctx.combos, boss: ctx.boss }, day);
+  const fe = applyFetesGame(base, { game: '421', won: reward.won, combos: ctx.combos, boss: ctx.boss }, day, rng);
   base = fe.profile;
   extra.push(...fe.done);
   const al = applyAlbum(base, ctx.comboKeys ?? []);
@@ -629,12 +633,16 @@ export function bagChance(reward: Reward, ctx: RewardContext): number {
   return Math.min(0.5, (reward.won ? 0.22 : 0.1) * (1 + 0.1 * (players - 2)) * dur);
 }
 
-export interface BagResult { id: string; kind: 'de' | 'effet'; rarity: Rarity; shiny: boolean; duplicate: boolean; shards: number; series?: string }
+export interface BagResult {
+  id: string; kind: 'de' | 'effet'; rarity: Rarity; shiny: boolean; duplicate: boolean; shards: number; series?: string;
+  /** Galette des rois : fève trouvée dans ce sac (année du titre). */
+  feve?: number;
+}
 /**
  * Ouvre un sac : un dé (3 fois sur 4) ou un effet de lancer, tiré selon les raretés.
  * Un doublon est converti en éclats. Une série complétée donne son titre et son tapis.
  */
-export function openBag(p: Profile, rng: () => number = randomFloat): { profile: Profile; result: BagResult } | null {
+export function openBag(p: Profile, rng: () => number = randomFloat, day?: string): { profile: Profile; result: BagResult } | null {
   if (!p.bags || p.bags < 1) return null;
   const isFx = rng() < FX_SHARE;
   let x = rng(), rarity: Rarity = 'commun';
@@ -646,7 +654,10 @@ export function openBag(p: Profile, rng: () => number = randomFloat): { profile:
   const duplicate = p.owned.includes(id);
   const shards = duplicate ? SHARDS_FOR_DUPLICATE[rarity] * (shiny ? 2 : 1) : 0;
   const s = applySeries({ ...p, bags: p.bags - 1, shards: (p.shards ?? 0) + shards, owned: duplicate ? p.owned : [...p.owned, id] });
-  return { profile: s.profile, result: { id, kind: isFx ? 'effet' : 'de', rarity, shiny, duplicate, shards, series: s.done[0] } };
+  const result: BagResult = { id, kind: isFx ? 'effet' : 'de', rarity, shiny, duplicate, shards, series: s.done[0] };
+  // Galette des rois : tirage à part (le contenu du sac n'en dépend pas), jour du serveur.
+  const fv = day ? drawFeve(s.profile, day, rng) : null;
+  return fv ? { profile: fv.profile, result: { ...result, feve: fv.year } } : { profile: s.profile, result };
 }
 /** Fabrique un dé ou un effet de collection avec des éclats (brillants et dés de saison exclus). */
 export function craftDie(p: Profile, id: string): Profile | null {

@@ -5,9 +5,11 @@
 import { BagIcon } from './BagIcon';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  BAG_TIERS, SCHED_FEE, SCHED_MAX, SCHED_MIN, bagPrizes, brusselsDay, formatClock, formatDelay, nextTier,
-  type ProgrammeView, type SlotView,
+  BAG_TIERS, REVEILLON_DIE, REVEILLON_PODIUM, REVEILLON_TITLE, SCHED_FEE, SCHED_MAX, SCHED_MIN, bagPrizes, brusselsDay, formatClock, formatDelay,
+  isReveillonSlot, nextTier, type ProgrammeView, type SlotView,
 } from '../../../shared/scheduled';
+import { getItem } from '../../../shared/progress/catalog';
+import { titleL } from '../i18n/data';
 import type { PublicTournament } from '../../../shared/tournament';
 import { api } from '../account/api';
 import type { ProfileApi } from '../account/useProfile';
@@ -20,6 +22,26 @@ import { hourTr, ord, trn } from '../i18n/g421';
 import { useTourneyWatch } from './Serie';
 
 export const placeLabel = (i: number) => ord(i + 1);
+
+/** Tournoi du Réveillon (31 décembre, 21 h) : nom et récompense du podium, en plus du barème habituel. */
+function ReveillonNote({ compact }: { compact?: boolean }) {
+  return (
+    <p className="sc-rev">
+      <b><span aria-hidden>🥂</span> {tr('cal.rev.name')}</b>
+      {!compact && <small>{tr('cal.rev.prize', { title: titleL(REVEILLON_TITLE) ?? '', die: getItem(REVEILLON_DIE)?.name ?? '' })}</small>}
+    </p>
+  );
+}
+/** Lignes de gains du Réveillon pour une place (titre du podium, dé du vainqueur). */
+function ReveillonWon({ slot, place }: { slot: string; place: number }) {
+  if (!isReveillonSlot(slot) || place < 0 || place >= REVEILLON_PODIUM) return null;
+  return (
+    <p className="sc-rev won">
+      <span aria-hidden>🥂</span> {tr('cal.rev.won', { title: titleL(REVEILLON_TITLE) ?? '' })}
+      {place === 0 && <><br /><small>{tr('cal.rev.die', { die: getItem(REVEILLON_DIE)?.name ?? '' })}</small></>}
+    </p>
+  );
+}
 const bagsL = (n: number) => trn('g421.sch.bags', n);
 const hourL = (h: number) => hourTr(h);
 
@@ -130,6 +152,7 @@ export function ScheduledCard({ pa, onJoin, onAccount, compact }: {
     return (
       <div key={s.id} className={`sc-row${main ? ' main' : ''}${salon ? ' live' : ''}`}>
         <div className="sc-info">
+          {isReveillonSlot(s.id) && <ReveillonNote compact={!main} />}
           {main ? <b className="sc-title">{tr(salon ? 'g421.menu.tournoi' : 'g421.sch.next')} {whenLabel(s, now)}</b> : <b>{tr('g421.sch.then')} {whenLabel(s, now)}</b>}
           <small><span className={salon ? 'sc-live' : ''}>{state}</span> · {trn('g421.sch.regd', s.count)}{full ? ` ${tr('g421.sch.fullParen')}` : `/${SCHED_MAX}`} · {tr('g421.sch.feeCoins', { n: SCHED_FEE })}</small>
         </div>
@@ -151,6 +174,7 @@ export function ScheduledCard({ pa, onJoin, onAccount, compact }: {
             ? tr('g421.sch.lastPlayed', { h: hourL(last.hour), p: placeLabel(last.place ?? 0), of: last.players ? tr('g421.sch.ofN', { n: last.players }) : '', b: last.bags ? trn('g421.sch.bagsWon', last.bags) : '' })
             : tr('g421.sch.lastCancelled', { r: last.reason ? trServer(last.reason) : tr('g421.sch.cancelledH', { h: hourL(last.hour) }), n: last.refunded })}</p>
           <button className="btn ghost small" onClick={seen}>OK</button>
+          {last.status === 'joue' && <ReveillonWon slot={last.slot} place={last.place ?? -1} />}
         </div>
       )}
       {prog.playing && (
@@ -199,6 +223,7 @@ export function ScheduledLobby({ t, meId }: { t: PublicTournament; meId: string 
   const absent = Math.max(0, s.registered - n);
   return (
     <div className="sched-lobby">
+      {isReveillonSlot(s.slot) && <ReveillonNote />}
       <div className="sl-clock" role="timer" aria-label={tr('g421.sch.startIn', { d: formatDelay(left) })}>
         <small>{tr('g421.sch.startInLbl')}</small>
         <b>{formatClock(left)}</b>
@@ -246,6 +271,7 @@ export function ScheduledResults({ t, meId }: { t: PublicTournament; meId: strin
     <div className="sched-results">
       {mine >= 0 && <p className="sr-big">{mine === 0 ? tr('g421.t.youWin') : tr('g421.sch.youFinished', { p: placeLabel(mine), n: standings.length })}</p>}
       {mine >= 0 && s.bags[mine] ? <p className="sr-bags"><BagIcon size="1em" /> {trn('g421.sch.bagsWonOpen', s.bags[mine])}</p> : null}
+      {mine >= 0 && <ReveillonWon slot={s.slot} place={mine} />}
       <ol className="ranking t-standings">
         {standings.map((id, i) => (
           <li key={id} className={id === meId ? 'me' : ''}>

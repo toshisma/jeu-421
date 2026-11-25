@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { DICTS } from '../shared/i18n';
 import { communFr } from '../shared/i18n/zones/commun.fr';
 import { fetesFr } from '../shared/i18n/zones/fetes.fr';
+import { calendarFr } from '../shared/i18n/zones/calendar.fr';
 import { translateServerText } from '../shared/i18n/server-texts';
 import { ITEMS } from '../shared/progress/catalog';
 import { ACHIEVEMENTS } from '../shared/progress/achievements';
@@ -26,7 +27,7 @@ describe('zone commun', () => {
     for (const it of ITEMS) {
       if (/^(dc-|dl-|ds-)|-brillant$|^felt-serie-|^felt-tdc-/.test(it.id)) continue;
       if (it.arrival) continue; // arrivage du mois : zone theme (tests/weekly-theme.test.ts)
-      expect([...keys, ...Object.keys(fetesFr)], it.id).toContain(`app.item.${it.id}`); // objets de saison : zone fetes
+      expect([...keys, ...Object.keys(fetesFr), ...Object.keys(calendarFr)], it.id).toContain(`app.item.${it.id}`); // objets de saison : zone fetes
     }
     for (const a of ACHIEVEMENTS.filter((x) => !x.game)) expect(keys, a.id).toContain(`app.a.${a.id}`); // Courtisan : dm2.a.* (tests/courtisan2.test.ts)
     for (const q of QUESTS) expect(keys, q.id).toContain(`app.q.${q.id}`);

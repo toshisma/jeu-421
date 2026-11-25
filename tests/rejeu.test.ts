@@ -71,13 +71,13 @@ describe('rejeu du 421 (moteur partagé)', () => {
       expect(replay421(setup, 1000 + i, g.moves)).toEqual({ ok: true, facts: g.facts });
       n++;
     }
-    for (const f of Object.values(FETE_BOSSES)) {
+    for (const f of Object.values(FETE_BOSSES).filter((x) => !!x)) {
       const setup = S(f.def.config, f.cast.slice(0, 1 + f.def.sidekicks).map((id, i) => [`fete-${id}`, i ? 'normal' : 'difficile']));
       const g = play421(setup, 42, 'normal');
       expect(replay421(setup, 42, g.moves)).toEqual({ ok: true, facts: g.facts });
       n++;
     }
-    expect(n).toBe(TDC_BISTROS.length * 6 + BOSSES.length * 4 + 2);
+    expect(n).toBe(TDC_BISTROS.length * 6 + BOSSES.length * 4 + Object.keys(FETE_BOSSES).length);
   });
 
   it('liste trafiquée : décision impossible, en trop, manquante, illisible, trop longue', () => {
@@ -119,7 +119,7 @@ describe('rejeu du 421 (moteur partagé)', () => {
 
   it('prudence des personnages : mêmes valeurs que le téléphone', () => {
     for (const p of PERSONAS) expect(cautionOf(p.id)).toBe(p.style.caution);
-    for (const p of fetePersonas(['saint-nicolas', 'fouettard', 'pere-noel'])) expect(PERSONA_CAUTION[p.id]).toBe(p.style.caution);
+    for (const p of fetePersonas(['saint-nicolas', 'fouettard', 'pere-noel', 'lapin', 'fantome'])) expect(PERSONA_CAUTION[p.id]).toBe(p.style.caution);
     for (const q of TDC_QUARTERS) for (const b of bistrosOf(q.id)) for (const o of b.opponents) expect(cautionOf(o.persona)).not.toBeNull();
   });
 
@@ -329,7 +329,7 @@ describe('serveur : parties solo rejouées', () => {
     vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true });
     vi.setSystemTime(new Date('2026-12-05T15:00:00Z'));
     const t = await register();
-    const f = FETE_BOSSES['saint-nicolas'];
+    const f = FETE_BOSSES['saint-nicolas']!;
     const table = { config: {}, opponents: f.cast.slice(0, 1 + f.def.sidekicks).map((id, i) => ({ persona: `fete-${id}`, difficulty: i ? 'normal' : 'difficile' })), firstIdx: 0 };
     const lose = await solo421(api, t, { boss: f.def.id, setup: table, want: 'lose' });
     expect(lose.end.verified).toBe(true);

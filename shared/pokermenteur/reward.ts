@@ -92,7 +92,7 @@ export function applyPokerGame(p: Profile, r: Reward, day: string, f: PmGameFact
   }, day);
   const pm = nextPmStats(p.pm, r.won, f);
   const bag = pokerBagRoll({ ...a.profile, quests, pm }, f, rng);
-  const fe = applyFetesGame(bag.profile, { game: 'pm', won: r.won }, day);
+  const fe = applyFetesGame(bag.profile, { game: 'pm', won: r.won }, day, rng);
   const ach = checkAchievements(fe.profile, f.now);
   return {
     ...a, profile: ach.profile, bagsFound: bag.found, questsDone: completed.map((q) => ({ id: q.id, text: q.text })),

@@ -12,6 +12,7 @@ import { cartesEn } from './zones/cartes.en';
 import type { MessageKey } from './fr';
 import { g421En } from './zones/jeu421.en';
 import { fetesEn } from './zones/fetes.en';
+import { calendarEn } from './zones/calendar.en';
 import { tdcEn } from './zones/comptoirs.en';
 import { chmEn } from './zones/camphome.en';
 import { cdmEn } from './zones/campdm.en'; // campagne du Courtisan
@@ -384,6 +385,7 @@ export const en: Partial<Record<MessageKey, string>> = {
   "dm.lh.fouine": "Calculates the odds",
   ...g421En,
   ...fetesEn,
+  ...calendarEn,
   ...rejeuEn,
   ...tdcEn,
   ...chmEn,

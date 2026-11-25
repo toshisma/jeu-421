@@ -12,7 +12,7 @@ import type { Router } from 'express';
 import type { Store, UserRow } from './db';
 import { BAGS_MAX } from '../shared/progress/profile';
 import {
-  SCHED_FEE, SCHED_LOBBY_MS, SCHED_MAX, SCHED_MIN, SCHED_REMIND_MS, bagPrizes, hourLabel, nextSlots,
+  SCHED_FEE, SCHED_LOBBY_MS, SCHED_MAX, SCHED_MIN, SCHED_REMIND_MS, applyReveillon, bagPrizes, hourLabel, nextSlots,
   type LastResult, type ProgrammeView, type SlotStatus, type SlotView,
 } from '../shared/scheduled';
 
@@ -33,7 +33,7 @@ export interface SchedDeps {
 }
 
 const hourOf = (slotId: string) => Number(slotId.slice(11, 13));
-export const slotLabel = (slotId: string) => `tournoi de ${hourLabel(hourOf(slotId))}`;
+export const slotLabel = (slotId: string) => `tournoi de ${hourLabel(hourOf(slotId))}`; // Réveillon : même libellé (messages traduits)
 
 export function createScheduled(d: SchedDeps) {
   const { store } = d;
@@ -131,6 +131,17 @@ export function createScheduled(d: SchedDeps) {
     return { ok: true, players: here };
   }
 
+  /** Gains d'une place : sacs de dés, et au Tournoi du Réveillon le titre du podium / le dé Champagne. */
+  function prize(slotId: string, userId: string, place: number, bags: number) {
+    const u = store.userById(userId);
+    if (!u) return;
+    let p = store.profileOf(u);
+    const rev = applyReveillon(p, slotId, place);
+    if (rev) p = rev.profile;
+    if (bags > 0) p = { ...p, bags: Math.min(BAGS_MAX, (p.bags ?? 0) + bags) };
+    if (bags > 0 || rev) store.saveProfile(userId, p);
+  }
+
   /** Fin : places et sacs de dés (le contenu des sacs reste du pur hasard, à l'ouverture). */
   function finish(slotId: string, standings: string[]): number[] {
     const row = store.schedSlot(slotId);
@@ -140,10 +151,7 @@ export function createScheduled(d: SchedDeps) {
         if (store.schedReg(slotId, userId)?.status === 'fini') return; // déjà servi (finale finie avant les autres)
         const n = bags[place] ?? 0;
         store.schedSetReg(slotId, userId, { status: 'fini', place, bags: n, seen: 0 });
-        if (n > 0) {
-          const u = store.userById(userId);
-          if (u) { const p = store.profileOf(u); store.saveProfile(userId, { ...p, bags: Math.min(BAGS_MAX, (p.bags ?? 0) + n) }); }
-        }
+        prize(slotId, userId, place, n);
       });
       store.schedSetSlot(slotId, { status: 'termine' });
     });
@@ -163,10 +171,7 @@ export function createScheduled(d: SchedDeps) {
       const r = store.schedReg(slotId, userId);
       if (!r || r.status !== 'joue') return;
       store.schedSetReg(slotId, userId, { status: 'fini', place, bags: n, seen: 0 });
-      if (n > 0) {
-        const u = store.userById(userId);
-        if (u) { const p = store.profileOf(u); store.saveProfile(userId, { ...p, bags: Math.min(BAGS_MAX, (p.bags ?? 0) + n) }); }
-      }
+      prize(slotId, userId, place, n);
       done = true;
     });
     if (done) d.onProfile(userId);
