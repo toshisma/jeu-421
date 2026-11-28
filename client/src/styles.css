@@ -5354,3 +5354,27 @@ button.mode-chip { cursor: pointer; }
 .adm-idea-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .adm-idea-actions small { margin-right: auto; }
 .adm-idea-reply { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+
+/* --- Coups Fourrés : menu rangé en 3 sections (0.62) : Jouer (colonne), Mes cartes et decks (ligne), Progression et aide (ligne) --- */
+.cf-hero.compact { flex-direction: row; justify-content: center; gap: 10px; text-align: left; }
+.cf-hero.compact .cf-hero-fan { flex: none; width: 150px; height: 66px; transform: scale(0.55); transform-origin: 50% 50%; margin: -15px -40px -15px -34px; }
+.cf-hero.compact h1 { font-size: 24px; }
+.cf-hero.compact p { font-size: 11.5px; margin-top: 3px; }
+.cf-hero-tx { min-width: 0; }
+.cf-hero:not(.compact) .cf-hero-tx { display: contents; }
+.cf-sec { flex: none; display: flex; flex-direction: column; gap: 8px; }
+.cf-sec > h2 { margin: 4px 2px 0; font: 800 12px/1 var(--font); text-transform: uppercase; letter-spacing: 0.1em; color: var(--cf-gold, #f1cc7d); display: flex; align-items: center; gap: 8px; }
+.cf-sec > h2::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, rgba(241,204,125,0.45), transparent); }
+.cf-sec-col { display: flex; flex-direction: column; gap: 8px; }
+/* Même gabarit pour toutes les façons de jouer : icône à gauche, titre + ligne, action à droite. */
+.cf-sec-col > * { min-height: 60px; margin: 0; }
+.cf-sec-col .cf-play { padding: 9px 12px; border-radius: 14px; }
+.cf-sec-col .cf-play b { font-size: 18.5px; }
+.cf-sec-col .cf-play-ic { width: 40px; height: 40px; }
+.cf-sec-col .cf-play.rank { box-shadow: 0 4px 0 #6e4f12, 0 8px 18px rgba(0,0,0,0.35); }
+.cf-sec-col .ccf-entry { border-radius: 14px; }
+.cf-sec-col .ccf-entry-art { width: 40px; height: 42px; }
+.cf-sec-col .ccf-entry-art i { width: 14px; height: 21px; }
+.cf-sec-col .ccf-entry-art i.cf-ivr { left: 8px; } .cf-sec-col .ccf-entry-art i.cf-pie { left: 16px; } .cf-sec-col .ccf-entry-art i.cf-cha { left: 24px; }
+.cf-sec-col .ccf-entry-text b { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-sec-col .ccf-entry-kicker { font-size: 9.5px; }

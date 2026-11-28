@@ -548,54 +548,39 @@ function CfMenu(p: CfModeProps & {
           </div>
         )}
 
-        <section className="cf-hero">
+        <section className="cf-hero compact">
           <div className="cf-hero-fan" aria-hidden>
             <i className="cf-hab" /><i className="cf-ivr" /><i className="cf-pie" /><i className="cf-cha" />
             <span className="cf-hero-die"><b /><b /><b /><b /></span>
           </div>
-          <h1>Coups Fourrés</h1>
-          <p>{tr('cf.mode.le_421_aux_cartes_bluff_fouine')}</p>
+          <div className="cf-hero-tx"><h1>Coups Fourrés</h1><p>{tr('cf.mode.le_421_aux_cartes_bluff_fouine')}</p></div>
         </section>
 
-        {acc && league && prog ? (
-          <button className="cf-league" onClick={p.onLeague}>
-            <DivisionShield id={league.division} size={38} />
-            <span className="cf-league-text">
-              <span className="cf-league-row"><b>{prog.name}</b><small>{league.points}{tr('cf.info.pts')}{prog.next ? tr('cf.mode.a', { next: prog.next, a: league.points + prog.toNext }) : ''}</small></span>
-              <span className="cf-bar"><i style={{ width: `${prog.pct}%` }} /></span>
-              <small>{seasonName(league.season)} · {seasonEndsIn(league.endsOn)}</small>
-            </span>
-          </button>
-        ) : !acc ? (
-          <button className="cf-league guest" onClick={p.onAccount}>
-            <DivisionShield id="comptoir" size={38} />
-            <span className="cf-league-text">
-              <span className="cf-league-row"><b>{tr('cf.mode.ligue_reservee_aux_comptes')}</b></span>
-              <small>{tr('cf.mode.compte_gratuit_collection_boosters_c')}</small>
-            </span>
-            <em>{tr('cf.mode.creer')}</em>
-          </button>
-        ) : p.loadErr ? (
-          <button className="cf-league guest" onClick={p.onRetry}><span className="cf-league-text"><b>{p.loadErr}</b><small>{tr('cf.mode.touchez_pour_reessayer')}</small></span></button>
-        ) : <div className="cf-league skeleton" aria-hidden />}
-
-        <CfCampaignEntry profile={pa.profile} onOpen={p.onCampaign} />
-        <div className="cf-plays">
-          <button className="cf-play rank" onClick={p.onRanked} aria-disabled={!acc}>
-            <span className="cf-play-ic" aria-hidden><Icon name="trophy" size={26} /></span>
-            <span className="cf-play-text"><b>{tr('cf.mode.partie_classee')}</b><small>{acc ? tr('cf.mode.duel_contre_un_joueur_de_votre_2') : tr('cf.mode.avec_un_compte_gratuit')}</small></span>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden><path d="M9 6l6 6-6 6" /></svg>
-          </button>
-          <div className="cf-play-row">
-            <button className="cf-play bot" onClick={p.onBot}><span className="cf-play-text"><b>{tr('cf.game.contre_l_ordinateur')}</b><small>{acc ? tr('cf.mode.entrainement_3_niveaux') : tr('cf.mode.essai_gratuit_3_niveaux')}</small></span></button>
-            <button className="cf-play ami" onClick={p.onFriendsPlay}><span className="cf-play-text"><b>{tr('cf.mode.entre_amis')}</b><small>{tr('cf.mode.de_2_a_4_joueurs')}</small></span></button>
+        <section className="cf-sec" aria-labelledby="cf-sec-play">
+          <h2 id="cf-sec-play">{tr('cf.mode.sec_jouer')}</h2>
+          <div className="cf-sec-col">
+            <button className="cf-play rank" onClick={p.onRanked} aria-disabled={!acc}>
+              <span className="cf-play-ic" aria-hidden><Icon name="trophy" size={26} /></span>
+              <span className="cf-play-text"><b>{tr('cf.mode.partie_classee')}</b><small>{acc ? tr('cf.mode.duel_contre_un_joueur_de_votre_2') : tr('cf.mode.avec_un_compte_gratuit')}</small></span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden><path d="M9 6l6 6-6 6" /></svg>
+            </button>
+            <button className="cf-play bot" onClick={p.onBot}>
+              <span className="cf-play-ic" aria-hidden><Icon name="dice" size={24} /></span>
+              <span className="cf-play-text"><b>{tr('cf.game.contre_l_ordinateur')}</b><small>{acc ? tr('cf.mode.entrainement_3_niveaux') : tr('cf.mode.essai_gratuit_3_niveaux')}</small></span>
+            </button>
+            <button className="cf-play ami" onClick={p.onFriendsPlay}>
+              <span className="cf-play-ic" aria-hidden><Icon name="people" size={24} /></span>
+              <span className="cf-play-text"><b>{tr('cf.mode.entre_amis')}</b><small>{tr('cf.mode.de_2_a_4_joueurs')}</small></span>
+            </button>
+            <CfCampaignEntry profile={pa.profile} onOpen={p.onCampaign} />
+            <EnigmeEntry token={pa.token} acc={acc} onOpen={p.onEnigme} />
+            <TournamentCard token={pa.token} acc={acc} onOpen={p.onTournament} />
           </div>
-        </div>
+        </section>
 
-        <EnigmeEntry token={pa.token} acc={acc} onOpen={p.onEnigme} />
-        <TournamentCard token={pa.token} acc={acc} onOpen={p.onTournament} />
-
-        <div className="cf-tiles">
+        <section className="cf-sec" aria-labelledby="cf-sec-cards">
+          <h2 id="cf-sec-cards">{tr('cf.mode.sec_cartes')}</h2>
+          <div className="cf-tiles">
           <button className="cf-tile" onClick={p.onDecks}>
             <span className="cf-tile-art minis" aria-hidden><i className="cf-hab" /><i className="cf-cha" /><i className="cf-ivr" /></span>
             <b>{tr('cf.collection.mes_decks')}</b><small>{deck ? `« ${deck.name} »` : acc ? tr('cf.mode.construire') : tr('cf.decks.decks_de_depart')}</small>
@@ -609,6 +594,34 @@ function CfMenu(p: CfModeProps & {
             <span className="cf-tile-art num" aria-hidden>{acc ? owned : '?'}<small>/{CARDS.length}</small></span>
             <b>{tr('cf.mode.mes_cartes')}</b><small>{acc ? tr('cf.mode.collection_eclats') : tr('cf.learn.les_cartes', { length: CARDS.length })}</small>
           </button>
+          </div>
+        </section>
+
+        <section className="cf-sec" aria-labelledby="cf-sec-suivi">
+          <h2 id="cf-sec-suivi">{tr('cf.mode.sec_suivi')}</h2>
+          {acc && league && prog ? (
+            <button className="cf-league" onClick={p.onLeague}>
+              <DivisionShield id={league.division} size={38} />
+              <span className="cf-league-text">
+                <span className="cf-league-row"><b>{prog.name}</b><small>{league.points}{tr('cf.info.pts')}{prog.next ? tr('cf.mode.a', { next: prog.next, a: league.points + prog.toNext }) : ''}</small></span>
+                <span className="cf-bar"><i style={{ width: `${prog.pct}%` }} /></span>
+                <small>{seasonName(league.season)} · {seasonEndsIn(league.endsOn)}</small>
+              </span>
+            </button>
+          ) : !acc ? (
+            <button className="cf-league guest" onClick={p.onAccount}>
+              <DivisionShield id="comptoir" size={38} />
+              <span className="cf-league-text">
+                <span className="cf-league-row"><b>{tr('cf.mode.ligue_reservee_aux_comptes')}</b></span>
+                <small>{tr('cf.mode.compte_gratuit_collection_boosters_c')}</small>
+              </span>
+              <em>{tr('cf.mode.creer')}</em>
+            </button>
+          ) : p.loadErr ? (
+            <button className="cf-league guest" onClick={p.onRetry}><span className="cf-league-text"><b>{p.loadErr}</b><small>{tr('cf.mode.touchez_pour_reessayer')}</small></span></button>
+          ) : <div className="cf-league skeleton" aria-hidden />}
+
+          <div className="cf-tiles">
           <button className="cf-tile" onClick={p.onMissions}>
             {st && st.missions.some((m) => m.done) && missionsDone < st.missions.length && <span className="cf-badge green">{missionsDone}</span>}
             <span className="cf-tile-art dots" aria-hidden>{(st?.missions ?? [0, 1, 2]).map((m, i) => <i key={i} className={typeof m === 'object' && m.done ? 'on' : ''} />)}</span>
@@ -622,7 +635,8 @@ function CfMenu(p: CfModeProps & {
             <span className="cf-tile-art" aria-hidden><Icon name="rules" size={28} /></span>
             <b>{tr('cf.learn.apprendre')}</b><small>{tr('cf.mode.guide_regles')}</small>
           </button>
-        </div>
+          </div>
+        </section>
 
         {last ? (
           <div className="cf-last">

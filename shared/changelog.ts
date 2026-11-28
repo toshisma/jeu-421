@@ -7,6 +7,9 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.62', date: '2026-11-28T05:10:00+01:00', title: 'Coups Fourrés : un menu mieux rangé', items: [
+    'Le menu de Coups Fourrés est rangé en trois parties : « Jouer » (toutes les façons de lancer une partie, l’une sous l’autre), « Mes cartes et decks » et « Progression et aide ».',
+  ] },
   { version: '0.61', date: '2026-11-25T14:10:00+01:00', title: 'Le jeu bouge chaque semaine', items: [
     'Sur l’accueil, une ligne d’actualité discrète à côté du nombre de joueurs : dernière mise à jour, mot du patron, champions de la semaine, fêtes à venir. Touchez-la pour en savoir plus.',
     'Thème de la semaine : chaque lundi (dès le 30 novembre), un jeu ou un style de partie rapporte plus de points au classement solo.',
