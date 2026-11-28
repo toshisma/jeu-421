@@ -31,6 +31,10 @@ interface Props {
   cup?: boolean;
   /** Nombre de dés (3 par défaut ; 6 pour le Dix mille). Fixé à la création du bac. */
   diceCount?: number;
+  /** Gros plan (Coups Fourrés) : < 1 rapproche la caméra, quitte à couper un peu les murs du bac (dés plus grands). */
+  closeUp?: number;
+  /** Gros plan automatique sur les dés une fois arrêtés. */
+  autoFrame?: boolean;
 }
 
 /**
@@ -53,7 +57,7 @@ const afterPaint = async () => {
 type Pending = Partial<{ swipe: boolean; values: number[]; kept: boolean[]; hidden: boolean[]; interactive: boolean; skin: string | null; trail: string | null }>;
 
 /** Composant React qui héberge la scène Three.js du bac. */
-export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ appearance, quality, insets, onDieClick, onSwipe, cup = false, diceCount = 3 }, ref) {
+export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ appearance, quality, insets, onDieClick, onSwipe, cup = false, diceCount = 3, closeUp = 1, autoFrame = false }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<TrayScene | null>(null);
   const [ready, setReady] = useState(false);
@@ -64,8 +68,8 @@ export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ ap
   clickRef.current = onDieClick;
   const swipeRef = useRef(onSwipe);
   swipeRef.current = onSwipe;
-  const latest = useRef({ appearance, quality, cup, insets, diceCount });
-  latest.current = { appearance, quality, cup, insets, diceCount };
+  const latest = useRef({ appearance, quality, cup, insets, diceCount, closeUp, autoFrame });
+  latest.current = { appearance, quality, cup, insets, diceCount, closeUp, autoFrame };
 
   useEffect(() => {
     let alive = true;
@@ -88,6 +92,8 @@ export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ ap
         onFx: (k, st) => sound.party(k, st),
       });
       scene.current = s;
+      if (l.closeUp !== 1) s.setCloseUp(l.closeUp);
+      if (l.autoFrame) s.setAutoFrame(true);
       if (l.insets) s.setInsets(l.insets);
       const p = pending.current;
       pending.current = {};
@@ -113,6 +119,8 @@ export const DiceTray = forwardRef<DiceTrayHandle, Props>(function DiceTray({ ap
   }, [lookKey, ready]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { scene.current?.setQuality(quality); }, [quality, ready]);
   useEffect(() => { scene.current?.setOptions({ cup }); }, [cup, ready]);
+  useEffect(() => { scene.current?.setCloseUp(closeUp); }, [closeUp, ready]);
+  useEffect(() => { scene.current?.setAutoFrame(autoFrame); }, [autoFrame, ready]);
   useEffect(() => { if (insets) scene.current?.setInsets(insets); }, [insets?.top, insets?.right, insets?.bottom, insets?.left, insets?.orientBottom, ready]);
 
   useImperativeHandle(ref, () => ({

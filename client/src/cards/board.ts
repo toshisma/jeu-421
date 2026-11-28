@@ -401,7 +401,9 @@ export type PlanStep = { kind: 'dice'; ev: CfEvent; strip?: Announce; after?: An
 
 // Durées de lecture (touchez pour passer). Raccourcies le 5 novembre : le jeu doit rester vif.
 // 0.39 : tout un peu plus court (Sam : « le jeu est lent »). Toucher l'annonce la passe.
-export const ANN_MS = { big: 1800, strip: 1100, trap: 2300, comptes: 2600, reveal: 3200 };
+// 0.64 (Sam : « on ne voit pas assez longtemps les pièges et les contres ») : pièges, ripostes et annulations
+// restent nettement plus longtemps ; toucher l'annonce la passe toujours.
+export const ANN_MS = { big: 3400, strip: 1100, trap: 3800, comptes: 2600, reveal: 5200 };
 /**
  * Temps de lecture d'un texte (demande de Sam, novembre : « laisser plus longtemps le texte des petits
  * événements ») : une base, plus ~45 ms par caractère, entre `min` et `max`. Toucher passe toujours.
@@ -489,7 +491,7 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
         }
         // Carte adverse : en grand au centre (illustration, nom, ce qu'elle fait), le temps de la lire.
         out.push({ kind: 'ann', ev: e, ann: {
-          style: 'big', tone: t, card: e.card, ms: readMs(def(e.card)?.text, 2800, 4600, 1600, 18), from: e.player,
+          style: 'big', tone: t, card: e.card, ms: t === 'riposte' || t === 'piege' || t === 'dernier-mot' ? readMs(def(e.card)?.text, 4200, 6500, 2600, 30) : readMs(def(e.card)?.text, 2800, 4600, 1600, 18), from: e.player,
           kicker: t === 'habitue' ? tr('cf.board.habitue_installe') : `${TYPE_META[t].label}`,
           title: noDot(e.text), text: def(e.card)?.text,
         } });
@@ -538,7 +540,7 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
             style: 'reveal', tone: 'riposte', kicker: tr('cf.board.annulee'), card: e.card, ms: ANN_MS.reveal, block: true,
             title: tr('cf.board.est_annulee', { a: cardName(e.card) }), conseq: noDot(e.text) + '.', hint: tr('cf.board.les_tournees_payees_sont_perdues'),
           } });
-        } else out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'riposte', kicker: tr('cf.board.annulee'), card: e.card, ms: 2200, title: noDot(e.text) } });
+        } else out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'riposte', kicker: tr('cf.board.annulee'), card: e.card, ms: 3800, title: noDot(e.text) } });
         continue;
       }
       case 'fouine': {
@@ -572,7 +574,7 @@ export function planEvents(events: CfEvent[], me: string, next: CfView, prev: Cf
         out.push({ kind: 'ann', ev: e, ann: mine || !/prend/.test(e.text) ? strip(e.text, 'info') : { style: 'big', tone: 'info', kicker: tr('cf.board.l_ardoise'), ms: 2400, title: tr('cf.board.prend_l_ardoise', { n: n }), text: tr('cf.board.il_emprunte_3_tournees_tout_de') } });
         continue;
       case 'yeux-piquent':
-        out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'riposte', kicker: tr('cf.learn.riposte'), card: 'yeux-piquent', ms: 2400, title: noDot(e.text) } });
+        out.push({ kind: 'ann', ev: e, ann: { style: 'big', tone: 'riposte', kicker: tr('cf.learn.riposte'), card: 'yeux-piquent', ms: 3800, title: noDot(e.text) } });
         continue;
       case 'manche': case 'tirage':
         out.push({ kind: 'ann', ev: e, ann: strip(e.text, 'manche', readMs(e.text, 2600, 4200)) });

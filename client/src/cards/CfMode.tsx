@@ -91,7 +91,7 @@ const CF_VIEWS: Partial<Record<Route['r'], string>> = {
   rules: 'regles', cards: 'regles', tips: 'regles', lexicon: 'regles', tournoi: 'tournoi', enigme: 'enigme',
 };
 
-type SheetKind = 'bot' | 'friends' | 'boosters' | 'missions' | 'learn' | null;
+type SheetKind = 'play' | 'bot' | 'friends' | 'boosters' | 'missions' | 'learn' | null;
 
 /** Amis présents dans le mode (bandeau « Dédé est dans Coups Fourrés · Défier »). */
 type CfFriend = CfFriendPresence;
@@ -394,7 +394,7 @@ function CfModeScreens(props: CfModeProps) {
   return (
     <>
       <CfMenu {...props} st={st} loadErr={loadErr} name={name} token={pa.token}
-        onBot={() => setSheet('bot')} onFriendsPlay={() => setSheet('friends')} onRanked={ranked}
+        onBot={() => setSheet('bot')} onFriendsPlay={() => setSheet('friends')} onRanked={ranked} onPlay={() => setSheet('play')}
         onDecks={() => setRoute({ r: 'decks' })} onBoosters={() => setSheet('boosters')} onCollection={() => setRoute({ r: 'collection' })}
         onMissions={() => setSheet('missions')} onLeague={() => setRoute({ r: 'league' })} onRules={() => setRoute({ r: 'rules' })}
         onTuto={startTutorial} onChallenge={challenge} onWatch={(f) => f.code && watch(f.code)} onRetry={() => void reload()} onTournament={() => setRoute({ r: 'tournoi' })} onEnigme={() => setRoute({ r: 'enigme' })}
@@ -409,6 +409,22 @@ function CfModeScreens(props: CfModeProps) {
             </div>
           ))}
         </>} />
+      {sheet === 'play' && <Sheet title={tr('cf.boardparts.jouer')} onClose={() => setSheet(null)}>
+        <div className="cf-play-choices">
+          <button className="cf-play bot" onClick={() => setSheet('bot')}>
+            <span className="cf-play-ic" aria-hidden><Icon name="dice" size={24} /></span>
+            <span className="cf-play-text"><b>{tr('cf.game.contre_l_ordinateur')}</b><small>{acc ? tr('cf.mode.entrainement_3_niveaux') : tr('cf.mode.essai_gratuit_3_niveaux')}</small></span>
+          </button>
+          <button className="cf-play rank" onClick={() => { setSheet(null); ranked(); }} aria-disabled={!acc}>
+            <span className="cf-play-ic" aria-hidden><Icon name="trophy" size={24} /></span>
+            <span className="cf-play-text"><b>{tr('cf.mode.partie_classee')}</b><small>{acc ? tr('cf.mode.duel_contre_un_joueur_de_votre_2') : tr('cf.mode.avec_un_compte_gratuit')}</small></span>
+          </button>
+          <button className="cf-play ami" onClick={() => setSheet('friends')}>
+            <span className="cf-play-ic" aria-hidden><Icon name="people" size={24} /></span>
+            <span className="cf-play-text"><b>{tr('cf.mode.entre_amis')}</b><small>{tr('cf.mode.de_2_a_4_joueurs')}</small></span>
+          </button>
+        </div>
+      </Sheet>}
       {sheet === 'bot' && <BotSheet st={st} acc={acc} starting={starting} onClose={() => setSheet(null)} onStart={startBot} onAccount={props.onAccount} />}
       {sheet === 'friends' && <FriendsPlaySheet acc={acc} token={pa.token} onClose={() => setSheet(null)} onAccount={props.onAccount}
         onCreate={tableCreate} onJoin={tableJoin}
@@ -509,6 +525,8 @@ function CfMenu(p: CfModeProps & {
   onTournament: () => void; onEnigme: () => void; token?: string | null; top?: React.ReactNode;
   /** Campagne solo « Les Comptoirs rivaux ». */
   onCampaign: () => void;
+  /** « Jouer » : choix ordinateur / classée / amis. */
+  onPlay: () => void;
 }) {
   const { pa, st } = p;
   const acc = pa.isAccount;
@@ -556,25 +574,17 @@ function CfMenu(p: CfModeProps & {
           <div className="cf-hero-tx"><h1>Coups Fourrés</h1><p>{tr('cf.mode.le_421_aux_cartes_bluff_fouine')}</p></div>
         </section>
 
-        <section className="cf-sec" aria-labelledby="cf-sec-play">
-          <h2 id="cf-sec-play">{tr('cf.mode.sec_jouer')}</h2>
-          <div className="cf-sec-col">
-            <button className="cf-play rank" onClick={p.onRanked} aria-disabled={!acc}>
-              <span className="cf-play-ic" aria-hidden><Icon name="trophy" size={26} /></span>
-              <span className="cf-play-text"><b>{tr('cf.mode.partie_classee')}</b><small>{acc ? tr('cf.mode.duel_contre_un_joueur_de_votre_2') : tr('cf.mode.avec_un_compte_gratuit')}</small></span>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden><path d="M9 6l6 6-6 6" /></svg>
-            </button>
-            <button className="cf-play bot" onClick={p.onBot}>
-              <span className="cf-play-ic" aria-hidden><Icon name="dice" size={24} /></span>
-              <span className="cf-play-text"><b>{tr('cf.game.contre_l_ordinateur')}</b><small>{acc ? tr('cf.mode.entrainement_3_niveaux') : tr('cf.mode.essai_gratuit_3_niveaux')}</small></span>
-            </button>
-            <button className="cf-play ami" onClick={p.onFriendsPlay}>
-              <span className="cf-play-ic" aria-hidden><Icon name="people" size={24} /></span>
-              <span className="cf-play-text"><b>{tr('cf.mode.entre_amis')}</b><small>{tr('cf.mode.de_2_a_4_joueurs')}</small></span>
-            </button>
-            <CfCampaignEntry profile={pa.profile} onOpen={p.onCampaign} />
-            <EnigmeEntry token={pa.token} acc={acc} onOpen={p.onEnigme} />
-            <TournamentCard token={pa.token} acc={acc} onOpen={p.onTournament} />
+        <button className="cf-play rank cf-play-main" onClick={p.onPlay}>
+          <span className="cf-play-ic" aria-hidden><svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l10.5-6.5z" /></svg></span>
+          <span className="cf-play-text"><b>{tr('cf.boardparts.jouer')}</b><small>{tr('cf.mode.jouer_sub')}</small></span>
+        </button>
+
+        <section className="cf-sec" aria-labelledby="cf-sec-defis">
+          <h2 id="cf-sec-defis">{tr('cf.mode.sec_defis')}</h2>
+          <div className="cf-tiles">
+            <CfCampaignEntry profile={pa.profile} onOpen={p.onCampaign} tile />
+            <EnigmeEntry token={pa.token} acc={acc} onOpen={p.onEnigme} tile />
+            <TournamentCard token={pa.token} acc={acc} onOpen={p.onTournament} tile />
           </div>
         </section>
 

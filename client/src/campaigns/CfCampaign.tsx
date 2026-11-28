@@ -72,12 +72,18 @@ function FamilyTags({ cards }: { cards: Record<string, number> }) {
 // ------------------------------------------------------------------------------------------------
 // Entrée du menu du mode
 
-export function CfCampaignEntry({ profile, onOpen }: { profile: Profile; onOpen: () => void }) {
+export function CfCampaignEntry({ profile, onOpen, tile }: { profile: Profile; onOpen: () => void; tile?: boolean }) {
   useLang();
   const prog = profile.ccf;
   const rep = ccfReputation(prog);
   const won = CCF_STAGES.filter((s) => (prog?.[s.id] ?? 0) & 1).length;
   const next = CCF_STAGES.find((s) => !((prog?.[s.id] ?? 0) & 1) && stageUnlocked(prog, s.id));
+  if (tile) return (
+    <button className="cf-tile" onClick={onOpen} title={next ? tr('ccf.menuNext', { name: ccfStageName(next.id) }) : undefined}>
+      <span className="cf-tile-art" aria-hidden><span className="ccf-tile-sign">{next ? ccfHost(next).avatar : '👑'}</span></span>
+      <b>{tr('cf.mode.t_campagne')}</b><small>★ {rep}/{CCF_MAX_STARS}</small>
+    </button>
+  );
   return (
     <button className="ccf-entry" onClick={onOpen}>
       <span className="ccf-entry-art" aria-hidden>

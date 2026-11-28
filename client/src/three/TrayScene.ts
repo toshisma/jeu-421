@@ -575,6 +575,14 @@ export class TrayScene {
     this.resize();
   }
 
+  private closeUp = 1;
+  /** Gros plan : distance de caméra multipliée (1 = tout le bac visible). */
+  setCloseUp(f: number) {
+    if (Math.abs(f - this.closeUp) < 0.001) return;
+    this.closeUp = f;
+    this.resize();
+  }
+
   setInsets(i: Insets) {
     this.insets = i;
     this.resize();
@@ -613,7 +621,7 @@ export class TrayScene {
       // Le bord du bac le plus proche de la caméra paraît plus large (perspective) : en jeu, la largeur se
       // vérifie à sa profondeur, pour ne jamais couper les coins avant du bac.
       const near = thumb ? 0 : depthHalf * Math.cos(elev) + TRAY.wallHeight * Math.sin(elev);
-      return { elev, dist: Math.max(acrossHalf / tanH + near, alongHalf / tanV) * (thumb ? this.thumbFit : 1.01) };
+      return { elev, dist: Math.max(acrossHalf / tanH + near, alongHalf / tanV) * (thumb ? this.thumbFit : 1.01 * this.closeUp) };
     };
     const P = fit(true), L = fit(false);
     // Orientation choisie sur la zone libre la plus petite attendue (barre d'action de son propre tour) :
@@ -674,6 +682,7 @@ export class TrayScene {
 
   private syncFromPoses() {
     this.dice.forEach((d, i) => this.applyPose(i, new THREE.Vector3(...d.pose.p), new THREE.Quaternion(...d.pose.q)));
+    this.frameDice();
   }
 
   /** Valeurs actuellement visibles sur la face supérieure de chaque dé. */
@@ -731,10 +740,34 @@ export class TrayScene {
     });
   }
 
+  /** Gros plan automatique sur les dés arrêtés (Coups Fourrés sur téléphone : dés trop petits sinon). */
+  private autoFrame = false;
+  private zoomK = 0.68;
+  setAutoFrame(on: boolean) {
+    this.autoFrame = on;
+    if (!on && this.zoomTarget && !this.playback) { this.zoomTarget = 0; this.invalidate(); }
+    else if (on) this.frameDice();
+  }
+  /** Cadre les dés visibles au repos : centre sur eux, rapproche autant que leur écartement le permet. */
+  private frameDice() {
+    if (!this.autoFrame || this.playback) return;
+    const shown = this.dice.filter((_, i) => !this.hidden[i]);
+    if (!shown.length) return;
+    const c = new THREE.Vector3();
+    for (const d of shown) c.add(new THREE.Vector3(d.mesh.position.x, 0, d.mesh.position.z));
+    c.divideScalar(shown.length);
+    let spread = 0;
+    for (const d of shown) spread = Math.max(spread, Math.hypot(d.mesh.position.x - c.x, d.mesh.position.z - c.z));
+    this.zoomK = Math.min(0.92, Math.max(0.5, (spread + 1.3) / Math.max(1, this.shape.halfX)));
+    this.zoomFocus.set(c.x, 0.5, c.z);
+    this.zoomTarget = 1;
+    this.invalidate();
+  }
+
   /** Rapproche la caméra des dés (zoom de 0 à 1) en gardant l'angle de vue. */
   private applyZoom() {
     const e = this.zoom * this.zoom * (3 - 2 * this.zoom);
-    const close = this.zoomFocus.clone().add(this.baseCam.clone().sub(new THREE.Vector3(0, 0, 0)).multiplyScalar(0.68));
+    const close = this.zoomFocus.clone().add(this.baseCam.clone().sub(new THREE.Vector3(0, 0, 0)).multiplyScalar(this.zoomK));
     this.camera.position.lerpVectors(this.baseCam, close, e);
     this.camera.lookAt(new THREE.Vector3().lerpVectors(new THREE.Vector3(0, 0, 0), this.zoomFocus, e));
   }
@@ -835,6 +868,8 @@ export class TrayScene {
     this.home = fin;
     this.syncFromPoses();
     this.playback = null;
+    if (pb.dramatic && this.autoFrame) { if (this.zoomTimer) clearTimeout(this.zoomTimer); this.zoomTimer = setTimeout(() => this.frameDice(), 1600); }
+    else this.frameDice();
     this.invalidate();
     pb.resolve();
   }
@@ -925,6 +960,7 @@ export class TrayScene {
       const scale = pb.dramatic && pb.frame > slowFrom ? 0.3 : 1;
       if (pb.dramatic && pb.frame > slowFrom - 10 && this.zoomTarget === 0) {
         this.zoomTarget = 1;
+        this.zoomK = 0.68;
         // Gros plan sur le centre des dés à leur position finale.
         this.zoomFocus.set(0, 0.5, 0);
         const n = pb.sim.finalPoses.length;
@@ -979,6 +1015,7 @@ export class TrayScene {
         this.applyPose(m.i, p, q);
         return t < 1;
       });
+      if (!this.moves.length) this.frameDice();
     }
     if (Math.abs(this.zoom - this.zoomTarget) > 0.002) {
       this.zoom += (this.zoomTarget - this.zoom) * Math.min(1, dt * (this.zoomTarget > this.zoom ? 2.2 : 1.6));

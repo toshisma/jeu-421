@@ -80,6 +80,9 @@ let rollSeed = 1;
 const nextSeed = () => (rollSeed = (Math.imul(rollSeed, 1664525) + 1013904223) >>> 0);
 
 export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onAgain, onAccount, onBags, online, endExtra, exitLabel }: Props) {
+  // Téléphone : dés en gros plan (Sam : « on ne voit même pas les dés »). Ordinateur : tout le bac.
+  const [phone, setPhone] = useState(() => typeof window !== 'undefined' && window.innerWidth < 700);
+  useEffect(() => { const f = () => setPhone(window.innerWidth < 700); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); }, []);
   const tray = useRef<DiceTrayHandle>(null);
   const [snap, setSnap] = useState<CfSnapshot | null>(null);
   const spectator = !!(controller as { spectator?: boolean }).spectator;
@@ -131,6 +134,8 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   const [notice, setNotice] = useState<{ text: string; key: number } | null>(null);
   const [now, setNow] = useState(Date.now());
   const tokRefs = useRef<Record<string, HTMLElement | null>>({});
+  /** Dernier état reçu (l'écran le rattrape après les animations). */
+  const latestSnap = useRef<CfSnapshot | null>(null);
   const trayDice = useRef<{ owner: string | null; dice: number[] }>({ owner: null, dice: [0, 0, 0] });
   // Moments forts à partager (4-2-1, retournement de veste, nénette, riposte décisive, victoire).
   const moments = useRef(new MomentTracker(controller.me));
@@ -326,7 +331,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
     controller.screen?.(false);
   }, [rollTray, showAnn, stripWait, spectator, controller]);
 
-  useEffect(() => controller.subscribe((s, events) => { queue.current.push({ snap: s, events }); void pump(); }), [controller, pump]);
+  useEffect(() => controller.subscribe((s, events) => { latestSnap.current = s; queue.current.push({ snap: s, events }); void pump(); }), [controller, pump]);
 
   // ----------------------------------------------------------------------------------------------
   const v = useMemo(() => {
@@ -443,6 +448,10 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
   // Écran de fin affiché : invitation à créer un compte (invités ; App décide).
   useGuestInviteAtEnd('cf', !!snap && (snap.finished || v?.phase === 'over') && !animating && !spectator);
 
+  const liveDice = (pid: string): number[] | null => {
+    const last = latestSnap.current?.view;
+    return last?.players.find((p) => p.id === pid)?.r.dice ?? null;
+  };
   if (!snap || !v || !meP) {
     return <div className="cfn-board"><div className="cfn-loading" role="status"><span className="cf-wait-spin" aria-hidden><i /><i /><i /></span>{tr('cf.game.preparation_de_la_table')}</div></div>;
   }
@@ -534,7 +543,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
       </div>
 
       <div className={`cfn-trayzone${fx('tray')}`}>
-        <DiceTray ref={tray} appearance={pa.profile.equipped} quality={settings.quality} onDieClick={onDie} cup={settings.cup} />
+        <DiceTray ref={tray} appearance={pa.profile.equipped} quality={settings.quality} onDieClick={onDie} cup={settings.cup} closeUp={phone ? 0.74 : 1} autoFrame={phone} />
         {/* Mes jetons et Tournées : petit badge dans le coin du bac (demande de Sam : pas une ligne entière). */}
         <div className={`cfn-bar corner${fx('me')}`}>
           <button className="cfn-me-name" onClick={() => setSheetOf(me)}>{spectator ? meP.name : tr('cf.boardparts.vous')}</button>
@@ -545,10 +554,10 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
             {myTraps.map((t) => <HabPin key={t.uid} id={t.id} trap onClick={() => t.id && setFiche({ id: t.id, trapUid: t.uid })} />)}
           </span>
         </div>
-        {canKeep && !josiane && (
+        {canKeep && !josiane && !phone && (
           <span className="cfn-keep" role="group" aria-label={tr('cf.game.des_a_garder')}>
             <em>{tr('cf.game.garder')}</em>
-            {meP.r.dice.map((d, i) => <button key={i} className={keep[i] ? 'on' : ''} aria-pressed={keep[i]} aria-label={tr('cf.game.garder_le', { d: d })} onClick={() => onDie(i)}><Pip v={d} size={24} on={keep[i]} /></button>)}
+            {meP.r.dice.map((d, i) => <button key={i} className={keep[i] ? 'on' : ''} aria-pressed={keep[i]} aria-label={tr('cf.game.garder_le', { d: d })} onClick={() => onDie(i)}><Pip v={d} size={30} on={keep[i]} /></button>)}
           </span>
         )}
         {bigShot && (
@@ -560,7 +569,12 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
 
       <div className="cfn-me">
         <div className="cfn-count-row">
-          {mine && playable > 0 && !discardMode && <span className="cfn-count"><i aria-hidden />{plural(playable, 'carte')}{tr('cf.game.jouable')}{playable > 1 ? 's' : ''}{tr('cf.game.maintenant')}</span>}
+          {/* Téléphone : « Garder » ici, sous le bac (il ne couvre plus les dés en gros plan). */}
+          {canKeep && !josiane && phone ? <span className="cfn-keep below" role="group" aria-label={tr('cf.game.des_a_garder')}>
+          <em>{tr('cf.game.garder')}</em>
+          {meP.r.dice.map((d, i) => <button key={i} className={keep[i] ? 'on' : ''} aria-pressed={keep[i]} aria-label={tr('cf.game.garder_le', { d: d })} onClick={() => onDie(i)}><Pip v={d} size={30} on={keep[i]} /></button>)}
+        </span>
+          : mine && playable > 0 && !discardMode && <span className="cfn-count"><i aria-hidden />{plural(playable, 'carte')}{tr('cf.game.jouable')}{playable > 1 ? 's' : ''}{tr('cf.game.maintenant')}</span>}
           {discardMode && <span className="cfn-count violet">{tr('cf.game.touchez_une_carte_a_defausser')}{hand.length}/{v.rules.handMax})</span>}
           {moment && !mine && <button className="cfn-share" disabled={sharing} onClick={() => void share(moment)}><Icon name="share" size={14} />{tr('cf.game.partager_ce_coup')}</button>}
         </div>
@@ -583,6 +597,8 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         </div>
       </div>
 
+      {/* Temps restant toujours visible, même quand une fiche ou une fenêtre couvre le bandeau (Sam : « il nous faut un timer »). */}
+      {clock && (fiche || journal || help || rules || sheetOf || trapOf) && <div className={`cfn-clock-float${clock.low ? ' low' : ''}`} role="timer" aria-live="off">⏱ {clock.text}</div>}
       {ann && <AnnounceView a={ann} leaving={annOut} onDone={skipAnn} spectator={spectator} me={spectator ? '' : me} v={annView.current ?? v} />}
       {toast && <div key={toast.key} className="cf-toast is-err" role="alert">{toast.text}</div>}
 
@@ -594,7 +610,7 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         againLabel={isTuto ? tr('cf.game.contre_l_ordinateur') : undefined} extra={endExtra?.(snap)} exitLabel={exitLabel}
         onShare={spectator || isTuto || !moments.current.best() ? undefined : () => { const m = moments.current.best(); if (m) void share(m); }} sharing={sharing} />}
 
-      {fiche && <Fiche key={`${fiche.uid ?? fiche.id}`} t={fiche} v={v} legal={legal} snapLegal={snap.legal} pending={pending} discard={discardMode} onAct={act} onClose={() => setFiche(null)}
+      {fiche && <Fiche key={`${fiche.uid ?? fiche.id}`} t={fiche} v={v} legal={legal} liveDice={liveDice} snapLegal={snap.legal} pending={pending} discard={discardMode} onAct={act} onClose={() => setFiche(null)}
         tuto={isTuto && guide ? guide.text : null} />}
       {trapOf && v.players.find((p) => p.id === trapOf) && <TrapSheet owner={v.players.find((p) => p.id === trapOf)!} v={v} onClose={() => setTrapOf(null)} onCard={(id) => { setTrapOf(null); setFiche({ id, owner: trapOf }); }} />}
       {sheetOf && v.players.find((p) => p.id === sheetOf) && <PlayerSheet p={v.players.find((p) => p.id === sheetOf)!} v={v} seat={seat(sheetOf)} me={sheetOf === me && !spectator} last={lastOf(sheetOf)}

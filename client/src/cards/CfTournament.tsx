@@ -56,7 +56,7 @@ export function untilLabel(ms: number): string {
 const STAGES = [tr('cf.tournament.vainqueur'), tr('cf.tournament.finaliste'), tr('cf.tournament.demi_finalistes')];
 
 /** Carte « Tournoi du samedi » du menu du mode. */
-export function TournamentCard({ token, acc, onOpen }: { token: Tok; acc: boolean; onOpen: () => void }) {
+export function TournamentCard({ token, acc, onOpen, tile }: { token: Tok; acc: boolean; onOpen: () => void; tile?: boolean }) {
   const { tour, skew } = useCfTour(acc ? token : null, 30_000);
   const now = useNow(skew, 15_000);
   let line = tr('cf.tournament.samedi_20_h_30_elimination_directe');
@@ -73,6 +73,12 @@ export function TournamentCard({ token, acc, onOpen }: { token: Tok; acc: boolea
       pill = tour.registered ? { text: tr('cf.tournament.inscrit'), cls: 'ok' } : { text: tr('cf.tournament.s_inscrire'), cls: 'gold' };
     }
   }
+  if (tile) return (
+    <button className={`cf-tile${pill.cls === 'live' ? ' hot' : ''}`} onClick={onOpen} title={line}>
+      <span className="cf-tile-art" aria-hidden><Icon name="trophy" size={26} /></span>
+      <b>{tr('cf.mode.t_tournoi')}</b><small>{pill.text}</small>
+    </button>
+  );
   return (
     <button className="cf-tour-card" onClick={onOpen}>
       <span className="cf-tour-ic" aria-hidden><Icon name="trophy" size={24} /></span>

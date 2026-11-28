@@ -535,9 +535,11 @@ export function RespondPanel({ v, legal, pending, onAct, deadline, focus, tuto }
 export interface FicheTarget { uid?: string; id: string; owner?: string | null; trapUid?: string }
 
 /** Fiche d'une carte (prototype 5) : carte en grand, « Maintenant : … », Jouer, choix des paramètres. */
-export function Fiche({ t, v, legal, snapLegal, pending, discard, onAct, onClose, tuto }: {
+export function Fiche({ t, v, legal, snapLegal, pending, discard, onAct, onClose, tuto, liveDice }: {
   t: FicheTarget; v: CfView; legal: CfAction[]; snapLegal: CfAction[]; pending: boolean; discard: boolean;
   onAct: (a: CfAction) => void; onClose: () => void; tuto?: string | null;
+  /** Dés réels d'un joueur (dernier état reçu) : l'écran peut avoir un temps de retard pendant les animations. */
+  liveDice?: (pid: string) => number[] | null;
 }) {
   const d = def(t.id)!;
   const opts = t.uid ? playOptions(legal, t.uid) : [];
@@ -571,7 +573,7 @@ export function Fiche({ t, v, legal, snapLegal, pending, discard, onAct, onClose
         {related && <RelatedCard id={related.id} label={related.label} />}
         {now && <div className={`cfn-now${playable || discard ? '' : ' no'}`}>{now}</div>}
         {playable && choosing && next && (
-          <ParamChooser k={next} v={v} cardId={t.id === 'grand-enchainement' ? me.r.lastCoup ?? t.id : t.id} opts={opts} chosen={chosen}
+          <ParamChooser k={next} v={v} cardId={t.id === 'grand-enchainement' ? me.r.lastCoup ?? t.id : t.id} opts={opts} chosen={chosen} liveDice={liveDice}
             onPick={(k, x) => setChosen((c) => ({ ...c, [k]: x }))} />
         )}
         {discard && mineInHand && <button className="cfn-act violet full" disabled={pending} onClick={() => onAct({ type: 'discard', card: t.uid! })}>{tr('cf.boardparts.defausser')}</button>}
@@ -607,14 +609,18 @@ export function RelatedCard({ id, label }: { id: string; label: string }) {
   );
 }
 
-function ParamChooser({ k, v, cardId, opts, chosen, onPick }: { k: ParamKey; v: CfView; cardId: string; opts: PlayParams[]; chosen: PlayParams; onPick: (k: ParamKey, x: string | number) => void }) {
+function ParamChooser({ k, v, cardId, opts, chosen, onPick, liveDice }: { k: ParamKey; v: CfView; cardId: string; opts: PlayParams[]; chosen: PlayParams; onPick: (k: ParamKey, x: string | number) => void; liveDice?: (pid: string) => number[] | null }) {
   const vals = valuesFor(opts, chosen, k);
   const me = meOf(v);
   // Cible choisie, ou seule cible possible (en duel, elle n'est pas demandée) : c'est SES dés qu'on montre.
   const targetIds = [...new Set(filterOptions(opts, chosen).map((o) => o.target).filter(Boolean))];
   const targetId = chosen.target ?? (targetIds.length === 1 ? targetIds[0] : undefined);
   const target = targetId ? v.players.find((p) => p.id === targetId) : undefined;
-  const diceOf = cardId === 'de-sous-table' && target ? target.r.dice : me.r.dice;
+  const who = cardId === 'de-sous-table' && target ? target : me;
+  // Dés pas encore à jour à l'écran (animations en cours) : on prend les vrais (Sam : « il n'y a pas les numéros »).
+  const shown = who.r.dice;
+  const live = liveDice?.(who.id);
+  const diceOf = shown.some((x) => !x) && live && live.every((x) => x > 0) ? live : shown;
   const question = k === 'die' && cardId === 'de-sous-table' && target
     ? (target.id === me.id ? tr('cf.boardparts.quel_de_vos_des_relancer') : tr('cf.boardparts.quel_de_de_relancer', { name: target.name }))
     : paramQuestion(k, cardId);
@@ -778,20 +784,48 @@ export function Mulligan({ v, legal, pending, onAct, clock }: { v: CfView; legal
   const action = legal.find((a) => a.type === 'mulligan' && [...a.cards].sort().join() === [...back].sort().join());
   return (
     <div className="cf-modal" role="dialog" aria-modal="true" aria-label={tr('cf.boardparts.main_de_depart')}>
-      <div className="cf-modal-card">
+      <div className="cf-modal-card cf-mull-card">
         <h3>{tr('cf.boardparts.votre_main_de_depart')}</h3>
         <p>{tr('cf.boardparts.choisissez_jusqu_a')}{max}{tr('cf.boardparts.cartes_a_changer_elles_repartent_sou')}{clock ? ` · ${clock}` : ''}</p>
-        <div className="cf-mull-grid">
-          {hand.map((k) => {
-            const on = back.includes(k.uid);
-            return (
-              <button key={k.uid} className={`cf-mull${on ? ' out' : ''}`} onClick={() => setBack((b) => (on ? b.filter((x) => x !== k.uid) : b.length < max ? [...b, k.uid] : b))} aria-pressed={on}>
-                <CardView id={k.id} width={Math.min(140, (vw() - 72) / 2)} dimmed={on} />
-                {on && <span className="cf-mull-tag">{tr('cf.boardparts.a_changer')}</span>}
-              </button>
-            );
-          })}
-        </div>
+        {vw() < 700 ? (
+          // Téléphone (Sam : « c'est très petit, ça ne va pas ») : une carte par ligne, nom et effet en entier à côté.
+          <div className="cf-mull-list">
+            {hand.map((k) => {
+              const d = cardDef(k.id);
+              if (!d) return null;
+              const on = back.includes(k.uid);
+              const m = TYPE_META[d.type];
+              const [, bold] = splitEmphasis(k.id, d.text);
+              const toggle = () => setBack((b) => (on ? b.filter((x) => x !== k.uid) : b.length < max ? [...b, k.uid] : b));
+              return (
+                <div key={k.uid} className={`cf-pick-row cf-mull-row${on ? ' out' : ''}`}>
+                  <span className="cf-pick-card" role="button" tabIndex={0} aria-label={tr('cf.boardparts.lire_en_grand_3', { name: d.name })} onClick={() => zoomCard(k.id)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); zoomCard(k.id); } }}>
+                    <HandCard id={k.id} small />
+                    <ZoomBtn id={k.id} />
+                  </span>
+                  <span className="cf-pick-tx">
+                    <b>{d.name}</b>
+                    <small style={{ color: m.color }}><TypeIcon type={d.type} size={11} />{m.label}{tr('cf.boardparts.cout_3')}{d.cost}</small>
+                    <span className="cf-pick-text"><GlossText text={d.text} bold={bold || undefined} /></span>
+                    <button className={`cfn-act slim cf-mull-btn${on ? ' on' : ''}`} aria-pressed={on} disabled={!on && back.length >= max} onClick={toggle}>{on ? tr('cf.boardparts.mull_on') : tr('cf.boardparts.mull_changer')}</button>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="cf-mull-grid">
+            {hand.map((k) => {
+              const on = back.includes(k.uid);
+              return (
+                <button key={k.uid} className={`cf-mull${on ? ' out' : ''}`} onClick={() => setBack((b) => (on ? b.filter((x) => x !== k.uid) : b.length < max ? [...b, k.uid] : b))} aria-pressed={on}>
+                  <CardView id={k.id} width={200} dimmed={on} />
+                  {on && <span className="cf-mull-tag">{tr('cf.boardparts.a_changer')}</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <button className="cf-btn gold big" disabled={pending || !action} onClick={() => action && onAct(action)}>{back.length ? tr('cf.boardparts.changer_2', { cartes: plural(back.length, 'carte') }) : tr('cf.boardparts.garder_ma_main')}</button>
       </div>
     </div>

@@ -7,6 +7,14 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.64', date: '2026-11-28T05:55:00+01:00', title: 'Coups Fourrés : plus simple et plus lisible sur téléphone', items: [
+    'Un seul gros bouton « Jouer » : on choisit ensuite contre l’ordinateur, en classé ou entre amis. Campagne, énigme et tournoi sont rangés dans « Défis ».',
+    'Sur téléphone, les dés se rapprochent une fois arrêtés : ils sont bien plus grands. Le choix des dés à garder passe sous le bac.',
+    'Main de départ lisible sur téléphone : une carte par ligne, avec son effet écrit en entier ; sur ordinateur, des cartes plus grandes.',
+    'Les pièges, ripostes et cartes annulées restent affichés bien plus longtemps (toucher l’annonce la passe).',
+    'Le temps qu’il vous reste reste visible en haut de l’écran, même quand une carte est ouverte.',
+    'Correction : en choisissant un dé pour une carte, les dés s’affichaient parfois sans leurs points.',
+  ] },
   { version: '0.63', date: '2026-11-28T05:45:00+01:00', title: 'Coups Fourrés : des cartes plus lisibles', items: [
     'En partie, vos jetons et vos Tournées tiennent dans un petit badge en haut à gauche du bac, et ceux de l’adversaire sur la ligne de son nom.',
     'La place gagnée va aux cartes en main : plus grandes, avec ce que fait chaque carte écrit en entier, sur téléphone comme sur ordinateur.',

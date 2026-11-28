@@ -66,8 +66,14 @@ function useEnigmeStatus(token: Tok, acc: boolean): { done: boolean; score?: num
 }
 
 /** Entrée bien visible dans le menu du mode. */
-export function EnigmeEntry({ token, acc, onOpen }: { token: Tok; acc: boolean; onOpen: () => void }) {
+export function EnigmeEntry({ token, acc, onOpen, tile }: { token: Tok; acc: boolean; onOpen: () => void; tile?: boolean }) {
   const st = useEnigmeStatus(token, acc);
+  if (tile) return (
+    <button className={`cf-tile${st?.done ? ' done' : ''}`} onClick={onOpen}>
+      <span className="cf-tile-art enigme" aria-hidden><Pip v={4} size={15} /><Pip v={2} size={15} /><Pip v={1} size={15} /></span>
+      <b>{tr('cf.mode.t_enigme')}</b><small>{st?.done ? tr('cf.mode.t_enigme_done') : tr('cf.mode.t_enigme_todo')}</small>
+    </button>
+  );
   const sub = st?.done
     ? tr('cf.enigme.resolue_jeton_sur', { score: (st.score)!, s: (st.score ?? 0) > 1 ? 's' : '', best: (st.best)!, a: st.streak > 1 ? tr('cf.enigme.serie_de_jours', { streak: st.streak }) : '' })
     : tr('cf.enigme.une_fin_de_tour_a_resoudre', { a: acc ? tr('cf.enigme.jusqu_a_capsules', { best: ENIGME_CAPSULES.best }) : '' });

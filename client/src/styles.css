@@ -5407,3 +5407,40 @@ button.mode-chip { cursor: pointer; }
   .cfn-hand .cfn-hc .fx { font-size: 13px; -webkit-line-clamp: 6; }
   .cfn-hand .cfn-hc .ty { font-size: 9.5px; }
 }
+
+/* --- Coups Fourrés 0.64 : menu « Jouer » unique, défis en tuiles, main de départ lisible --- */
+.cf-play-main { flex: none; padding: 14px 16px; }
+.cf-play-main .cf-play-text b { font-size: 26px; }
+.cf-play-main .cf-play-ic { width: 48px; height: 48px; }
+.cf-play-choices { display: flex; flex-direction: column; gap: 10px; }
+.cf-play-choices .cf-play { min-height: 66px; }
+.cf-tile-art.enigme { display: flex; gap: 2px; align-items: center; }
+.ccf-tile-sign { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; font-size: 17px; background: radial-gradient(circle at 50% 40%, #3a2414, #120a06); box-shadow: 0 0 0 2px #f1cc7d; }
+.cf-tile.done { border-color: rgba(127,224,178,0.5); }
+/* Main de départ : sur téléphone, une ligne par carte (texte entier) ; bouton du bas toujours visible. */
+.cf-mull-card { padding-bottom: 0; }
+.cf-mull-card > .cf-btn.big { position: sticky; bottom: 0; z-index: 2; margin: 0 -16px; width: calc(100% + 32px); border-radius: 0 0 20px 20px; box-shadow: 0 -8px 16px rgba(20,12,34,.9); }
+.cf-mull-list { display: flex; flex-direction: column; gap: 8px; }
+.cf-mull-row { transition: opacity .15s, border-color .15s; }
+.cf-mull-row.out { border-color: #e04a3a; background: rgba(224,74,58,.12); }
+.cf-mull-row.out .cf-pick-card { opacity: .5; }
+.cf-mull-btn { flex: none; height: 38px; font-size: 16px; }
+.cf-mull-btn.on { background: #e04a3a; border-color: #ff8a7a; }
+@media (min-width: 700px) {
+  .cf-mull-card { width: min(760px, 100%); }
+  .cf-mull-grid { grid-template-columns: repeat(3, auto); gap: 14px; }
+}
+/* Ordinateur : menu de Coups Fourrés sur deux colonnes (Jouer et Défis à gauche, cartes et progression à droite). */
+@media (min-width: 900px) {
+  .cf-menu-main { max-width: 980px; display: grid; grid-template-columns: 1fr 1fr; column-gap: 22px; align-content: start; }
+  .cf-menu-main > * { grid-column: 1 / -1; }
+  .cf-menu-main > .cf-play-main { grid-column: 1; grid-row: span 1; }
+  .cf-menu-main > .cf-sec:nth-of-type(n) { grid-column: auto; }
+}
+.cf-mull-card > .cf-btn.big { z-index: 6; }
+.cf-mull-list .cf-pick-card { z-index: 0; }
+.cfn-board > .cf-modal { max-width: none; margin: 0; }
+@media (min-width: 700px) { .cf-mull-grid { grid-template-columns: repeat(3, 200px); } }
+.cfn-clock-float { position: fixed; z-index: 120; top: max(8px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: auto !important; padding: 7px 14px; border-radius: 999px; background: #f1cc7d; color: #2a1a05; font: 800 17px/1 'Barlow Condensed', sans-serif; box-shadow: 0 4px 14px rgba(0,0,0,.55); pointer-events: none; }
+.cfn-clock-float.low { background: #e04a3a; color: #fff; animation: cf-tour-pulse 1s ease-in-out infinite; }
+.cfn-keep.below { position: static; transform: none; padding: 2px 6px 2px 10px; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.14); }
