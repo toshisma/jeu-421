@@ -7,6 +7,10 @@
 export interface ChangelogEntry { version: string; date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { version: '0.63', date: '2026-11-28T05:45:00+01:00', title: 'Coups Fourrés : des cartes plus lisibles', items: [
+    'En partie, vos jetons et vos Tournées tiennent dans un petit badge en haut à gauche du bac, et ceux de l’adversaire sur la ligne de son nom.',
+    'La place gagnée va aux cartes en main : plus grandes, avec ce que fait chaque carte écrit en entier, sur téléphone comme sur ordinateur.',
+  ] },
   { version: '0.62', date: '2026-11-28T05:10:00+01:00', title: 'Coups Fourrés : un menu mieux rangé', items: [
     'Le menu de Coups Fourrés est rangé en trois parties : « Jouer » (toutes les façons de lancer une partie, l’une sous l’autre), « Mes cartes et decks » et « Progression et aide ».',
   ] },

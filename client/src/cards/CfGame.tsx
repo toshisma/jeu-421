@@ -535,6 +535,16 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
 
       <div className={`cfn-trayzone${fx('tray')}`}>
         <DiceTray ref={tray} appearance={pa.profile.equipped} quality={settings.quality} onDieClick={onDie} cup={settings.cup} />
+        {/* Mes jetons et Tournées : petit badge dans le coin du bac (demande de Sam : pas une ligne entière). */}
+        <div className={`cfn-bar corner${fx('me')}`}>
+          <button className="cfn-me-name" onClick={() => setSheetOf(me)}>{spectator ? meP.name : tr('cf.boardparts.vous')}</button>
+          <Tokens n={meP.tokens} refEl={(el) => { tokRefs.current[me] = el; }} />
+          <span className="cfn-me-t" aria-label={plural(meP.tournees, 'Tournée')}>🍺 {meP.tournees}<small>{tr('cf.game.tournee')}{meP.tournees > 1 ? 's' : ''}</small></span>
+          <span className="cfn-pins">
+            {meP.habitues.map((h) => <HabPin key={h.uid} id={h.id} rounds={h.rounds} onClick={() => setFiche({ id: h.id, owner: me, uid: h.uid })} />)}
+            {myTraps.map((t) => <HabPin key={t.uid} id={t.id} trap onClick={() => t.id && setFiche({ id: t.id, trapUid: t.uid })} />)}
+          </span>
+        </div>
         {canKeep && !josiane && (
           <span className="cfn-keep" role="group" aria-label={tr('cf.game.des_a_garder')}>
             <em>{tr('cf.game.garder')}</em>
@@ -559,16 +569,6 @@ export function CfGame({ controller, mode, settings, onSettings, pa, onExit, onA
         ) : hand.length > 0 ? (
           <Hand cards={hand} hints={hints} sel={fiche?.uid ?? null} focus={focus === 'hand'} quiet={!mine} onPick={pickCard} />
         ) : <div className="cfn-hand-empty">{tr('cf.game.aucune_carte_en_main')}</div>}
-        <div className={`cfn-bar${fx('me')}`}>
-          <button className="cfn-me-name" onClick={() => setSheetOf(me)}>{spectator ? meP.name : tr('cf.boardparts.vous')}</button>
-          <Tokens n={meP.tokens} refEl={(el) => { tokRefs.current[me] = el; }} label />
-          <span className="cfn-me-t" aria-label={plural(meP.tournees, 'Tournée')}>🍺 {meP.tournees}<small>{tr('cf.game.tournee')}{meP.tournees > 1 ? 's' : ''}</small></span>
-          <span className="cfn-pins">
-            {meP.habitues.map((h) => <HabPin key={h.uid} id={h.id} rounds={h.rounds} onClick={() => setFiche({ id: h.id, owner: me, uid: h.uid })} />)}
-            {myTraps.map((t) => <HabPin key={t.uid} id={t.id} trap onClick={() => t.id && setFiche({ id: t.id, trapUid: t.uid })} />)}
-          </span>
-          <span className="cfn-grow" />
-        </div>
         <EffectChips list={activeEffects(v, meP, !spectator)} onCard={(id) => setFiche({ id, owner: me })} />
         <div className="cfn-actions">
           {myTurn && meP.r.throwsUsed === 0 && <button className={`cfn-act roll${fx('roll')}`} disabled={pending || !legal.some((a) => a.type === 'roll')} onClick={roll}><Icon name="dice" size={20} />{tr('cf.game.lancer_les_des')}</button>}

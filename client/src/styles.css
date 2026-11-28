@@ -5378,3 +5378,32 @@ button.mode-chip { cursor: pointer; }
 .cf-sec-col .ccf-entry-art i.cf-ivr { left: 8px; } .cf-sec-col .ccf-entry-art i.cf-pie { left: 16px; } .cf-sec-col .ccf-entry-art i.cf-cha { left: 24px; }
 .cf-sec-col .ccf-entry-text b { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cf-sec-col .ccf-entry-kicker { font-size: 9.5px; }
+
+/* --- Coups Fourrés, écran de partie (0.63) : mes jetons et Tournées dans un petit badge en haut à gauche du bac
+   (plus une ligne entière), la place gagnée va aux cartes en main, plus hautes, avec tout leur effet écrit. --- */
+.cfn-bar.corner { position: absolute; z-index: 3; top: 8px; left: 8px; max-width: calc(100% - 16px); flex-wrap: wrap; gap: 4px 7px; padding: 4px 9px 4px 8px; border-radius: 12px; background: rgba(10,6,18,.72); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 2px 8px rgba(0,0,0,.45); backdrop-filter: blur(2px); }
+.cfn-bar.corner .cfn-me-name { font-size: 10.5px; }
+.cfn-bar.corner .cfn-chip { padding: 0; background: none; border: 0; box-shadow: none; font: 800 17px/1 'Barlow Condensed', sans-serif; gap: 4px; }
+.cfn-bar.corner .cfn-me-t { font-size: 17px; }
+.cfn-bar.corner .cfn-me-t small { display: none; }
+.cfn-bar.corner .cfn-pins:empty { display: none; }
+.cfn-bar.corner .cfn-pin { width: 24px; height: 24px; }
+.cfn-hand .cfn-hc { width: 104px; height: 180px; }
+.cfn-hand.small .cfn-hc { width: 100px; height: 166px; }
+.cfn-hand .cfn-hc .fx { font-size: 11.5px; line-height: 1.2; -webkit-line-clamp: 6; }
+.cfn-hand.small .cfn-hc .fx { font-size: 11px; -webkit-line-clamp: 5; }
+.cfn-hand .cfn-hc b { font-size: 12px; }
+.cfn-hand.small .cfn-hc b { font-size: 11.5px; }
+.cfn-hand.small .cfn-hc .a { height: 46px; }
+/* Adversaire en duel : jetons sur la ligne du nom, à droite (plus de ligne pour eux seuls). */
+.cfn-pbox.wide .cfn-pbox-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; row-gap: 4px; align-items: center; }
+.cfn-pbox.wide .cfn-pbox-main > .tk { grid-column: 2; grid-row: 1; margin-right: 4px; font-size: 20px; }
+.cfn-pbox.wide .cfn-pbox-main > .nm { grid-column: 1; grid-row: 1; }
+.cfn-pbox.wide .cfn-pbox-main > :not(.nm):not(.tk):not(.more) { grid-column: 1 / -1; }
+@media (min-width: 700px) and (min-height: 720px) {
+  .cfn-hand .cfn-hc, .cfn-hand.small .cfn-hc { width: 128px; height: 204px; }
+  .cfn-hand .cfn-hc .a { height: 62px; }
+  .cfn-hand .cfn-hc b { font-size: 13.5px; }
+  .cfn-hand .cfn-hc .fx { font-size: 13px; -webkit-line-clamp: 6; }
+  .cfn-hand .cfn-hc .ty { font-size: 9.5px; }
+}
